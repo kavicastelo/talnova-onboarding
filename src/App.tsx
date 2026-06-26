@@ -10,9 +10,15 @@ import { EmployeeProfile } from './pages/EmployeeProfile';
 import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Analytics } from './pages/Analytics';
 import { Settings } from './pages/Settings';
-import { RoleProvider } from './context/RoleContext';
+import { Certificates } from './pages/Certificates';
+import { RoleProvider, useRole } from './context/RoleContext';
 import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
+
+function DashboardRedirect() {
+  const { role } = useRole();
+  return role === 'admin' ? <AdminDashboard /> : <EmployeeDashboard />;
+}
 
 export function App() {
   useScreenInit();
@@ -21,7 +27,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppShell />}>
-            <Route index element={<AdminDashboard />} />
+            <Route index element={<DashboardRedirect />} />
             <Route path="journeys" element={<JourneysList />} />
             <Route path="journeys/:id" element={<JourneyBuilder />} />
             <Route path="directory" element={<EmployeeDirectory />} />
@@ -30,6 +36,7 @@ export function App() {
             <Route path="kb" element={<KnowledgeBase />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="certificates" element={<Certificates />} />
             <Route
               path="*"
               element={
