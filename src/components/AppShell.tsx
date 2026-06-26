@@ -56,6 +56,8 @@ import { useRole, Role } from '../context/RoleContext';
 import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useSettings';
+import { authService } from '../services/auth.service';
+import { toast } from 'sonner';
 interface NavItem {
   title: string;
   url: string;
@@ -113,7 +115,7 @@ const employeeNav: NavItem[] = [
   },
   {
     title: 'Certificates',
-    url: '/employee',
+    url: '/certificates',
     icon: Award
   }];
 
@@ -125,7 +127,8 @@ const labelByPath: Record<string, string> = {
   kb: 'Knowledge Base',
   settings: 'Settings',
   employee: 'Home',
-  course: 'Course'
+  course: 'Course',
+  certificates: 'My Certificates'
 };
 function titleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -135,6 +138,18 @@ export function AppShell() {
   const navigate = useNavigate();
   const { role, setRole } = useRole();
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      toast.success('Successfully logged out.');
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err) {
+      toast.error('Failed to log out.');
+    }
+  };
   useCommandPaletteHotkey(setPaletteOpen);
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: notifications = [] } = useNotifications();
@@ -244,12 +259,12 @@ export function AppShell() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => navigate('/directory/1')}>Profile</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => navigate('/settings')}>
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Log out</DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleLogout}>Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarFooter>

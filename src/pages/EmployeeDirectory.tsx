@@ -14,13 +14,66 @@ import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
 import { Plus, Search, Filter, AlertCircle, RefreshCw } from 'lucide-react';
-import { useEmployees } from '../hooks/useEmployees';
+import { useEmployees, useCreateEmployee } from '../hooks/useEmployees';
 import { Input } from '../components/Input';
 import { Link } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from '../components/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '../components/Select';
+import { toast } from 'sonner';
 
 export function EmployeeDirectory() {
   const [search, setSearch] = useState('');
   const { data: employees = [], isLoading, isError, error, refetch } = useEmployees({ search });
+  const createEmployee = useCreateEmployee();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [roleName, setRoleName] = useState('');
+  const [department, setDepartment] = useState('');
+
+  const handleInvite = () => {
+    if (!name || !email || !roleName || !department) {
+      toast.error('All fields are required.');
+      return;
+    }
+    createEmployee.mutate(
+      {
+        name,
+        email,
+        role: roleName,
+        department,
+        status: 'Onboarding',
+        progress: 0
+      },
+      {
+        onSuccess: () => {
+          toast.success('Employee invited successfully!');
+          setDialogOpen(false);
+          setName('');
+          setEmail('');
+          setRoleName('');
+          setDepartment('');
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || 'Failed to invite employee.');
+        }
+      }
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -31,10 +84,57 @@ export function EmployeeDirectory() {
             Manage employees and track their progress.
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Invite Employee
-        </Button>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Invite Employee
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Invite Employee</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Full Name</label>
+                <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Jane Doe" />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Email Address</label>
+                <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder="jane@company.com" />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Role / Title</label>
+                <Input value={roleName} onChange={(e: any) => setRoleName(e.target.value)} placeholder="Software Engineer" />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Department</label>
+                <Select value={department} onValueChange={setDepartment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Engineering">Engineering</SelectItem>
+                    <SelectItem value="Product">Product</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Operations">Operations</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleInvite} disabled={createEmployee.isPending}>
+                {createEmployee.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                Send Invitation
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex items-center gap-2">

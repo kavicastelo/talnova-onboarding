@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRole } from '../context/RoleContext';
 import {
   Command,
   CommandInput,
@@ -18,7 +19,8 @@ import {
   BarChart2,
   Settings,
   GraduationCap,
-  UserRound
+  UserRound,
+  Award
 } from
   'lucide-react';
 import { useJourneys } from '../hooks/useJourneys';
@@ -63,10 +65,16 @@ const pages = [
     title: 'My Learning (Employee)',
     url: '/employee',
     icon: GraduationCap
+  },
+  {
+    title: 'Certificates',
+    url: '/certificates',
+    icon: Award
   }];
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
+  const { role } = useRole();
   const { data: journeys = [] } = useJourneys();
   const { data: employees = [] } = useEmployees();
 
@@ -74,6 +82,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     onOpenChange(false);
     navigate(url);
   };
+
+  const allowedPages = pages.filter((p) => {
+    if (role === 'employee') {
+      return p.url === '/employee' || p.url === '/kb' || p.url === '/certificates';
+    }
+    return p.url !== '/employee' && p.url !== '/certificates';
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden p-0 shadow-lg sm:max-w-lg">
@@ -82,7 +98,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           <CommandInput placeholder="Search pages, journeys, employees…" />
           <CommandList>
             <CommandGroup heading="Navigate">
-              {pages.map((p) =>
+              {allowedPages.map((p) =>
                 <CommandItem
                   key={p.url}
                   value={`page ${p.title}`}
@@ -99,7 +115,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <CommandItem
                   key={j.id}
                   value={`journey ${j.title}`}
-                  onSelect={() => go(`/journeys/${j.id}`)}>
+                  onSelect={() => go(role === 'admin' ? `/journeys/${j.id}` : `/course/${j.id}`)}>
 
                   <Map className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span>{j.title}</span>

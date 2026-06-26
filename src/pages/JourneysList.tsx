@@ -24,25 +24,33 @@ import {
 } from
   '../components/DropdownMenu';
 import { Link } from 'react-router-dom';
+import { useRole } from '../context/RoleContext';
 
 export function JourneysList() {
   const { data: journeys = [], isLoading, isError, error, refetch } = useJourneys();
+  const { role } = useRole();
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Journeys</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {role === 'admin' ? 'Journeys' : 'My Learning'}
+          </h1>
           <p className="text-muted-foreground">
-            Manage onboarding and training journeys.
+            {role === 'admin'
+              ? 'Manage onboarding and training journeys.'
+              : 'View and complete your assigned training journeys.'}
           </p>
         </div>
-        <Button asChild>
-          <Link to="/journeys/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Journey
-          </Link>
-        </Button>
+        {role === 'admin' && (
+          <Button asChild>
+            <Link to="/journeys/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Journey
+            </Link>
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -51,10 +59,14 @@ export function JourneysList() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Enrolled</TableHead>
-              <TableHead>Completion</TableHead>
+              {role === 'admin' ? (
+                <>
+                  <TableHead>Enrolled</TableHead>
+                  <TableHead>Completion</TableHead>
+                </>
+              ) : null}
               <TableHead>Last Updated</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              {role === 'admin' && <TableHead className="w-[50px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -64,16 +76,20 @@ export function JourneysList() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-10" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                  {role === 'admin' ? (
+                    <>
+                      <TableCell><Skeleton className="h-5 w-10" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                    </>
+                  ) : null}
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
+                  {role === 'admin' && <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>}
                 </TableRow>
               ))
             ) : isError ? (
               // Error State
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
+                <TableCell colSpan={role === 'admin' ? 6 : 3} className="h-32 text-center">
                   <div className="flex flex-col items-center justify-center gap-2 text-destructive">
                     <AlertCircle className="h-8 w-8" />
                     <p className="font-semibold">Failed to load journeys</p>
@@ -87,7 +103,7 @@ export function JourneysList() {
             ) : journeys.length === 0 ? (
               // Empty State
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={role === 'admin' ? 6 : 3} className="h-32 text-center text-muted-foreground">
                   <p className="font-medium">No journeys found</p>
                   <p className="text-xs">Create one to get started with onboarding.</p>
                 </TableCell>
@@ -98,7 +114,7 @@ export function JourneysList() {
                 <TableRow key={journey.id}>
                   <TableCell className="font-medium">
                     <Link
-                      to={`/journeys/${journey.id}`}
+                      to={role === 'admin' ? `/journeys/${journey.id}` : `/course/${journey.id}`}
                       className="hover:underline">
                       {journey.title}
                     </Link>
@@ -111,25 +127,31 @@ export function JourneysList() {
                       {journey.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{journey.enrolled}</TableCell>
-                  <TableCell>{journey.completion}%</TableCell>
+                  {role === 'admin' ? (
+                    <>
+                      <TableCell>{journey.enrolled}</TableCell>
+                      <TableCell>{journey.completion}%</TableCell>
+                    </>
+                  ) : null}
                   <TableCell>{journey.lastUpdated}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Archive
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {role === 'admin' && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            Archive
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
