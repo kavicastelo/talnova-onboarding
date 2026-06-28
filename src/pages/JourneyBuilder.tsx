@@ -42,7 +42,6 @@ export function JourneyBuilder() {
   const isNew = id === 'new';
 
   const { data: journey, isLoading: journeyLoading, isError, error, refetch } = useJourney(isNew ? '' : (id || ''));
-  const { data: course, isLoading: courseLoading } = useCourse(isNew ? '' : (id || ''));
   const updateJourney = useUpdateJourney();
   const createJourney = useCreateJourney();
 
@@ -60,7 +59,7 @@ export function JourneyBuilder() {
     }
   }, [journey]);
 
-  const isLoading = !isNew && (journeyLoading || courseLoading);
+  const isLoading = !isNew && journeyLoading;
 
   const handleSave = () => {
     if (isNew) {
@@ -139,7 +138,7 @@ export function JourneyBuilder() {
     );
   }
 
-  const allLessons = course?.modules.flatMap((m) => m.lessons) || [];
+  const allLessons = journey?.modules?.flatMap((m) => m.lessons) || [];
   const selectedLesson = allLessons.find((l) => l.id === selectedLessonId) || allLessons[0];
 
   return (
@@ -212,12 +211,12 @@ export function JourneyBuilder() {
               </div>
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                  {isNew || !course?.modules || course.modules.length === 0 ? (
+                  {isNew || !journey?.modules || journey.modules.length === 0 ? (
                     <div className="text-center text-xs text-muted-foreground p-4">
                       Add your first module to get started building curriculum.
                     </div>
                   ) : (
-                    course.modules.map((module, mIdx) => (
+                    journey.modules.map((module, mIdx) => (
                       <div key={module.id}>
                         {mIdx > 0 && <Separator className="my-2" />}
                         <div>

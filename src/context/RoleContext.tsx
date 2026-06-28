@@ -1,5 +1,5 @@
 import React, { useCallback, useState, createContext, useContext } from 'react';
-export type Role = 'admin' | 'employee';
+export type Role = 'admin' | 'employee' | 'super_admin';
 interface RoleContextValue {
   role: Role;
   setRole: (role: Role) => void;
@@ -7,11 +7,28 @@ interface RoleContextValue {
 }
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 export function RoleProvider({ children }: {children: React.ReactNode;}) {
-  const [role, setRole] = useState<Role>('admin');
+  const [role, setRoleState] = useState<Role>(() => {
+    const saved = localStorage.getItem('user_role');
+    if (saved === 'super_admin' || saved === 'admin' || saved === 'employee') {
+      return saved as Role;
+    }
+    return 'admin';
+  });
+
+  const setRole = useCallback((newRole: Role) => {
+    localStorage.setItem('user_role', newRole);
+    setRoleState(newRole);
+  }, []);
+
   const toggleRole = useCallback(
-    () => setRole((r) => r === 'admin' ? 'employee' : 'admin'),
+    () => setRoleState((r) => {
+      const next = r === 'admin' ? 'employee' : r === 'employee' ? 'super_admin' : 'admin';
+      localStorage.setItem('user_role', next);
+      return next;
+    }),
     []
   );
+
   return (
     <RoleContext.Provider
       value={{
