@@ -2,9 +2,10 @@
 // Auth & User Types
 // -------------------------
 export interface User {
+  id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee';
+  role: 'admin' | 'employee' | 'super_admin';
   avatar: string;
   company: string;
 }
@@ -23,6 +24,7 @@ export interface Journey {
   lastUpdated: string;
   description?: string;
   category?: string;
+  modules?: CourseModule[];
 }
 
 export interface JourneyAssignment {

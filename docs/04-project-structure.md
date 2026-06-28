@@ -52,10 +52,11 @@ This minimizes coupling and maximizes maintainability.
 
 # Root Directory Structure
 
-```text
-talnova-api/
+The backend application is isolated inside a dedicated `server/` subdirectory under the repository root.
 
-├── docs/
+```text
+server/
+
 ├── scripts/
 ├── src/
 ├── tests/
@@ -63,7 +64,6 @@ talnova-api/
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts (if needed for tooling only)
 ├── eslint.config.js
 ├── prettier.config.js
 ├── README.md
@@ -75,7 +75,7 @@ talnova-api/
 # Source Directory
 
 ```text
-src/
+server/src/
 
 ├── app/
 ├── bootstrap/
@@ -362,7 +362,7 @@ Never duplicate business logic.
 Every business capability lives inside:
 
 ```text
-src/modules/
+server/src/modules/
 ```
 
 Example

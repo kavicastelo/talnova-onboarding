@@ -11,12 +11,19 @@ import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Analytics } from './pages/Analytics';
 import { Settings } from './pages/Settings';
 import { Certificates } from './pages/Certificates';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
+import { SuperAdminOrganizations } from './pages/SuperAdminOrganizations';
+import { SuperAdminFinance } from './pages/SuperAdminFinance';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
 
 function DashboardRedirect() {
   const { role } = useRole();
+  if (role === 'super_admin') return <SuperAdminDashboard />;
   return role === 'admin' ? <AdminDashboard /> : <EmployeeDashboard />;
 }
 
@@ -26,8 +33,15 @@ export function App() {
     <RoleProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+
           <Route path="/" element={<AppShell />}>
             <Route index element={<DashboardRedirect />} />
+            <Route path="super-admin" element={<SuperAdminDashboard />} />
+            <Route path="super-admin/organizations" element={<SuperAdminOrganizations />} />
+            <Route path="super-admin/finance" element={<SuperAdminFinance />} />
             <Route path="journeys" element={<JourneysList />} />
             <Route path="journeys/:id" element={<JourneyBuilder />} />
             <Route path="directory" element={<EmployeeDirectory />} />

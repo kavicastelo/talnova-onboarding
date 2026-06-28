@@ -16,8 +16,8 @@ import { useEmployee } from '../hooks/useEmployees';
 
 export function EmployeeDashboard() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
-  // Using employee '1' as a standard active employee reference for demo purposes
-  const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('1');
+  // Fetch current logged in employee's profile
+  const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('me');
 
   const isLoading = userLoading || employeeLoading;
 

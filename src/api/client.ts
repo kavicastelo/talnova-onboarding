@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
 // Config
-const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 const REQUEST_TIMEOUT = 15000; // 15s timeout
 
 // Standard Error Interface for the UI
@@ -95,23 +95,33 @@ apiClient.interceptors.response.use(
 
     // 401 Unauthorized handling (session expired/invalid)
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const isAuthRoute = originalRequest.url?.includes('/auth/');
+      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname);
+
+      if (isAuthRoute || isPublicPage) {
+        return Promise.reject(error);
+      }
       originalRequest._retry = true;
 
       try {
         console.warn('Session expired or invalid. Attempting to refresh token...');
-        // PLACEHOLDER: Refresh token logic should go here
-        // const newAccessToken = await refreshAuthToken();
-        // localStorage.setItem('auth_token', newAccessToken);
-        // originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        // return apiClient(originalRequest);
+        const res = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+        const { accessToken } = res.data.data;
+        localStorage.setItem('auth_token', accessToken);
         
-        // If refresh fails or is not implemented yet, redirect to login or clear auth state
-        // For now, only log. Do not break app redirect since login redirect isn't explicitly configured.
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        }
+        return apiClient(originalRequest);
       } catch (refreshError) {
         console.error('Token refresh failed', refreshError);
-        // Clear token, force logout or reload
-        // localStorage.removeItem('auth_token');
-        // window.location.href = '/login';
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_role');
+        window.location.href = '/login';
       }
     }
 

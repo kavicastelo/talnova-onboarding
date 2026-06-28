@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -119,8 +119,29 @@ const employeeNav: NavItem[] = [
     icon: Award
   }];
 
+const superAdminNav: NavItem[] = [
+  {
+    title: 'Super Admin Dashboard',
+    url: '/super-admin',
+    icon: LayoutDashboard
+  },
+  {
+    title: 'Organizations',
+    url: '/super-admin/organizations',
+    icon: Users
+  },
+  {
+    title: 'Finance & Invoices',
+    url: '/super-admin/finance',
+    icon: BarChart2
+  }
+];
+
 const labelByPath: Record<string, string> = {
   '': 'Dashboard',
+  'super-admin': 'Super Admin Portal',
+  organizations: 'Organizations',
+  finance: 'Finance & Billing',
   journeys: 'Onboarding Journeys',
   directory: 'Employees',
   analytics: 'Analytics',
@@ -151,14 +172,32 @@ export function AppShell() {
     }
   };
   useCommandPaletteHotkey(setPaletteOpen);
-  const { data: user, isLoading: userLoading } = useCurrentUser();
+  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const { data: notifications = [] } = useNotifications();
-  const navItems = role === 'admin' ? adminNav : employeeNav;
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (userError) {
+      localStorage.removeItem('auth_token');
+      navigate('/login');
+    }
+  }, [userError, navigate]);
+  const navItems = role === 'super_admin' ? superAdminNav : role === 'admin' ? adminNav : employeeNav;
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {
     setRole(next);
-    navigate(next === 'admin' ? '/' : '/employee');
+    if (next === 'super_admin') {
+      navigate('/super-admin');
+    } else {
+      navigate(next === 'admin' ? '/' : '/employee');
+    }
   };
   return (
     <SidebarProvider>
@@ -201,7 +240,7 @@ export function AppShell() {
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupLabel>
-                {role === 'admin' ? 'Workspace' : 'Learning'}
+                {role === 'super_admin' ? 'Platform Management' : role === 'admin' ? 'Workspace' : 'Learning'}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -259,7 +298,7 @@ export function AppShell() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => navigate('/directory/1')}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => navigate('/directory/me')}>Profile</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => navigate('/settings')}>
                   Settings
                 </DropdownMenuItem>
@@ -342,10 +381,10 @@ export function AppShell() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1.5">
                     <Badge
-                      variant={role === 'admin' ? 'default' : 'secondary'}
+                      variant={role === 'super_admin' ? 'default' : role === 'admin' ? 'default' : 'secondary'}
                       className="px-1.5 capitalize">
 
-                      {role}
+                      {role === 'super_admin' ? 'Super Admin' : role}
                     </Badge>
                     <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
@@ -353,6 +392,12 @@ export function AppShell() {
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel>View as</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => switchRole('super_admin')}>
+                    {role === 'super_admin' && <Check className="mr-2 h-4 w-4" />}
+                    <span className={role === 'super_admin' ? '' : 'ml-6'}>
+                      Super Admin
+                    </span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => switchRole('admin')}>
                     {role === 'admin' && <Check className="mr-2 h-4 w-4" />}
                     <span className={role === 'admin' ? '' : 'ml-6'}>
