@@ -13,6 +13,11 @@ export const updateOrganizationSchema = z.object({
     dateFormat: z.string().optional(),
     firstDayOfWeek: z.number().min(0).max(6).optional(),
   }).optional(),
+  notificationSettings: z.object({
+    assignmentEmail: z.boolean().optional(),
+    reminderEmail: z.boolean().optional(),
+    weeklyDigest: z.boolean().optional(),
+  }).optional(),
 });
 
 export const updateBrandingSchema = z.object({

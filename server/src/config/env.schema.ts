@@ -16,6 +16,11 @@ export const envSchema = z.object({
   R2_PUBLIC_URL: z.string().min(1, "R2_PUBLIC_URL is required"),
   MAX_UPLOAD_SIZE: z.coerce.number().default(524288000),
   CORS_ALLOWED_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
+  SMTP_HOST: z.string().default("localhost"),
+  SMTP_PORT: z.coerce.number().default(1025),
+  SMTP_USER: z.string().optional().or(z.literal("")),
+  SMTP_PASS: z.string().optional().or(z.literal("")),
+  SMTP_FROM: z.string().default("noreply@talnova.com"),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -58,6 +58,13 @@ import { useCurrentUser } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useSettings';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '../_designSystem/ds-6551b66a-cfd3-4df9-a9b1-9ead8d7fe7e9';
 interface NavItem {
   title: string;
   url: string;
@@ -159,6 +166,29 @@ export function AppShell() {
   const navigate = useNavigate();
   const { role, setRole } = useRole();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
+
+  const handleNavClick = (url: string) => (e: React.MouseEvent) => {
+    if ((window as any).isJourneyBuilderDirty) {
+      e.preventDefault();
+      setPendingNavAction(() => () => {
+        (window as any).isJourneyBuilderDirty = false;
+        navigate(url);
+      });
+    }
+  };
+
+  const handleSelectAction = (action: () => void) => (e?: any) => {
+    if ((window as any).isJourneyBuilderDirty) {
+      e?.preventDefault?.();
+      setPendingNavAction(() => () => {
+        (window as any).isJourneyBuilderDirty = false;
+        action();
+      });
+    } else {
+      action();
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -192,11 +222,22 @@ export function AppShell() {
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {
-    setRole(next);
-    if (next === 'super_admin') {
-      navigate('/super-admin');
+    const action = () => {
+      setRole(next);
+      if (next === 'super_admin') {
+        navigate('/super-admin');
+      } else {
+        navigate(next === 'admin' ? '/' : '/employee');
+      }
+    };
+
+    if ((window as any).isJourneyBuilderDirty) {
+      setPendingNavAction(() => () => {
+        (window as any).isJourneyBuilderDirty = false;
+        action();
+      });
     } else {
-      navigate(next === 'admin' ? '/' : '/employee');
+      action();
     }
   };
   return (
@@ -256,7 +297,7 @@ export function AppShell() {
                           isActive={isActive}
                           tooltip={item.title}>
 
-                          <Link to={item.url}>
+                          <Link to={item.url} onClick={handleNavClick(item.url)}>
                             <item.icon className="h-4 w-4" />
                             <span>{item.title}</span>
                           </Link>
@@ -298,12 +339,12 @@ export function AppShell() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => navigate('/directory/me')}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => navigate('/settings')}>
+                <DropdownMenuItem onClick={handleSelectAction(() => navigate('/directory/me'))}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSelectAction(() => navigate('/settings'))}>
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSelectAction(handleLogout)}>Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarFooter>
@@ -318,7 +359,7 @@ export function AppShell() {
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link to="/">Northwind Labs</Link>
+                        <Link to="/" onClick={handleNavClick('/')}>Northwind Labs</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     {segments.length === 0 && role === 'admin' &&
@@ -343,7 +384,7 @@ export function AppShell() {
                               <BreadcrumbPage>{label}</BreadcrumbPage> :
 
                               <BreadcrumbLink asChild>
-                                <Link to={href}>{label}</Link>
+                                <Link to={href} onClick={handleNavClick(href)}>{label}</Link>
                               </BreadcrumbLink>
                             }
                           </BreadcrumbItem>
@@ -462,6 +503,31 @@ export function AppShell() {
           </main>
         </div>
       </div>
+      <Dialog open={!!pendingNavAction} onOpenChange={(open: boolean) => !open && setPendingNavAction(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            You have unsaved changes in the Journey Builder. If you leave, your changes will be lost. Are you sure you want to discard your changes and leave?
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingNavAction(null)}>Stay</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                const action = pendingNavAction;
+                setPendingNavAction(null);
+                if (action) {
+                  action();
+                }
+              }}
+            >
+              Discard & Leave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>);
 
 }

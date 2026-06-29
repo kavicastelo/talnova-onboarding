@@ -36,12 +36,11 @@ export async function assignmentRoutes(app: FastifyInstance) {
   app.post(
     "/",
     {
-      preHandler: [requireRole(["owner", "admin", "manager"])],
+      preHandler: [requireRole(["owner", "admin", "manager", "employee"])],
       schema: { body: assignJourneySchema },
     },
     controller.assignJourney as any
   );
-
   // POST /api/v1/assignments/:id/start
   app.post("/:id/start", controller.startAssignment as any);
 

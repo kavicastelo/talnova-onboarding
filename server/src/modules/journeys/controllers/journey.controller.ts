@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { JourneyService } from "../services/journey.service.js";
+import mongoose from "mongoose";
 
 export class JourneyController {
   constructor(private readonly journeyService: JourneyService) {}
@@ -8,6 +9,30 @@ export class JourneyController {
     const user = request.user as any;
     const params = request.params as any;
     const journey = await this.journeyService.getJourney(params.id, user.organizationId);
+
+    if (user.role === "employee") {
+      if (journey.publishing.status !== "published") {
+        return reply.status(403).send({
+          success: false,
+          message: "Forbidden: You cannot watch a journey that is not published.",
+        });
+      }
+
+      if (!journey.audience?.isPublic) {
+        const assignment = await mongoose.model("EmployeeAssignment").findOne({
+          organizationId: user.organizationId,
+          employeeId: user.userId,
+          "journey.journeyId": journey._id,
+        });
+
+        if (!assignment) {
+          return reply.status(403).send({
+            success: false,
+            message: "Forbidden: You are not assigned to this private journey.",
+          });
+        }
+      }
+    }
 
     return reply.status(200).send({
       success: true,
@@ -20,13 +45,18 @@ export class JourneyController {
     const user = request.user as any;
     const query = request.query as any;
 
-    const filter = {
+    const filter: any = {
       organizationId: user.organizationId,
       status: query.status,
       category: query.category,
       tags: query.tags ? (Array.isArray(query.tags) ? query.tags : [query.tags]) : undefined,
       search: query.search,
     };
+
+    if (user.role === "employee") {
+      filter.status = "published";
+      filter.isPublic = true;
+    }
 
     const pagination = {
       page: query.page ? parseInt(query.page, 10) : 1,

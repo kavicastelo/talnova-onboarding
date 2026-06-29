@@ -23,17 +23,16 @@ export function Login() {
 
     setLoading(true);
     try {
-      await authService.logout().catch(() => {}); // clear old session
+      await authService.logout().catch(() => undefined); // clear old session
       
-      let userRole: 'admin' | 'employee' | 'super_admin' = 'admin';
+      const loginData = await authService.login(email, password);
+      const backendRole = loginData.user?.role;
       
-      if (email.toLowerCase().includes('super')) {
+      let userRole: 'admin' | 'employee' | 'super_admin' = 'employee';
+      if (backendRole === 'super_admin') {
         userRole = 'super_admin';
-        localStorage.setItem('auth_token', 'mock-super-admin-jwt-token');
-      } else {
-        const loginData = await authService.login(email, password);
-        const backendRole = loginData.user?.role;
-        userRole = backendRole === 'owner' || backendRole === 'admin' ? 'admin' : 'employee';
+      } else if (backendRole === 'owner' || backendRole === 'admin') {
+        userRole = 'admin';
       }
 
       setRole(userRole);
@@ -151,40 +150,6 @@ export function Login() {
               Create Organization
             </Link>
           </p>
-        </div>
-
-        {/* Demo shortcuts helper */}
-        <div className="rounded-lg border border-white/5 bg-white/[0.01] p-3 text-center text-xs text-gray-500">
-          <span className="font-semibold text-gray-400">Demo quick login hints:</span>
-          <div className="mt-1.5 flex flex-wrap justify-center gap-2">
-            <span
-              onClick={() => {
-                setEmail('super@talnova.com');
-                setPassword('SuperPass123!');
-              }}
-              className="cursor-pointer rounded bg-white/5 px-2 py-0.5 hover:bg-white/10"
-            >
-              Super Admin
-            </span>
-            <span
-              onClick={() => {
-                setEmail('admin@talnova.com');
-                setPassword('AdminPass123!');
-              }}
-              className="cursor-pointer rounded bg-white/5 px-2 py-0.5 hover:bg-white/10"
-            >
-              Admin
-            </span>
-            <span
-              onClick={() => {
-                setEmail('employee@talnova.com');
-                setPassword('EmployeePass123!');
-              }}
-              className="cursor-pointer rounded bg-white/5 px-2 py-0.5 hover:bg-white/10"
-            >
-              Employee
-            </span>
-          </div>
         </div>
       </div>
     </div>

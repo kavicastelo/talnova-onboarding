@@ -52,6 +52,14 @@ export class UserRepository {
       { new: true }
     );
   }
+
+  async findByResetToken(hashedToken: string): Promise<IUser | null> {
+    return User.findOne({
+      "security.passwordResetToken": hashedToken,
+      "security.passwordResetExpires": { $gt: new Date() },
+      isDeleted: false,
+    });
+  }
 }
 
 export default UserRepository;

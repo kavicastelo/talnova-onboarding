@@ -26,3 +26,23 @@ export function useUpdateLessonCompletion() {
     },
   });
 }
+
+export function useSubmitQuiz() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      courseId,
+      moduleId,
+      lessonId,
+      answers,
+    }: {
+      courseId: string;
+      moduleId: string;
+      lessonId: string;
+      answers: Array<{ questionId: string; selectedOptions: string[] }>;
+    }) => courseService.submitQuiz(courseId, moduleId, lessonId, answers),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
+    },
+  });
+}

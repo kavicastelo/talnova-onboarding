@@ -1,24 +1,32 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/Tabs';
 import {
   Card,
-  CardContent
-} from
-  '../components/Card';
+  CardContent,
+  CardHeader,
+  CardTitle
+} from '../components/Card';
 import { Badge } from '../components/Badge';
 import { ScrollArea } from '../components/ScrollArea';
 import { Separator } from '../components/Separator';
+import { Switch } from '../components/Switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '../components/Dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from
-  '../components/Select';
+} from '../components/Select';
 import {
   ChevronLeft,
   GripVertical,
@@ -31,10 +39,18 @@ import {
   RefreshCw
 } from
   'lucide-react';
-import { useJourney, useUpdateJourney, useCreateJourney } from '../hooks/useJourneys';
-import { useCourse } from '../hooks/useCourses';
+import {
+  useJourney,
+  useUpdateJourney,
+  useCreateJourney,
+  useAssignJourney,
+  useJourneyAssignments
+} from '../hooks/useJourneys';
+import { useEmployees } from '../hooks/useEmployees';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
+import { CourseModule, Lesson } from '../types';
+import { Trash, X, Lock, Globe } from 'lucide-react';
 
 export function JourneyBuilder() {
   const { id } = useParams();
@@ -45,10 +61,37 @@ export function JourneyBuilder() {
   const updateJourney = useUpdateJourney();
   const createJourney = useCreateJourney();
 
+  const { data: assignments = [] } = useJourneyAssignments(isNew ? '' : (id || ''));
+  const { data: employees = [] } = useEmployees();
+  const assignJourneyMut = useAssignJourney();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('engineering');
+  const [modules, setModules] = useState<CourseModule[]>([]);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+
+  // settings & certificate options
+  const [allowSkipLessons, setAllowSkipLessons] = useState(false);
+  const [requireSequentialCompletion, setRequireSequentialCompletion] = useState(true);
+  const [allowRetakes, setAllowRetakes] = useState(true);
+  const [maxRetakes, setMaxRetakes] = useState<number>(3);
+  const [certificateEnabled, setCertificateEnabled] = useState(false);
+  const [passingScore, setPassingScore] = useState<number>(80);
+
+  // Modals state
+  const [modals, setModals] = useState<{
+    type: 'add_module' | 'add_lesson' | 'confirm_delete_module' | 'confirm_delete_lesson' | 'unsaved_changes' | null;
+    moduleId?: string;
+    lessonId?: string;
+    inputValue1?: string;
+    inputValue2?: string;
+    onConfirm?: () => void;
+  }>({ type: null });
+
+  const [isDirty, setIsDirty] = useState(false);
 
   // Sync state with loaded journey
   useEffect(() => {
@@ -56,34 +99,116 @@ export function JourneyBuilder() {
       setTitle(journey.title || '');
       setDescription(journey.description || '');
       setCategory(journey.category || 'engineering');
+      setModules(journey.modules || []);
+      setIsPublic(journey.audience?.isPublic || false);
+      setAllowSkipLessons(journey.settings?.allowSkipLessons ?? false);
+      setRequireSequentialCompletion(journey.settings?.requireSequentialCompletion ?? true);
+      setAllowRetakes(journey.settings?.allowRetakes ?? true);
+      setMaxRetakes(journey.settings?.maxRetakes ?? 3);
+      setCertificateEnabled(journey.certificate?.enabled ?? false);
+      setPassingScore(journey.certificate?.passingScore ?? 80);
     }
   }, [journey]);
 
+  // Track if state is dirty
+  useEffect(() => {
+    if (!journey) return;
+    const hasChanges =
+      title !== (journey.title || '') ||
+      description !== (journey.description || '') ||
+      category !== (journey.category || 'engineering') ||
+      isPublic !== (journey.audience?.isPublic || false) ||
+      JSON.stringify(modules) !== JSON.stringify(journey.modules || []) ||
+      allowSkipLessons !== (journey.settings?.allowSkipLessons ?? false) ||
+      requireSequentialCompletion !== (journey.settings?.requireSequentialCompletion ?? true) ||
+      allowRetakes !== (journey.settings?.allowRetakes ?? true) ||
+      maxRetakes !== (journey.settings?.maxRetakes ?? 3) ||
+      certificateEnabled !== (journey.certificate?.enabled ?? false) ||
+      passingScore !== (journey.certificate?.passingScore ?? 80);
+
+    setIsDirty(hasChanges);
+    (window as any).isJourneyBuilderDirty = hasChanges;
+  }, [
+    title,
+    description,
+    category,
+    isPublic,
+    modules,
+    allowSkipLessons,
+    requireSequentialCompletion,
+    allowRetakes,
+    maxRetakes,
+    certificateEnabled,
+    passingScore,
+    journey
+  ]);
+
+  // Clean up global flag on unmount
+  useEffect(() => {
+    return () => {
+      (window as any).isJourneyBuilderDirty = false;
+    };
+  }, []);
+
   const isLoading = !isNew && journeyLoading;
 
+  const getErrorMessage = (err: any) => {
+    const data = err?.response?.data;
+    if (data?.errors && Array.isArray(data.errors)) {
+      return data.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    }
+    return data?.message || data?.error || err?.message || 'An error occurred';
+  };
+
   const handleSave = () => {
+    const settings = {
+      allowSkipLessons,
+      requireSequentialCompletion,
+      allowRetakes,
+      maxRetakes
+    };
+    const certificate = {
+      enabled: certificateEnabled,
+      passingScore
+    };
+
     if (isNew) {
       createJourney.mutate(
-        { title, description, category, status: 'Draft', enrolled: 0, completion: 0, lastUpdated: 'Just now' },
+        { title, description, category, audience: { isPublic }, settings, certificate },
         {
           onSuccess: (newJourney) => {
+            (window as any).isJourneyBuilderDirty = false;
+            setIsDirty(false);
             toast.success('Journey created successfully!');
             navigate(`/journeys/${newJourney.id}`);
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to create journey.');
+            toast.error(getErrorMessage(err));
           },
         }
       );
     } else if (id) {
       updateJourney.mutate(
-        { id, journey: { title, description, category } },
+        { 
+          id, 
+          journey: { 
+            title, 
+            description, 
+            category, 
+            modules, 
+            audience: { isPublic },
+            settings,
+            certificate
+          } 
+        },
         {
           onSuccess: () => {
-            toast.success('Journey saved successfully!');
+            (window as any).isJourneyBuilderDirty = false;
+            setIsDirty(false);
+            toast.success('Changes saved successfully!');
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to save journey.');
+            toast.error(getErrorMessage(err));
           },
         }
       );
@@ -104,6 +229,49 @@ export function JourneyBuilder() {
         }
       );
     }
+  };
+
+  const handleAddModule = () => {
+    setModals({
+      type: 'add_module',
+      inputValue1: ''
+    });
+  };
+
+  const handleRemoveModule = (moduleId: string) => {
+    setModals({
+      type: 'confirm_delete_module',
+      moduleId
+    });
+  };
+
+  const handleAddLesson = (moduleId: string) => {
+    setModals({
+      type: 'add_lesson',
+      moduleId,
+      inputValue1: '',
+      inputValue2: 'Article'
+    });
+  };
+
+  const handleRemoveLesson = (moduleId: string, lessonId: string) => {
+    setModals({
+      type: 'confirm_delete_lesson',
+      moduleId,
+      lessonId
+    });
+  };
+
+  const updateSelectedLesson = (fields: Partial<Lesson>) => {
+    if (!selectedLessonId) return;
+    setModules((prevModules) =>
+      prevModules.map((m) => ({
+        ...m,
+        lessons: m.lessons.map((l) =>
+          l.id === selectedLessonId ? { ...l, ...fields } : l
+        ),
+      }))
+    );
   };
 
   if (isLoading) {
@@ -138,17 +306,91 @@ export function JourneyBuilder() {
     );
   }
 
-  const allLessons = journey?.modules?.flatMap((m) => m.lessons) || [];
+  const unassignedEmployees = employees.filter((emp: any) => {
+    return !assignments.some((assign: any) => {
+      const assignEmpId = typeof assign.employeeId === 'object' ? assign.employeeId?._id : assign.employeeId;
+      return assignEmpId === emp.id;
+    });
+  });
+
+  const handleTogglePublic = (publicVal: boolean) => {
+    setIsPublic(publicVal);
+    if (!isNew && id) {
+      updateJourney.mutate(
+        { id, journey: { audience: { isPublic: publicVal } } },
+        {
+          onSuccess: () => {
+            toast.success(`Access policy updated to ${publicVal ? 'Public' : 'Restricted'}.`);
+          },
+          onError: (err: any) => {
+            toast.error(err?.message || 'Failed to update access policy.');
+            setIsPublic(!publicVal); // revert
+          }
+        }
+      );
+    }
+  };
+
+  const handleAssignEmployee = () => {
+    if (!selectedEmployeeId) {
+      toast.error('Please select an employee.');
+      return;
+    }
+    if (!id || isNew) {
+      toast.error('Please save the journey first.');
+      return;
+    }
+    assignJourneyMut.mutate(
+      { journeyId: id, employeeId: selectedEmployeeId },
+      {
+        onSuccess: () => {
+          toast.success('Journey assigned successfully!');
+          setSelectedEmployeeId('');
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || 'Failed to assign journey.');
+        }
+      }
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">Completed</Badge>;
+      case 'in_progress':
+        return <Badge className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20">In Progress</Badge>;
+      case 'assigned':
+        return <Badge className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-blue-500/20">Assigned</Badge>;
+      case 'overdue':
+        return <Badge className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-rose-500/20">Overdue</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const allLessons = modules.flatMap((m) => m.lessons);
   const selectedLesson = allLessons.find((l) => l.id === selectedLessonId) || allLessons[0];
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-6">
       <header className="flex-none border-b bg-background px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/journeys">
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (isDirty) {
+                setModals({
+                  type: 'unsaved_changes',
+                  onConfirm: () => navigate('/journeys')
+                });
+              } else {
+                navigate('/journeys');
+              }
+            }}
+          >
+            <ChevronLeft className="h-5 w-5" />
           </Button>
           <div>
             <div className="flex items-center gap-2">
@@ -202,27 +444,47 @@ export function JourneyBuilder() {
             className="flex-1 flex overflow-hidden m-0 data-[state=active]:flex">
 
             {/* Left Sidebar - Outline */}
-            <div className="w-80 border-r bg-muted/10 flex flex-col">
+            <div className="w-64 flex-none border-r bg-muted/10 flex flex-col">
               <div className="p-4 border-b flex items-center justify-between">
                 <h3 className="font-medium">Curriculum</h3>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddModule}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                  {isNew || !journey?.modules || journey.modules.length === 0 ? (
+                  {modules.length === 0 ? (
                     <div className="text-center text-xs text-muted-foreground p-4">
                       Add your first module to get started building curriculum.
                     </div>
                   ) : (
-                    journey.modules.map((module, mIdx) => (
+                    modules.map((module, mIdx) => (
                       <div key={module.id}>
                         {mIdx > 0 && <Separator className="my-2" />}
                         <div>
-                          <div className="flex items-center gap-2 mb-2 group">
-                            <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab" />
-                            <h4 className="text-sm font-semibold">{mIdx + 1}. {module.title}</h4>
+                          <div className="flex items-center justify-between mb-2 group">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab" />
+                              <h4 className="text-sm font-semibold">{mIdx + 1}. {module.title}</h4>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-indigo-400"
+                                onClick={() => handleAddLesson(module.id)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-red-400"
+                                onClick={() => handleRemoveModule(module.id)}
+                              >
+                                <Trash className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                           <div className="space-y-1 pl-6">
                             {module.lessons.map((lesson) => {
@@ -230,17 +492,26 @@ export function JourneyBuilder() {
                               return (
                                 <div
                                   key={lesson.id}
-                                  onClick={() => setSelectedLessonId(lesson.id)}
-                                  className={`flex items-center gap-2 p-2 rounded-md text-sm cursor-pointer ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+                                  className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer group/lesson ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
                                     }`}>
-                                  {lesson.type === 'Video' ? (
-                                    <Video className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                  ) : lesson.type === 'Quiz' ? (
-                                    <HelpCircle className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                  ) : (
-                                    <FileText className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                  )}
-                                  <span>{lesson.title}</span>
+                                  <div className="flex items-center gap-2" onClick={() => setSelectedLessonId(lesson.id)}>
+                                    {lesson.type === 'Video' ? (
+                                      <Video className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : lesson.type === 'Quiz' ? (
+                                      <HelpCircle className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : (
+                                      <FileText className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    )}
+                                    <span>{lesson.title}</span>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 opacity-0 group-hover/lesson:opacity-100 text-muted-foreground hover:text-red-400"
+                                    onClick={() => handleRemoveLesson(module.id, lesson.id)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
                                 </div>
                               );
                             })}
@@ -254,12 +525,13 @@ export function JourneyBuilder() {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col bg-background overflow-auto">
+            <div className="flex-1 min-w-0 flex flex-col bg-background overflow-auto">
               {selectedLesson ? (
                 <div className="max-w-3xl mx-auto w-full p-8 space-y-8">
                   <div>
                     <Input
-                      defaultValue={selectedLesson.title}
+                      value={selectedLesson.title}
+                      onChange={(e: any) => updateSelectedLesson({ title: e.target.value })}
                       className="text-3xl font-bold h-auto py-2 px-0 border-0 focus-visible:ring-0 rounded-none bg-transparent"
                     />
                     <p className="text-muted-foreground mt-2">
@@ -279,14 +551,15 @@ export function JourneyBuilder() {
                         </div>
                       ) : (
                         <div className="p-4 border-b bg-muted/20 min-h-[150px] flex items-center justify-center text-muted-foreground text-sm">
-                          {selectedLesson.type} Content editor placeholder.
+                          {selectedLesson.type} Content editor active.
                         </div>
                       )}
                       <div className="p-4">
                         <Input
                           placeholder="Add a description or transcript..."
                           className="border-0 focus-visible:ring-0 px-0 bg-transparent"
-                          defaultValue={selectedLesson.description || ''}
+                          value={selectedLesson.description || ''}
+                          onChange={(e: any) => updateSelectedLesson({ description: e.target.value })}
                         />
                       </div>
                     </CardContent>
@@ -300,7 +573,7 @@ export function JourneyBuilder() {
             </div>
 
             {/* Right Sidebar - Settings */}
-            <div className="w-80 border-l bg-muted/10 flex flex-col">
+            <div className="w-64 flex-none border-l bg-muted/10 flex flex-col">
               <div className="p-4 border-b">
                 <h3 className="font-medium">Lesson Settings</h3>
               </div>
@@ -310,14 +583,22 @@ export function JourneyBuilder() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Estimated Time</label>
                       <div className="flex items-center gap-2">
-                        <Input type="number" defaultValue={selectedLesson.estimatedTime || 5} className="w-20" />
+                        <Input
+                          type="number"
+                          value={selectedLesson.estimatedTime || 5}
+                          onChange={(e: any) => updateSelectedLesson({ estimatedTime: Number(e.target.value) })}
+                          className="w-20"
+                        />
                         <span className="text-sm text-muted-foreground">minutes</span>
                       </div>
                     </div>
                     <Separator />
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Completion Rule</label>
-                      <Select defaultValue={selectedLesson.completionRule || 'video'}>
+                      <Select
+                        value={selectedLesson.completionRule || 'video'}
+                        onValueChange={(val: any) => updateSelectedLesson({ completionRule: val as any })}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -345,31 +626,122 @@ export function JourneyBuilder() {
             <div className="max-w-2xl mx-auto space-y-8">
               <div>
                 <h2 className="text-2xl font-bold mb-4">Journey Settings</h2>
-                <Card>
-                  <CardContent className="space-y-4 pt-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Journey Title</label>
-                      <Input value={title} onChange={(e: any) => setTitle(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Description</label>
-                      <Input value={description} onChange={(e: any) => setDescription(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Category</label>
-                      <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="engineering">Engineering</SelectItem>
-                          <SelectItem value="sales">Sales</SelectItem>
-                          <SelectItem value="general">General</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">General Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Journey Title</label>
+                        <Input value={title} onChange={(e: any) => setTitle(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Description</label>
+                        <Input value={description} onChange={(e: any) => setDescription(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Category</label>
+                        <Select value={category} onValueChange={setCategory}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="engineering">Engineering</SelectItem>
+                            <SelectItem value="sales">Sales</SelectItem>
+                            <SelectItem value="general">General</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">Learning Rules & Constraints</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Require Sequential Completion</label>
+                          <p className="text-xs text-muted-foreground">Employees must complete lessons in order.</p>
+                        </div>
+                        <Switch 
+                          checked={requireSequentialCompletion} 
+                          onCheckedChange={setRequireSequentialCompletion} 
+                        />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Allow Skipping Lessons</label>
+                          <p className="text-xs text-muted-foreground">Allows users to skip lessons without marking them completed.</p>
+                        </div>
+                        <Switch 
+                          checked={allowSkipLessons} 
+                          onCheckedChange={setAllowSkipLessons} 
+                        />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Allow Retakes</label>
+                          <p className="text-xs text-muted-foreground">Allows users to retake quizzes multiple times.</p>
+                        </div>
+                        <Switch 
+                          checked={allowRetakes} 
+                          onCheckedChange={setAllowRetakes} 
+                        />
+                      </div>
+                      {allowRetakes && (
+                        <div className="flex items-center gap-4 pl-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">Max Retakes Allowed</label>
+                            <Input 
+                              type="number" 
+                              value={maxRetakes} 
+                              onChange={(e: any) => setMaxRetakes(Number(e.target.value))} 
+                              className="w-24 h-8"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">Certificate Settings</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Award Certificate upon Completion</label>
+                          <p className="text-xs text-muted-foreground">Generate a certified credential once all modules are finished.</p>
+                        </div>
+                        <Switch 
+                          checked={certificateEnabled} 
+                          onCheckedChange={setCertificateEnabled} 
+                        />
+                      </div>
+                      {certificateEnabled && (
+                        <div className="space-y-4 pl-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">Passing Score Requirement (%)</label>
+                            <Input 
+                              type="number" 
+                              value={passingScore} 
+                              onChange={(e: any) => setPassingScore(Number(e.target.value))} 
+                              className="w-24 h-8"
+                              min="0"
+                              max="100"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -379,25 +751,373 @@ export function JourneyBuilder() {
             className="flex-1 p-8 m-0 overflow-auto">
 
             <div className="max-w-4xl mx-auto space-y-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Assignments</h2>
-                <Button>Assign Journey</Button>
-              </div>
-              <Card>
-                <CardContent className="p-0">
-                  <div className="p-8 text-center text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>No one is assigned to this journey yet.</p>
-                    <p className="text-sm mt-1">
-                      Assign this journey to employees, teams, or departments.
+              {journey?.status !== 'Active' && (
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-sm">Publishing Required</h4>
+                    <p className="text-xs text-amber-500/80 mt-1">
+                      This journey is currently a Draft. Employees cannot view or self-assign draft journeys. 
+                      You must Publish this journey first to activate public access or assignment tracking.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Access Visibility</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Public Card */}
+                  <div
+                    onClick={() => handleTogglePublic(true)}
+                    className={`cursor-pointer border rounded-xl p-5 transition-all flex items-start gap-4 ${
+                      isPublic 
+                        ? 'border-indigo-600 bg-indigo-50/5 ring-1 ring-indigo-600' 
+                        : 'border-muted hover:border-muted-foreground/30 bg-card'
+                    }`}
+                  >
+                    <div className={`p-2.5 rounded-lg ${isPublic ? 'bg-indigo-600/10 text-indigo-400' : 'bg-muted text-muted-foreground'}`}>
+                      <Globe className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm flex items-center gap-2">
+                        Public Access
+                        {isPublic && <Badge className="bg-indigo-600/15 text-indigo-400 border-indigo-600/20">Active</Badge>}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Any organization member can find and self-enroll in this journey from their dashboard.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Restricted Card */}
+                  <div
+                    onClick={() => handleTogglePublic(false)}
+                    className={`cursor-pointer border rounded-xl p-5 transition-all flex items-start gap-4 ${
+                      !isPublic 
+                        ? 'border-indigo-600 bg-indigo-50/5 ring-1 ring-indigo-600' 
+                        : 'border-muted hover:border-muted-foreground/30 bg-card'
+                    }`}
+                  >
+                    <div className={`p-2.5 rounded-lg ${!isPublic ? 'bg-indigo-600/10 text-indigo-400' : 'bg-muted text-muted-foreground'}`}>
+                      <Lock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm flex items-center gap-2">
+                        Restricted
+                        {!isPublic && <Badge className="bg-indigo-600/15 text-indigo-400 border-indigo-600/20">Active</Badge>}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Only employees specifically targeted/assigned by an admin can access this journey.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {!isPublic && journey?.status === 'Active' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Assign Journey</h3>
+                  <div className="flex gap-3 max-w-md">
+                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select an employee..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unassignedEmployees.length === 0 ? (
+                          <SelectItem value="_empty" disabled>All employees assigned</SelectItem>
+                        ) : (
+                          unassignedEmployees.map((emp: any) => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.name} ({emp.department})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      onClick={handleAssignEmployee} 
+                      disabled={assignJourneyMut.isPending || !selectedEmployeeId}
+                    >
+                      {assignJourneyMut.isPending ? 'Assigning...' : 'Assign'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">
+                    {isPublic ? 'Enrollments & Progress' : 'Assigned Employees'}
+                  </h3>
+                  <Badge variant="outline">
+                    {assignments.length} {assignments.length === 1 ? 'person' : 'people'}
+                  </Badge>
+                </div>
+
+                {assignments.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="p-8 text-center text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                        <p className="font-medium">No active progress logs yet.</p>
+                        <p className="text-sm mt-1">
+                          {isPublic 
+                            ? 'Public journeys show progress logs here once employees enroll and start learning.' 
+                            : 'Assign this journey to employees above to start tracking their progress.'}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left border-collapse">
+                          <thead>
+                            <tr className="border-b bg-muted/20 text-muted-foreground font-medium text-xs uppercase tracking-wider">
+                              <th className="px-6 py-3 border-b">Employee</th>
+                              <th className="px-6 py-3 border-b">Status</th>
+                              <th className="px-6 py-3 border-b">Progress</th>
+                              <th className="px-6 py-3 border-b">Assigned Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {assignments.map((assign: any) => {
+                              const emp = assign.employeeId;
+                              const name = emp?.profile ? `${emp.profile.firstName} ${emp.profile.lastName}` : 'Unknown';
+                              const email = emp?.auth?.email || 'N/A';
+                              const percentage = assign.progress?.completionPercentage || 0;
+
+                              return (
+                                <tr key={assign._id} className="hover:bg-muted/5">
+                                  <td className="px-6 py-4">
+                                    <div className="font-medium">{name}</div>
+                                    <div className="text-xs text-muted-foreground">{email}</div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    {getStatusBadge(assign.status)}
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2 max-w-[200px]">
+                                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                        <div 
+                                          className="bg-indigo-600 h-1.5 rounded-full" 
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs text-muted-foreground font-medium">{percentage}%</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-muted-foreground text-xs">
+                                    {new Date(assign.assignment?.assignedAt || assign.createdAt).toLocaleDateString()}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
       </div>
+      {/* Custom Dialogs */}
+      <Dialog open={modals.type === 'add_module'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Module</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Module Title</label>
+              <Input
+                value={modals.inputValue1 || ''}
+                onChange={(e: any) => setModals({ ...modals, inputValue1: e.target.value })}
+                placeholder="e.g. Getting Started"
+                autoFocus
+                onKeyDown={(e: any) => {
+                  if (e.key === 'Enter' && modals.inputValue1) {
+                    const newModule: CourseModule = {
+                      id: Math.random().toString(36).substring(2, 9),
+                      title: modals.inputValue1,
+                      lessons: [],
+                    };
+                    setModules([...modules, newModule]);
+                    setModals({ type: null });
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button
+              onClick={() => {
+                const titleVal = modals.inputValue1;
+                if (titleVal) {
+                  const newModule: CourseModule = {
+                    id: Math.random().toString(36).substring(2, 9),
+                    title: titleVal,
+                    lessons: [],
+                  };
+                  setModules([...modules, newModule]);
+                  setModals({ type: null });
+                }
+              }}
+              disabled={!modals.inputValue1}
+            >
+              Add Module
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modals.type === 'add_lesson'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Lesson</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Lesson Title</label>
+              <Input
+                value={modals.inputValue1 || ''}
+                onChange={(e: any) => setModals({ ...modals, inputValue1: e.target.value })}
+                placeholder="e.g. Introduction to Git"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Lesson Type</label>
+              <Select
+                value={modals.inputValue2 || 'Article'}
+                onValueChange={(val: any) => setModals({ ...modals, inputValue2: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Article">Article</SelectItem>
+                  <SelectItem value="Video">Video</SelectItem>
+                  <SelectItem value="Quiz">Quiz</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button
+              onClick={() => {
+                const titleVal = modals.inputValue1;
+                const typeVal = modals.inputValue2 || 'Article';
+                if (titleVal && modals.moduleId) {
+                  const newLesson: Lesson = {
+                    id: Math.random().toString(36).substring(2, 9),
+                    title: titleVal,
+                    type: typeVal as any,
+                    duration: '5 min',
+                    isCompleted: false,
+                    description: '',
+                    content: '',
+                    estimatedTime: 5,
+                    completionRule: typeVal === 'Video' ? 'video' : (typeVal === 'Quiz' ? 'quiz' : 'button'),
+                  };
+
+                  setModules(
+                    modules.map((m) => {
+                      if (m.id === modals.moduleId) {
+                        return {
+                          ...m,
+                          lessons: [...m.lessons, newLesson],
+                        };
+                      }
+                      return m;
+                    })
+                  );
+                  setSelectedLessonId(newLesson.id);
+                  setModals({ type: null });
+                }
+              }}
+              disabled={!modals.inputValue1}
+            >
+              Add Lesson
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modals.type === 'confirm_delete_module' || modals.type === 'confirm_delete_lesson'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            {modals.type === 'confirm_delete_module'
+              ? 'Are you sure you want to remove this module and all of its lessons? This action cannot be undone.'
+              : 'Are you sure you want to remove this lesson? This action cannot be undone.'}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (modals.type === 'confirm_delete_module' && modals.moduleId) {
+                  setModules(modules.filter((m) => m.id !== modals.moduleId));
+                  setSelectedLessonId(null);
+                } else if (modals.type === 'confirm_delete_lesson' && modals.moduleId && modals.lessonId) {
+                  setModules(
+                    modules.map((m) => {
+                      if (m.id === modals.moduleId) {
+                        return {
+                          ...m,
+                          lessons: m.lessons.filter((l) => l.id !== modals.lessonId),
+                        };
+                      }
+                      return m;
+                    })
+                  );
+                  if (selectedLessonId === modals.lessonId) {
+                    setSelectedLessonId(null);
+                  }
+                }
+                setModals({ type: null });
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modals.type === 'unsaved_changes'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            You have unsaved changes in this journey. If you leave now, your progress will be lost. Are you sure you want to discard changes and leave?
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>Stay</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setModals({ type: null });
+                if (modals.onConfirm) {
+                  modals.onConfirm();
+                }
+              }}
+            >
+              Discard & Leave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

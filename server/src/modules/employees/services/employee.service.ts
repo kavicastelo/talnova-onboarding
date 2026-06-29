@@ -3,6 +3,9 @@ import AppError from "../../../common/errors/app-error.js";
 import { hashPassword, verifyPassword } from "../../../utils/crypto.js";
 import mongoose from "mongoose";
 import { User } from "../../auth/models/user.model.js";
+import crypto from "crypto";
+import { EmailService } from "../../../shared/email/email.service.js";
+import { Organization } from "../../organizations/models/organization.model.js";
 
 export class EmployeeService {
   constructor(private readonly employeeRepository: EmployeeRepository) {}
@@ -103,6 +106,11 @@ export class EmployeeService {
     // Set temporary password hash (must be updated during invitation accept flow)
     const tempPasswordHash = await hashPassword(Math.random().toString(36).slice(-10) + "Temp123!");
 
+    // Generate random invitation token and hash it
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expires = new Date(Date.now() + 24 * 3600000); // 24 hours expiry
+
     const employeeObj = {
       organizationId: new mongoose.Types.ObjectId(orgId),
       auth: {
@@ -127,11 +135,27 @@ export class EmployeeService {
         role: invitationData.role,
         customRoles: [],
       },
+      security: {
+        mfaEnabled: false,
+        failedLoginAttempts: 0,
+        passwordResetToken: hashedToken,
+        passwordResetExpires: expires,
+      },
       createdBy: new mongoose.Types.ObjectId(invitedBy),
       isDeleted: false,
     };
 
-    return this.employeeRepository.create(employeeObj as any);
+    const createdUser = await this.employeeRepository.create(employeeObj as any);
+
+    // Fetch organization info to personalize the email
+    const org = await Organization.findById(orgId);
+    const orgName = org?.name || "Talnova Workspace";
+
+    // Send invitation email using EmailService
+    const emailService = new EmailService();
+    await emailService.sendInvitationEmail(email, rawToken, orgName);
+
+    return createdUser;
   }
 
   async updateEmployee(

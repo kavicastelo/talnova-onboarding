@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { KeyRound, Mail, ArrowLeft, Send } from 'lucide-react';
 import { Button } from '../components/Button';
+import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 
 export function ForgotPassword() {
@@ -18,12 +19,11 @@ export function ForgotPassword() {
 
     setLoading(true);
     try {
-      // Simulate sending recovery link
-      // Call endpoint: POST /api/v1/auth/forgot-password
+      await authService.forgotPassword(email);
       toast.success('Recovery link sent successfully!');
       setSent(true);
     } catch (err: any) {
-      toast.error('Failed to send recovery email.');
+      toast.error(err.response?.data?.message || 'Failed to send recovery email.');
     } finally {
       setLoading(false);
     }

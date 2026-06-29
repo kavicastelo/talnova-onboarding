@@ -50,7 +50,21 @@ const mapBackendJourneyToJourney = (j: any): Journey => {
     lastUpdated: j.updatedAt ? new Date(j.updatedAt).toLocaleDateString() : '',
     description: j.description || '',
     category: j.category || 'General',
-    modules: (j.modules || []).map(mapBackendModuleToCourseModule)
+    modules: (j.modules || []).map(mapBackendModuleToCourseModule),
+    audience: {
+      isPublic: j.audience?.isPublic || false
+    },
+    settings: j.settings ? {
+      allowSkipLessons: j.settings.allowSkipLessons ?? false,
+      requireSequentialCompletion: j.settings.requireSequentialCompletion ?? true,
+      allowRetakes: j.settings.allowRetakes ?? true,
+      maxRetakes: j.settings.maxRetakes ?? 3,
+    } : undefined,
+    certificate: j.certificate ? {
+      enabled: j.certificate.enabled ?? false,
+      templateId: j.certificate.templateId,
+      passingScore: j.certificate.passingScore ?? 80,
+    } : undefined
   };
 };
 
@@ -70,14 +84,24 @@ export const journeyService = {
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, '') + '-' + Math.random().toString(36).substring(2, 6);
+      .replace(/[^\w-]+/g, '') + '-' + Math.random().toString(36).substring(2, 6);
 
     const payload = {
       title: journey.title,
       description: journey.description || 'No description provided.',
       slug,
       tags: [],
-      audience: {}
+      audience: {},
+      settings: journey.settings || {
+        allowSkipLessons: false,
+        requireSequentialCompletion: true,
+        allowRetakes: true,
+        maxRetakes: 3
+      },
+      certificate: journey.certificate || {
+        enabled: false,
+        passingScore: 80
+      }
     };
 
     const response = await apiClient.post<ApiResponse<any>>('/journeys', payload);
@@ -86,10 +110,39 @@ export const journeyService = {
 
   updateJourney: async (id: string, journey: Partial<Journey>): Promise<Journey> => {
     const payload: Record<string, any> = {};
-    if (journey.title) payload.title = journey.title;
-    if (journey.description) payload.description = journey.description;
-    if (journey.category) payload.category = journey.category;
+    if (journey.title !== undefined) payload.title = journey.title;
+    if (journey.description !== undefined) payload.description = journey.description;
+    if (journey.category !== undefined) payload.category = journey.category;
+    if (journey.audience !== undefined) payload.audience = journey.audience;
+    if (journey.settings !== undefined) payload.settings = journey.settings;
+    if (journey.certificate !== undefined) payload.certificate = journey.certificate;
     
+    if (journey.modules) {
+      payload.modules = journey.modules.map((m, mIdx) => ({
+        _id: m.id && m.id.length === 24 ? m.id : undefined,
+        title: m.title,
+        order: mIdx,
+        lessons: (m.lessons || []).map((l, lIdx) => ({
+          _id: l.id && l.id.length === 24 ? l.id : undefined,
+          title: l.title,
+          order: lIdx,
+          estimatedDurationMinutes: l.estimatedTime || 5,
+          description: l.description || '',
+          contentBlocks: [
+            {
+              type: l.type === 'Video' ? 'video' : 'text',
+              content: l.content || '',
+              order: 0
+            }
+          ],
+          completionRules: {
+            requireContentCompletion: l.completionRule === 'video' || l.completionRule === 'button',
+            requireQuizCompletion: l.completionRule === 'quiz'
+          }
+        }))
+      }));
+    }
+
     // Check if status change is requested
     if (journey.status) {
       if (journey.status === 'Active') {
@@ -113,6 +166,13 @@ export const journeyService = {
       journeyId,
       priority: 'normal'
     });
+  },
+
+  getJourneyAssignments: async (journeyId: string): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/assignments', {
+      params: { journeyId }
+    });
+    return response.data.data || [];
   }
 };
 

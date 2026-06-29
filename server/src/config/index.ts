@@ -52,12 +52,21 @@ export const corsConfig = {
   allowedOrigins: parsedEnv.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim()),
 };
 
+export const emailConfig = {
+  host: parsedEnv.SMTP_HOST,
+  port: parsedEnv.SMTP_PORT,
+  user: parsedEnv.SMTP_USER,
+  pass: parsedEnv.SMTP_PASS,
+  from: parsedEnv.SMTP_FROM,
+};
+
 export const config = {
   app: appConfig,
   db: dbConfig,
   jwt: jwtConfig,
   storage: storageConfig,
   cors: corsConfig,
+  email: emailConfig,
 };
 
 export default config;

@@ -83,6 +83,7 @@ export interface IJourney extends Document {
     teams?: mongoose.Types.ObjectId[];
     jobTitles?: mongoose.Types.ObjectId[];
     employmentTypes?: string[];
+    isPublic?: boolean;
   };
   modules: IModule[];
   certificate: {
@@ -206,6 +207,7 @@ const JourneySchema = new Schema<IJourney>(
       teams: { type: [Schema.Types.ObjectId], ref: "Organization.teams" },
       jobTitles: { type: [Schema.Types.ObjectId] },
       employmentTypes: { type: [String] },
+      isPublic: { type: Boolean, default: false },
     },
     modules: { type: [ModuleSchema], default: [] },
     certificate: {
@@ -253,6 +255,7 @@ JourneySchema.index({ createdBy: 1 });
 JourneySchema.index({ createdAt: 1 });
 
 // Compound indexes
+JourneySchema.index({ organizationId: 1, isDeleted: 1 });
 JourneySchema.index({ organizationId: 1, "publishing.status": 1 });
 JourneySchema.index({ organizationId: 1, category: 1 });
 JourneySchema.index({ organizationId: 1, tags: 1 });

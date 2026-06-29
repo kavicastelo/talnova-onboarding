@@ -25,6 +25,20 @@ export interface Journey {
   description?: string;
   category?: string;
   modules?: CourseModule[];
+  audience?: {
+    isPublic?: boolean;
+  };
+  settings?: {
+    allowSkipLessons: boolean;
+    requireSequentialCompletion: boolean;
+    allowRetakes: boolean;
+    maxRetakes?: number;
+  };
+  certificate?: {
+    enabled: boolean;
+    templateId?: string;
+    passingScore?: number;
+  };
 }
 
 export interface JourneyAssignment {
@@ -79,6 +93,25 @@ export interface Lesson {
   prerequisites?: string[];
   estimatedTime?: number; // in minutes
   completionRule?: 'video' | 'button' | 'quiz';
+  quiz?: {
+    id: string;
+    passingScore: number;
+    questions: Array<{
+      id: string;
+      questionText: string;
+      type: 'single_choice' | 'multiple_choice';
+      points: number;
+      options: Array<{
+        id: string;
+        optionText: string;
+      }>;
+    }>;
+  } | null;
+  quizAttempt?: {
+    score: number;
+    passed: boolean;
+    attemptNumber: number;
+  } | null;
 }
 
 export interface CourseModule {

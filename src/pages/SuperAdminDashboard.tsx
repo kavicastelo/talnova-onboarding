@@ -1,5 +1,7 @@
-import { Building2, Users, ShieldCheck, Activity, TrendingUp, DollarSign } from 'lucide-react';
+import { Building2, Users, ShieldCheck, Activity, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { Card } from '../components/Card';
+import { Button } from '../components/Button';
+import { useSuperAdminTelemetry, useSuperAdminActivityLogs } from '../hooks/useSuperAdmin';
 import {
   AreaChart,
   Area,
@@ -10,26 +12,92 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const growthData = [
-  { month: 'Jan', organizations: 12, revenue: 14000, users: 340 },
-  { month: 'Feb', organizations: 15, revenue: 17500, users: 420 },
-  { month: 'Mar', organizations: 18, revenue: 21000, users: 510 },
-  { month: 'Apr', organizations: 24, revenue: 29000, users: 680 },
-  { month: 'May', organizations: 29, revenue: 34500, users: 810 },
-  { month: 'Jun', organizations: 35, revenue: 42000, users: 950 },
-];
-
-const systemLogs = [
-  { id: 1, org: 'Northwind Labs', event: 'Added 12 new engineers', time: '10 mins ago', type: 'user' },
-  { id: 2, org: 'Globex Inc', event: 'Created journey "Product Design Guide"', time: '45 mins ago', type: 'journey' },
-  { id: 3, org: 'Acme Corp', event: 'Paid manual Invoice #INV-8890', time: '2 hours ago', type: 'finance' },
-  { id: 4, org: 'Initech', event: 'Workspace settings updated (branding)', time: '4 hours ago', type: 'settings' },
-  { id: 5, org: 'Umbrella Corp', event: 'Provisioned new workspace via API', time: '1 day ago', type: 'system' },
-];
-
 export function SuperAdminDashboard() {
+  const { 
+    data: telemetry, 
+    isLoading: telemetryLoading, 
+    isError: telemetryError, 
+    refetch: refetchTelemetry 
+  } = useSuperAdminTelemetry();
+
+  const { 
+    data: logs, 
+    isLoading: logsLoading, 
+    isError: logsError, 
+    refetch: refetchLogs 
+  } = useSuperAdminActivityLogs();
+
+  const isLoading = telemetryLoading || logsLoading;
+  const isError = telemetryError || logsError;
+
+  const handleRetry = () => {
+    refetchTelemetry();
+    refetchLogs();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Super Admin Portal</h1>
+          <p className="text-gray-400">System telemetry and tenant management console</p>
+        </div>
+        
+        {/* Loading Skeletons */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="border-white/5 bg-white/[0.02] p-5 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-24 rounded bg-white/10" />
+                <div className="h-4 w-4 rounded bg-white/10" />
+              </div>
+              <div className="mt-2.5 flex items-baseline gap-2">
+                <div className="h-8 w-16 rounded bg-white/10" />
+                <div className="h-3 w-10 rounded bg-white/10" />
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="col-span-2 border-white/5 bg-white/[0.02] p-6 animate-pulse h-96">
+            <div className="h-full w-full rounded bg-white/5" />
+          </Card>
+          <Card className="border-white/5 bg-white/[0.02] p-6 animate-pulse h-96">
+            <div className="h-full w-full rounded bg-white/5" />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
+        <div className="rounded-full bg-rose-500/10 p-3 text-rose-400">
+          <Activity className="h-8 w-8" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-white">Telemetry Sync Failed</h2>
+          <p className="mt-1 text-sm text-gray-400">Could not retrieve system telemetry statistics from backend APIs.</p>
+        </div>
+        <Button 
+          onClick={handleRetry} 
+          className="flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry Connection
+        </Button>
+      </div>
+    );
+  }
+
+  const stats = telemetry?.stats;
+  const growthData = telemetry?.growthData || [];
+  const systemLogs = logs || [];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-white">Super Admin Portal</h1>
         <p className="text-gray-400">System telemetry and tenant management console</p>
@@ -43,8 +111,8 @@ export function SuperAdminDashboard() {
             <Building2 className="h-4 w-4 text-indigo-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-3xl font-bold text-white">35</span>
-            <span className="ml-2 text-xs font-semibold text-emerald-400">+18% MoM</span>
+            <span className="text-3xl font-bold text-white">{stats?.totalOrganizations?.value ?? 0}</span>
+            <span className="ml-2 text-xs font-semibold text-emerald-400">{stats?.totalOrganizations?.delta}</span>
           </div>
         </Card>
 
@@ -54,8 +122,8 @@ export function SuperAdminDashboard() {
             <Users className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-3xl font-bold text-white">950</span>
-            <span className="ml-2 text-xs font-semibold text-emerald-400">+24% MoM</span>
+            <span className="text-3xl font-bold text-white">{stats?.platformUsers?.value ?? 0}</span>
+            <span className="ml-2 text-xs font-semibold text-emerald-400">{stats?.platformUsers?.delta}</span>
           </div>
         </Card>
 
@@ -65,8 +133,8 @@ export function SuperAdminDashboard() {
             <DollarSign className="h-4 w-4 text-amber-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-3xl font-bold text-white">$42,000</span>
-            <span className="ml-2 text-xs font-semibold text-emerald-400">+21% MoM</span>
+            <span className="text-3xl font-bold text-white">${(stats?.monthlyRevenue?.value ?? 0).toLocaleString()}</span>
+            <span className="ml-2 text-xs font-semibold text-emerald-400">{stats?.monthlyRevenue?.delta}</span>
           </div>
         </Card>
 
@@ -76,8 +144,10 @@ export function SuperAdminDashboard() {
             <ShieldCheck className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-3xl font-bold text-white">99.98%</span>
-            <span className="ml-2 text-xs font-semibold text-cyan-400">All services UP</span>
+            <span className="text-3xl font-bold text-white">{stats?.systemHealth?.value ?? 0}%</span>
+            <span className={`ml-2 text-xs font-semibold ${stats?.systemHealth?.status === 'UP' ? 'text-cyan-400' : 'text-rose-400'}`}>
+              All services {stats?.systemHealth?.status ?? 'DOWN'}
+            </span>
           </div>
         </Card>
       </div>
@@ -147,6 +217,11 @@ export function SuperAdminDashboard() {
                 </div>
               </div>
             ))}
+            {systemLogs.length === 0 && (
+              <div className="text-center text-xs text-gray-500 py-8">
+                No activity logs available.
+              </div>
+            )}
           </div>
         </Card>
       </div>

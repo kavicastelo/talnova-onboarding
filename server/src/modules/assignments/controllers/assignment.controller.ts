@@ -153,6 +153,13 @@ export class EmployeeAssignmentController {
     const user = request.user as any;
     const body = request.body as any;
 
+    if (user.role === "employee" && body.employeeId !== user.userId) {
+      return reply.status(403).send({
+        success: false,
+        message: "Forbidden: Employees can only self-assign journeys.",
+      });
+    }
+
     const assignment = await this.service.assignJourney(
       user.organizationId,
       body.employeeId,
@@ -161,7 +168,8 @@ export class EmployeeAssignmentController {
       {
         dueDate: body.dueDate,
         priority: body.priority,
-      }
+      },
+      user.role === "employee"
     );
 
     return reply.status(201).send({

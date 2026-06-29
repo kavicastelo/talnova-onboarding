@@ -1,8 +1,11 @@
 import UserRepository from "../repositories/user.repository.js";
 import SessionRepository from "../repositories/session.repository.js";
 import AppError from "../../../common/errors/app-error.js";
-import { verifyPassword } from "../../../utils/crypto.js";
+import { verifyPassword, hashPassword } from "../../../utils/crypto.js";
 import mongoose from "mongoose";
+import crypto from "crypto";
+import EmailService from "../../../shared/email/email.service.js";
+import { Organization } from "../../organizations/models/organization.model.js";
 
 export interface TokenPayload {
   userId: string;
@@ -34,6 +37,12 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new AppError(401, "UNAUTHORIZED", "Invalid email or password");
+    }
+
+    // Check if organization is suspended
+    const org = await Organization.findById(user.organizationId);
+    if (org && org.status === "Suspended") {
+      throw new AppError(403, "FORBIDDEN", "Your organization has been suspended. Please contact support.");
     }
 
     // Check if account is locked
@@ -146,6 +155,12 @@ export class AuthService {
       throw new AppError(401, "UNAUTHORIZED", "User profile inactive or deleted");
     }
 
+    // Check if organization is suspended
+    const org = await Organization.findById(user.organizationId);
+    if (org && org.status === "Suspended") {
+      throw new AppError(403, "FORBIDDEN", "Your organization has been suspended. Access denied.");
+    }
+
     // Generate new payload with incremented tokenVersion
     const newPayload: TokenPayload = {
       userId: user._id.toString(),
@@ -169,6 +184,56 @@ export class AuthService {
    */
   async logout(sessionId: string) {
     await this.sessionRepository.invalidateSession(sessionId);
+  }
+
+  /**
+   * Generates a password reset token, saves it, and dispatches a reset email.
+   */
+  async forgotPassword(email: string, emailService: EmailService): Promise<void> {
+    const user = await this.userRepository.findByEmail(email);
+    // Generic response for security to prevent email enumeration
+    if (!user) {
+      return;
+    }
+
+    // Generate random token and hash it
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expires = new Date(Date.now() + 3600000); // 1 hour expiry
+
+    // Save hashed token and expiry to database
+    await this.userRepository.update(user._id, {
+      "security.passwordResetToken": hashedToken,
+      "security.passwordResetExpires": expires,
+    } as any);
+
+    // Send email
+    await emailService.sendPasswordResetEmail(user.auth.email, rawToken);
+  }
+
+  /**
+   * Resets the user's password using the raw token.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await this.userRepository.findByResetToken(hashedToken);
+    if (!user) {
+      throw new AppError(400, "INVALID_TOKEN", "Password reset token is invalid or has expired.");
+    }
+
+    // Hash new password
+    const passwordHash = await hashPassword(newPassword);
+
+    // Update user: set new password, clear reset fields, update passwordChangedAt
+    await this.userRepository.update(user._id, {
+      "auth.passwordHash": passwordHash,
+      "auth.passwordChangedAt": new Date(),
+      "security.passwordResetToken": null,
+      "security.passwordResetExpires": null,
+    } as any);
+
+    // Invalidate all active sessions for this user on password change
+    await this.sessionRepository.invalidateAllUserSessions(user._id);
   }
 }
 

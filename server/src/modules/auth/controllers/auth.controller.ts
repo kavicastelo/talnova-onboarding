@@ -3,6 +3,7 @@ import { AuthService } from "../services/auth.service.js";
 import AppError from "../../../common/errors/app-error.js";
 import { appConfig } from "../../../config/index.js";
 import { LoginInput } from "../schemas/login.schema.js";
+import EmailService from "../../../shared/email/email.service.js";
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -85,6 +86,35 @@ export class AuthController {
     return reply.status(200).send({
       success: true,
       message: "Logout successful",
+      data: null,
+    });
+  };
+
+  forgotPassword = async (
+    request: FastifyRequest<{ Body: { email: string } }>,
+    reply: FastifyReply
+  ) => {
+    const { email } = request.body;
+    const emailService = new EmailService();
+    await this.authService.forgotPassword(email, emailService);
+
+    return reply.status(200).send({
+      success: true,
+      message: "If the email is registered, a password reset link has been sent.",
+      data: null,
+    });
+  };
+
+  resetPassword = async (
+    request: FastifyRequest<{ Body: { token: string; password: string } }>,
+    reply: FastifyReply
+  ) => {
+    const { token, password } = request.body;
+    await this.authService.resetPassword(token, password);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Password reset successful.",
       data: null,
     });
   };

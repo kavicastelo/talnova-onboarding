@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import {
@@ -9,27 +9,37 @@ import {
   FileText,
   AlertCircle,
   RefreshCw,
-  Award
-} from
-  'lucide-react';
+  Award,
+  Check
+} from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ScrollArea } from '../components/ScrollArea';
 import { Separator } from '../components/Separator';
-import { useCourse, useUpdateLessonCompletion } from '../hooks/useCourses';
+import { useCourse, useUpdateLessonCompletion, useSubmitQuiz } from '../hooks/useCourses';
 import { Skeleton } from '../components/Skeleton';
+import { toast } from 'sonner';
 
 export function CourseViewer() {
   const { id } = useParams();
   const { data: course, isLoading, isError, error, refetch } = useCourse(id || '');
   const updateLessonCompletion = useUpdateLessonCompletion();
+  const submitQuiz = useSubmitQuiz();
 
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({});
+  const [retryMode, setRetryMode] = useState<boolean>(false);
 
   const allLessons = course?.modules.flatMap((m) => m.lessons) || [];
   const selectedLesson =
     allLessons.find((l) => l.id === selectedLessonId) || allLessons[0];
 
   const selectedIndex = allLessons.findIndex((l) => l.id === (selectedLesson?.id));
+
+  // Reset selected answers when lesson changes
+  useEffect(() => {
+    setSelectedAnswers({});
+    setRetryMode(false);
+  }, [selectedLesson?.id]);
 
   const handleNext = () => {
     if (selectedIndex < allLessons.length - 1) {
@@ -50,6 +60,63 @@ export function CourseViewer() {
         lessonId: selectedLesson.id,
         isCompleted: !selectedLesson.isCompleted,
       });
+    }
+  };
+
+  const handleOptionSelect = (questionId: string, optionId: string, type: 'single_choice' | 'multiple_choice') => {
+    setSelectedAnswers((prev) => {
+      const current = prev[questionId] || [];
+      if (type === 'single_choice') {
+        return { ...prev, [questionId]: [optionId] };
+      } else {
+        if (current.includes(optionId)) {
+          return { ...prev, [questionId]: current.filter((id) => id !== optionId) };
+        } else {
+          return { ...prev, [questionId]: [...current, optionId] };
+        }
+      }
+    });
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!selectedLesson || !selectedLesson.quiz) return;
+
+    let moduleId = '';
+    if (course) {
+      for (const m of course.modules) {
+        if (m.lessons.some((l) => l.id === selectedLesson.id)) {
+          moduleId = m.id;
+          break;
+        }
+      }
+    }
+
+    if (!moduleId) {
+      toast.error('Module context not found.');
+      return;
+    }
+
+    const answersPayload = selectedLesson.quiz.questions.map((q) => ({
+      questionId: q.id,
+      selectedOptions: selectedAnswers[q.id] || [],
+    }));
+
+    try {
+      const result = await submitQuiz.mutateAsync({
+        courseId: course!.id,
+        moduleId,
+        lessonId: selectedLesson.id,
+        answers: answersPayload,
+      });
+
+      if (result.passed) {
+        toast.success(`Congratulations! You passed the quiz with a score of ${result.score}%!`);
+      } else {
+        toast.error(`You scored ${result.score}%, which is below the passing score of ${selectedLesson.quiz.passingScore}%.`);
+      }
+      setRetryMode(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to submit quiz.');
     }
   };
 
@@ -88,25 +155,25 @@ export function CourseViewer() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-background">
-      <div className="w-80 border-r flex flex-col bg-muted/30">
-        <div className="p-4 border-b">
+    <div className="flex h-screen w-full bg-[#0B0F19]">
+      <div className="w-80 border-r border-white/10 flex flex-col bg-white/[0.02] backdrop-blur-md">
+        <div className="p-4 border-b border-white/10">
           <Button
             variant="ghost"
             size="sm"
-            className="mb-4 -ml-2 text-muted-foreground"
+            className="mb-4 -ml-2 text-gray-400 hover:text-white"
             asChild>
             <Link to="/employee">
               <ChevronLeft className="mr-1 h-4 w-4" />
               Back to Dashboard
             </Link>
           </Button>
-          <h2 className="font-semibold text-lg leading-tight mb-2">
+          <h2 className="font-semibold text-lg text-white leading-tight mb-2">
             {course.title}
           </h2>
           <div className="flex items-center gap-2 mb-1">
-            <Progress value={course.progress} className="h-2 flex-1" />
-            <span className="text-xs text-muted-foreground font-medium">
+            <Progress value={course.progress} className="h-2 flex-1 bg-white/10" />
+            <span className="text-xs text-gray-400 font-medium">
               {course.progress}%
             </span>
           </div>
@@ -115,8 +182,8 @@ export function CourseViewer() {
           <div className="p-4 space-y-6">
             {course.modules.map((module, mIdx) => (
               <div key={module.id}>
-                {mIdx > 0 && <Separator className="my-4" />}
-                <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                {mIdx > 0 && <Separator className="my-4 bg-white/10" />}
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
                   {module.title}
                 </h3>
                 <div className="space-y-1">
@@ -128,22 +195,23 @@ export function CourseViewer() {
                       <button
                         key={lesson.id}
                         onClick={() => setSelectedLessonId(lesson.id)}
-                        className={`w-full flex items-start gap-3 p-2 rounded-md transition-colors text-left ${isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-                          }`}>
+                        className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-all text-left ${
+                          isSelected ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'hover:bg-white/[0.04] text-gray-400 hover:text-white border border-transparent'
+                        }`}>
                         {isCompleted ? (
-                          <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
                         ) : lesson.type === 'Video' ? (
-                          <PlayCircle className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <PlayCircle className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
                         ) : lesson.type === 'Quiz' ? (
-                          <Award className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <Award className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
                         ) : (
-                          <FileText className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <FileText className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
                         )}
                         <div>
-                          <p className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>
+                          <p className={`text-sm font-medium ${isSelected ? 'text-white font-semibold' : ''}`}>
                             {lesson.title}
                           </p>
-                          <p className={`text-xs ${isSelected ? 'text-primary/70' : 'text-muted-foreground'}`}>
+                          <p className="text-xs text-gray-500 mt-0.5">
                             {lesson.type} • {lesson.duration}
                           </p>
                         </div>
@@ -157,24 +225,28 @@ export function CourseViewer() {
         </ScrollArea>
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0B0F19]">
         {selectedLesson ? (
           <>
-            <header className="h-14 border-b flex items-center justify-between px-6">
-              <h1 className="font-medium">{selectedLesson.title}</h1>
+            <header className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-white/[0.01]">
+              <h1 className="font-semibold text-white text-sm">{selectedLesson.title}</h1>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handlePrevious}
-                  disabled={selectedIndex <= 0}>
+                  disabled={selectedIndex <= 0}
+                  className="border-white/10 text-gray-300 hover:bg-white/5"
+                >
                   <ChevronLeft className="mr-2 h-4 w-4" />
                   Previous
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleNext}
-                  disabled={selectedIndex >= allLessons.length - 1}>
+                  disabled={selectedIndex >= allLessons.length - 1}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
                   Next
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -183,39 +255,168 @@ export function CourseViewer() {
             <main className="flex-1 p-8 overflow-auto flex justify-center">
               <div className="max-w-3xl w-full space-y-8">
                 {selectedLesson.type === 'Video' && (
-                  <div className="aspect-video bg-black rounded-lg flex items-center justify-center text-white/50 relative overflow-hidden">
-                    <PlayCircle className="h-16 w-16 absolute z-10 cursor-pointer hover:scale-105 transition-transform" />
+                  <div className="aspect-video bg-black/60 rounded-xl border border-white/10 flex items-center justify-center text-white/50 relative overflow-hidden shadow-2xl">
+                    <PlayCircle className="h-16 w-16 absolute z-10 cursor-pointer hover:scale-105 transition-transform text-white/80" />
                     <div className="absolute inset-0 bg-muted/20" />
-                    <p className="z-10 mt-24">Video Player Placeholder</p>
+                    <p className="z-10 mt-24 text-xs font-semibold text-gray-400 tracking-wider">Video Player Placeholder</p>
                   </div>
                 )}
 
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <h2>{selectedLesson.title}</h2>
-                  <p>
-                    {selectedLesson.content ||
-                      'Learn the core concepts of this topic. Review all details carefully.'}
-                  </p>
-                </div>
+                {selectedLesson.type === 'Quiz' && selectedLesson.quiz ? (
+                  <div className="space-y-6">
+                    {selectedLesson.quizAttempt && !retryMode ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center space-y-6 shadow-xl">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                          <Award className="h-7 w-7" />
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="text-2xl font-bold text-white">Quiz Evaluation Results</h3>
+                          <p className="text-gray-400 text-sm">
+                            {selectedLesson.quizAttempt.passed ? 'Excellent work! You passed the assessment requirements.' : 'You did not score enough to pass the assessment this time.'}
+                          </p>
+                        </div>
+                        <div className="flex justify-center gap-6 text-sm">
+                          <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
+                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">Your Score</span>
+                            <span className={`text-2xl font-bold block mt-1 ${selectedLesson.quizAttempt.passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {selectedLesson.quizAttempt.score}%
+                            </span>
+                          </div>
+                          <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
+                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">Passing Score</span>
+                            <span className="text-2xl font-bold text-white block mt-1">
+                              {selectedLesson.quiz.passingScore}%
+                            </span>
+                          </div>
+                          <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
+                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">Attempt No</span>
+                            <span className="text-2xl font-bold text-white block mt-1">
+                              {selectedLesson.quizAttempt.attemptNumber}
+                            </span>
+                          </div>
+                        </div>
 
-                <div className="flex justify-end pt-4 border-t">
-                  <Button
-                    variant={selectedLesson.isCompleted ? 'outline' : 'default'}
-                    onClick={toggleCompletion}
-                    disabled={updateLessonCompletion.isPending}>
-                    {updateLessonCompletion.isPending ? (
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    ) : selectedLesson.isCompleted ? (
-                      <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                    ) : null}
-                    {selectedLesson.isCompleted ? 'Completed' : 'Mark as Completed'}
-                  </Button>
-                </div>
+                        {selectedLesson.quizAttempt.passed ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
+                            <CheckCircle2 className="h-4 w-4" /> Passed & Completed
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold">
+                            <AlertCircle className="h-4 w-4" /> Verification Incomplete
+                          </div>
+                        )}
+
+                        <div className="pt-4">
+                          <Button onClick={() => setRetryMode(true)} className="bg-indigo-600 hover:bg-indigo-700">
+                            {selectedLesson.quizAttempt.passed ? 'Retake Quiz' : 'Try Again'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-8">
+                        <div className="border-b border-white/10 pb-4">
+                          <h3 className="text-xl font-bold text-white">Lesson Assessment</h3>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Answer the questions below to verify your learning. You need at least {selectedLesson.quiz.passingScore}% to pass.
+                          </p>
+                        </div>
+
+                        <div className="space-y-6">
+                          {selectedLesson.quiz.questions.map((question, qIdx) => {
+                            const userAnswers = selectedAnswers[question.id] || [];
+                            return (
+                              <div key={question.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-6 space-y-4 shadow-lg">
+                                <div className="flex items-start gap-3">
+                                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-xs font-bold text-indigo-400">
+                                    {qIdx + 1}
+                                  </span>
+                                  <div className="space-y-1">
+                                    <h4 className="font-semibold text-white leading-snug">{question.questionText}</h4>
+                                    <p className="text-xs text-gray-500 font-medium">
+                                      {question.type === 'single_choice' ? 'Select single choice option' : 'Multiple choices allowed'} • {question.points} points
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-3 pt-2">
+                                  {question.options.map((option) => {
+                                    const isSelected = userAnswers.includes(option.id);
+                                    return (
+                                      <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => handleOptionSelect(question.id, option.id, question.type)}
+                                        className={`flex items-center justify-between w-full px-4 py-3.5 rounded-lg border text-left text-sm transition-all ${
+                                          isSelected
+                                            ? 'border-indigo-500 bg-indigo-500/5 text-indigo-300 shadow-lg shadow-indigo-500/5'
+                                            : 'border-white/10 bg-white/[0.01] hover:border-white/20 text-gray-300'
+                                        }`}
+                                      >
+                                        <span>{option.optionText}</span>
+                                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                                          isSelected
+                                            ? 'border-indigo-500 bg-indigo-500 text-white'
+                                            : 'border-white/25'
+                                        }`}>
+                                          {isSelected && <Check className="h-3.5 w-3.5" />}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-white/10">
+                          <Button
+                            onClick={handleSubmitQuiz}
+                            disabled={submitQuiz.isPending || Object.keys(selectedAnswers).length < selectedLesson.quiz.questions.length}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
+                          >
+                            {submitQuiz.isPending ? (
+                              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            ) : null}
+                            Submit Assessment
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <h2 className="text-white text-2xl font-bold mb-4">{selectedLesson.title}</h2>
+                    <p className="text-gray-300 leading-relaxed whitespace-pre-line">
+                      {selectedLesson.content ||
+                        'Learn the core concepts of this topic. Review all details carefully.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Show mark completed button only for non-quiz lessons */}
+                {selectedLesson.type !== 'Quiz' && (
+                  <div className="flex justify-end pt-4 border-t border-white/10">
+                    <Button
+                      variant={selectedLesson.isCompleted ? 'outline' : 'default'}
+                      onClick={toggleCompletion}
+                      disabled={updateLessonCompletion.isPending}
+                      className={selectedLesson.isCompleted ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}
+                    >
+                      {updateLessonCompletion.isPending ? (
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      ) : selectedLesson.isCompleted ? (
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-400" />
+                      ) : null}
+                      {selectedLesson.isCompleted ? 'Completed' : 'Mark as Completed'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </main>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
             Select a topic to start learning.
           </div>
         )}
