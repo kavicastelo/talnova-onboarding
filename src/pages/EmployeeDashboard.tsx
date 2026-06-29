@@ -13,11 +13,36 @@ import { PlayCircle, Clock, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
+import { useJourneys, useAssignJourney } from '../hooks/useJourneys';
+import { toast } from 'sonner';
 
 export function EmployeeDashboard() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
   // Fetch current logged in employee's profile
   const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('me');
+
+  const { data: publicJourneys = [] } = useJourneys();
+  const assignJourneyMut = useAssignJourney();
+
+  const handleEnroll = (journeyId: string) => {
+    if (!employee) return;
+    assignJourneyMut.mutate(
+      { journeyId, employeeId: employee.id },
+      {
+        onSuccess: () => {
+          toast.success('Successfully enrolled in the journey!');
+          refetch();
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || 'Failed to enroll.');
+        }
+      }
+    );
+  };
+
+  const availablePublicJourneys = publicJourneys.filter((pj: any) => {
+    return !employee?.assignedJourneys?.some((aj: any) => aj.id === pj.id);
+  });
 
   const isLoading = userLoading || employeeLoading;
 
@@ -196,6 +221,43 @@ export function EmployeeDashboard() {
           )}
         </div>
       </div>
+
+      {availablePublicJourneys.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold tracking-tight mb-4 flex items-center gap-2">
+            Explore Public Journeys
+            <span className="text-xs font-normal text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/10">Self-Enroll</span>
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {availablePublicJourneys.map((j: any) => (
+              <Card key={j.id} className="hover:shadow-md transition-all flex flex-col justify-between">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center justify-between gap-2">
+                    {j.title}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {j.description || 'No description provided.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                    <span>{j.category || 'General'}</span>
+                    <span>•</span>
+                    <span>{j.modules?.length || 0} modules</span>
+                  </div>
+                  <Button 
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" 
+                    onClick={() => handleEnroll(j.id)}
+                    disabled={assignJourneyMut.isPending}
+                  >
+                    {assignJourneyMut.isPending ? 'Enrolling...' : 'Enroll & Start'}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

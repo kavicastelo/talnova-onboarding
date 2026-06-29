@@ -14,7 +14,8 @@ export class EmployeeAssignmentService {
     employeeId: string | mongoose.Types.ObjectId,
     journeyId: string | mongoose.Types.ObjectId,
     assignedBy: string | mongoose.Types.ObjectId,
-    assignmentData: { dueDate?: Date; priority?: "low" | "normal" | "high" | "critical" }
+    assignmentData: { dueDate?: Date; priority?: "low" | "normal" | "high" | "critical" },
+    enforcePublicCheck = false
   ) {
     const journey = await Journey.findOne({ _id: journeyId, organizationId: orgId, isDeleted: false });
     if (!journey) {
@@ -22,6 +23,10 @@ export class EmployeeAssignmentService {
     }
     if (journey.publishing.status !== "published") {
       throw new AppError(400, "BAD_REQUEST", "Cannot assign a journey that is not published.");
+    }
+
+    if (enforcePublicCheck && (!journey.audience || !journey.audience.isPublic)) {
+      throw new AppError(403, "FORBIDDEN", "Cannot self-assign a private journey.");
     }
 
     // Check if already assigned and not completed

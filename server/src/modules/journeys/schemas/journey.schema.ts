@@ -69,6 +69,15 @@ export const createJourneySchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  audience: z
+    .object({
+      departments: z.array(z.string()).optional(),
+      teams: z.array(z.string()).optional(),
+      jobTitles: z.array(z.string()).optional(),
+      employmentTypes: z.array(z.string()).optional(),
+      isPublic: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const updateJourneySchema = z.object({
@@ -82,6 +91,7 @@ export const updateJourneySchema = z.object({
       teams: z.array(z.string()).optional(),
       jobTitles: z.array(z.string()).optional(),
       employmentTypes: z.array(z.string()).optional(),
+      isPublic: z.boolean().optional(),
     })
     .optional(),
   modules: z.array(ModuleSchema).optional(),
@@ -105,3 +115,5 @@ export const updateJourneySchema = z.object({
 export const duplicateJourneySchema = z.object({
   title: z.string().min(3, "New title must be at least 3 characters"),
 });
+
+

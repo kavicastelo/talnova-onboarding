@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Building2, User, Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/Button';
+import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 
 export function Register() {
@@ -39,12 +40,19 @@ export function Register() {
 
     setLoading(true);
     try {
-      // Simulate registering organization and user
-      // Note: Call backend if registration routes are created, otherwise mock success
+      await authService.register({
+        orgName,
+        orgSlug,
+        supportEmail,
+        firstName,
+        lastName,
+        email,
+        password
+      });
       toast.success('Workspace created successfully! Check email to verify.');
       setTimeout(() => {
         navigate('/login');
-      }, 1000);
+      }, 1500);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create organization.');
     } finally {

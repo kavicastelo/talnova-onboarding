@@ -116,6 +116,7 @@ AuditLogSchema.index({ resourceType: 1 });
 AuditLogSchema.index({ resourceId: 1 });
 AuditLogSchema.index({ severity: 1 });
 AuditLogSchema.index({ createdAt: -1 });
+AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7 * 365 * 24 * 60 * 60 });
 
 // Compound indexes
 AuditLogSchema.index({ organizationId: 1, createdAt: -1 });

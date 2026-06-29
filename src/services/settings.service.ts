@@ -23,11 +23,18 @@ export const settingsService = {
   updateSettings: async (settings: Partial<WorkspaceSettings>): Promise<WorkspaceSettings> => {
     let updatedOrg = null;
 
-    // 1. If updating name/supportEmail, send patch to current organization
-    if (settings.orgName !== undefined || settings.supportEmail !== undefined) {
+    // 1. If updating name/supportEmail or notifications, send patch to current organization
+    if (settings.orgName !== undefined || settings.supportEmail !== undefined || settings.notifications !== undefined) {
       const payload: Record<string, any> = {};
       if (settings.orgName !== undefined) payload.name = settings.orgName;
       if (settings.supportEmail !== undefined) payload.supportEmail = settings.supportEmail;
+      if (settings.notifications !== undefined) {
+        payload.notificationSettings = {
+          assignmentEmail: settings.notifications.newAssignmentEmails,
+          reminderEmail: settings.notifications.deadlineReminders,
+          weeklyDigest: settings.notifications.weeklyManagerDigest
+        };
+      }
       
       const response = await apiClient.patch<ApiResponse<any>>('/organizations/current', payload);
       updatedOrg = response.data.data;

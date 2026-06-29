@@ -44,7 +44,26 @@ export const courseService = {
           description: l.description || '',
           prerequisites: [],
           estimatedTime: l.estimatedDurationMinutes || 5,
-          completionRule
+          completionRule,
+          quiz: l.quiz ? {
+            id: l.quiz._id,
+            passingScore: l.quiz.passingScore,
+            questions: l.quiz.questions.map((q: any) => ({
+              id: q._id,
+              questionText: q.questionText,
+              type: q.type,
+              points: q.points,
+              options: q.options.map((o: any) => ({
+                id: o._id,
+                optionText: o.optionText,
+              })),
+            })),
+          } : null,
+          quizAttempt: lProg?.quizAttempt ? {
+            score: lProg.quizAttempt.score,
+            passed: lProg.quizAttempt.passed,
+            attemptNumber: lProg.quizAttempt.attemptNumber,
+          } : null,
         };
       });
 
@@ -105,6 +124,26 @@ export const courseService = {
 
     // 4. Return refreshed course details
     return courseService.getCourse(courseId);
+  },
+
+  submitQuiz: async (
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    answers: Array<{ questionId: string; selectedOptions: string[] }>
+  ): Promise<any> => {
+    const assignRes = await apiClient.get<ApiResponse<any>>(`/assignments/${courseId}`);
+    const assignment = assignRes.data.data;
+    if (assignment.status === 'assigned') {
+      await apiClient.post(`/assignments/${courseId}/start`);
+    }
+
+    const response = await apiClient.post<ApiResponse<any>>(`/assignments/${courseId}/submit-quiz`, {
+      moduleId,
+      lessonId,
+      answers,
+    });
+    return response.data.data;
   }
 };
 

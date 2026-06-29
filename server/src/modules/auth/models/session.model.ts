@@ -31,6 +31,7 @@ const SessionSchema = new Schema<ISession>(
 SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 SessionSchema.index({ userId: 1 });
 SessionSchema.index({ organizationId: 1 });
+SessionSchema.index({ organizationId: 1, isValid: 1 });
 
 export const Session = mongoose.model<ISession>("Session", SessionSchema);
 export default Session;

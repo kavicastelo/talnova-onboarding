@@ -15,8 +15,8 @@ export class KnowledgeBaseService {
       .toLowerCase()
       .trim()
       .replace(/\s+/g, "-")
-      .replace(/[^\w\-]+/g, "")
-      .replace(/\-\-+/g, "-");
+      .replace(/[^\w-]+/g, "")
+      .replace(/--+/g, "-");
   }
 
   private generateKeywords(title: string, summary?: string, tags?: string[]): string[] {
@@ -38,7 +38,7 @@ export class KnowledgeBaseService {
     }
 
     // Trigger asynchronous view count increment
-    this.repository.incrementViews(article._id).catch(() => {});
+    this.repository.incrementViews(article._id).catch(() => undefined);
 
     return article;
   }
@@ -233,7 +233,7 @@ export class KnowledgeBaseService {
   async getPopularArticles(
     orgId: string | mongoose.Types.ObjectId,
     userContext: UserContext,
-    limit: number = 5
+    limit = 5
   ) {
     const filter: ArticleFilter = { organizationId: orgId, status: "published" };
     const pagination: PaginationOptions = {

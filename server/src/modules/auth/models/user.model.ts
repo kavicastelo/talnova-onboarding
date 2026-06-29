@@ -33,7 +33,7 @@ export interface IUser extends Document {
     status: "invited" | "active" | "onboarding" | "inactive";
   };
   permissions: {
-    role: "owner" | "admin" | "manager" | "employee";
+    role: "owner" | "admin" | "manager" | "employee" | "super_admin";
     customRoles: string[];
   };
   preferences: {
@@ -52,6 +52,8 @@ export interface IUser extends Document {
     failedLoginAttempts: number;
     lockedUntil?: Date;
     lastPasswordReset?: Date;
+    passwordResetToken?: string;
+    passwordResetExpires?: Date;
   };
   createdBy?: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
@@ -104,7 +106,7 @@ const UserSchema = new Schema<IUser>(
     permissions: {
       role: {
         type: String,
-        enum: ["owner", "admin", "manager", "employee"],
+        enum: ["owner", "admin", "manager", "employee", "super_admin"],
         default: "employee",
       },
       customRoles: { type: [String], default: [] },
@@ -125,6 +127,8 @@ const UserSchema = new Schema<IUser>(
       failedLoginAttempts: { type: Number, default: 0 },
       lockedUntil: { type: Date },
       lastPasswordReset: { type: Date },
+      passwordResetToken: { type: String },
+      passwordResetExpires: { type: Date },
     },
     createdBy: { type: Schema.Types.ObjectId },
     updatedBy: { type: Schema.Types.ObjectId },
@@ -154,6 +158,7 @@ UserSchema.index({ "employment.status": 1 });
 UserSchema.index({ isDeleted: 1 });
 
 // Compound Indexes
+UserSchema.index({ organizationId: 1, isDeleted: 1 });
 UserSchema.index({ organizationId: 1, "auth.email": 1 });
 UserSchema.index({ organizationId: 1, "permissions.role": 1 });
 

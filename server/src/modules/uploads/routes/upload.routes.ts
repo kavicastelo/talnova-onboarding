@@ -20,6 +20,13 @@ export async function uploadRoutes(app: FastifyInstance) {
     controller.requestUploadUrl as any
   );
 
+  // POST /api/v1/uploads/presigned
+  app.post(
+    "/presigned",
+    { schema: { body: requestUploadUrlSchema } },
+    controller.requestUploadUrl as any
+  );
+
   // POST /api/v1/uploads/complete
   app.post(
     "/complete",

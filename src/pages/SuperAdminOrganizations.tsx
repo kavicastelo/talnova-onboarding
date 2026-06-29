@@ -1,33 +1,26 @@
 import React, { useState } from 'react';
-import { Search, Plus, Building2, CheckCircle, Ban } from 'lucide-react';
+import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { toast } from 'sonner';
-
-interface OrganizationItem {
-  id: string;
-  name: string;
-  slug: string;
-  plan: 'Starter' | 'Growth' | 'Enterprise';
-  status: 'Active' | 'Suspended';
-  usersCount: number;
-  createdAt: string;
-  supportEmail: string;
-}
-
-const initialOrgs: OrganizationItem[] = [
-  { id: '1', name: 'Northwind Labs', slug: 'northwind-labs', plan: 'Enterprise', status: 'Active', usersCount: 142, createdAt: '2026-01-10', supportEmail: 'support@northwind.com' },
-  { id: '2', name: 'Globex Inc', slug: 'globex', plan: 'Growth', status: 'Active', usersCount: 68, createdAt: '2026-02-14', supportEmail: 'contact@globex.com' },
-  { id: '3', name: 'Acme Corp', slug: 'acme-corp', plan: 'Starter', status: 'Active', usersCount: 22, createdAt: '2026-03-01', supportEmail: 'admin@acme.com' },
-  { id: '4', name: 'Initech', slug: 'initech', plan: 'Growth', status: 'Suspended', usersCount: 45, createdAt: '2026-01-20', supportEmail: 'billing@initech.com' },
-  { id: '5', name: 'Umbrella Corp', slug: 'umbrella', plan: 'Enterprise', status: 'Active', usersCount: 310, createdAt: '2025-11-15', supportEmail: 'security@umbrella.com' },
-];
+import { useSuperAdminOrganizations, useCreateOrganization, useToggleOrganizationStatus } from '../hooks/useSuperAdmin';
 
 export function SuperAdminOrganizations() {
-  const [orgs, setOrgs] = useState<OrganizationItem[]>(initialOrgs);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  // React Query Hooks
+  const { data, isLoading, isError, refetch } = useSuperAdminOrganizations({
+    search: searchQuery || undefined,
+    page,
+    limit,
+  });
+
+  const createOrgMutation = useCreateOrganization();
+  const toggleStatusMutation = useToggleOrganizationStatus();
+
   // Create Modal State
   const [showModal, setShowModal] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
@@ -35,44 +28,42 @@ export function SuperAdminOrganizations() {
   const [newOrgPlan, setNewOrgPlan] = useState<'Starter' | 'Growth' | 'Enterprise'>('Starter');
   const [newOrgEmail, setNewOrgEmail] = useState('');
 
-  const toggleOrgStatus = (id: string) => {
-    setOrgs(prev => prev.map(o => {
-      if (o.id === id) {
-        const nextStatus = o.status === 'Active' ? 'Suspended' : 'Active';
-        toast.success(`Organization "${o.name}" status updated to ${nextStatus}.`);
-        return { ...o, status: nextStatus };
-      }
-      return o;
-    }));
+  const toggleOrgStatus = async (id: string, currentStatus: 'Active' | 'Suspended') => {
+    const nextStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+    try {
+      await toggleStatusMutation.mutateAsync({ id, status: nextStatus });
+      toast.success(`Organization status updated to ${nextStatus}.`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update organization status.');
+    }
   };
 
-  const handleCreateOrg = (e: React.FormEvent) => {
+  const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrgName || !newOrgSlug || !newOrgEmail) {
       toast.error('Please fill in all fields.');
       return;
     }
 
-    const newOrg: OrganizationItem = {
-      id: (orgs.length + 1).toString(),
-      name: newOrgName,
-      slug: newOrgSlug,
-      plan: newOrgPlan,
-      status: 'Active',
-      usersCount: 1, // owner account
-      createdAt: new Date().toISOString().split('T')[0],
-      supportEmail: newOrgEmail
-    };
+    try {
+      await createOrgMutation.mutateAsync({
+        name: newOrgName,
+        slug: newOrgSlug,
+        plan: newOrgPlan,
+        supportEmail: newOrgEmail,
+      });
 
-    setOrgs([newOrg, ...orgs]);
-    setShowModal(false);
-    toast.success(`Organization "${newOrgName}" provisioned successfully.`);
-    
-    // Reset form
-    setNewOrgName('');
-    setNewOrgSlug('');
-    setNewOrgEmail('');
-    setNewOrgPlan('Starter');
+      setShowModal(false);
+      toast.success(`Organization "${newOrgName}" provisioned successfully.`);
+      
+      // Reset form
+      setNewOrgName('');
+      setNewOrgSlug('');
+      setNewOrgEmail('');
+      setNewOrgPlan('Starter');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to provision organization.');
+    }
   };
 
   const autoGenerateSlug = (val: string) => {
@@ -80,14 +71,12 @@ export function SuperAdminOrganizations() {
     setNewOrgSlug(val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
   };
 
-  const filteredOrgs = orgs.filter(o => 
-    o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.supportEmail.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const orgs = data?.data || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Manage Organizations</h1>
@@ -111,81 +100,143 @@ export function SuperAdminOrganizations() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1); // Reset page to 1 on new search
+            }}
             placeholder="Search organizations by name, slug, or email..."
             className="block w-full rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none hover:border-white/20 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
 
-      {/* Organizations Table */}
-      <Card className="overflow-hidden border-white/5 bg-white/[0.01]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-300">
-            <thead className="bg-white/[0.03] text-xs font-semibold uppercase tracking-wider text-gray-400">
-              <tr>
-                <th className="px-6 py-4">Organization</th>
-                <th className="px-6 py-4">Slug / Domain</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Plan</th>
-                <th className="px-6 py-4">Active Users</th>
-                <th className="px-6 py-4">Created Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredOrgs.map((org) => (
-                <tr key={org.id} className="hover:bg-white/[0.01] transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
-                        <Building2 className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">{org.name}</div>
-                        <div className="text-xs text-gray-500">{org.supportEmail}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-xs text-gray-400">
-                    {org.slug}.talnova.app
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge className={
-                      org.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                    }>
-                      {org.status}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-white">{org.plan}</td>
-                  <td className="px-6 py-4 text-gray-400">{org.usersCount}</td>
-                  <td className="px-6 py-4 text-gray-400">{org.createdAt}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleOrgStatus(org.id)}
-                        className={`gap-1 px-2.5 ${org.status === 'Active' ? 'text-rose-400 hover:bg-rose-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
-                      >
-                        {org.status === 'Active' ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
-                        {org.status === 'Active' ? 'Suspend' : 'Activate'}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredOrgs.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No organizations matching filter criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* Table Section */}
+      {isLoading ? (
+        <Card className="overflow-hidden border-white/5 bg-white/[0.01]">
+          <div className="p-6 text-center animate-pulse space-y-4">
+            <div className="h-6 w-1/4 rounded bg-white/10" />
+            <div className="h-32 w-full rounded bg-white/5" />
+          </div>
+        </Card>
+      ) : isError ? (
+        <Card className="border-white/5 bg-white/[0.01] p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400">
+            <Ban className="h-6 w-6" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold text-white">Sync Failed</h3>
+          <p className="mt-2 text-sm text-gray-400">Could not sync organization details from API.</p>
+          <Button 
+            onClick={() => refetch()} 
+            className="mt-4 flex mx-auto items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        </Card>
+      ) : (
+        <>
+          <Card className="overflow-hidden border-white/5 bg-white/[0.01]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-300">
+                <thead className="bg-white/[0.03] text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <tr>
+                    <th className="px-6 py-4">Organization</th>
+                    <th className="px-6 py-4">Slug / Domain</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Plan</th>
+                    <th className="px-6 py-4">Active Users</th>
+                    <th className="px-6 py-4">Created Date</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {orgs.map((org) => (
+                    <tr key={org.id} className="hover:bg-white/[0.01] transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
+                            <Building2 className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-white">{org.name}</div>
+                            <div className="text-xs text-gray-500">{org.supportEmail}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs text-gray-400">
+                        {org.slug}.talnova.app
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge className={
+                          org.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                        }>
+                          {org.status}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-white">{org.plan}</td>
+                      <td className="px-6 py-4 text-gray-400">{org.usersCount}</td>
+                      <td className="px-6 py-4 text-gray-400">{org.createdAt}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={toggleStatusMutation.isPending}
+                            onClick={() => toggleOrgStatus(org.id, org.status)}
+                            className={`gap-1 px-2.5 ${org.status === 'Active' ? 'text-rose-400 hover:bg-rose-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
+                          >
+                            {org.status === 'Active' ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                            {org.status === 'Active' ? 'Suspend' : 'Activate'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {orgs.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                        No organizations matching filter criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-xs text-gray-400">
+                Showing page <span className="font-semibold text-white">{page}</span> of{' '}
+                <span className="font-semibold text-white">{totalPages}</span> (Total {total} orgs)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="flex items-center gap-1 border-white/10 text-white disabled:opacity-50"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="flex items-center gap-1 border-white/10 text-white disabled:opacity-50"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Create Modal */}
       {showModal && (
@@ -253,9 +304,10 @@ export function SuperAdminOrganizations() {
                 </Button>
                 <Button
                   type="submit"
+                  disabled={createOrgMutation.isPending}
                   className="rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
                 >
-                  Provision Org
+                  {createOrgMutation.isPending ? 'Provisioning...' : 'Provision Org'}
                 </Button>
               </div>
             </form>

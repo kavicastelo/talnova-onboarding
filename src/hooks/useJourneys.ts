@@ -50,8 +50,21 @@ export function useDeleteJourney() {
 }
 
 export function useAssignJourney() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ journeyId, employeeId }: { journeyId: string; employeeId: string }) =>
       journeyService.assignJourney(journeyId, employeeId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['journeyAssignments', variables.journeyId] });
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
+
+export function useJourneyAssignments(journeyId: string) {
+  return useQuery({
+    queryKey: ['journeyAssignments', journeyId],
+    queryFn: () => journeyService.getJourneyAssignments(journeyId),
+    enabled: !!journeyId,
   });
 }

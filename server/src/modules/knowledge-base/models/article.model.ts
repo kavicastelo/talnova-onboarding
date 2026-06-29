@@ -127,6 +127,7 @@ ArticleSchema.index({ "publishing.status": 1 });
 ArticleSchema.index({ createdAt: 1 });
 
 // Compound indexes
+ArticleSchema.index({ organizationId: 1, isDeleted: 1 });
 ArticleSchema.index({ organizationId: 1, slug: 1 });
 ArticleSchema.index({ organizationId: 1, categoryId: 1 });
 ArticleSchema.index({ organizationId: 1, "publishing.status": 1 });

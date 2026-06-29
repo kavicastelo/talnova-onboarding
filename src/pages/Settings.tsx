@@ -1,20 +1,13 @@
 import { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription
-} from
-  '../components/Card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/Tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/Tabs';
 import { Separator } from '../components/Separator';
 import { useWorkspaceSettings, useUpdateWorkspaceSettings } from '../hooks/useSettings';
-import { Skeleton } from '../components/Skeleton';
-import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
 
 export function Settings() {
   const { data: settings, isLoading, isError, error, refetch } = useWorkspaceSettings();
@@ -24,11 +17,20 @@ export function Settings() {
   const [supportEmail, setSupportEmail] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#000000');
 
+  const [newAssignmentEmails, setNewAssignmentEmails] = useState(true);
+  const [deadlineReminders, setDeadlineReminders] = useState(true);
+  const [weeklyManagerDigest, setWeeklyManagerDigest] = useState(true);
+
   useEffect(() => {
     if (settings) {
       setOrgName(settings.orgName || '');
       setSupportEmail(settings.supportEmail || '');
       setPrimaryColor(settings.primaryColor || '#000000');
+      if (settings.notifications) {
+        setNewAssignmentEmails(settings.notifications.newAssignmentEmails ?? true);
+        setDeadlineReminders(settings.notifications.deadlineReminders ?? true);
+        setWeeklyManagerDigest(settings.notifications.weeklyManagerDigest ?? true);
+      }
     }
   }, [settings]);
 
@@ -55,6 +57,26 @@ export function Settings() {
         },
         onError: (err: any) => {
           toast.error(err?.message || 'Failed to update branding.');
+        },
+      }
+    );
+  };
+
+  const handleSaveNotifications = () => {
+    updateSettings.mutate(
+      {
+        notifications: {
+          newAssignmentEmails,
+          deadlineReminders,
+          weeklyManagerDigest,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Notification preferences updated successfully!');
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || 'Failed to update notifications.');
         },
       }
     );
@@ -172,7 +194,7 @@ export function Settings() {
                         Logo
                       </div>
                     )}
-                    <Button variant="outline">Upload New</Button>
+                    <Button variant="outline" disabled>Upload New</Button>
                   </div>
                 </div>
                 <Separator />
@@ -211,7 +233,7 @@ export function Settings() {
                       Full access to all settings, journeys, and analytics.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" disabled>
                     Edit
                   </Button>
                 </div>
@@ -222,7 +244,7 @@ export function Settings() {
                       Can view analytics and assign journeys to their team.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" disabled>
                     Edit
                   </Button>
                 </div>
@@ -250,42 +272,78 @@ export function Settings() {
                 Configure default email notifications for your organization.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-sm">New Assignment Emails</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Send an email when an employee is assigned a new journey.
-                  </p>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-sm">New Assignment Emails</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Send an email when an employee is assigned a new journey.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewAssignmentEmails(!newAssignmentEmails)}
+                    className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${
+                      newAssignmentEmails ? 'bg-indigo-600' : 'bg-white/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
+                        newAssignmentEmails ? 'right-0.5 translate-x-0' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
                 </div>
-                <div className="w-10 h-5 bg-primary rounded-full relative cursor-pointer">
-                  <div className="w-4 h-4 bg-background rounded-full absolute right-0.5 top-0.5" />
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-sm">Deadline Reminders</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Send reminders 3 days before a journey is due.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDeadlineReminders(!deadlineReminders)}
+                    className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${
+                      deadlineReminders ? 'bg-indigo-600' : 'bg-white/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
+                        deadlineReminders ? 'right-0.5 translate-x-0' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-sm">Weekly Manager Digest</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Send managers a weekly summary of their team's progress.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setWeeklyManagerDigest(!weeklyManagerDigest)}
+                    className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${
+                      weeklyManagerDigest ? 'bg-indigo-600' : 'bg-white/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
+                        weeklyManagerDigest ? 'right-0.5 translate-x-0' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-sm">Deadline Reminders</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Send reminders 3 days before a journey is due.
-                  </p>
-                </div>
-                <div className="w-10 h-5 bg-primary rounded-full relative cursor-pointer">
-                  <div className="w-4 h-4 bg-background rounded-full absolute right-0.5 top-0.5" />
-                </div>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-sm">Weekly Manager Digest</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Send managers a weekly summary of their team's progress.
-                  </p>
-                </div>
-                <div className="w-10 h-5 bg-muted rounded-full relative cursor-pointer">
-                  <div className="w-4 h-4 bg-background rounded-full absolute left-0.5 top-0.5 border" />
-                </div>
-              </div>
+              <Button onClick={handleSaveNotifications} disabled={updateSettings.isPending}>
+                {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                Save Preferences
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

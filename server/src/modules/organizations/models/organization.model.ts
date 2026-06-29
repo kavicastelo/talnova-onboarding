@@ -43,6 +43,8 @@ export interface IOrganization extends Document {
   industry?: string;
   size?: "1-10" | "11-50" | "51-250" | "251-1000" | "1000+";
   supportEmail?: string;
+  status: "Active" | "Suspended";
+  plan: "Starter" | "Growth" | "Enterprise";
   branding: {
     logo?: IUploadReference;
     favicon?: IUploadReference;
@@ -81,6 +83,8 @@ export interface IOrganization extends Document {
   isDeleted: boolean;
   deletedAt?: Date;
   deletedBy?: mongoose.Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const UploadReferenceSchema = new Schema({
@@ -126,6 +130,8 @@ const OrganizationSchema = new Schema<IOrganization>(
       enum: ["1-10", "11-50", "51-250", "251-1000", "1000+"],
     },
     supportEmail: { type: String, lowercase: true, trim: true },
+    status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
+    plan: { type: String, enum: ["Starter", "Growth", "Enterprise"], default: "Starter" },
     branding: {
       logo: { type: UploadReferenceSchema },
       favicon: { type: UploadReferenceSchema },

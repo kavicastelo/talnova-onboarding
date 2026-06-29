@@ -60,7 +60,7 @@ export const employeeService = {
     // 1. Resolve departmentId
     const deptRes = await apiClient.get<ApiResponse<any[]>>('/organizations/departments').catch(() => ({ data: { data: [] } }));
     const departments = deptRes.data.data || [];
-    let matchedDept = departments.find(d => d.name.toLowerCase() === employee.department?.toLowerCase());
+    const matchedDept = departments.find(d => d.name.toLowerCase() === employee.department?.toLowerCase());
     
     let departmentId = matchedDept?._id;
     if (!departmentId && employee.department) {

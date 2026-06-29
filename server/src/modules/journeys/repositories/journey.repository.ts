@@ -7,6 +7,7 @@ export interface JourneyFilter {
   category?: string;
   tags?: string[];
   search?: string;
+  isPublic?: boolean;
 }
 
 export interface PaginationOptions {
@@ -39,6 +40,9 @@ export class JourneyRepository {
 
     if (filter.status) {
       query["publishing.status"] = filter.status;
+    }
+    if (filter.isPublic !== undefined) {
+      query["audience.isPublic"] = filter.isPublic;
     }
     if (filter.category) {
       query.category = filter.category;

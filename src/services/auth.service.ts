@@ -3,18 +3,6 @@ import { User, ApiResponse } from '../types';
 
 export const authService = {
   getCurrentUser: async (): Promise<User> => {
-    const token = localStorage.getItem('auth_token');
-    if (token === 'mock-super-admin-jwt-token') {
-      return {
-        id: 'super_admin_id',
-        name: 'Super Admin',
-        email: 'super@talnova.com',
-        role: 'super_admin',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=SA',
-        company: 'Talnova System Platform',
-      };
-    }
-
     // 1. Fetch current employee profile
     const profileRes = await apiClient.get<ApiResponse<any>>('/employees/me');
     const user = profileRes.data.data;
@@ -30,7 +18,9 @@ export const authService = {
       id: user._id,
       name: user.profile?.fullName || `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'Employee',
       email: user.auth?.email || '',
-      role: user.permissions?.role === 'owner' || user.permissions?.role === 'admin' ? 'admin' : 'employee',
+      role: user.permissions?.role === 'super_admin' 
+        ? 'super_admin' 
+        : (user.permissions?.role === 'owner' || user.permissions?.role === 'admin' ? 'admin' : 'employee'),
       avatar: user.profile?.avatar?.publicUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.profile?.firstName || 'User')}`,
       company: orgName,
     };
@@ -52,6 +42,14 @@ export const authService = {
     } finally {
       localStorage.removeItem('auth_token');
     }
+  },
+
+  forgotPassword: async (email: string): Promise<void> => {
+    await apiClient.post('/auth/forgot-password', { email });
+  },
+
+  register: async (payload: any): Promise<any> => {
+    const res = await apiClient.post<ApiResponse<any>>('/auth/register', payload);
+    return res.data.data;
   }
 };
-
