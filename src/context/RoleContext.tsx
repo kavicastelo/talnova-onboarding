@@ -1,12 +1,12 @@
 import React, { useCallback, useState, createContext, useContext } from 'react';
-export type Role = 'admin' | 'employee' | 'super_admin';
+export type Role = 'admin' | 'owner' | 'employee' | 'super_admin';
 interface RoleContextValue {
   role: Role;
   setRole: (role: Role) => void;
   toggleRole: () => void;
 }
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
-export function RoleProvider({ children }: {children: React.ReactNode;}) {
+export function RoleProvider({ children }: { children: React.ReactNode; }) {
   const [role, setRoleState] = useState<Role>(() => {
     const saved = localStorage.getItem('user_role');
     if (saved === 'super_admin' || saved === 'admin' || saved === 'employee') {
@@ -36,7 +36,7 @@ export function RoleProvider({ children }: {children: React.ReactNode;}) {
         setRole,
         toggleRole
       }}>
-      
+
       {children}
     </RoleContext.Provider>);
 

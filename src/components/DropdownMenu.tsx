@@ -1,18 +1,48 @@
 import * as React from 'react';
 import { Slot } from './Slot';
 import {
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut
 } from '../_designSystem/ds-6551b66a-cfd3-4df9-a9b1-9ead8d7fe7e9';
 
 export {
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut
 };
+
+export interface DropdownMenuItemProps extends React.HTMLAttributes<HTMLDivElement> {
+  asChild?: boolean;
+  inset?: boolean;
+  variant?: 'default' | 'destructive';
+}
+
+export const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
+  ({ children, asChild, className = '', inset, variant = 'default', ...props }, ref) => {
+    const classes = [
+      "relative flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      inset && "pl-7",
+      variant === 'destructive' && "text-destructive hover:bg-destructive/10 hover:text-destructive",
+      className
+    ].filter(Boolean).join(' ');
+
+    if (asChild) {
+      return (
+        <Slot ref={ref} role="menuitem" className={classes} {...props}>
+          {children}
+        </Slot>
+      );
+    }
+
+    return (
+      <div ref={ref} role="menuitem" className={classes} {...props}>
+        {children}
+      </div>
+    );
+  }
+);
+DropdownMenuItem.displayName = 'DropdownMenuItem';
 
 const DropdownMenuContext = React.createContext<{
   open: boolean;

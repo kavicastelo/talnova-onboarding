@@ -37,6 +37,37 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 }
 
 /**
+ * Optional authentication hook that parses the JWT token if available, but doesn't block guests.
+ */
+export async function optionalAuthenticate(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const authHeader = request.headers.authorization;
+    if (authHeader) {
+      await request.jwtVerify();
+      const user = request.user as any;
+      if (user && user.organizationId) {
+        if (user.role !== "super_admin") {
+          const org = await Organization.findById(user.organizationId);
+          if (org && org.status === "Suspended") {
+            throw new AppError(
+              403,
+              "FORBIDDEN",
+              "Your organization has been suspended. Access denied."
+            );
+          }
+        }
+      }
+    }
+  } catch (error: any) {
+    // If it's a tenant suspension error, propagate it
+    if (error instanceof AppError) {
+      throw error;
+    }
+    // Otherwise, ignore invalid/expired tokens for optional authentication
+  }
+}
+
+/**
  * Authorization hook creator to restrict route access to specific roles.
  */
 export function requireRole(allowedRoles: string[]) {

@@ -2,7 +2,10 @@ import { FastifyInstance } from "fastify";
 import { KnowledgeBaseController } from "../controllers/article.controller.js";
 import { KnowledgeBaseService } from "../services/article.service.js";
 import { KnowledgeBaseRepository } from "../repositories/article.repository.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { QuickLinkController } from "../controllers/quick-link.controller.js";
+import { QuickLinkService } from "../services/quick-link.service.js";
+import { QuickLinkRepository } from "../repositories/quick-link.repository.js";
+import { authenticate, optionalAuthenticate, requireRole } from "../../../middleware/auth.middleware.js";
 import { createArticleSchema, updateArticleSchema } from "../schemas/article.schema.js";
 
 export async function knowledgeBaseRoutes(app: FastifyInstance) {
@@ -10,23 +13,61 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
   const service = new KnowledgeBaseService(repository);
   const controller = new KnowledgeBaseController(service);
 
-  // Authenticate all routes
-  app.addHook("preHandler", authenticate);
+  const qlRepository = new QuickLinkRepository();
+  const qlService = new QuickLinkService(qlRepository);
+  const qlController = new QuickLinkController(qlService);
+
+  // Quick Links routes
+  app.get(
+    "/quick-links",
+    { preHandler: [optionalAuthenticate] },
+    qlController.getQuickLinks as any
+  );
+
+  app.post(
+    "/quick-links",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    qlController.createQuickLink as any
+  );
+
+  app.patch(
+    "/quick-links/:id",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    qlController.updateQuickLink as any
+  );
+
+  app.delete(
+    "/quick-links/:id",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    qlController.deleteQuickLink as any
+  );
 
   // GET /api/v1/knowledge-base/popular
-  app.get("/popular", controller.getPopularArticles as any);
+  app.get(
+    "/popular",
+    { preHandler: [optionalAuthenticate] },
+    controller.getPopularArticles as any
+  );
 
   // GET /api/v1/knowledge-base
-  app.get("/", controller.listArticles as any);
+  app.get(
+    "/",
+    { preHandler: [optionalAuthenticate] },
+    controller.listArticles as any
+  );
 
   // GET /api/v1/knowledge-base/:id
-  app.get("/:id", controller.getArticle as any);
+  app.get(
+    "/:id",
+    { preHandler: [optionalAuthenticate] },
+    controller.getArticle as any
+  );
 
   // POST /api/v1/knowledge-base
   app.post(
     "/",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [authenticate, requireRole(["owner", "admin"])],
       schema: { body: createArticleSchema },
     },
     controller.createArticle as any
@@ -36,7 +77,7 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
   app.patch(
     "/:id",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [authenticate, requireRole(["owner", "admin"])],
       schema: { body: updateArticleSchema },
     },
     controller.updateArticle as any
@@ -45,21 +86,21 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
   // DELETE /api/v1/knowledge-base/:id
   app.delete(
     "/:id",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.deleteArticle as any
   );
 
   // POST /api/v1/knowledge-base/:id/publish
   app.post(
     "/:id/publish",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.publishArticle as any
   );
 
   // POST /api/v1/knowledge-base/:id/archive
   app.post(
     "/:id/archive",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.archiveArticle as any
   );
 }

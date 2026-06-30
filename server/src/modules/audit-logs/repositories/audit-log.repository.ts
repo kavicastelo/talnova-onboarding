@@ -75,6 +75,7 @@ export class AuditLogRepository {
     const skip = (page - 1) * limit;
 
     const logs = await AuditLog.find(query)
+      .populate("actorUserId", "profile")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

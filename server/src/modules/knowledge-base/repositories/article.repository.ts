@@ -72,6 +72,9 @@ export class KnowledgeBaseRepository {
     if (userContext) {
       const visibilityFilter = this.buildVisibilityFilter(userContext);
       Object.assign(query, visibilityFilter);
+      if (userContext.role === "employee" || userContext.role === "manager") {
+        query["publishing.status"] = "published";
+      }
     }
 
     return Article.findOne(query);
@@ -87,9 +90,12 @@ export class KnowledgeBaseRepository {
       isDeleted: false,
     };
 
-    if (filter.status) {
+    if (userContext.role === "employee" || userContext.role === "manager") {
+      query["publishing.status"] = "published";
+    } else if (filter.status) {
       query["publishing.status"] = filter.status;
     }
+
     if (filter.categoryId) {
       query.categoryId = new mongoose.Types.ObjectId(filter.categoryId);
     }

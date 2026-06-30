@@ -68,3 +68,14 @@ export function useJourneyAssignments(journeyId: string) {
     enabled: !!journeyId,
   });
 }
+
+export function useDuplicateJourney() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      journeyService.duplicateJourney(id, title),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}

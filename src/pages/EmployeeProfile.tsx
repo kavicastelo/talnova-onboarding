@@ -155,7 +155,7 @@ export function EmployeeProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{employee.completedJourneysCount || 0}</div>
               </CardContent>
             </Card>
             <Card>
@@ -165,52 +165,53 @@ export function EmployeeProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">2</div>
+                <div className="text-2xl font-bold">{employee.certificatesCount || 0}</div>
               </CardContent>
             </Card>
           </div>
 
           <h3 className="text-lg font-semibold mt-8 mb-4">Assigned Journeys</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Engineering Onboarding
-                </CardTitle>
-                <CardDescription>Assigned 2 weeks ago</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span>In Progress</span>
-                  <span className="font-medium">45%</span>
-                </div>
-                <Progress value={45} className="h-2 mb-4" />
-                <Button variant="outline" size="sm" className="w-full">
-                  View Details
-                </Button>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Security Awareness 2026
-                </CardTitle>
-                <CardDescription>Assigned 1 month ago</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm mb-2 text-primary">
-                  <span className="flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Completed
-                  </span>
-                  <span className="font-medium">100%</span>
-                </div>
-                <Progress value={100} className="h-2 mb-4" />
-                <Button variant="outline" size="sm" className="w-full">
-                  View Certificate
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground border border-dashed rounded-lg text-sm">
+              No active or completed onboarding journeys assigned to this employee.
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {employee.assignedJourneys.map((aj) => (
+                <Card key={aj.id}>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {aj.title}
+                    </CardTitle>
+                    <CardDescription>Assigned {aj.assignedAt}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className={aj.status === 'Completed' ? 'text-emerald-500 font-medium flex items-center gap-1' : 'text-gray-400 font-medium'}>
+                        {aj.status === 'Completed' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                        {aj.status}
+                      </span>
+                      <span className="font-medium">{aj.progress}%</span>
+                    </div>
+                    <Progress value={aj.progress} className="h-2 mb-4" />
+                    {aj.status === 'Completed' ? (
+                      <Button variant="outline" size="sm" className="w-full" asChild>
+                        <Link to={`/certificates`}>
+                          View Certificate
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" className="w-full" asChild>
+                        <Link to={`/course/${aj.id}`}>
+                          View Details
+                        </Link>
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="history">
