@@ -30,7 +30,22 @@ const mapBackendModuleToCourseModule = (m: any): any => {
         description: l.description || '',
         prerequisites: [],
         estimatedTime: l.estimatedDurationMinutes || 5,
-        completionRule
+        completionRule,
+        quiz: l.quiz ? {
+          id: l.quiz._id || l.quiz.id,
+          passingScore: l.quiz.passingScore || 80,
+          questions: (l.quiz.questions || []).map((q: any) => ({
+            id: q._id || q.id,
+            questionText: q.question || '',
+            type: q.type || 'single_choice',
+            points: q.points || 1,
+            options: (q.options || []).map((opt: any) => ({
+              id: opt._id || opt.id,
+              optionText: opt.text || '',
+              isCorrect: opt.isCorrect ?? false
+            }))
+          }))
+        } : null
       };
     })
   };
@@ -135,6 +150,19 @@ export const journeyService = {
               order: 0
             }
           ],
+          quiz: l.type === 'Quiz' && l.quiz ? {
+            title: l.title,
+            passingScore: l.quiz.passingScore || 80,
+            questions: (l.quiz.questions || []).map((q: any) => ({
+              type: q.type || 'single_choice',
+              question: q.questionText,
+              points: q.points || 1,
+              options: (q.options || []).map((opt: any) => ({
+                text: opt.optionText,
+                isCorrect: opt.isCorrect ?? false
+              }))
+            }))
+          } : undefined,
           completionRules: {
             requireContentCompletion: l.completionRule === 'video' || l.completionRule === 'button',
             requireQuizCompletion: l.completionRule === 'quiz'
@@ -158,6 +186,11 @@ export const journeyService = {
 
   deleteJourney: async (id: string): Promise<void> => {
     await apiClient.delete(`/journeys/${id}`);
+  },
+
+  duplicateJourney: async (id: string, title: string): Promise<Journey> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/journeys/${id}/duplicate`, { title });
+    return mapBackendJourneyToJourney(response.data.data);
   },
 
   assignJourney: async (journeyId: string, employeeId: string): Promise<void> => {

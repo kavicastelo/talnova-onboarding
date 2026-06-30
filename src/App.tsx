@@ -17,6 +17,7 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { SuperAdminOrganizations } from './pages/SuperAdminOrganizations';
 import { SuperAdminFinance } from './pages/SuperAdminFinance';
+import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
@@ -36,6 +37,7 @@ export function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
 
           <Route path="/" element={<AppShell />}>
             <Route index element={<DashboardRedirect />} />

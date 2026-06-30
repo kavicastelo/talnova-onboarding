@@ -36,9 +36,17 @@ import {
   Video,
   HelpCircle,
   AlertCircle,
-  RefreshCw
-} from
-  'lucide-react';
+  RefreshCw,
+  Upload,
+  Link2,
+  Trash2,
+  Bold,
+  Italic,
+  Code,
+  List,
+  Eye,
+  PlusCircle
+} from 'lucide-react';
 import {
   useJourney,
   useUpdateJourney,
@@ -51,6 +59,7 @@ import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
 import { CourseModule, Lesson } from '../types';
 import { Trash, X, Lock, Globe } from 'lucide-react';
+import { uploadService } from '../services/upload.service';
 
 export function JourneyBuilder() {
   const { id } = useParams();
@@ -272,6 +281,73 @@ export function JourneyBuilder() {
         ),
       }))
     );
+  };
+
+  const [editorTab, setEditorTab] = useState<'write' | 'preview'>('write');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
+
+  const updateQuiz = (fields: Partial<NonNullable<Lesson['quiz']>>) => {
+    if (!selectedLesson) return;
+    const currentQuiz = selectedLesson.quiz || { id: Math.random().toString(36).substring(7), passingScore: 80, questions: [] };
+    updateSelectedLesson({
+      quiz: {
+        ...currentQuiz,
+        ...fields
+      }
+    });
+  };
+
+  const handleAddQuestion = () => {
+    if (!selectedLesson) return;
+    const currentQuiz = selectedLesson.quiz || { id: Math.random().toString(36).substring(7), passingScore: 80, questions: [] };
+    const newQuestion = {
+      id: Math.random().toString(36).substring(7),
+      questionText: 'New Question',
+      type: 'single_choice' as const,
+      points: 1,
+      options: [
+        { id: Math.random().toString(36).substring(7), optionText: 'Option 1', isCorrect: true },
+        { id: Math.random().toString(36).substring(7), optionText: 'Option 2', isCorrect: false }
+      ]
+    };
+    updateQuiz({
+      questions: [...currentQuiz.questions, newQuestion]
+    });
+  };
+
+  const handleUpdateQuestion = (qId: string, qFields: any) => {
+    if (!selectedLesson?.quiz) return;
+    const updatedQuestions = selectedLesson.quiz.questions.map((q) =>
+      q.id === qId ? { ...q, ...qFields } : q
+    );
+    updateQuiz({ questions: updatedQuestions });
+  };
+
+  const handleRemoveQuestion = (qId: string) => {
+    if (!selectedLesson?.quiz) return;
+    const updatedQuestions = selectedLesson.quiz.questions.filter((q) => q.id !== qId);
+    updateQuiz({ questions: updatedQuestions });
+  };
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadPercent(0);
+
+    try {
+      const { url } = await uploadService.uploadFile(file, 'public', (pct) => {
+        setUploadPercent(pct);
+      });
+      updateSelectedLesson({ content: url });
+      toast.success('File uploaded successfully!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to upload file.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (isLoading) {
@@ -541,22 +617,325 @@ export function JourneyBuilder() {
 
                   <Card>
                     <CardContent className="p-0">
-                      {selectedLesson.type === 'Video' ? (
-                        <div className="aspect-video bg-muted flex flex-col items-center justify-center text-muted-foreground border-b">
-                          <Video className="h-12 w-12 mb-4 opacity-50" />
-                          <p>Upload or embed a video</p>
-                          <Button variant="outline" className="mt-4">
-                            Select Video
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="p-4 border-b bg-muted/20 min-h-[150px] flex items-center justify-center text-muted-foreground text-sm">
-                          {selectedLesson.type} Content editor active.
+                      {selectedLesson.type === 'Video' && (
+                        <div className="space-y-6 p-6">
+                          <div className="space-y-4">
+                            <label className="text-sm font-medium">Video Source</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium flex items-center gap-2">
+                                    <Upload className="h-4 w-4 text-primary" />
+                                    Upload Video File
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">Upload an MP4, WebM or Ogg video file.</p>
+                                </div>
+                                <div>
+                                  <input
+                                    type="file"
+                                    id="video-upload-input"
+                                    accept="video/*"
+                                    className="hidden"
+                                    onChange={handleUploadFile}
+                                    disabled={isUploading}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => document.getElementById('video-upload-input')?.click()}
+                                    disabled={isUploading}
+                                  >
+                                    {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium flex items-center gap-2">
+                                    <Link2 className="h-4 w-4 text-primary" />
+                                    Embed Video URL
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">Paste a YouTube, Vimeo, or raw MP4 URL.</p>
+                                </div>
+                                <Input
+                                  placeholder="https://example.com/video.mp4"
+                                  value={selectedLesson.content || ''}
+                                  onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {selectedLesson.content && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Video Preview</label>
+                              {selectedLesson.content.includes('youtube.com') || selectedLesson.content.includes('youtu.be') ? (
+                                <div className="aspect-video bg-black rounded-lg overflow-hidden border">
+                                  <iframe
+                                    className="w-full h-full"
+                                    src={selectedLesson.content.replace('watch?v=', 'embed/')}
+                                    title="YouTube video player"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                </div>
+                              ) : (
+                                <video
+                                  src={selectedLesson.content}
+                                  controls
+                                  className="w-full aspect-video rounded-lg border bg-black"
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
-                      <div className="p-4">
+
+                      {(selectedLesson.type === 'Article' || selectedLesson.type === 'Task') && (
+                        <div className="space-y-4 p-6">
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant={editorTab === 'write' ? 'secondary' : 'ghost'}
+                                onClick={() => setEditorTab('write')}
+                                className="h-8"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={editorTab === 'preview' ? 'secondary' : 'ghost'}
+                                onClick={() => setEditorTab('preview')}
+                                className="h-8"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Preview
+                              </Button>
+                            </div>
+
+                            {editorTab === 'write' && (
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    const val = selectedLesson.content || '';
+                                    updateSelectedLesson({ content: val + ' **Bold Text** ' });
+                                  }}
+                                  title="Bold"
+                                >
+                                  <Bold className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    const val = selectedLesson.content || '';
+                                    updateSelectedLesson({ content: val + ' *Italic Text* ' });
+                                  }}
+                                  title="Italic"
+                                >
+                                  <Italic className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    const val = selectedLesson.content || '';
+                                    updateSelectedLesson({ content: val + '\n# Header\n' });
+                                  }}
+                                  title="Header"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    const val = selectedLesson.content || '';
+                                    updateSelectedLesson({ content: val + '\n```\nCode Block\n```\n' });
+                                  }}
+                                  title="Code"
+                                >
+                                  <Code className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    const val = selectedLesson.content || '';
+                                    updateSelectedLesson({ content: val + '\n- Bullet item\n' });
+                                  }}
+                                  title="List"
+                                >
+                                  <List className="h-4 w-4" />
+                                </Button>
+                                <Separator orientation="vertical" className="h-4 mx-1" />
+                                <input
+                                  type="file"
+                                  id="article-file-upload"
+                                  className="hidden"
+                                  onChange={handleUploadFile}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => document.getElementById('article-file-upload')?.click()}
+                                  title="Upload Image/File"
+                                >
+                                  <Upload className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+
+                          {editorTab === 'write' ? (
+                            <textarea
+                              placeholder="Write your content here in Markdown format..."
+                              className="w-full min-h-[300px] border-0 focus:ring-0 resize-y bg-transparent p-0 outline-none text-sm leading-relaxed"
+                              value={selectedLesson.content || ''}
+                              onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
+                            />
+                          ) : (
+                            <div className="min-h-[300px] p-2">
+                              <MarkdownPreview content={selectedLesson.content || ''} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedLesson.type === 'Quiz' && (
+                        <div className="space-y-6 p-6">
+                          <div className="flex items-center justify-between border-b pb-4">
+                            <div>
+                              <h4 className="text-sm font-medium">Quiz Questions</h4>
+                              <p className="text-xs text-muted-foreground">Add multiple choice questions for your employees.</p>
+                            </div>
+                            <Button size="sm" onClick={handleAddQuestion}>
+                              <PlusCircle className="h-4 w-4 mr-2" />
+                              Add Question
+                            </Button>
+                          </div>
+
+                          <div className="space-y-6">
+                            {(!selectedLesson.quiz || !selectedLesson.quiz.questions || selectedLesson.quiz.questions.length === 0) ? (
+                              <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-lg">
+                                No questions added yet. Click "Add Question" to begin.
+                              </div>
+                            ) : (
+                              selectedLesson.quiz.questions.map((q, qIdx) => (
+                                <div key={q.id} className="border rounded-lg p-4 space-y-4 bg-muted/10">
+                                  <div className="flex items-center justify-between">
+                                    <h5 className="text-sm font-semibold">Question {qIdx + 1}</h5>
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs text-muted-foreground">Points:</span>
+                                        <Input
+                                          type="number"
+                                          value={q.points || 1}
+                                          onChange={(e: any) => handleUpdateQuestion(q.id, { points: Number(e.target.value) })}
+                                          className="w-16 h-8 text-xs"
+                                        />
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleRemoveQuestion(q.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <label className="text-xs font-medium">Question Text</label>
+                                    <Input
+                                      value={q.questionText}
+                                      onChange={(e: any) => handleUpdateQuestion(q.id, { questionText: e.target.value })}
+                                      placeholder="e.g. What is our core customer value proposition?"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <label className="text-xs font-medium flex items-center justify-between">
+                                      <span>Options</span>
+                                      <span className="text-[10px] text-muted-foreground italic">Select correct answer(s) using checkboxes</span>
+                                    </label>
+                                    <div className="space-y-2">
+                                      {q.options.map((opt, oIdx) => (
+                                        <div key={opt.id} className="flex items-center gap-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={opt.isCorrect || false}
+                                            onChange={(e) => {
+                                              const newOpts = q.options.map((o) => {
+                                                if (o.id === opt.id) return { ...o, isCorrect: e.target.checked };
+                                                // If single choice, uncheck other choices
+                                                return q.type === 'single_choice' ? { ...o, isCorrect: false } : o;
+                                              });
+                                              handleUpdateQuestion(q.id, { options: newOpts });
+                                            }}
+                                            className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                          />
+                                          <Input
+                                            value={opt.optionText}
+                                            onChange={(e: any) => {
+                                              const newOpts = q.options.map((o) =>
+                                                o.id === opt.id ? { ...o, optionText: e.target.value } : o
+                                              );
+                                              handleUpdateQuestion(q.id, { options: newOpts });
+                                            }}
+                                            placeholder={`Option ${oIdx + 1}`}
+                                            className="flex-1 h-9"
+                                          />
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                            onClick={() => {
+                                              const newOpts = q.options.filter((o) => o.id !== opt.id);
+                                              handleUpdateQuestion(q.id, { options: newOpts });
+                                            }}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const newOpts = [
+                                          ...q.options,
+                                          { id: Math.random().toString(36).substring(7), optionText: '', isCorrect: false }
+                                        ];
+                                        handleUpdateQuestion(q.id, { options: newOpts });
+                                      }}
+                                      className="h-8 text-xs"
+                                    >
+                                      Add Option
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="p-4 border-t bg-muted/10">
+                        <label className="text-xs font-medium text-muted-foreground">Lesson Description</label>
                         <Input
-                          placeholder="Add a description or transcript..."
+                          placeholder="Add a brief summary or transcript for this lesson..."
                           className="border-0 focus-visible:ring-0 px-0 bg-transparent"
                           value={selectedLesson.description || ''}
                           onChange={(e: any) => updateSelectedLesson({ description: e.target.value })}
@@ -1118,6 +1497,46 @@ export function JourneyBuilder() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function MarkdownPreview({ content }: { content: string }) {
+  if (!content) return <p className="text-muted-foreground italic text-sm">No content written yet. Use the editor to add text.</p>;
+  
+  const lines = content.split('\n');
+  return (
+    <div className="prose prose-sm max-w-none dark:prose-invert space-y-4">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('# ')) {
+          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b pb-2 mt-6">{trimmed.slice(2)}</h1>;
+        }
+        if (trimmed.startsWith('## ')) {
+          return <h2 key={idx} className="text-xl font-semibold mt-5">{trimmed.slice(3)}</h2>;
+        }
+        if (trimmed.startsWith('### ')) {
+          return <h3 key={idx} className="text-lg font-semibold mt-4">{trimmed.slice(4)}</h3>;
+        }
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          return (
+            <ul key={idx} className="list-disc pl-6 space-y-1">
+              <li>{trimmed.slice(2)}</li>
+            </ul>
+          );
+        }
+        if (trimmed.startsWith('> ')) {
+          return <blockquote key={idx} className="border-l-4 border-primary pl-4 italic my-2 bg-muted/30 py-1 rounded-r">{trimmed.slice(2)}</blockquote>;
+        }
+        if (trimmed.startsWith('```')) {
+          if (trimmed === '```') return null;
+          return <pre key={idx} className="bg-muted p-3 rounded-md font-mono text-xs overflow-x-auto border">{trimmed.replace(/```/g, '')}</pre>;
+        }
+        if (!trimmed) {
+          return <div key={idx} className="h-2" />;
+        }
+        return <p key={idx} className="leading-relaxed">{trimmed}</p>;
+      })}
     </div>
   );
 }

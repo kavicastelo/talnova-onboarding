@@ -255,10 +255,41 @@ export function CourseViewer() {
             <main className="flex-1 p-8 overflow-auto flex justify-center">
               <div className="max-w-3xl w-full space-y-8">
                 {selectedLesson.type === 'Video' && (
-                  <div className="aspect-video bg-black/60 rounded-xl border border-white/10 flex items-center justify-center text-white/50 relative overflow-hidden shadow-2xl">
-                    <PlayCircle className="h-16 w-16 absolute z-10 cursor-pointer hover:scale-105 transition-transform text-white/80" />
-                    <div className="absolute inset-0 bg-muted/20" />
-                    <p className="z-10 mt-24 text-xs font-semibold text-gray-400 tracking-wider">Video Player Placeholder</p>
+                  <div className="space-y-4">
+                    {selectedLesson.content ? (() => {
+                      const videoDetails = getVideoEmbedUrl(selectedLesson.content);
+                      if (videoDetails.type === 'youtube' || videoDetails.type === 'vimeo') {
+                        return (
+                          <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                            <iframe
+                              className="w-full h-full"
+                              src={videoDetails.src}
+                              title={`${selectedLesson.title} player`}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center">
+                            <video
+                              src={videoDetails.src}
+                              controls
+                              className="w-full h-full"
+                            />
+                          </div>
+                        );
+                      }
+                    })() : (
+                      <div className="aspect-video bg-white/[0.02] rounded-xl border border-white/10 flex flex-col items-center justify-center text-white/40 p-6 shadow-2xl">
+                        <PlayCircle className="h-12 w-12 text-gray-500 mb-3" />
+                        <h4 className="font-semibold text-sm text-gray-300">No Video Available</h4>
+                        <p className="text-xs text-gray-500 mt-1 max-w-xs text-center">
+                          An administrator has not uploaded or linked any video asset for this lesson yet.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -387,10 +418,9 @@ export function CourseViewer() {
                 ) : (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <h2 className="text-white text-2xl font-bold mb-4">{selectedLesson.title}</h2>
-                    <p className="text-gray-300 leading-relaxed whitespace-pre-line">
-                      {selectedLesson.content ||
-                        'Learn the core concepts of this topic. Review all details carefully.'}
-                    </p>
+                    <div className="text-gray-300 leading-relaxed">
+                      <MarkdownPreview content={selectedLesson.content || ''} />
+                    </div>
                   </div>
                 )}
 
@@ -421,6 +451,65 @@ export function CourseViewer() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function getVideoEmbedUrl(url: string): { type: 'youtube' | 'vimeo' | 'direct' | 'invalid'; src: string } {
+  if (!url) return { type: 'invalid', src: '' };
+  
+  // YouTube
+  const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return { type: 'youtube', src: `https://www.youtube.com/embed/${ytMatch[1]}` };
+  }
+  
+  // Vimeo
+  const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return { type: 'vimeo', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+  }
+  
+  // Direct link or other
+  return { type: 'direct', src: url };
+}
+
+function MarkdownPreview({ content }: { content: string }) {
+  if (!content) return <p className="text-gray-400 italic text-sm">No content written yet.</p>;
+  
+  const lines = content.split('\n');
+  return (
+    <div className="prose prose-sm max-w-none dark:prose-invert space-y-4">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('# ')) {
+          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b border-white/10 pb-2 mt-6 text-white">{trimmed.slice(2)}</h1>;
+        }
+        if (trimmed.startsWith('## ')) {
+          return <h2 key={idx} className="text-xl font-semibold mt-5 text-white">{trimmed.slice(3)}</h2>;
+        }
+        if (trimmed.startsWith('### ')) {
+          return <h3 key={idx} className="text-lg font-semibold mt-4 text-white">{trimmed.slice(4)}</h3>;
+        }
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          return (
+            <ul key={idx} className="list-disc pl-6 space-y-1 text-gray-300">
+              <li>{trimmed.slice(2)}</li>
+            </ul>
+          );
+        }
+        if (trimmed.startsWith('> ')) {
+          return <blockquote key={idx} className="border-l-4 border-indigo-500 pl-4 italic my-2 bg-white/[0.02] py-1 rounded-r text-gray-400">{trimmed.slice(2)}</blockquote>;
+        }
+        if (trimmed.startsWith('```')) {
+          if (trimmed === '```') return null;
+          return <pre key={idx} className="bg-black/40 p-3 rounded-md font-mono text-xs overflow-x-auto border border-white/10 text-indigo-300">{trimmed.replace(/```/g, '')}</pre>;
+        }
+        if (!trimmed) {
+          return <div key={idx} className="h-2" />;
+        }
+        return <p key={idx} className="leading-relaxed text-gray-300">{trimmed}</p>;
+      })}
     </div>
   );
 }

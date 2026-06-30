@@ -205,20 +205,28 @@ export function AppShell() {
   const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const { data: notifications = [] } = useNotifications();
 
+  const isAnonymousKb = location.pathname.startsWith('/kb') || location.pathname.startsWith('/knowledge-base');
+  const hasToken = !!localStorage.getItem('auth_token');
+
   useEffect(() => {
+    if (isAnonymousKb) return;
     const token = localStorage.getItem('auth_token');
     if (!token) {
       navigate('/login');
     }
-  }, [navigate]);
+  }, [navigate, location.pathname, isAnonymousKb]);
 
   useEffect(() => {
+    if (isAnonymousKb) return;
     if (userError) {
       localStorage.removeItem('auth_token');
       navigate('/login');
     }
-  }, [userError, navigate]);
-  const navItems = role === 'super_admin' ? superAdminNav : role === 'admin' ? adminNav : employeeNav;
+  }, [userError, navigate, location.pathname, isAnonymousKb]);
+
+  const navItems = !hasToken
+    ? [{ title: 'Knowledge Base', url: '/kb', icon: BookOpen }]
+    : role === 'super_admin' ? superAdminNav : role === 'admin' ? adminNav : employeeNav;
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {
@@ -311,42 +319,52 @@ export function AppShell() {
           </SidebarContent>
 
           <SidebarFooter className="p-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-sidebar-accent transition-colors">
-                  <Avatar className="h-7 w-7">
-                    <AvatarImage src={user?.avatar || ''} />
-                    <AvatarFallback>
-                      {user?.name
-                        ? user.name
-                          .split(' ')
-                          .map((n: string) => n[0])
-                          .join('')
-                        : 'JD'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
-                    <span className="truncate text-sm font-medium leading-tight">
-                      {userLoading ? 'Loading...' : (user?.name || 'Jane Doe')}
-                    </span>
-                    <span className="truncate text-xs capitalize text-muted-foreground">
-                      {role}
-                    </span>
-                  </div>
-                  <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSelectAction(() => navigate('/directory/me'))}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSelectAction(() => navigate('/settings'))}>
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSelectAction(handleLogout)}>Log out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {hasToken ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-sidebar-accent transition-colors">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={user?.avatar || ''} />
+                      <AvatarFallback>
+                        {user?.name
+                          ? user.name
+                            .split(' ')
+                            .map((n: string) => n[0])
+                            .join('')
+                          : 'JD'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
+                      <span className="truncate text-sm font-medium leading-tight">
+                        {userLoading ? 'Loading...' : (user?.name || 'Jane Doe')}
+                      </span>
+                      <span className="truncate text-xs capitalize text-muted-foreground">
+                        {role}
+                      </span>
+                    </div>
+                    <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSelectAction(() => navigate('/directory/me'))}>Profile</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSelectAction(() => navigate('/settings'))}>
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSelectAction(handleLogout)}>Log out</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                onClick={() => navigate('/login')}
+                className="w-full flex items-center justify-center gap-2"
+                variant="default"
+              >
+                Sign In
+              </Button>
+            )}
           </SidebarFooter>
         </Sidebar>
 
@@ -418,66 +436,69 @@ export function AppShell() {
               </Button>
 
               {/* Role switcher */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Badge
-                      variant={role === 'super_admin' ? 'default' : role === 'admin' ? 'default' : 'secondary'}
-                      className="px-1.5 capitalize">
+              {hasToken && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <Badge
+                        variant={role === 'super_admin' ? 'default' : role === 'admin' ? 'default' : 'secondary'}
+                        className="px-1.5 capitalize">
 
-                      {role === 'super_admin' ? 'Super Admin' : role}
-                    </Badge>
-                    <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>View as</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => switchRole('super_admin')}>
-                    {role === 'super_admin' && <Check className="mr-2 h-4 w-4" />}
-                    <span className={role === 'super_admin' ? '' : 'ml-6'}>
-                      Super Admin
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => switchRole('admin')}>
-                    {role === 'admin' && <Check className="mr-2 h-4 w-4" />}
-                    <span className={role === 'admin' ? '' : 'ml-6'}>
-                      Administrator
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => switchRole('employee')}>
-                    {role === 'employee' && <Check className="mr-2 h-4 w-4" />}
-                    <span className={role === 'employee' ? '' : 'ml-6'}>
-                      Employee
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                        {role === 'super_admin' ? 'Super Admin' : role}
+                      </Badge>
+                      <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>View as</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => switchRole('super_admin')}>
+                      {role === 'super_admin' && <Check className="mr-2 h-4 w-4" />}
+                      <span className={role === 'super_admin' ? '' : 'ml-6'}>
+                        Super Admin
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => switchRole('admin')}>
+                      {role === 'admin' && <Check className="mr-2 h-4 w-4" />}
+                      <span className={role === 'admin' ? '' : 'ml-6'}>
+                        Administrator
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => switchRole('employee')}>
+                      {role === 'employee' && <Check className="mr-2 h-4 w-4" />}
+                      <span className={role === 'employee' ? '' : 'ml-6'}>
+                        Employee
+                      </span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {/* Notifications */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative"
-                    aria-label="Notifications">
+              {hasToken && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative"
+                      aria-label="Notifications">
 
-                    <Bell className="h-5 w-5" />
-                    {notifications.length > 0 && (
-                      <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel className="flex items-center justify-between">
-                    Notifications
-                    <Badge variant="secondary">{notifications.length} new</Badge>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-muted-foreground">No new notifications</div>
-                  ) : (
+                      <Bell className="h-5 w-5" />
+                      {notifications.length > 0 && (
+                        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="flex items-center justify-between">
+                      Notifications
+                      <Badge variant="secondary">{notifications.length} new</Badge>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-muted-foreground">No new notifications</div>
+                    ) : (
                     notifications.map((n) => (
                       <DropdownMenuItem
                         key={n.id}
@@ -495,6 +516,7 @@ export function AppShell() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
           </header>
 

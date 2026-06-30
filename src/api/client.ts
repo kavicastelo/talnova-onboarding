@@ -96,9 +96,14 @@ apiClient.interceptors.response.use(
     // 401 Unauthorized handling (session expired/invalid)
     if (error.response?.status === 401 && !originalRequest._retry) {
       const isAuthRoute = originalRequest.url?.includes('/auth/');
-      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname);
+      const isKbRoute = window.location.pathname.startsWith('/kb') || window.location.pathname.startsWith('/knowledge-base');
+      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname) || isKbRoute;
 
       if (isAuthRoute || isPublicPage) {
+        if (isKbRoute) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user_role');
+        }
         return Promise.reject(error);
       }
       originalRequest._retry = true;

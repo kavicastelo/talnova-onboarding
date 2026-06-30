@@ -104,6 +104,7 @@ export interface Lesson {
       options: Array<{
         id: string;
         optionText: string;
+        isCorrect: boolean;
       }>;
     }>;
   } | null;
@@ -192,6 +193,14 @@ export interface KbArticle {
   category: string;
   readTime: string;
   content?: string;
+  summary?: string;
+  blocks?: Array<{
+    id: string;
+    type: 'text' | 'image' | 'video' | 'pdf';
+    content?: string;
+    embedUrl?: string;
+    filename?: string;
+  }>;
 }
 
 // -------------------------

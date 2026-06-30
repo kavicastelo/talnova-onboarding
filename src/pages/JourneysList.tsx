@@ -1,7 +1,7 @@
+import { useState } from 'react';
 import {
   Card
-} from
-  '../components/Card';
+} from '../components/Card';
 import {
   Table,
   TableBody,
@@ -9,26 +9,92 @@ import {
   TableHead,
   TableHeader,
   TableRow
-} from
-  '../components/Table';
+} from '../components/Table';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Skeleton } from '../components/Skeleton';
 import { Plus, MoreHorizontal, AlertCircle, RefreshCw } from 'lucide-react';
-import { useJourneys } from '../hooks/useJourneys';
+import { useJourneys, useUpdateJourney, useDuplicateJourney } from '../hooks/useJourneys';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
-} from
-  '../components/DropdownMenu';
-import { Link } from 'react-router-dom';
+} from '../components/DropdownMenu';
+import { Link, useNavigate } from 'react-router-dom';
 import { useRole } from '../context/RoleContext';
+import { Input } from '../components/Input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '../components/Dialog';
+import { toast } from 'sonner';
 
 export function JourneysList() {
   const { data: journeys = [], isLoading, isError, error, refetch } = useJourneys();
   const { role } = useRole();
+  const navigate = useNavigate();
+
+  const [modals, setModals] = useState<{
+    type: 'duplicate' | 'archive' | null;
+    journeyId?: string;
+    inputValue?: string;
+  }>({ type: null });
+
+  const duplicateJourney = useDuplicateJourney();
+  const updateJourney = useUpdateJourney();
+
+  const handleDuplicateClick = (id: string, title: string) => {
+    setModals({
+      type: 'duplicate',
+      journeyId: id,
+      inputValue: `${title} (Copy)`
+    });
+  };
+
+  const handleArchiveClick = (id: string) => {
+    setModals({
+      type: 'archive',
+      journeyId: id
+    });
+  };
+
+  const handleConfirmDuplicate = () => {
+    if (modals.journeyId && modals.inputValue) {
+      duplicateJourney.mutate(
+        { id: modals.journeyId, title: modals.inputValue },
+        {
+          onSuccess: () => {
+            toast.success('Journey duplicated successfully');
+            setModals({ type: null });
+          },
+          onError: (err: any) => {
+            toast.error(err?.message || 'Failed to duplicate journey');
+          }
+        }
+      );
+    }
+  };
+
+  const handleConfirmArchive = () => {
+    if (modals.journeyId) {
+      updateJourney.mutate(
+        { id: modals.journeyId, journey: { status: 'Archived' } },
+        {
+          onSuccess: () => {
+            toast.success('Journey archived successfully');
+            setModals({ type: null });
+          },
+          onError: (err: any) => {
+            toast.error(err?.message || 'Failed to archive journey');
+          }
+        }
+      );
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -108,7 +174,7 @@ export function JourneysList() {
                   <p className="text-xs">Create one to get started with onboarding.</p>
                 </TableCell>
               </TableRow>
-            ) : (
+              ) : (
               // Success State
               journeys.map((journey) => (
                 <TableRow key={journey.id}>
@@ -143,9 +209,13 @@ export function JourneysList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem onClick={() => navigate(`/journeys/${journey.id}`)}>
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicateClick(journey.id, journey.title)}>
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleArchiveClick(journey.id)}>
                             Archive
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -158,6 +228,61 @@ export function JourneysList() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Custom Dialogs */}
+      <Dialog open={modals.type === 'duplicate'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Duplicate Journey</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Title</label>
+              <Input
+                value={modals.inputValue || ''}
+                onChange={(e: any) => setModals({ ...modals, inputValue: e.target.value })}
+                placeholder="e.g. Engineering Onboarding (Copy)"
+                autoFocus
+                onKeyDown={(e: any) => {
+                  if (e.key === 'Enter' && modals.inputValue) {
+                    handleConfirmDuplicate();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button
+              onClick={handleConfirmDuplicate}
+              disabled={!modals.inputValue || duplicateJourney.isPending}
+            >
+              {duplicateJourney.isPending ? 'Duplicating...' : 'Duplicate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modals.type === 'archive'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Archive Journey</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            Are you sure you want to archive this journey? Enrolled employees will no longer be able to access it.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmArchive}
+              disabled={updateJourney.isPending}
+            >
+              {updateJourney.isPending ? 'Archiving...' : 'Archive'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

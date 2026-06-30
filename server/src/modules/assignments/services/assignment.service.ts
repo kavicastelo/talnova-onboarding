@@ -102,6 +102,32 @@ export class EmployeeAssignmentService {
     await Journey.updateOne({ _id: journeyId }, { $inc: { "analytics.totalAssignments": 1 } });
 
     const doc = await this.repository.create(newAssignment as any);
+    await this.updateUserStatistics(employeeId);
+
+    // Create Audit Log for assignment
+    try {
+      const AuditLog = mongoose.model("AuditLog");
+      const employee = await mongoose.model("User").findById(employeeId);
+      const actorName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
+      await AuditLog.create({
+        organizationId: orgId,
+        actorUserId: employeeId,
+        actorType: "user",
+        eventCategory: "assignment",
+        eventType: "journey.assigned",
+        resourceType: "journey",
+        resourceId: journeyId,
+        action: "assign",
+        description: "was assigned journey",
+        metadata: {
+          journeyTitle: journey.title,
+          targetEmployeeName: actorName
+        },
+        severity: "info"
+      });
+    } catch (err) {
+      console.error("Failed to log journey assignment audit log:", err);
+    }
 
     // Send assignment notification
     try {
@@ -128,6 +154,31 @@ export class EmployeeAssignmentService {
       assignment.status = "in_progress";
       assignment.progress.lastActivityAt = new Date();
       await assignment.save();
+      await this.updateUserStatistics(assignment.employeeId);
+
+      // Create Audit Log for starting assignment
+      try {
+        const AuditLog = mongoose.model("AuditLog");
+        const employee = await mongoose.model("User").findById(assignment.employeeId);
+        const employeeName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
+        await AuditLog.create({
+          organizationId: orgId,
+          actorUserId: assignment.employeeId,
+          actorType: "user",
+          eventCategory: "assignment",
+          eventType: "journey.started",
+          resourceType: "journey",
+          resourceId: assignment.journey.journeyId,
+          action: "update",
+          description: `started journey "${assignment.journey.title}"`,
+          metadata: {
+            journeyTitle: assignment.journey.title
+          },
+          severity: "info"
+        });
+      } catch (err) {
+        console.error("Failed to log start assignment audit log:", err);
+      }
     }
     return assignment;
   }
@@ -214,6 +265,37 @@ export class EmployeeAssignmentService {
     await this.checkOverallCompletion(assignment, journey);
 
     await assignment.save();
+    await this.updateUserStatistics(assignment.employeeId);
+
+    // Create Audit Log for lesson completion
+    try {
+      const AuditLog = mongoose.model("AuditLog");
+      const employee = await mongoose.model("User").findById(assignment.employeeId);
+      const employeeName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
+      
+      const mod = assignment.modules.find((m: any) => m._id.toString() === moduleId.toString());
+      const les = mod?.lessons.find((l: any) => l._id.toString() === lessonId.toString());
+      const lessonTitle = les?.title || "Lesson";
+
+      await AuditLog.create({
+        organizationId: orgId,
+        actorUserId: assignment.employeeId,
+        actorType: "user",
+        eventCategory: "content",
+        eventType: "lesson.completed",
+        resourceType: "lesson",
+        resourceId: lessonId,
+        action: "complete",
+        description: `completed lesson "${lessonTitle}"`,
+        metadata: {
+          journeyTitle: assignment.journey.title
+        },
+        severity: "info"
+      });
+    } catch (err) {
+      console.error("Failed to log complete lesson audit log:", err);
+    }
+
     return assignment;
   }
 
@@ -322,6 +404,39 @@ export class EmployeeAssignmentService {
     await this.checkOverallCompletion(assignment, journey);
 
     await assignment.save();
+    await this.updateUserStatistics(assignment.employeeId);
+
+    // Create Audit Log for quiz submission
+    try {
+      const AuditLog = mongoose.model("AuditLog");
+      const employee = await mongoose.model("User").findById(assignment.employeeId);
+      const employeeName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
+      
+      const mod = assignment.modules.find((m: any) => m._id.toString() === moduleId.toString());
+      const les = mod?.lessons.find((l: any) => l._id.toString() === lessonId.toString());
+      const quizTitle = les?.title || "Quiz";
+
+      await AuditLog.create({
+        organizationId: orgId,
+        actorUserId: assignment.employeeId,
+        actorType: "user",
+        eventCategory: "content",
+        eventType: "quiz.submitted",
+        resourceType: "lesson",
+        resourceId: lessonId,
+        action: "complete",
+        description: `${passed ? "passed" : "failed"} the quiz "${quizTitle}"`,
+        metadata: {
+          journeyTitle: assignment.journey.title,
+          score,
+          passed
+        },
+        severity: passed ? "info" : "warning"
+      });
+    } catch (err) {
+      console.error("Failed to log submit quiz audit log:", err);
+    }
+
     return { passed, score, attempt };
   }
 
@@ -372,6 +487,31 @@ export class EmployeeAssignmentService {
 
   async listAssignments(filter: AssignmentFilter, pagination: PaginationOptions) {
     return this.repository.find(filter, pagination);
+  }
+
+  private async updateUserStatistics(employeeId: mongoose.Types.ObjectId | string) {
+    const userId = new mongoose.Types.ObjectId(employeeId.toString());
+    const EmployeeAssignment = mongoose.model("EmployeeAssignment");
+    const assignments = await EmployeeAssignment.find({ employeeId: userId });
+    
+    const assignedJourneys = assignments.length;
+    const completedJourneys = assignments.filter((a: any) => a.status === "completed").length;
+    const certificates = assignments.filter((a: any) => a.certificate?.issued).length;
+    const completionRate = assignedJourneys > 0
+      ? Math.round(assignments.reduce((sum: number, a: any) => sum + (a.progress?.completionPercentage || 0), 0) / assignedJourneys)
+      : 0;
+
+    await mongoose.model("User").updateOne(
+      { _id: userId },
+      {
+        $set: {
+          "statistics.assignedJourneys": assignedJourneys,
+          "statistics.completedJourneys": completedJourneys,
+          "statistics.certificates": certificates,
+          "statistics.completionRate": completionRate,
+        }
+      }
+    );
   }
 }
 
