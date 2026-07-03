@@ -4,9 +4,11 @@ import { Building2, User, Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react
 import { Button } from '../components/Button';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function Register() {
   const navigate = useNavigate();
+  const { t } = useTranslation('auth');
   const [step, setStep] = useState(1);
   
   // Organization Info
@@ -77,10 +79,10 @@ export function Register() {
             <Building2 className="h-full w-full text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-white">
-            Create Organization
+            {t('register.title')}
           </h2>
           <p className="mt-2 text-sm text-gray-400">
-            Setup your new corporate onboarding instance
+            {t('register.subtitle')}
           </p>
         </div>
 
@@ -95,7 +97,7 @@ export function Register() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Organization Name
+                  {t('register.orgName')}
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -114,7 +116,7 @@ export function Register() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Workspace URL (Slug)
+                  {t('register.orgName')}
                 </label>
                 <div className="relative mt-1 flex rounded-lg shadow-sm">
                   <span className="inline-flex items-center rounded-l-lg border border-r-0 border-white/10 bg-white/[0.02] px-3 text-sm text-gray-500">
@@ -164,7 +166,7 @@ export function Register() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    First Name
+                    {t('register.firstName')}
                   </label>
                   <div className="relative mt-1">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -183,7 +185,7 @@ export function Register() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Last Name
+                    {t('register.lastName')}
                   </label>
                   <input
                     type="text"
@@ -198,7 +200,7 @@ export function Register() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Admin Email
+                  {t('register.email')}
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -217,7 +219,7 @@ export function Register() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Password
+                  {t('register.password')}
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -254,7 +256,7 @@ export function Register() {
                   <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : (
                   <>
-                    Launch Workspace
+                    {t('register.submit')}
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -265,9 +267,9 @@ export function Register() {
 
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            Already have a workspace?{' '}
+            {t('register.alreadyHave')}{' '}
             <Link to="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
-              Sign In
+              {t('register.signIn')}
             </Link>
           </p>
         </div>

@@ -1,0 +1,33 @@
+{
+  "admin": {
+    "title": "Admin Dashboard",
+    "welcome": "Welcome back",
+    "stats": {
+      "totalEmployees": "Total Employees",
+      "activeJourneys": "Active Journeys",
+      "completionRate": "Completion Rate",
+      "avgTimeToComplete": "Avg. Time to Complete"
+    },
+    "recentActivity": "Recent Activity",
+    "completionsOverTime": "Completions Over Time"
+  },
+  "employee": {
+    "title": "Welcome back",
+    "progress": "Your Progress",
+    "assignedJourneys": "Assigned Journeys",
+    "completedJourneys": "Completed",
+    "inProgress": "In Progress",
+    "continuelearning": "Continue Learning",
+    "startJourney": "Start Journey",
+    "noJourneys": "No journeys assigned yet."
+  },
+  "superAdmin": {
+    "title": "Super Admin Dashboard",
+    "stats": {
+      "totalOrgs": "Total Organizations",
+      "activeOrgs": "Active Organizations",
+      "totalRevenue": "Total Revenue",
+      "totalUsers": "Total Users"
+    }
+  }
+}

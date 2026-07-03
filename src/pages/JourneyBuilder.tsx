@@ -52,13 +52,15 @@ import {
   useUpdateJourney,
   useCreateJourney,
   useAssignJourney,
-  useJourneyAssignments
+  useJourneyAssignments,
+  useIssueCertificate
 } from '../hooks/useJourneys';
 import { useEmployees } from '../hooks/useEmployees';
+import { useWorkspaceSettings } from '../hooks/useSettings';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
 import { CourseModule, Lesson } from '../types';
-import { Trash, X, Lock, Globe } from 'lucide-react';
+import { Trash, X, Lock, Globe, FileSpreadsheet, Headphones, Image as ImageIcon, CheckSquare, BookOpen } from 'lucide-react';
 import { uploadService } from '../services/upload.service';
 
 export function JourneyBuilder() {
@@ -72,11 +74,15 @@ export function JourneyBuilder() {
 
   const { data: assignments = [] } = useJourneyAssignments(isNew ? '' : (id || ''));
   const { data: employees = [] } = useEmployees();
+  const { data: workspaceSettings } = useWorkspaceSettings();
   const assignJourneyMut = useAssignJourney();
+  const issueCertificateMut = useIssueCertificate();
+
+  const availableCategories = workspaceSettings?.categories || ["Engineering", "Sales", "General"];
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('engineering');
+  const [category, setCategory] = useState('');
   const [modules, setModules] = useState<CourseModule[]>([]);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
@@ -107,7 +113,7 @@ export function JourneyBuilder() {
     if (journey) {
       setTitle(journey.title || '');
       setDescription(journey.description || '');
-      setCategory(journey.category || 'engineering');
+      setCategory(journey.category || (availableCategories[0] ? availableCategories[0].toLowerCase() : 'engineering'));
       setModules(journey.modules || []);
       setIsPublic(journey.audience?.isPublic || false);
       setAllowSkipLessons(journey.settings?.allowSkipLessons ?? false);
@@ -117,15 +123,23 @@ export function JourneyBuilder() {
       setCertificateEnabled(journey.certificate?.enabled ?? false);
       setPassingScore(journey.certificate?.passingScore ?? 80);
     }
-  }, [journey]);
+  }, [journey, availableCategories]);
+
+  // Set default category for new journey
+  useEffect(() => {
+    if (isNew && !category && availableCategories.length > 0) {
+      setCategory(availableCategories[0].toLowerCase());
+    }
+  }, [isNew, category, availableCategories]);
 
   // Track if state is dirty
   useEffect(() => {
     if (!journey) return;
+    const defaultCat = availableCategories[0] ? availableCategories[0].toLowerCase() : 'engineering';
     const hasChanges =
       title !== (journey.title || '') ||
       description !== (journey.description || '') ||
-      category !== (journey.category || 'engineering') ||
+      category !== (journey.category || defaultCat) ||
       isPublic !== (journey.audience?.isPublic || false) ||
       JSON.stringify(modules) !== JSON.stringify(journey.modules || []) ||
       allowSkipLessons !== (journey.settings?.allowSkipLessons ?? false) ||
@@ -149,7 +163,8 @@ export function JourneyBuilder() {
     maxRetakes,
     certificateEnabled,
     passingScore,
-    journey
+    journey,
+    availableCategories
   ]);
 
   // Clean up global flag on unmount
@@ -198,17 +213,17 @@ export function JourneyBuilder() {
       );
     } else if (id) {
       updateJourney.mutate(
-        { 
-          id, 
-          journey: { 
-            title, 
-            description, 
-            category, 
-            modules, 
+        {
+          id,
+          journey: {
+            title,
+            description,
+            category,
+            modules,
             audience: { isPublic },
             settings,
             certificate
-          } 
+          }
         },
         {
           onSuccess: () => {
@@ -430,6 +445,20 @@ export function JourneyBuilder() {
     );
   };
 
+  const handleIssueCertificate = (assignmentId: string) => {
+    issueCertificateMut.mutate(
+      { assignmentId, journeyId: id || '' },
+      {
+        onSuccess: () => {
+          toast.success('Certificate issued successfully!');
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to issue certificate');
+        }
+      }
+    );
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -494,18 +523,18 @@ export function JourneyBuilder() {
       </header>
 
       <div className="flex-1 overflow-hidden">
-        <Tabs defaultValue="builder" className="h-full flex flex-col">
+        <Tabs defaultValue="settings" className="h-full flex flex-col">
           <div className="px-6 border-b">
             <TabsList className="h-12 bg-transparent">
-              <TabsTrigger
-                value="builder"
-                className="data-[state=active]:bg-muted">
-                Builder
-              </TabsTrigger>
               <TabsTrigger
                 value="settings"
                 className="data-[state=active]:bg-muted">
                 Settings
+              </TabsTrigger>
+              <TabsTrigger
+                value="builder"
+                className="data-[state=active]:bg-muted">
+                Builder
               </TabsTrigger>
               <TabsTrigger
                 value="assignments"
@@ -514,6 +543,135 @@ export function JourneyBuilder() {
               </TabsTrigger>
             </TabsList>
           </div>
+
+          <TabsContent
+            value="settings"
+            className="flex-1 p-8 m-0 overflow-auto">
+
+            <div className="max-w-2xl mx-auto space-y-8">
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Journey Settings</h2>
+                <div className="space-y-6">
+                  <Card className="overflow-visible">
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">General Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Journey Title</label>
+                        <Input value={title} onChange={(e: any) => setTitle(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Description</label>
+                        <Input value={description} onChange={(e: any) => setDescription(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Category</label>
+                        <Select value={category} onValueChange={setCategory} className="w-full">
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select Category" />
+                          </SelectTrigger>
+                          <SelectContent className="w-full min-w-[200px]">
+                            {availableCategories.map((cat) => (
+                              <SelectItem key={cat} value={cat.toLowerCase()}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">Learning Rules & Constraints</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Require Sequential Completion</label>
+                          <p className="text-xs text-muted-foreground">Employees must complete lessons in order.</p>
+                        </div>
+                        <Switch
+                          checked={requireSequentialCompletion}
+                          onCheckedChange={setRequireSequentialCompletion}
+                        />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Allow Skipping Lessons</label>
+                          <p className="text-xs text-muted-foreground">Allows users to skip lessons without marking them completed.</p>
+                        </div>
+                        <Switch
+                          checked={allowSkipLessons}
+                          onCheckedChange={setAllowSkipLessons}
+                        />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Allow Retakes</label>
+                          <p className="text-xs text-muted-foreground">Allows users to retake quizzes multiple times.</p>
+                        </div>
+                        <Switch
+                          checked={allowRetakes}
+                          onCheckedChange={setAllowRetakes}
+                        />
+                      </div>
+                      {allowRetakes && (
+                        <div className="flex items-center gap-4 pl-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">Max Retakes Allowed</label>
+                            <Input
+                              type="number"
+                              value={maxRetakes}
+                              onChange={(e: any) => setMaxRetakes(Number(e.target.value))}
+                              className="w-24 h-8"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">Certificate Settings</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <label className="text-sm font-medium">Award Certificate upon Completion</label>
+                          <p className="text-xs text-muted-foreground">Generate a certified credential once all modules are finished.</p>
+                        </div>
+                        <Switch
+                          checked={certificateEnabled}
+                          onCheckedChange={setCertificateEnabled}
+                        />
+                      </div>
+                      {certificateEnabled && (
+                        <div className="space-y-4 pl-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">Passing Score Requirement (%)</label>
+                            <Input
+                              type="number"
+                              value={passingScore}
+                              onChange={(e: any) => setPassingScore(Number(e.target.value))}
+                              className="w-24 h-8"
+                              min="0"
+                              max="100"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent
             value="builder"
@@ -575,8 +733,18 @@ export function JourneyBuilder() {
                                       <Video className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                                     ) : lesson.type === 'Quiz' ? (
                                       <HelpCircle className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : (
+                                    ) : lesson.type === 'Audio' ? (
+                                      <Headphones className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : lesson.type === 'Image' ? (
+                                      <ImageIcon className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : lesson.type === 'Task' ? (
+                                      <CheckSquare className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : lesson.type === 'Document' ? (
+                                      <FileSpreadsheet className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : lesson.type === 'PDF' ? (
                                       <FileText className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    ) : (
+                                      <BookOpen className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                                     )}
                                     <span>{lesson.title}</span>
                                   </div>
@@ -811,6 +979,86 @@ export function JourneyBuilder() {
                         </div>
                       )}
 
+                      {(selectedLesson.type === 'PDF' || selectedLesson.type === 'Document' || selectedLesson.type === 'Audio' || selectedLesson.type === 'Image') && (
+                        <div className="space-y-6 p-6">
+                          <div className="space-y-4">
+                            <label className="text-sm font-medium">{selectedLesson.type} File Source</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium flex items-center gap-2">
+                                    <Upload className="h-4 w-4 text-primary" />
+                                    Upload File
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {selectedLesson.type === 'PDF' && 'Upload a PDF document.'}
+                                    {selectedLesson.type === 'Document' && 'Upload a Word, Excel or PowerPoint document.'}
+                                    {selectedLesson.type === 'Audio' && 'Upload an MP3, WAV or M4A audio file.'}
+                                    {selectedLesson.type === 'Image' && 'Upload an PNG, JPG, JPEG or SVG image.'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <input
+                                    type="file"
+                                    id="file-upload-input-generic"
+                                    accept={
+                                      selectedLesson.type === 'PDF' ? 'application/pdf' :
+                                      selectedLesson.type === 'Document' ? '.doc,.docx,.xls,.xlsx,.ppt,.pptx' :
+                                      selectedLesson.type === 'Audio' ? 'audio/*' :
+                                      selectedLesson.type === 'Image' ? 'image/*' : '*'
+                                    }
+                                    className="hidden"
+                                    onChange={handleUploadFile}
+                                    disabled={isUploading}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => document.getElementById('file-upload-input-generic')?.click()}
+                                    disabled={isUploading}
+                                  >
+                                    {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium flex items-center gap-2">
+                                    <Link2 className="h-4 w-4 text-primary" />
+                                    File URL
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">Or paste a public link to the file.</p>
+                                </div>
+                                <Input
+                                  placeholder="https://example.com/file"
+                                  value={selectedLesson.content || ''}
+                                  onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {selectedLesson.content && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Preview / Current Link</label>
+                              <div className="border rounded-lg p-4 bg-muted/5 flex items-center justify-between">
+                                <div className="flex items-center gap-2 overflow-hidden mr-4">
+                                  <FileText className="h-5 w-5 text-indigo-400 shrink-0" />
+                                  <span className="text-sm truncate text-muted-foreground">{selectedLesson.content}</span>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(selectedLesson.content, '_blank')}
+                                >
+                                  Open in New Tab
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {selectedLesson.type === 'Quiz' && (
                         <div className="space-y-6 p-6">
                           <div className="flex items-center justify-between border-b pb-4">
@@ -832,9 +1080,34 @@ export function JourneyBuilder() {
                             ) : (
                               selectedLesson.quiz.questions.map((q, qIdx) => (
                                 <div key={q.id} className="border rounded-lg p-4 space-y-4 bg-muted/10">
-                                  <div className="flex items-center justify-between">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3">
                                     <h5 className="text-sm font-semibold">Question {qIdx + 1}</h5>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs text-muted-foreground">Type:</span>
+                                        <Select
+                                          value={q.type || 'single_choice'}
+                                          onValueChange={(val: 'single_choice' | 'multiple_choice' | 'true_false' | any) => {
+                                            const updatedFields: any = { type: val };
+                                            if (val === 'true_false') {
+                                              updatedFields.options = [
+                                                { id: Math.random().toString(36).substring(7), optionText: 'True', isCorrect: true },
+                                                { id: Math.random().toString(36).substring(7), optionText: 'False', isCorrect: false }
+                                              ];
+                                            }
+                                            handleUpdateQuestion(q.id, updatedFields);
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-[140px] h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="single_choice">Single Choice</SelectItem>
+                                            <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                                            <SelectItem value="true_false">True / False</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
                                       <div className="flex items-center gap-1">
                                         <span className="text-xs text-muted-foreground">Points:</span>
                                         <Input
@@ -867,26 +1140,32 @@ export function JourneyBuilder() {
                                   <div className="space-y-3">
                                     <label className="text-xs font-medium flex items-center justify-between">
                                       <span>Options</span>
-                                      <span className="text-[10px] text-muted-foreground italic">Select correct answer(s) using checkboxes</span>
+                                      <span className="text-[10px] text-muted-foreground italic">
+                                        {q.type === 'multiple_choice' && 'Select correct answer(s) using checkboxes'}
+                                        {q.type === 'single_choice' && 'Select correct answer using radio buttons'}
+                                        {q.type === 'true_false' && 'Select correct answer (True or False)'}
+                                      </span>
                                     </label>
                                     <div className="space-y-2">
                                       {q.options.map((opt, oIdx) => (
                                         <div key={opt.id} className="flex items-center gap-2">
                                           <input
-                                            type="checkbox"
+                                            type={q.type === 'multiple_choice' ? 'checkbox' : 'radio'}
+                                            name={`q-builder-${q.id}`}
                                             checked={opt.isCorrect || false}
                                             onChange={(e) => {
                                               const newOpts = q.options.map((o) => {
                                                 if (o.id === opt.id) return { ...o, isCorrect: e.target.checked };
-                                                // If single choice, uncheck other choices
-                                                return q.type === 'single_choice' ? { ...o, isCorrect: false } : o;
+                                                // If single choice or true/false, uncheck other choices
+                                                return q.type !== 'multiple_choice' ? { ...o, isCorrect: false } : o;
                                               });
                                               handleUpdateQuestion(q.id, { options: newOpts });
                                             }}
-                                            className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                            className={q.type === 'multiple_choice' ? "rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" : "rounded-full border-gray-300 text-primary focus:ring-primary h-4 w-4"}
                                           />
                                           <Input
                                             value={opt.optionText}
+                                            disabled={q.type === 'true_false'}
                                             onChange={(e: any) => {
                                               const newOpts = q.options.map((o) =>
                                                 o.id === opt.id ? { ...o, optionText: e.target.value } : o
@@ -896,34 +1175,38 @@ export function JourneyBuilder() {
                                             placeholder={`Option ${oIdx + 1}`}
                                             className="flex-1 h-9"
                                           />
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            onClick={() => {
-                                              const newOpts = q.options.filter((o) => o.id !== opt.id);
-                                              handleUpdateQuestion(q.id, { options: newOpts });
-                                            }}
-                                          >
-                                            <X className="h-3 w-3" />
-                                          </Button>
+                                          {q.type !== 'true_false' && (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                              onClick={() => {
+                                                const newOpts = q.options.filter((o) => o.id !== opt.id);
+                                                handleUpdateQuestion(q.id, { options: newOpts });
+                                              }}
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </Button>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        const newOpts = [
-                                          ...q.options,
-                                          { id: Math.random().toString(36).substring(7), optionText: '', isCorrect: false }
-                                        ];
-                                        handleUpdateQuestion(q.id, { options: newOpts });
-                                      }}
-                                      className="h-8 text-xs"
-                                    >
-                                      Add Option
-                                    </Button>
+                                    {q.type !== 'true_false' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          const newOpts = [
+                                            ...q.options,
+                                            { id: Math.random().toString(36).substring(7), optionText: '', isCorrect: false }
+                                          ];
+                                          handleUpdateQuestion(q.id, { options: newOpts });
+                                        }}
+                                        className="h-8 text-xs"
+                                      >
+                                        Add Option
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               ))
@@ -931,7 +1214,7 @@ export function JourneyBuilder() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="p-4 border-t bg-muted/10">
                         <label className="text-xs font-medium text-muted-foreground">Lesson Description</label>
                         <Input
@@ -999,133 +1282,6 @@ export function JourneyBuilder() {
           </TabsContent>
 
           <TabsContent
-            value="settings"
-            className="flex-1 p-8 m-0 overflow-auto">
-
-            <div className="max-w-2xl mx-auto space-y-8">
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Journey Settings</h2>
-                <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base font-semibold">General Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Journey Title</label>
-                        <Input value={title} onChange={(e: any) => setTitle(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Description</label>
-                        <Input value={description} onChange={(e: any) => setDescription(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Category</label>
-                        <Select value={category} onValueChange={setCategory}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="engineering">Engineering</SelectItem>
-                            <SelectItem value="sales">Sales</SelectItem>
-                            <SelectItem value="general">General</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base font-semibold">Learning Rules & Constraints</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Require Sequential Completion</label>
-                          <p className="text-xs text-muted-foreground">Employees must complete lessons in order.</p>
-                        </div>
-                        <Switch 
-                          checked={requireSequentialCompletion} 
-                          onCheckedChange={setRequireSequentialCompletion} 
-                        />
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Allow Skipping Lessons</label>
-                          <p className="text-xs text-muted-foreground">Allows users to skip lessons without marking them completed.</p>
-                        </div>
-                        <Switch 
-                          checked={allowSkipLessons} 
-                          onCheckedChange={setAllowSkipLessons} 
-                        />
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Allow Retakes</label>
-                          <p className="text-xs text-muted-foreground">Allows users to retake quizzes multiple times.</p>
-                        </div>
-                        <Switch 
-                          checked={allowRetakes} 
-                          onCheckedChange={setAllowRetakes} 
-                        />
-                      </div>
-                      {allowRetakes && (
-                        <div className="flex items-center gap-4 pl-6">
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">Max Retakes Allowed</label>
-                            <Input 
-                              type="number" 
-                              value={maxRetakes} 
-                              onChange={(e: any) => setMaxRetakes(Number(e.target.value))} 
-                              className="w-24 h-8"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base font-semibold">Certificate Settings</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Award Certificate upon Completion</label>
-                          <p className="text-xs text-muted-foreground">Generate a certified credential once all modules are finished.</p>
-                        </div>
-                        <Switch 
-                          checked={certificateEnabled} 
-                          onCheckedChange={setCertificateEnabled} 
-                        />
-                      </div>
-                      {certificateEnabled && (
-                        <div className="space-y-4 pl-6">
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">Passing Score Requirement (%)</label>
-                            <Input 
-                              type="number" 
-                              value={passingScore} 
-                              onChange={(e: any) => setPassingScore(Number(e.target.value))} 
-                              className="w-24 h-8"
-                              min="0"
-                              max="100"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent
             value="assignments"
             className="flex-1 p-8 m-0 overflow-auto">
 
@@ -1136,7 +1292,7 @@ export function JourneyBuilder() {
                   <div>
                     <h4 className="font-semibold text-sm">Publishing Required</h4>
                     <p className="text-xs text-amber-500/80 mt-1">
-                      This journey is currently a Draft. Employees cannot view or self-assign draft journeys. 
+                      This journey is currently a Draft. Employees cannot view or self-assign draft journeys.
                       You must Publish this journey first to activate public access or assignment tracking.
                     </p>
                   </div>
@@ -1149,11 +1305,10 @@ export function JourneyBuilder() {
                   {/* Public Card */}
                   <div
                     onClick={() => handleTogglePublic(true)}
-                    className={`cursor-pointer border rounded-xl p-5 transition-all flex items-start gap-4 ${
-                      isPublic 
-                        ? 'border-indigo-600 bg-indigo-50/5 ring-1 ring-indigo-600' 
-                        : 'border-muted hover:border-muted-foreground/30 bg-card'
-                    }`}
+                    className={`cursor-pointer border rounded-xl p-5 transition-all flex items-start gap-4 ${isPublic
+                      ? 'border-indigo-600 bg-indigo-50/5 ring-1 ring-indigo-600'
+                      : 'border-muted hover:border-muted-foreground/30 bg-card'
+                      }`}
                   >
                     <div className={`p-2.5 rounded-lg ${isPublic ? 'bg-indigo-600/10 text-indigo-400' : 'bg-muted text-muted-foreground'}`}>
                       <Globe className="h-5 w-5" />
@@ -1172,11 +1327,10 @@ export function JourneyBuilder() {
                   {/* Restricted Card */}
                   <div
                     onClick={() => handleTogglePublic(false)}
-                    className={`cursor-pointer border rounded-xl p-5 transition-all flex items-start gap-4 ${
-                      !isPublic 
-                        ? 'border-indigo-600 bg-indigo-50/5 ring-1 ring-indigo-600' 
-                        : 'border-muted hover:border-muted-foreground/30 bg-card'
-                    }`}
+                    className={`cursor-pointer border rounded-xl p-5 transition-all flex items-start gap-4 ${!isPublic
+                      ? 'border-indigo-600 bg-indigo-50/5 ring-1 ring-indigo-600'
+                      : 'border-muted hover:border-muted-foreground/30 bg-card'
+                      }`}
                   >
                     <div className={`p-2.5 rounded-lg ${!isPublic ? 'bg-indigo-600/10 text-indigo-400' : 'bg-muted text-muted-foreground'}`}>
                       <Lock className="h-5 w-5" />
@@ -1198,8 +1352,8 @@ export function JourneyBuilder() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Assign Journey</h3>
                   <div className="flex gap-3 max-w-md">
-                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                      <SelectTrigger className="flex-1">
+                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} className="flex-1">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select an employee..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -1214,8 +1368,8 @@ export function JourneyBuilder() {
                         )}
                       </SelectContent>
                     </Select>
-                    <Button 
-                      onClick={handleAssignEmployee} 
+                    <Button
+                      onClick={handleAssignEmployee}
                       disabled={assignJourneyMut.isPending || !selectedEmployeeId}
                     >
                       {assignJourneyMut.isPending ? 'Assigning...' : 'Assign'}
@@ -1241,8 +1395,8 @@ export function JourneyBuilder() {
                         <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
                         <p className="font-medium">No active progress logs yet.</p>
                         <p className="text-sm mt-1">
-                          {isPublic 
-                            ? 'Public journeys show progress logs here once employees enroll and start learning.' 
+                          {isPublic
+                            ? 'Public journeys show progress logs here once employees enroll and start learning.'
                             : 'Assign this journey to employees above to start tracking their progress.'}
                         </p>
                       </div>
@@ -1259,6 +1413,7 @@ export function JourneyBuilder() {
                               <th className="px-6 py-3 border-b">Status</th>
                               <th className="px-6 py-3 border-b">Progress</th>
                               <th className="px-6 py-3 border-b">Assigned Date</th>
+                              <th className="px-6 py-3 border-b text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -1280,8 +1435,8 @@ export function JourneyBuilder() {
                                   <td className="px-6 py-4">
                                     <div className="flex items-center gap-2 max-w-[200px]">
                                       <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                                        <div 
-                                          className="bg-indigo-600 h-1.5 rounded-full" 
+                                        <div
+                                          className="bg-indigo-600 h-1.5 rounded-full"
                                           style={{ width: `${percentage}%` }}
                                         />
                                       </div>
@@ -1290,6 +1445,35 @@ export function JourneyBuilder() {
                                   </td>
                                   <td className="px-6 py-4 text-muted-foreground text-xs">
                                     {new Date(assign.assignment?.assignedAt || assign.createdAt).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                    {assign.status === 'completed' ? (
+                                      assign.certificate?.issued ? (
+                                        <div className="flex items-center justify-end gap-2">
+                                          <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">Issued</Badge>
+                                          <a
+                                            href={`/public/certificate/${assign._id}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-indigo-400 hover:text-indigo-300 underline font-normal text-xs"
+                                          >
+                                            View
+                                          </a>
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-2 text-xs"
+                                          onClick={() => handleIssueCertificate(assign._id)}
+                                          disabled={issueCertificateMut.isPending}
+                                        >
+                                          {issueCertificateMut.isPending ? 'Issuing...' : 'Issue Certificate'}
+                                        </Button>
+                                      )
+                                    ) : (
+                                      <span className="text-muted-foreground text-xs italic">-</span>
+                                    )}
                                   </td>
                                 </tr>
                               );
@@ -1384,6 +1568,11 @@ export function JourneyBuilder() {
                   <SelectItem value="Article">Article</SelectItem>
                   <SelectItem value="Video">Video</SelectItem>
                   <SelectItem value="Quiz">Quiz</SelectItem>
+                  <SelectItem value="PDF">PDF Document</SelectItem>
+                  <SelectItem value="Document">MS Office Document (Word/Excel)</SelectItem>
+                  <SelectItem value="Audio">Audio Player</SelectItem>
+                  <SelectItem value="Image">Image Viewer</SelectItem>
+                  <SelectItem value="Task">Task Checkoff</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1503,7 +1692,7 @@ export function JourneyBuilder() {
 
 function MarkdownPreview({ content }: { content: string }) {
   if (!content) return <p className="text-muted-foreground italic text-sm">No content written yet. Use the editor to add text.</p>;
-  
+
   const lines = content.split('\n');
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert space-y-4">

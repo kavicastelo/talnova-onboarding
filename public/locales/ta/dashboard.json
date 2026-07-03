@@ -1,0 +1,33 @@
+{
+  "admin": {
+    "title": "நிர்வாகி டாஷ்போர்டு",
+    "welcome": "மீண்டும் வரவேற்கிறோம்",
+    "stats": {
+      "totalEmployees": "மொத்த பணியாளர்கள்",
+      "activeJourneys": "செயலில் உள்ள பயணங்கள்",
+      "completionRate": "நிறைவு விகிதம்",
+      "avgTimeToComplete": "நிறைவு செய்ய சராசரி நேரம்"
+    },
+    "recentActivity": "சமீபத்திய செயல்பாடுகள்",
+    "completionsOverTime": "காலப்போக்கில் நிறைவுகள்"
+  },
+  "employee": {
+    "title": "மீண்டும் வரவேற்கிறோம்",
+    "progress": "உங்கள் முன்னேற்றம்",
+    "assignedJourneys": "ஒதுக்கப்பட்ட பயணங்கள்",
+    "completedJourneys": "நிறைவடைந்தவை",
+    "inProgress": "நடைபெற்று வருகிறது",
+    "continuelearning": "கற்றலைத் தொடரவும்",
+    "startJourney": "பயணத்தைத் தொடங்கவும்",
+    "noJourneys": "இதுவரை எந்தப் பயணமும் ஒதுக்கப்படவில்லை."
+  },
+  "superAdmin": {
+    "title": "முதன்மை நிர்வாகி டாஷ்போர்டு",
+    "stats": {
+      "totalOrgs": "மொத்த நிறுவனங்கள்",
+      "activeOrgs": "செயலில் உள்ள நிறுவனங்கள்",
+      "totalRevenue": "மொத்த வருவாய்",
+      "totalUsers": "மொத்த பயனர்கள்"
+    }
+  }
+}

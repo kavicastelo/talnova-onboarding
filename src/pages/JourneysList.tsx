@@ -32,11 +32,13 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function JourneysList() {
   const { data: journeys = [], isLoading, isError, error, refetch } = useJourneys();
   const { role } = useRole();
   const navigate = useNavigate();
+  const { t } = useTranslation('journeys');
 
   const [modals, setModals] = useState<{
     type: 'duplicate' | 'archive' | null;
@@ -101,19 +103,17 @@ export function JourneysList() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {role === 'admin' ? 'Journeys' : 'My Learning'}
+            {role === 'admin' ? t('list.title') : t('list.filterActive')}
           </h1>
           <p className="text-muted-foreground">
-            {role === 'admin'
-              ? 'Manage onboarding and training journeys.'
-              : 'View and complete your assigned training journeys.'}
+            {role === 'admin' ? t('list.title') : t('list.empty')}
           </p>
         </div>
         {role === 'admin' && (
           <Button asChild>
             <Link to="/journeys/new">
               <Plus className="mr-2 h-4 w-4" />
-              Create Journey
+              {t('list.createNew')}
             </Link>
           </Button>
         )}
@@ -123,15 +123,15 @@ export function JourneysList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t('list.columns.title')}</TableHead>
+              <TableHead>{t('list.columns.status')}</TableHead>
               {role === 'admin' ? (
                 <>
-                  <TableHead>Enrolled</TableHead>
-                  <TableHead>Completion</TableHead>
+                  <TableHead>{t('list.columns.enrolled')}</TableHead>
+                  <TableHead>{t('list.columns.completion')}</TableHead>
                 </>
               ) : null}
-              <TableHead>Last Updated</TableHead>
+              <TableHead>{t('list.columns.lastUpdated')}</TableHead>
               {role === 'admin' && <TableHead className="w-[50px]"></TableHead>}
             </TableRow>
           </TableHeader>
@@ -170,8 +170,8 @@ export function JourneysList() {
               // Empty State
               <TableRow>
                 <TableCell colSpan={role === 'admin' ? 6 : 3} className="h-32 text-center text-muted-foreground">
-                  <p className="font-medium">No journeys found</p>
-                  <p className="text-xs">Create one to get started with onboarding.</p>
+                  <p className="font-medium">{t('list.empty')}</p>
+                  <p className="text-xs">{t('list.createNew')}</p>
                 </TableCell>
               </TableRow>
               ) : (

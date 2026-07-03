@@ -1,0 +1,59 @@
+{
+  "count": {
+    "employees_one": "සේවක {{count}}",
+    "employees_other": "සේවකයින් {{count}}",
+    "journeys_one": "ගමන් මාර්ග {{count}}",
+    "journeys_other": "ගමන් මාර්ග {{count}}",
+    "results_one": "ප්‍රතිඵල {{count}}",
+    "results_other": "ප්‍රතිඵල {{count}}"
+  },
+  "save": "සුරකින්න",
+  "cancel": "අවලංගු කරන්න",
+  "delete": "මකන්න",
+  "edit": "සංස්කරණය කරන්න",
+  "close": "වසන්න",
+  "confirm": "තහවුරු කරන්න",
+  "back": "ආපසු",
+  "next": "ඊළඟ",
+  "submit": "යොමු කරන්න",
+  "loading": "පූරණය වෙමින්...",
+  "search": "සොයන්න",
+  "filter": "පෙරහන් කරන්න",
+  "export": "අපනයනය කරන්න",
+  "import": "ආනයනය කරන්න",
+  "create": "සාදන්න",
+  "update": "යාවත්කාලීන කරන්න",
+  "remove": "ඉවත් කරන්න",
+  "publish": "ප්‍රකාශයට පත් කරන්න",
+  "archive": "සංරක්ෂණය කරන්න",
+  "view": "බලන්න",
+  "download": "බාගන්න",
+  "upload": "උඩුගත කරන්න",
+  "invite": "ආරාධනා කරන්න",
+  "assign": "පවරන්න",
+  "approve": "අනුමත කරන්න",
+  "reject": "ප්‍රතික්ෂේප කරන්න",
+  "status": {
+    "active": "සක්‍රීය",
+    "inactive": "අක්‍රීය",
+    "draft": "කටුපිටපත",
+    "published": "ප්‍රකාශිත",
+    "archived": "සංරක්ෂිත",
+    "onboarding": "හඳුන්වාදීම",
+    "suspended": "තාවකාලිකව අත්හිටුවා ඇත"
+  },
+  "role": {
+    "admin": "පරිපාලක",
+    "employee": "සේවකයා",
+    "owner": "හිමිකරු",
+    "super_admin": "ප්‍රධාන පරිපාලක",
+    "manager": "කළමනාකරු"
+  },
+  "noData": "දත්ත නොමැත",
+  "error": {
+    "generic": "යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+    "notFound": "හමු නොවීය",
+    "unauthorized": "මෙම ක්‍රියාව සිදු කිරීමට ඔබට අවසර නොමැත."
+  },
+  "comingSoon": "ඉක්මනින් පැමිණේ"
+}

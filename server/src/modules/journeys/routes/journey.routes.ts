@@ -3,6 +3,7 @@ import { JourneyController } from "../controllers/journey.controller.js";
 import { JourneyService } from "../services/journey.service.js";
 import { JourneyRepository } from "../repositories/journey.repository.js";
 import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { extractLocale } from "../../../middleware/locale.middleware.js";
 import {
   createJourneySchema,
   updateJourneySchema,
@@ -18,10 +19,10 @@ export async function journeyRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
 
   // GET /api/v1/journeys
-  app.get("/", controller.listJourneys as any);
+  app.get("/", { preHandler: [extractLocale] }, controller.listJourneys as any);
 
   // GET /api/v1/journeys/:id
-  app.get("/:id", controller.getJourney as any);
+  app.get("/:id", { preHandler: [extractLocale] }, controller.getJourney as any);
 
   // POST /api/v1/journeys
   app.post(

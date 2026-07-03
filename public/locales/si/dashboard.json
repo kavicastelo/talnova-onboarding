@@ -1,0 +1,33 @@
+{
+  "admin": {
+    "title": "පරිපාලක උපකරණ පුවරුව",
+    "welcome": "නැවත සාදරයෙන් පිළිගනිමු",
+    "stats": {
+      "totalEmployees": "මුළු සේවකයින්",
+      "activeJourneys": "සක්‍රීය ගමන් මාර්ග",
+      "completionRate": "සම්පූර්ණ කිරීමේ අනුපාතය",
+      "avgTimeToComplete": "සම්පූර්ණ කිරීමට සාමාන්‍ය කාලය"
+    },
+    "recentActivity": "මෑත ක්‍රියාකාරකම්",
+    "completionsOverTime": "කාලය අනුව සම්පූර්ණ කිරීම්"
+  },
+  "employee": {
+    "title": "නැවත සාදරයෙන් පිළිගනිමු",
+    "progress": "ඔබගේ ප්‍රගතිය",
+    "assignedJourneys": "පවරා ඇති ගමන් මාර්ග",
+    "completedJourneys": "සම්පූර්ණ කළ",
+    "inProgress": "ක්‍රියාත්මක වෙමින්",
+    "continuelearning": "ඉගෙනීම දිගටම කරගෙන යන්න",
+    "startJourney": "ගමන් මාර්ගය ආරම්භ කරන්න",
+    "noJourneys": "තවමත් ඔබට ගමන් මාර්ග කිසිවක් පවරා නොමැත."
+  },
+  "superAdmin": {
+    "title": "ප්‍රධාන පරිපාලක උපකරණ පුවරුව",
+    "stats": {
+      "totalOrgs": "මුළු සංවිධාන",
+      "activeOrgs": "සක්‍රීය සංවිධාන",
+      "totalRevenue": "මුළු ආදායම",
+      "totalUsers": "මුළු පරිශීලකයින්"
+    }
+  }
+}

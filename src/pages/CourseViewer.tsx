@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import {
@@ -18,6 +18,7 @@ import { Separator } from '../components/Separator';
 import { useCourse, useUpdateLessonCompletion, useSubmitQuiz } from '../hooks/useCourses';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
+import { LessonType } from '../types';
 
 export function CourseViewer() {
   const { id } = useParams();
@@ -63,17 +64,54 @@ export function CourseViewer() {
     }
   };
 
-  const handleOptionSelect = (questionId: string, optionId: string, type: 'single_choice' | 'multiple_choice') => {
+  const autoMarkCompleted = () => {
+    if (course && selectedLesson && !selectedLesson.isCompleted && !updateLessonCompletion.isPending) {
+      updateLessonCompletion.mutate(
+        {
+          courseId: course.id,
+          lessonId: selectedLesson.id,
+          isCompleted: true,
+        },
+        {
+          onSuccess: () => {
+            toast.success('Lesson completed automatically!');
+          },
+        }
+      );
+    }
+  };
+
+  const handleVideoProgress = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    if (video.duration > 0) {
+      const percentage = (video.currentTime / video.duration) * 100;
+      if (percentage >= 90) {
+        autoMarkCompleted();
+      }
+    }
+  };
+
+  const handleAudioProgress = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+    const audio = e.currentTarget;
+    if (audio.duration > 0) {
+      const percentage = (audio.currentTime / audio.duration) * 100;
+      if (percentage >= 90) {
+        autoMarkCompleted();
+      }
+    }
+  };
+
+  const handleOptionSelect = (questionId: string, optionId: string, type: 'single_choice' | 'multiple_choice' | 'true_false') => {
     setSelectedAnswers((prev) => {
       const current = prev[questionId] || [];
-      if (type === 'single_choice') {
-        return { ...prev, [questionId]: [optionId] };
-      } else {
+      if (type === 'multiple_choice') {
         if (current.includes(optionId)) {
           return { ...prev, [questionId]: current.filter((id) => id !== optionId) };
         } else {
           return { ...prev, [questionId]: [...current, optionId] };
         }
+      } else {
+        return { ...prev, [questionId]: [optionId] };
       }
     });
   };
@@ -117,6 +155,170 @@ export function CourseViewer() {
       setRetryMode(false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to submit quiz.');
+    }
+  };
+
+  const renderContentBlock = (block: any) => {
+    switch (block.type) {
+      case 'video': {
+        const videoSrc = block.uploadUrl || block.embedUrl || block.content;
+        const videoDetails = getVideoEmbedUrl(videoSrc);
+
+        if (videoDetails.type === 'youtube' || videoDetails.type === 'vimeo') {
+          return (
+            <div key={block.id} className="space-y-2">
+              {block.title && <h3 className="text-white font-semibold text-lg">{block.title}</h3>}
+              <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                <iframe
+                  className="w-full h-full"
+                  src={videoDetails.src}
+                  title={block.title || `${selectedLesson.title} video`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          );
+        } else if (videoDetails.src) {
+          return (
+            <div key={block.id} className="space-y-2">
+              {block.title && <h3 className="text-white font-semibold text-lg">{block.title}</h3>}
+              <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center">
+                <video
+                  src={videoDetails.src}
+                  controls
+                  className="w-full h-full"
+                  onTimeUpdate={handleVideoProgress}
+                />
+              </div>
+            </div>
+          );
+        }
+        return null;
+      }
+
+      case 'audio': {
+        return (
+          <div key={block.id} className="bg-white/[0.02] border border-white/10 rounded-xl p-4 space-y-3 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400">
+                <PlayCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-white font-semibold text-sm">{block.title || 'Audio Lesson'}</h4>
+                <p className="text-xs text-gray-400">Audio Playback</p>
+              </div>
+            </div>
+            {block.uploadUrl && (
+              <audio
+                src={block.uploadUrl}
+                controls
+                className="w-full"
+                onTimeUpdate={handleAudioProgress}
+              />
+            )}
+          </div>
+        );
+      }
+
+      case 'pdf': {
+        return (
+          <div key={block.id} className="space-y-3">
+            <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/10 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-red-500/10 rounded-lg flex items-center justify-center text-red-400">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold text-sm">{block.title || 'Document.pdf'}</h4>
+                  <p className="text-xs text-gray-400">PDF Reader</p>
+                </div>
+              </div>
+              {block.uploadUrl && (
+                <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/10" onClick={() => window.open(block.uploadUrl, '_blank')}>
+                  Open PDF
+                </Button>
+              )}
+            </div>
+            {block.uploadUrl && (
+              <div className="aspect-[3/4] md:h-[600px] w-full rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-white">
+                <iframe
+                  src={`${block.uploadUrl}#toolbar=0`}
+                  className="w-full h-full border-none"
+                  title={block.title || 'PDF Frame'}
+                />
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case 'image': {
+        return (
+          <div key={block.id} className="space-y-2">
+            {block.title && <h4 className="text-white font-semibold text-sm">{block.title}</h4>}
+            <div className="rounded-xl overflow-hidden border border-white/10 shadow-xl bg-black/20">
+              <img src={block.uploadUrl} alt={block.title || "Image block"} className="w-full max-h-[500px] object-contain mx-auto" />
+            </div>
+          </div>
+        );
+      }
+
+      case 'document': {
+        return (
+          <div key={block.id} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/10 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-emerald-500/10 rounded-lg flex items-center justify-center text-emerald-400">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-white font-semibold text-sm">{block.title || 'Attached Document'}</h4>
+                <p className="text-xs text-gray-400">Word/Excel/Powerpoint Attachment</p>
+              </div>
+            </div>
+            {block.uploadUrl && (
+              <Button size="sm" onClick={() => window.open(block.uploadUrl, '_blank')}>
+                Download File
+              </Button>
+            )}
+          </div>
+        );
+      }
+
+      case 'embed': {
+        return (
+          <div key={block.id} className="space-y-2">
+            {block.title && <h4 className="text-white font-semibold text-sm">{block.title}</h4>}
+            <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+              <iframe
+                className="w-full h-full"
+                src={block.embedUrl}
+                title={block.title || 'Embed block'}
+                allowFullScreen
+              />
+            </div>
+          </div>
+        );
+      }
+
+      case 'checklist': {
+        return (
+          <div key={block.id} className="bg-white/[0.02] border border-white/10 rounded-xl p-4 space-y-3 shadow-xl">
+            <h4 className="text-white font-semibold text-sm">{block.title || 'Checklist Tasks'}</h4>
+            <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{block.content}</div>
+          </div>
+        );
+      }
+
+      case 'text':
+      default: {
+        return (
+          <div key={block.id} className="prose prose-sm dark:prose-invert max-w-none text-gray-300 leading-relaxed">
+            {block.title && <h3 className="text-white font-bold text-xl mt-6">{block.title}</h3>}
+            <MarkdownPreview content={block.content || ''} />
+          </div>
+        );
+      }
     }
   };
 
@@ -204,6 +406,10 @@ export function CourseViewer() {
                           <PlayCircle className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
                         ) : lesson.type === 'Quiz' ? (
                           <Award className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
+                        ) : lesson.type === 'PDF' || lesson.type === 'Document' ? (
+                          <FileText className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
+                        ) : lesson.type === 'Audio' ? (
+                          <PlayCircle className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
                         ) : (
                           <FileText className={`h-5 w-5 shrink-0 mt-0.5 ${isSelected ? 'text-indigo-400' : 'text-gray-500'}`} />
                         )}
@@ -254,45 +460,6 @@ export function CourseViewer() {
             </header>
             <main className="flex-1 p-8 overflow-auto flex justify-center">
               <div className="max-w-3xl w-full space-y-8">
-                {selectedLesson.type === 'Video' && (
-                  <div className="space-y-4">
-                    {selectedLesson.content ? (() => {
-                      const videoDetails = getVideoEmbedUrl(selectedLesson.content);
-                      if (videoDetails.type === 'youtube' || videoDetails.type === 'vimeo') {
-                        return (
-                          <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
-                            <iframe
-                              className="w-full h-full"
-                              src={videoDetails.src}
-                              title={`${selectedLesson.title} player`}
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        );
-                      } else {
-                        return (
-                          <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center">
-                            <video
-                              src={videoDetails.src}
-                              controls
-                              className="w-full h-full"
-                            />
-                          </div>
-                        );
-                      }
-                    })() : (
-                      <div className="aspect-video bg-white/[0.02] rounded-xl border border-white/10 flex flex-col items-center justify-center text-white/40 p-6 shadow-2xl">
-                        <PlayCircle className="h-12 w-12 text-gray-500 mb-3" />
-                        <h4 className="font-semibold text-sm text-gray-300">No Video Available</h4>
-                        <p className="text-xs text-gray-500 mt-1 max-w-xs text-center">
-                          An administrator has not uploaded or linked any video asset for this lesson yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {selectedLesson.type === 'Quiz' && selectedLesson.quiz ? (
                   <div className="space-y-6">
                     {selectedLesson.quizAttempt && !retryMode ? (
@@ -364,7 +531,9 @@ export function CourseViewer() {
                                   <div className="space-y-1">
                                     <h4 className="font-semibold text-white leading-snug">{question.questionText}</h4>
                                     <p className="text-xs text-gray-500 font-medium">
-                                      {question.type === 'single_choice' ? 'Select single choice option' : 'Multiple choices allowed'} • {question.points} points
+                                      {question.type === 'single_choice' && 'Select single choice option'}
+                                      {question.type === 'true_false' && 'Select True or False'}
+                                      {question.type === 'multiple_choice' && 'Multiple choices allowed'} • {question.points} points
                                     </p>
                                   </div>
                                 </div>
@@ -384,12 +553,20 @@ export function CourseViewer() {
                                         }`}
                                       >
                                         <span>{option.optionText}</span>
-                                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center border transition-all ${
+                                          question.type === 'multiple_choice' ? 'rounded-md' : 'rounded-full'
+                                        } ${
                                           isSelected
                                             ? 'border-indigo-500 bg-indigo-500 text-white'
                                             : 'border-white/25'
                                         }`}>
-                                          {isSelected && <Check className="h-3.5 w-3.5" />}
+                                          {isSelected && (
+                                            question.type === 'multiple_choice' ? (
+                                              <Check className="h-3.5 w-3.5" />
+                                            ) : (
+                                              <div className="h-2 w-2 rounded-full bg-white" />
+                                            )
+                                          )}
                                         </div>
                                       </button>
                                     );
@@ -416,17 +593,35 @@ export function CourseViewer() {
                     )}
                   </div>
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <h2 className="text-white text-2xl font-bold mb-4">{selectedLesson.title}</h2>
-                    <div className="text-gray-300 leading-relaxed">
-                      <MarkdownPreview content={selectedLesson.content || ''} />
+                  <div className="space-y-8">
+                    <div className="border-b border-white/10 pb-4">
+                      <h2 className="text-white text-2xl font-bold">{selectedLesson.title}</h2>
+                      {selectedLesson.description && <p className="text-sm text-gray-400 mt-1">{selectedLesson.description}</p>}
                     </div>
+                    {selectedLesson.contentBlocks && selectedLesson.contentBlocks.length > 0 ? (
+                      <div className="space-y-8">
+                        {selectedLesson.contentBlocks.map((block) => renderContentBlock(block))}
+                      </div>
+                    ) : (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <div className="text-gray-300 leading-relaxed">
+                          <MarkdownPreview content={selectedLesson.content || ''} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* Show mark completed button only for non-quiz lessons */}
                 {selectedLesson.type !== 'Quiz' && (
-                  <div className="flex justify-end pt-4 border-t border-white/10">
+                  <div className="flex justify-between items-center pt-4 border-t border-white/10 gap-4">
+                    <div>
+                      {selectedLesson.completionRule === 'video' && (
+                        <p className="text-xs text-indigo-400 italic">
+                          This lesson will complete automatically when you watch 90% of the video / listen to 90% of the audio.
+                        </p>
+                      )}
+                    </div>
                     <Button
                       variant={selectedLesson.isCompleted ? 'outline' : 'default'}
                       onClick={toggleCompletion}
@@ -457,26 +652,26 @@ export function CourseViewer() {
 
 function getVideoEmbedUrl(url: string): { type: 'youtube' | 'vimeo' | 'direct' | 'invalid'; src: string } {
   if (!url) return { type: 'invalid', src: '' };
-  
+
   // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
   if (ytMatch && ytMatch[1]) {
     return { type: 'youtube', src: `https://www.youtube.com/embed/${ytMatch[1]}` };
   }
-  
+
   // Vimeo
   const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/i);
   if (vimeoMatch && vimeoMatch[1]) {
     return { type: 'vimeo', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
   }
-  
+
   // Direct link or other
   return { type: 'direct', src: url };
 }
 
 function MarkdownPreview({ content }: { content: string }) {
   if (!content) return <p className="text-gray-400 italic text-sm">No content written yet.</p>;
-  
+
   const lines = content.split('\n');
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert space-y-4">

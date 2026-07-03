@@ -18,19 +18,23 @@ export class EmployeeService {
     return employee;
   }
 
-  async updateProfile(userId: string | mongoose.Types.ObjectId, profileData: { firstName: string; lastName: string; phone?: string; location?: string; timezone?: string }) {
+  async updateProfile(userId: string | mongoose.Types.ObjectId, profileData: { firstName: string; lastName: string; phone?: string; location?: string; timezone?: string; avatar?: { uploadId: string; fileName: string; publicUrl?: string } }) {
     const employee = await this.employeeRepository.findById(userId);
     if (!employee) {
       throw new AppError(404, "NOT_FOUND", "User profile not found");
     }
 
-    const updateObj = {
+    const updateObj: Record<string, any> = {
       "profile.firstName": profileData.firstName,
       "profile.lastName": profileData.lastName,
       "profile.phone": profileData.phone,
       "profile.location": profileData.location,
       "profile.timezone": profileData.timezone,
     };
+
+    if (profileData.avatar) {
+      updateObj["profile.avatar"] = profileData.avatar;
+    }
 
     return this.employeeRepository.update(userId, updateObj as any);
   }
@@ -197,6 +201,78 @@ export class EmployeeService {
       throw new AppError(404, "NOT_FOUND", "Employee not found");
     }
     return this.employeeRepository.softDelete(employeeId, deletedBy);
+  }
+
+  async bulkImportEmployees(
+    orgId: string | mongoose.Types.ObjectId,
+    usersData: Array<{
+      email: string;
+      firstName: string;
+      lastName: string;
+      departmentId?: string;
+      role?: string;
+    }>,
+    creatorId: string | mongoose.Types.ObjectId
+  ) {
+    const results = {
+      successCount: 0,
+      failures: [] as Array<{ email: string; reason: string }>,
+    };
+
+    const defaultPasswordHash = await hashPassword("123456");
+
+    for (const data of usersData) {
+      try {
+        const email = data.email.toLowerCase().trim();
+        if (!email) {
+          results.failures.push({ email: "", reason: "Email is required" });
+          continue;
+        }
+
+        const existingEmail = await User.findOne({ "auth.email": email, isDeleted: false });
+        if (existingEmail) {
+          results.failures.push({ email, reason: "A user with this email address already exists." });
+          continue;
+        }
+
+        const employeeObj = {
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          auth: {
+            email,
+            passwordHash: defaultPasswordHash,
+            emailVerified: true,
+          },
+          profile: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            fullName: `${data.firstName} ${data.lastName}`.trim(),
+          },
+          employment: {
+            departmentId: data.departmentId ? new mongoose.Types.ObjectId(data.departmentId) : undefined,
+            status: "active" as const,
+            employmentType: "full_time" as const,
+            hireDate: new Date(),
+          },
+          permissions: {
+            role: (data.role || "employee") as any,
+            customRoles: [],
+          },
+          security: {
+            mfaEnabled: false,
+            failedLoginAttempts: 0,
+          },
+          createdBy: new mongoose.Types.ObjectId(creatorId),
+          isDeleted: false,
+        };
+
+        await this.employeeRepository.create(employeeObj as any);
+        results.successCount++;
+      } catch (err: any) {
+        results.failures.push({ email: data.email || "", reason: err.message });
+      }
+    }
+
+    return results;
   }
 }
 

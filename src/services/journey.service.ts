@@ -206,6 +206,11 @@ export const journeyService = {
       params: { journeyId }
     });
     return response.data.data || [];
+  },
+
+  issueCertificate: async (assignmentId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/assignments/${assignmentId}/issue-certificate`);
+    return response.data.data;
   }
 };
 

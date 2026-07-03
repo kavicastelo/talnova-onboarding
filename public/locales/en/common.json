@@ -1,0 +1,59 @@
+{
+  "count": {
+    "employees_one": "{{count}} employee",
+    "employees_other": "{{count}} employees",
+    "journeys_one": "{{count}} journey",
+    "journeys_other": "{{count}} journeys",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "close": "Close",
+  "confirm": "Confirm",
+  "back": "Back",
+  "next": "Next",
+  "submit": "Submit",
+  "loading": "Loading…",
+  "search": "Search",
+  "filter": "Filter",
+  "export": "Export",
+  "import": "Import",
+  "create": "Create",
+  "update": "Update",
+  "remove": "Remove",
+  "publish": "Publish",
+  "archive": "Archive",
+  "view": "View",
+  "download": "Download",
+  "upload": "Upload",
+  "invite": "Invite",
+  "assign": "Assign",
+  "approve": "Approve",
+  "reject": "Reject",
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "draft": "Draft",
+    "published": "Published",
+    "archived": "Archived",
+    "onboarding": "Onboarding",
+    "suspended": "Suspended"
+  },
+  "role": {
+    "admin": "Administrator",
+    "employee": "Employee",
+    "owner": "Owner",
+    "super_admin": "Super Admin",
+    "manager": "Manager"
+  },
+  "noData": "No data available",
+  "error": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "Not found",
+    "unauthorized": "You are not authorized to perform this action."
+  },
+  "comingSoon": "Coming soon"
+}

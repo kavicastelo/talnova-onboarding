@@ -1,0 +1,59 @@
+{
+  "count": {
+    "employees_one": "{{count}} työntekijä",
+    "employees_other": "{{count}} työntekijää",
+    "journeys_one": "{{count}} perehdytyspolku",
+    "journeys_other": "{{count}} perehdytyspolkua",
+    "results_one": "{{count}} tulos",
+    "results_other": "{{count}} tulosta"
+  },
+  "save": "Tallenna",
+  "cancel": "Peruuta",
+  "delete": "Poista",
+  "edit": "Muokkaa",
+  "close": "Sulje",
+  "confirm": "Vahvista",
+  "back": "Takaisin",
+  "next": "Seuraava",
+  "submit": "Lähetä",
+  "loading": "Ladataan…",
+  "search": "Hae",
+  "filter": "Suodata",
+  "export": "Vie",
+  "import": "Tuo",
+  "create": "Luo",
+  "update": "Päivitä",
+  "remove": "Poista",
+  "publish": "Julkaise",
+  "archive": "Arkistoi",
+  "view": "Näytä",
+  "download": "Lataa",
+  "upload": "Lähetä",
+  "invite": "Kutsu",
+  "assign": "Määritä",
+  "approve": "Hyväksy",
+  "reject": "Hylkää",
+  "status": {
+    "active": "Aktiivinen",
+    "inactive": "Ei aktiivinen",
+    "draft": "Luonnos",
+    "published": "Julkaistu",
+    "archived": "Arkistoitu",
+    "onboarding": "Perehdytys",
+    "suspended": "Keskeytetty"
+  },
+  "role": {
+    "admin": "Ylläpitäjä",
+    "employee": "Työntekijä",
+    "owner": "Omistaja",
+    "super_admin": "Pääylläpitäjä",
+    "manager": "Esihenkilö"
+  },
+  "noData": "Tietoja ei ole saatavilla",
+  "error": {
+    "generic": "Jotain meni pieleen. Yritä uudelleen.",
+    "notFound": "Ei löytynyt",
+    "unauthorized": "Sinulla ei ole oikeuksia suorittaa tätä toimintoa."
+  },
+  "comingSoon": "Tulossa pian"
+}

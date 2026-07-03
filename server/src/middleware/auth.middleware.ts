@@ -6,6 +6,9 @@ import { Organization } from "../modules/organizations/models/organization.model
  * Global authentication hook that verifies the JWT access token.
  */
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
+  if (request.url.includes("/public/verify")) {
+    return;
+  }
   try {
     await request.jwtVerify();
 

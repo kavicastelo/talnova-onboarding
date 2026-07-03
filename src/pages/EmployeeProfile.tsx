@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../components/Button';
 import {
   Card,
@@ -6,8 +7,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription
-} from
-  '../components/Card';
+} from '../components/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/Tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/Avatar';
 import { Badge } from '../components/Badge';
@@ -21,15 +21,192 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  RefreshCw
-} from
-  'lucide-react';
-import { useEmployee } from '../hooks/useEmployees';
+  RefreshCw,
+  Camera,
+  Lock,
+  Settings,
+  Phone,
+  Globe
+} from 'lucide-react';
+import { 
+  useEmployee, 
+  useUpdateMyProfile, 
+  useChangeMyPassword, 
+  useUpdateEmployee 
+} from '../hooks/useEmployees';
+import { useCurrentUser } from '../hooks/useAuth';
+import { useDepartments } from '../hooks/useSettings';
+import { uploadService } from '../services/upload.service';
 import { Skeleton } from '../components/Skeleton';
+import { Input } from '../components/Input';
+import { Label } from '../components/Label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '../components/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '../components/Select';
+import { toast } from 'sonner';
 
 export function EmployeeProfile() {
   const { id } = useParams();
-  const { data: employee, isLoading, isError, error, refetch } = useEmployee(id || '');
+  const { data: employee, isLoading, isError, error, refetch } = useEmployee(id || 'me');
+  const { data: currentUser } = useCurrentUser();
+  const { data: activeDepartments = [] } = useDepartments();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [editSelfOpen, setEditSelfOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [editEmployeeOpen, setEditEmployeeOpen] = useState(false);
+
+  // Self Edit Form state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [locationVal, setLocationVal] = useState('');
+  const [timezoneVal, setTimezoneVal] = useState('');
+
+  // Password Form state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Admin Edit Form state
+  const [adminFirstName, setAdminFirstName] = useState('');
+  const [adminLastName, setAdminLastName] = useState('');
+  const [adminDeptId, setAdminDeptId] = useState('');
+  const [adminRole, setAdminRole] = useState<'owner' | 'admin' | 'manager' | 'employee'>('employee');
+  const [adminStatus, setAdminStatus] = useState<'active' | 'onboarding' | 'inactive'>('active');
+  const [isUploading, setIsUploading] = useState(false);
+
+  const isOwnProfile = id === 'me' || !id || (currentUser && employee && currentUser.id === employee.id);
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
+
+  const updateSelfMutation = useUpdateMyProfile();
+  const changePasswordMutation = useChangeMyPassword();
+  const updateEmployeeMutation = useUpdateEmployee();
+
+  useEffect(() => {
+    if (employee) {
+      setFirstName(employee.firstName || '');
+      setLastName(employee.lastName || '');
+      setPhone(employee.phone || '');
+      setLocationVal(employee.location || '');
+      setTimezoneVal(employee.timezone || '');
+
+      setAdminFirstName(employee.firstName || '');
+      setAdminLastName(employee.lastName || '');
+      
+      const matchedDept = activeDepartments.find(d => d.name === employee.department);
+      setAdminDeptId(matchedDept?._id || '');
+      setAdminRole((employee.role === 'owner' || employee.role === 'admin' || employee.role === 'manager' || employee.role === 'employee' ? employee.role : 'employee') as any);
+      setAdminStatus(employee.status === 'Active' ? 'active' : employee.status === 'Onboarding' ? 'onboarding' : 'inactive');
+    }
+  }, [employee, activeDepartments]);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const toastId = toast.loading('Uploading avatar...');
+
+    try {
+      const { uploadId, url } = await uploadService.uploadFile(file, 'public');
+      
+      // Update profile
+      await updateSelfMutation.mutateAsync({
+        firstName: firstName || employee?.firstName || '',
+        lastName: lastName || employee?.lastName || '',
+        phone: phone || employee?.phone || '',
+        location: locationVal || employee?.location || '',
+        timezone: timezoneVal || employee?.timezone || '',
+        avatar: {
+          uploadId,
+          fileName: file.name,
+          publicUrl: url
+        }
+      });
+
+      toast.success('Avatar updated successfully.', { id: toastId });
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to upload avatar.', { id: toastId });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSaveSelf = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateSelfMutation.mutateAsync({
+        firstName,
+        lastName,
+        phone,
+        location: locationVal,
+        timezone: timezoneVal
+      });
+      toast.success('Profile updated successfully.');
+      setEditSelfOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update profile.');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match.');
+      return;
+    }
+    try {
+      await changePasswordMutation.mutateAsync({
+        oldPassword,
+        newPassword
+      });
+      toast.success('Password changed successfully.');
+      setChangePasswordOpen(false);
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to change password.');
+    }
+  };
+
+  const handleSaveEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const targetDept = activeDepartments.find(d => d._id === adminDeptId);
+      await updateEmployeeMutation.mutateAsync({
+        id: employee!.id,
+        employee: {
+          firstName: adminFirstName,
+          lastName: adminLastName,
+          departmentId: adminDeptId || null,
+          role: adminRole,
+          status: adminStatus === 'active' ? 'Active' : adminStatus === 'onboarding' ? 'Onboarding' : 'Inactive'
+        } as any
+      });
+      toast.success('Employee account updated successfully.');
+      setEditEmployeeOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update employee.');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -73,26 +250,62 @@ export function EmployeeProfile() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/directory">
+          <Link to={isOwnProfile ? (currentUser?.role === 'employee' ? '/employee' : '/') : '/directory'}>
             <ChevronLeft className="h-5 w-5" />
           </Link>
         </Button>
         <h1 className="text-2xl font-bold tracking-tight">Employee Profile</h1>
       </div>
 
+      <input 
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleAvatarChange}
+      />
+
       {/* Profile Header */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <Avatar className="w-24 h-24 border-4 border-background shadow-sm">
-              <AvatarImage src={`https://i.pravatar.cc/150?u=${employee.id}`} />
-              <AvatarFallback>
-                {employee.name.
-                  split(' ').
-                  map((n) => n[0]).
-                  join('')}
-              </AvatarFallback>
-            </Avatar>
+            {isOwnProfile ? (
+              <div 
+                className="relative group cursor-pointer rounded-full overflow-hidden shrink-0"
+                onClick={() => !isUploading && fileInputRef.current?.click()}
+              >
+                <Avatar className="w-24 h-24 border-4 border-background shadow-sm transition-transform duration-200 group-hover:scale-105">
+                  <AvatarImage src={employee.avatar || ''} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold text-2xl">
+                    {employee.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {isUploading ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Camera className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-medium">Change Photo</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <Avatar className="w-24 h-24 border-4 border-background shadow-sm shrink-0">
+                <AvatarImage src={employee.avatar || ''} />
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold text-2xl">
+                  {employee.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')}
+                </AvatarFallback>
+              </Avatar>
+            )}
+
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold">{employee.name}</h2>
@@ -100,29 +313,55 @@ export function EmployeeProfile() {
                   variant={
                     employee.status === 'Active' ? 'default' : 'secondary'
                   }>
-
                   {employee.status}
                 </Badge>
               </div>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground capitalize">
                 {employee.role} • {employee.department}
               </p>
               <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Mail className="w-4 h-4" />{' '}
-                  {employee.name.toLowerCase().replace(' ', '.')}@acmecorp.com
+                  {employee.email || 'No email provided'}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" /> San Francisco, CA
+                  <MapPin className="w-4 h-4" /> {employee.location || 'Location not specified'}
                 </div>
+                {employee.phone && (
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="w-4 h-4" /> {employee.phone}
+                  </div>
+                )}
+                {employee.timezone && (
+                  <div className="flex items-center gap-1.5">
+                    <Globe className="w-4 h-4" /> {employee.timezone}
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" /> Hired Jan 2023
+                  <Calendar className="w-4 h-4" /> {employee.hireDate ? `Hired ${employee.hireDate}` : 'Hire date unknown'}
                 </div>
               </div>
             </div>
             <div className="flex flex-col gap-2 w-full md:w-auto">
-              <Button>Assign Training</Button>
-              <Button variant="outline">Message</Button>
+              {isOwnProfile ? (
+                <>
+                  <Button onClick={() => setEditSelfOpen(true)} className="flex items-center gap-2 w-full">
+                    <Settings className="w-4 h-4" /> Edit Profile
+                  </Button>
+                  <Button variant="outline" onClick={() => setChangePasswordOpen(true)} className="flex items-center gap-2 w-full">
+                    <Lock className="w-4 h-4" /> Change Password
+                  </Button>
+                </>
+              ) : isAdmin ? (
+                <>
+                  <Button onClick={() => setEditEmployeeOpen(true)} className="flex items-center gap-2 w-full">
+                    <Settings className="w-4 h-4" /> Manage Account
+                  </Button>
+                  <Button variant="outline" className="w-full">Message</Button>
+                </>
+              ) : (
+                <Button variant="outline" className="w-full">Message</Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -202,7 +441,7 @@ export function EmployeeProfile() {
                       </Button>
                     ) : (
                       <Button variant="outline" size="sm" className="w-full" asChild>
-                        <Link to={`/course/${aj.id}`}>
+                        <Link to={`/course/${aj.journeyId || aj.id}`}>
                           View Details
                         </Link>
                       </Button>
@@ -236,6 +475,215 @@ export function EmployeeProfile() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>);
 
+      {/* Dialog for editing own profile details */}
+      <Dialog open={editSelfOpen} onOpenChange={setEditSelfOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile Details</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveSelf} className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input 
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input 
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input 
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1 (555) 019-2834"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input 
+                id="location"
+                value={locationVal}
+                onChange={(e) => setLocationVal(e.target.value)}
+                placeholder="San Francisco, CA"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <Input 
+                id="timezone"
+                value={timezoneVal}
+                onChange={(e) => setTimezoneVal(e.target.value)}
+                placeholder="America/Los_Angeles"
+              />
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setEditSelfOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateSelfMutation.isPending}>
+                {updateSelfMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for rotating password */}
+      <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label htmlFor="oldPassword">Current Password</Label>
+              <Input 
+                id="oldPassword"
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input 
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input 
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setChangePasswordOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={changePasswordMutation.isPending}>
+                {changePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for admin editing other employee profiles */}
+      <Dialog open={editEmployeeOpen} onOpenChange={setEditEmployeeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage Employee Profile</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveEmployee} className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="adminFirstName">First Name</Label>
+                <Input 
+                  id="adminFirstName"
+                  value={adminFirstName}
+                  onChange={(e) => setAdminFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="adminLastName">Last Name</Label>
+                <Input 
+                  id="adminLastName"
+                  value={adminLastName}
+                  onChange={(e) => setAdminLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="adminDepartment">Department</Label>
+              <Select value={adminDeptId} onValueChange={setAdminDeptId}>
+                <SelectTrigger id="adminDepartment" className="w-full">
+                  <SelectValue placeholder="Select Department" />
+                </SelectTrigger>
+                <SelectContent className="z-[999]">
+                  {activeDepartments.map((d) => (
+                    <SelectItem key={d._id} value={d._id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="adminRole">Role</Label>
+                <Select value={adminRole} onValueChange={(val: any) => setAdminRole(val)}>
+                  <SelectTrigger id="adminRole" className="w-full">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[999]">
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                    <SelectItem value="owner">Owner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminStatus">Status</Label>
+                <Select value={adminStatus} onValueChange={(val: any) => setAdminStatus(val)}>
+                  <SelectTrigger id="adminStatus" className="w-full">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[999]">
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="onboarding">Onboarding</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setEditEmployeeOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateEmployeeMutation.isPending}>
+                {updateEmployeeMutation.isPending ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

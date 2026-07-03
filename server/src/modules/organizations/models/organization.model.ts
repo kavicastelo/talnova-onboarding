@@ -59,6 +59,7 @@ export interface IOrganization extends Document {
     firstDayOfWeek: number;
   };
   departments: IDepartment[];
+  categories: string[];
   teams: ITeam[];
   jobTitles: IJobTitle[];
   locations: ILocation[];
@@ -146,6 +147,7 @@ const OrganizationSchema = new Schema<IOrganization>(
       firstDayOfWeek: { type: Number, default: 0 },
     },
     departments: { type: [DepartmentSchema], default: [] },
+    categories: { type: [String], default: ["Engineering", "Sales", "General"] },
     teams: { type: [TeamSchema], default: [] },
     jobTitles: { type: [JobTitleSchema], default: [] },
     locations: { type: [LocationSchema], default: [] },

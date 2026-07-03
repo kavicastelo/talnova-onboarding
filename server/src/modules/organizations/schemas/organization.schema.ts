@@ -18,6 +18,7 @@ export const updateOrganizationSchema = z.object({
     reminderEmail: z.boolean().optional(),
     weeklyDigest: z.boolean().optional(),
   }).optional(),
+  categories: z.array(z.string()).optional(),
 });
 
 export const updateBrandingSchema = z.object({

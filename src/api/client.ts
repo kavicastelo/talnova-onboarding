@@ -71,11 +71,16 @@ export const createCancelToken = () => {
 // Request Interceptor: Token injection and preparation
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // PLACEHOLDER: Retrieve JWT token from local storage, cookie, or store
     const token = localStorage.getItem('auth_token');
-    
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Inject Accept-Language from persisted user preference
+    // This ensures dynamic content (journeys, KB articles) is returned in the correct locale
+    const lang = localStorage.getItem('talnova_lang') || 'en';
+    if (config.headers) {
+      config.headers['Accept-Language'] = lang;
     }
 
     return config;
@@ -97,7 +102,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       const isAuthRoute = originalRequest.url?.includes('/auth/');
       const isKbRoute = window.location.pathname.startsWith('/kb') || window.location.pathname.startsWith('/knowledge-base');
-      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname) || isKbRoute;
+      const isPublicCertRoute = window.location.pathname.startsWith('/public/certificate/');
+      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname) || isKbRoute || isPublicCertRoute;
 
       if (isAuthRoute || isPublicPage) {
         if (isKbRoute) {

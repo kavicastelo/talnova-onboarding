@@ -1,0 +1,19 @@
+{
+  "title": "Knowledge Base",
+  "subtitle": "Find answers, guides, and resources",
+  "searchPlaceholder": "Search articles…",
+  "popular": "Popular Articles",
+  "categories": "Categories",
+  "allArticles": "All Articles",
+  "quickLinks": "Quick Links",
+  "readMore": "Read more",
+  "readTime_one": "{{count}} min read",
+  "readTime_other": "{{count}} mins read",
+  "noArticles": "No articles found.",
+  "noResults": "No results for \"{{query}}\".",
+  "slideshow": {
+    "previous": "Previous",
+    "next": "Next",
+    "backToKb": "Back to Knowledge Base"
+  }
+}

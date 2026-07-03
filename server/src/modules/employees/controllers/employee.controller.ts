@@ -135,6 +135,22 @@ export class EmployeeController {
       data: null,
     });
   };
+
+  importEmployees = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+    const result = await this.employeeService.bulkImportEmployees(
+      user.organizationId,
+      body.users,
+      user.userId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Employees imported successfully",
+      data: result,
+    });
+  };
 }
 
 export default EmployeeController;

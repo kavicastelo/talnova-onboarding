@@ -15,9 +15,11 @@ import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
 import { useJourneys, useAssignJourney } from '../hooks/useJourneys';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function EmployeeDashboard() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
+  const { t } = useTranslation('dashboard');
   // Fetch current logged in employee's profile
   const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('me');
 
@@ -41,7 +43,7 @@ export function EmployeeDashboard() {
   };
 
   const availablePublicJourneys = publicJourneys.filter((pj: any) => {
-    return !employee?.assignedJourneys?.some((aj: any) => aj.id === pj.id);
+    return !employee?.assignedJourneys?.some((aj: any) => aj.journeyId === pj.id);
   });
 
   const isLoading = userLoading || employeeLoading;
@@ -111,10 +113,10 @@ export function EmployeeDashboard() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          Welcome back, {user?.name || 'Jane'}!
+          {t('employee.title')}, {user?.name || 'Jane'}!
         </h1>
         <p className="text-muted-foreground">
-          Here is your learning progress for today.
+          {t('employee.progress')}
         </p>
       </div>
 
@@ -122,7 +124,7 @@ export function EmployeeDashboard() {
         {activeJourney ? (
           <Card className="md:col-span-2 bg-primary text-primary-foreground">
             <CardHeader>
-              <CardTitle>Continue Learning</CardTitle>
+              <CardTitle>{t('employee.continuelearning')}</CardTitle>
               <CardDescription className="text-primary-foreground/80">
                 You are {activeJourney.progress}% through {activeJourney.title}
               </CardDescription>
@@ -138,7 +140,7 @@ export function EmployeeDashboard() {
               <Button variant="secondary" asChild>
                 <Link to={`/course/${activeJourney.id}`}>
                   <PlayCircle className="mr-2 h-4 w-4" />
-                  Resume Course
+                  {t('employee.continuelearning')}
                 </Link>
               </Button>
             </CardContent>
@@ -146,9 +148,9 @@ export function EmployeeDashboard() {
         ) : (
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Get Started</CardTitle>
+              <CardTitle>{t('employee.startJourney')}</CardTitle>
               <CardDescription>
-                You don't have any active onboarding journeys assigned.
+                {t('employee.noJourneys')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -187,12 +189,12 @@ export function EmployeeDashboard() {
 
       <div>
         <h2 className="text-xl font-semibold tracking-tight mb-4">
-          Assigned to You
+          {t('employee.assignedJourneys')}
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
             <div className="col-span-full py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
-              No assigned journeys.
+              {t('employee.noJourneys')}
             </div>
           ) : (
             employee.assignedJourneys.map((j) => (
@@ -202,7 +204,7 @@ export function EmployeeDashboard() {
                     {j.title}
                   </CardTitle>
                   <CardDescription>
-                    {j.status === 'Completed' ? 'Completed Journey' : 'In Progress'}
+                    {j.status === 'Completed' ? t('employee.completedJourneys') : t('employee.inProgress')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

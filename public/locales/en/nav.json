@@ -1,0 +1,54 @@
+{
+  "workspace": "Workspace",
+  "createWorkspace": "Create workspace",
+  "platformManagement": "Platform Management",
+  "learning": "Learning",
+  "items": {
+    "dashboard": "Dashboard",
+    "journeys": "Onboarding Journeys",
+    "employees": "Employees",
+    "analytics": "Analytics",
+    "knowledgeBase": "Knowledge Base",
+    "settings": "Settings",
+    "home": "Home",
+    "myLearning": "My Learning",
+    "certificates": "Certificates",
+    "superAdminDashboard": "Super Admin Dashboard",
+    "organizations": "Organizations",
+    "finance": "Finance & Invoices"
+  },
+  "breadcrumb": {
+    "dashboard": "Dashboard",
+    "superAdmin": "Super Admin Portal",
+    "organizations": "Organizations",
+    "finance": "Finance & Billing",
+    "journeys": "Onboarding Journeys",
+    "directory": "Employees",
+    "analytics": "Analytics",
+    "kb": "Knowledge Base",
+    "settings": "Settings",
+    "employee": "Home",
+    "course": "Course",
+    "certificates": "My Certificates"
+  },
+  "user": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Log out",
+    "logoutSuccess": "Successfully logged out.",
+    "logoutFailed": "Failed to log out."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "viewAll": "View all",
+    "none": "No new notifications"
+  },
+  "search": "Search…",
+  "viewAs": "View as",
+  "unsavedChanges": {
+    "title": "Unsaved Changes",
+    "message": "You have unsaved changes in the Journey Builder. If you leave, your changes will be lost. Are you sure you want to discard your changes and leave?",
+    "stay": "Stay",
+    "discard": "Discard & Leave"
+  }
+}

@@ -54,17 +54,19 @@ import { Badge } from './Badge';
 import { Toaster } from './Sonner';
 import { useRole, Role } from '../context/RoleContext';
 import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { useCurrentUser } from '../hooks/useAuth';
-import { useNotifications } from '../hooks/useSettings';
+import { useNotifications, useWorkspaceSettings } from '../hooks/useSettings';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter
-} from '../_designSystem/ds-6551b66a-cfd3-4df9-a9b1-9ead8d7fe7e9';
+} from './Dialog';
 interface NavItem {
   title: string;
   url: string;
@@ -72,92 +74,6 @@ interface NavItem {
     className?: string;
   }>;
 }
-const adminNav: NavItem[] = [
-  {
-    title: 'Dashboard',
-    url: '/',
-    icon: LayoutDashboard
-  },
-  {
-    title: 'Onboarding Journeys',
-    url: '/journeys',
-    icon: Map
-  },
-  {
-    title: 'Employees',
-    url: '/directory',
-    icon: Users
-  },
-  {
-    title: 'Analytics',
-    url: '/analytics',
-    icon: BarChart2
-  },
-  {
-    title: 'Knowledge Base',
-    url: '/kb',
-    icon: BookOpen
-  },
-  {
-    title: 'Settings',
-    url: '/settings',
-    icon: Settings
-  }];
-
-const employeeNav: NavItem[] = [
-  {
-    title: 'Home',
-    url: '/employee',
-    icon: LayoutDashboard
-  },
-  {
-    title: 'My Learning',
-    url: '/journeys',
-    icon: GraduationCap
-  },
-  {
-    title: 'Knowledge Base',
-    url: '/kb',
-    icon: BookOpen
-  },
-  {
-    title: 'Certificates',
-    url: '/certificates',
-    icon: Award
-  }];
-
-const superAdminNav: NavItem[] = [
-  {
-    title: 'Super Admin Dashboard',
-    url: '/super-admin',
-    icon: LayoutDashboard
-  },
-  {
-    title: 'Organizations',
-    url: '/super-admin/organizations',
-    icon: Users
-  },
-  {
-    title: 'Finance & Invoices',
-    url: '/super-admin/finance',
-    icon: BarChart2
-  }
-];
-
-const labelByPath: Record<string, string> = {
-  '': 'Dashboard',
-  'super-admin': 'Super Admin Portal',
-  organizations: 'Organizations',
-  finance: 'Finance & Billing',
-  journeys: 'Onboarding Journeys',
-  directory: 'Employees',
-  analytics: 'Analytics',
-  kb: 'Knowledge Base',
-  settings: 'Settings',
-  employee: 'Home',
-  course: 'Course',
-  certificates: 'My Certificates'
-};
 function titleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -165,6 +81,45 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, setRole } = useRole();
+  const { t } = useTranslation('nav');
+
+  // Nav arrays computed inside component so they re-render on language change
+  const adminNav: NavItem[] = [
+    { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
+    { title: t('items.journeys'), url: '/journeys', icon: Map },
+    { title: t('items.employees'), url: '/directory', icon: Users },
+    { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
+    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
+    { title: t('items.settings'), url: '/settings', icon: Settings },
+  ];
+
+  const employeeNav: NavItem[] = [
+    { title: t('items.home'), url: '/employee', icon: LayoutDashboard },
+    { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
+    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
+    { title: t('items.certificates'), url: '/certificates', icon: Award },
+  ];
+
+  const superAdminNav: NavItem[] = [
+    { title: t('items.superAdminDashboard'), url: '/super-admin', icon: LayoutDashboard },
+    { title: t('items.organizations'), url: '/super-admin/organizations', icon: Users },
+    { title: t('items.finance'), url: '/super-admin/finance', icon: BarChart2 },
+  ];
+
+  const labelByPath: Record<string, string> = {
+    '': t('breadcrumb.dashboard'),
+    'super-admin': t('breadcrumb.superAdmin'),
+    organizations: t('breadcrumb.organizations'),
+    finance: t('breadcrumb.finance'),
+    journeys: t('breadcrumb.journeys'),
+    directory: t('breadcrumb.directory'),
+    analytics: t('breadcrumb.analytics'),
+    kb: t('breadcrumb.kb'),
+    settings: t('breadcrumb.settings'),
+    employee: t('breadcrumb.employee'),
+    course: t('breadcrumb.course'),
+    certificates: t('breadcrumb.certificates'),
+  };
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
 
@@ -204,6 +159,40 @@ export function AppShell() {
   useCommandPaletteHotkey(setPaletteOpen);
   const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const { data: notifications = [] } = useNotifications();
+  const { data: settings } = useWorkspaceSettings();
+
+  useEffect(() => {
+    if (settings) {
+      if (settings.orgName) {
+        document.title = `${settings.orgName} - Talnova Onboarding`;
+      }
+      
+      const primary = settings.primaryColor || '#4F46E5';
+      document.documentElement.style.setProperty('--primary', primary);
+      document.documentElement.style.setProperty('--sidebar-primary', primary);
+      
+      const getContrastColor = (hexColor: string): string => {
+        if (!hexColor || !hexColor.startsWith('#')) return 'oklch(0.985 0 0)';
+        const hex = hexColor.replace('#', '');
+        if (hex.length !== 6) return 'oklch(0.985 0 0)';
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+        return yiq >= 128 ? 'oklch(0.145 0 0)' : 'oklch(0.985 0 0)';
+      };
+      
+      const contrast = getContrastColor(primary);
+      document.documentElement.style.setProperty('--primary-foreground', contrast);
+      document.documentElement.style.setProperty('--sidebar-primary-foreground', contrast);
+    } else {
+      document.title = 'Talnova Onboarding';
+      document.documentElement.style.setProperty('--primary', 'oklch(0.205 0 0)');
+      document.documentElement.style.setProperty('--primary-foreground', 'oklch(0.985 0 0)');
+      document.documentElement.style.setProperty('--sidebar-primary', 'oklch(0.205 0 0)');
+      document.documentElement.style.setProperty('--sidebar-primary-foreground', 'oklch(0.985 0 0)');
+    }
+  }, [settings]);
 
   const isAnonymousKb = location.pathname.startsWith('/kb') || location.pathname.startsWith('/knowledge-base');
   const hasToken = !!localStorage.getItem('auth_token');
@@ -258,12 +247,16 @@ export function AppShell() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left hover:bg-sidebar-accent transition-colors">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-semibold">
-                    N
-                  </div>
+                  {settings?.logoUrl ? (
+                    <img src={settings.logoUrl} alt="Logo" className="h-8 w-8 rounded-md object-contain border p-0.5 bg-white shrink-0" />
+                  ) : (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-semibold">
+                      {settings?.orgName ? settings.orgName.charAt(0).toUpperCase() : 'T'}
+                    </div>
+                  )}
                   <div className="flex min-w-0 flex-1 flex-col group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-sm font-semibold leading-tight">
-                      Northwind Labs
+                      {settings?.orgName || 'Talnova Onboarding'}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       Enterprise plan
@@ -275,13 +268,8 @@ export function AppShell() {
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
                 <DropdownMenuItem>
-                  <Check className="mr-2 h-4 w-4" /> Northwind Labs
+                  <Check className="mr-2 h-4 w-4" /> {settings?.orgName || 'Talnova Onboarding'}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-muted-foreground">
-                  Northwind EU
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Create workspace</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarHeader>
@@ -345,7 +333,7 @@ export function AppShell() {
                     <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent side="top" align="end" className="w-56">
                   <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSelectAction(() => navigate('/directory/me'))}>Profile</DropdownMenuItem>
@@ -435,6 +423,9 @@ export function AppShell() {
                 <Search className="h-5 w-5" />
               </Button>
 
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+
               {/* Role switcher */}
               {hasToken && (
                 <DropdownMenu>
@@ -452,18 +443,22 @@ export function AppShell() {
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuLabel>View as</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => switchRole('super_admin')}>
-                      {role === 'super_admin' && <Check className="mr-2 h-4 w-4" />}
-                      <span className={role === 'super_admin' ? '' : 'ml-6'}>
-                        Super Admin
-                      </span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => switchRole('admin')}>
-                      {role === 'admin' && <Check className="mr-2 h-4 w-4" />}
-                      <span className={role === 'admin' ? '' : 'ml-6'}>
-                        Administrator
-                      </span>
-                    </DropdownMenuItem>
+                    {(user?.role === 'super_admin') && (
+                      <DropdownMenuItem onSelect={() => switchRole('super_admin')}>
+                        {role === 'super_admin' && <Check className="mr-2 h-4 w-4" />}
+                        <span className={role === 'super_admin' ? '' : 'ml-6'}>
+                          Super Admin
+                        </span>
+                      </DropdownMenuItem>
+                    )}
+                    {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                      <DropdownMenuItem onSelect={() => switchRole('admin')}>
+                        {role === 'admin' && <Check className="mr-2 h-4 w-4" />}
+                        <span className={role === 'admin' ? '' : 'ml-6'}>
+                          Administrator
+                        </span>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onSelect={() => switchRole('employee')}>
                       {role === 'employee' && <Check className="mr-2 h-4 w-4" />}
                       <span className={role === 'employee' ? '' : 'ml-6'}>

@@ -6,6 +6,7 @@ import { QuickLinkController } from "../controllers/quick-link.controller.js";
 import { QuickLinkService } from "../services/quick-link.service.js";
 import { QuickLinkRepository } from "../repositories/quick-link.repository.js";
 import { authenticate, optionalAuthenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { extractLocale } from "../../../middleware/locale.middleware.js";
 import { createArticleSchema, updateArticleSchema } from "../schemas/article.schema.js";
 
 export async function knowledgeBaseRoutes(app: FastifyInstance) {
@@ -45,21 +46,21 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
   // GET /api/v1/knowledge-base/popular
   app.get(
     "/popular",
-    { preHandler: [optionalAuthenticate] },
+    { preHandler: [optionalAuthenticate, extractLocale] },
     controller.getPopularArticles as any
   );
 
   // GET /api/v1/knowledge-base
   app.get(
     "/",
-    { preHandler: [optionalAuthenticate] },
+    { preHandler: [optionalAuthenticate, extractLocale] },
     controller.listArticles as any
   );
 
   // GET /api/v1/knowledge-base/:id
   app.get(
     "/:id",
-    { preHandler: [optionalAuthenticate] },
+    { preHandler: [optionalAuthenticate, extractLocale] },
     controller.getArticle as any
   );
 

@@ -19,14 +19,18 @@ export interface PaginationOptions {
 
 export class JourneyRepository {
   async findById(id: string | mongoose.Types.ObjectId): Promise<IJourney | null> {
-    return Journey.findOne({ _id: id, isDeleted: false });
+    return Journey.findOne({ _id: id, isDeleted: false })
+      .populate("modules.lessons.contentBlocks.uploadId")
+      .populate("modules.lessons.attachments.uploadId");
   }
 
   async findByIdAndOrg(
     id: string | mongoose.Types.ObjectId,
     orgId: string | mongoose.Types.ObjectId
   ): Promise<IJourney | null> {
-    return Journey.findOne({ _id: id, organizationId: orgId, isDeleted: false });
+    return Journey.findOne({ _id: id, organizationId: orgId, isDeleted: false })
+      .populate("modules.lessons.contentBlocks.uploadId")
+      .populate("modules.lessons.attachments.uploadId");
   }
 
   async find(

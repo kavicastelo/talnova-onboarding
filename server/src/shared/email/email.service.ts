@@ -28,6 +28,9 @@ export class EmailService {
   }
 
   async sendEmail(to: string, subject: string, html: string, retries = 3, delayMs = 1000): Promise<boolean> {
+    if (process.env.NODE_ENV === "test") {
+      return true;
+    }
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         await this.transporter.sendMail({

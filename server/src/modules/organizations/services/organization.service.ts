@@ -23,11 +23,21 @@ export class OrganizationService {
   }
 
   async updateBranding(orgId: string | mongoose.Types.ObjectId, branding: any) {
-    return this.updateOrganization(orgId, { branding });
+    const org = await this.getOrganization(orgId);
+    const updatedBranding = {
+      ...(org.branding || {}),
+      ...branding,
+    };
+    return this.updateOrganization(orgId, { branding: updatedBranding });
   }
 
   async updateSecurity(orgId: string | mongoose.Types.ObjectId, securitySettings: any) {
-    return this.updateOrganization(orgId, { securitySettings });
+    const org = await this.getOrganization(orgId);
+    const updatedSecurity = {
+      ...(org.securitySettings || {}),
+      ...securitySettings,
+    };
+    return this.updateOrganization(orgId, { securitySettings: updatedSecurity });
   }
 
   // Department services

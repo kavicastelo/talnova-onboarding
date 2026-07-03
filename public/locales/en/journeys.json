@@ -1,0 +1,31 @@
+{
+  "list": {
+    "title": "Onboarding Journeys",
+    "createNew": "Create Journey",
+    "searchPlaceholder": "Search journeys…",
+    "columns": {
+      "title": "Title",
+      "status": "Status",
+      "enrolled": "Enrolled",
+      "completion": "Completion",
+      "lastUpdated": "Last Updated",
+      "actions": "Actions"
+    },
+    "empty": "No journeys found. Create your first onboarding journey.",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterDraft": "Draft",
+    "filterArchived": "Archived"
+  },
+  "builder": {
+    "title": "Journey Builder",
+    "addModule": "Add Module",
+    "addLesson": "Add Lesson",
+    "settings": "Journey Settings",
+    "publish": "Publish Journey",
+    "saveDraft": "Save as Draft",
+    "unsavedWarning": "You have unsaved changes.",
+    "publishSuccess": "Journey published successfully.",
+    "saveSuccess": "Journey saved."
+  }
+}
