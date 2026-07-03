@@ -18,9 +18,13 @@ import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { SuperAdminOrganizations } from './pages/SuperAdminOrganizations';
 import { SuperAdminFinance } from './pages/SuperAdminFinance';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
+import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
 import { RoleProvider, useRole } from './context/RoleContext';
+import { LocalizationProvider } from './context/LocalizationProvider';
 import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
+// Initialize i18n — must be imported before any component renders
+import './i18n';
 
 function DashboardRedirect() {
   const { role } = useRole();
@@ -31,41 +35,44 @@ function DashboardRedirect() {
 export function App() {
   useScreenInit();
   return (
-    <RoleProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
+    <LocalizationProvider>
+      <RoleProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
+            <Route path="/public/certificate/:id" element={<PublicCertificateViewer />} />
 
-          <Route path="/" element={<AppShell />}>
-            <Route index element={<DashboardRedirect />} />
-            <Route path="super-admin" element={<SuperAdminDashboard />} />
-            <Route path="super-admin/organizations" element={<SuperAdminOrganizations />} />
-            <Route path="super-admin/finance" element={<SuperAdminFinance />} />
-            <Route path="journeys" element={<JourneysList />} />
-            <Route path="journeys/:id" element={<JourneyBuilder />} />
-            <Route path="directory" element={<EmployeeDirectory />} />
-            <Route path="directory/:id" element={<EmployeeProfile />} />
-            <Route path="employee" element={<EmployeeDashboard />} />
-            <Route path="kb" element={<KnowledgeBase />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="certificates" element={<Certificates />} />
-            <Route
-              path="*"
-              element={
-                <div className="p-6 text-center text-muted-foreground">
-                  Coming soon
-                </div>
-              }
-            />
-          </Route>
-          <Route path="/course/:id" element={<CourseViewer />} />
-        </Routes>
-      </BrowserRouter>
-      <Toaster richColors closeButton position="top-right" />
-    </RoleProvider>
+            <Route path="/" element={<AppShell />}>
+              <Route index element={<DashboardRedirect />} />
+              <Route path="super-admin" element={<SuperAdminDashboard />} />
+              <Route path="super-admin/organizations" element={<SuperAdminOrganizations />} />
+              <Route path="super-admin/finance" element={<SuperAdminFinance />} />
+              <Route path="journeys" element={<JourneysList />} />
+              <Route path="journeys/:id" element={<JourneyBuilder />} />
+              <Route path="directory" element={<EmployeeDirectory />} />
+              <Route path="directory/:id" element={<EmployeeProfile />} />
+              <Route path="employee" element={<EmployeeDashboard />} />
+              <Route path="kb" element={<KnowledgeBase />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="certificates" element={<Certificates />} />
+              <Route
+                path="*"
+                element={
+                  <div className="p-6 text-center text-muted-foreground">
+                    Coming soon
+                  </div>
+                }
+              />
+            </Route>
+            <Route path="/course/:id" element={<CourseViewer />} />
+          </Routes>
+        </BrowserRouter>
+        <Toaster richColors closeButton position="top-right" />
+      </RoleProvider>
+    </LocalizationProvider>
   );
 }

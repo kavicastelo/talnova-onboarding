@@ -11,8 +11,10 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 
 export function SuperAdminDashboard() {
+  const { t } = useTranslation('dashboard');
   const { 
     data: telemetry, 
     isLoading: telemetryLoading, 
@@ -99,7 +101,7 @@ export function SuperAdminDashboard() {
   return (
     <div className="space-y-6 text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white">Super Admin Portal</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white">{t('superAdmin.title')}</h1>
         <p className="text-gray-400">System telemetry and tenant management console</p>
       </div>
 
@@ -107,7 +109,7 @@ export function SuperAdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-white/5 bg-white/[0.02] p-5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-400">Total Organizations</span>
+            <span className="text-sm font-medium text-gray-400">{t('superAdmin.stats.totalOrgs')}</span>
             <Building2 className="h-4 w-4 text-indigo-400" />
           </div>
           <div className="mt-2.5">
@@ -118,7 +120,7 @@ export function SuperAdminDashboard() {
 
         <Card className="border-white/5 bg-white/[0.02] p-5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-400">Platform Users</span>
+            <span className="text-sm font-medium text-gray-400">{t('superAdmin.stats.totalUsers')}</span>
             <Users className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2.5">
@@ -129,7 +131,7 @@ export function SuperAdminDashboard() {
 
         <Card className="border-white/5 bg-white/[0.02] p-5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-400">Monthly Revenue (MRR)</span>
+            <span className="text-sm font-medium text-gray-400">{t('superAdmin.stats.totalRevenue')}</span>
             <DollarSign className="h-4 w-4 text-amber-400" />
           </div>
           <div className="mt-2.5">

@@ -14,6 +14,9 @@ export async function assignmentRoutes(app: FastifyInstance) {
   const service = new EmployeeAssignmentService(repository);
   const controller = new EmployeeAssignmentController(service);
 
+  // GET /api/v1/assignments/public/verify/:id (unauthenticated)
+  app.get("/public/verify/:id", controller.verifyCertificatePublic as any);
+
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
 
@@ -56,6 +59,13 @@ export async function assignmentRoutes(app: FastifyInstance) {
     "/:id/submit-quiz",
     { schema: { body: submitQuizSchema } },
     controller.submitQuiz as any
+  );
+
+  // POST /api/v1/assignments/:id/issue-certificate
+  app.post(
+    "/:id/issue-certificate",
+    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    controller.issueCertificate as any
   );
 }
 

@@ -28,6 +28,7 @@ import { notificationRoutes } from "./modules/notifications/index.js";
 import { auditLogRoutes } from "./modules/audit-logs/index.js";
 import { superAdminRoutes } from "./modules/super-admin/routes/super-admin.routes.js";
 import { analyticsRoutes } from "./modules/analytics/index.js";
+import { localizationRoutes } from "./modules/localization/index.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -68,6 +69,7 @@ export async function buildApp() {
   await app.register(auditLogRoutes, { prefix: "/api/v1/audit-logs" });
   await app.register(superAdminRoutes, { prefix: "/api/v1/super-admin" });
   await app.register(analyticsRoutes, { prefix: "/api/v1/analytics" });
+  await app.register(localizationRoutes, { prefix: "/api/v1/localization" });
 
   // Health checks
   app.get("/live", async () => {

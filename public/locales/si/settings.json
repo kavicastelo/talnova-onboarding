@@ -1,0 +1,30 @@
+{
+  "title": "සැකසීම්",
+  "sections": {
+    "workspace": "වැඩබිම",
+    "branding": "වෙළඳ සන්නාමය",
+    "notifications": "දැනුම්දීම්",
+    "security": "ආරක්ෂාව",
+    "language": "භාෂාව සහ කලාපය",
+    "profile": "පැතිකඩ"
+  },
+  "workspace": {
+    "orgName": "ආයතනයේ නම",
+    "workspaceUrl": "වැඩබිම් URL",
+    "supportEmail": "සහාය විද්‍යුත් තැපෑල",
+    "primaryColor": "ප්‍රධාන වර්ණය",
+    "logo": "ලාංඡනය",
+    "uploadLogo": "ලාංඡනය උඩුගත කරන්න",
+    "saveChanges": "වෙනස්කම් සුරකින්න",
+    "saved": "සැකසීම් සාර්ථකව සුරකින ලදී."
+  },
+  "notifications": {
+    "newAssignmentEmails": "නව පැවරුම් සඳහා විද්‍යුත් තැපැල්",
+    "deadlineReminders": "අවසන් දිනය මතක් කිරීම්",
+    "weeklyManagerDigest": "සතිපතා කළමනාකරු සාරාංශය"
+  },
+  "language": {
+    "label": "අතුරුමුහුණත් භාෂාව",
+    "description": "සියලු මෙනු, බොත්තම් සහ ස්ථාවර UI පෙළ සඳහා භාෂාව තෝරන්න. ගතික අන්තර්ගතය (ලිපි, ඉගෙනුම් ගමන්) පවතින පරිවර්තනය අනුව පෙන්වනු ලැබේ."
+  }
+}

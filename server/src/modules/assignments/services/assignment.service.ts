@@ -442,11 +442,13 @@ export class EmployeeAssignmentService {
 
   private async checkOverallCompletion(assignment: any, journey: any) {
     const allModulesCompleted = assignment.modules.every((m: any) => m.completed);
-    if (allModulesCompleted && assignment.status !== "completed") {
-      assignment.status = "completed";
-      assignment.completedAt = new Date();
+    if (allModulesCompleted) {
+      if (assignment.status !== "completed") {
+        assignment.status = "completed";
+        assignment.completedAt = new Date();
+      }
 
-      if (journey.certificate?.enabled) {
+      if (journey.certificate?.enabled && !assignment.certificate?.issued) {
         assignment.certificate = {
           issued: true,
           issuedAt: new Date(),
@@ -487,6 +489,24 @@ export class EmployeeAssignmentService {
 
   async listAssignments(filter: AssignmentFilter, pagination: PaginationOptions) {
     return this.repository.find(filter, pagination);
+  }
+
+  async issueCertificate(id: string | mongoose.Types.ObjectId, orgId: string | mongoose.Types.ObjectId) {
+    const assignment = await this.getAssignment(id, orgId);
+    if (assignment.status !== "completed") {
+      throw new AppError(400, "BAD_REQUEST", "Cannot issue certificate for an incomplete journey");
+    }
+
+    assignment.certificate = {
+      issued: true,
+      issuedAt: new Date(),
+      certificateId: new mongoose.Types.ObjectId(),
+    };
+
+    await assignment.save();
+    await this.updateUserStatistics(assignment.employeeId);
+
+    return assignment;
   }
 
   private async updateUserStatistics(employeeId: mongoose.Types.ObjectId | string) {

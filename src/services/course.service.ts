@@ -3,9 +3,48 @@ import { Course, ApiResponse, LessonType } from '../types';
 
 export const courseService = {
   getCourse: async (id: string): Promise<Course> => {
-    // 1. Fetch assignment progress
-    const assignRes = await apiClient.get<ApiResponse<any>>(`/assignments/${id}`);
-    const assignment = assignRes.data.data;
+    let assignment: any;
+    try {
+      // 1. Try fetching directly by assignment ID
+      const assignRes = await apiClient.get<ApiResponse<any>>(`/assignments/${id}`);
+      assignment = assignRes.data.data;
+    } catch (err) {
+      // If fetching directly by ID fails, it might be a journey ID.
+      // Let's check if there's an assignment for this journey
+      try {
+        const listRes = await apiClient.get<ApiResponse<any[]>>('/assignments', {
+          params: { journeyId: id }
+        });
+        const assignments = listRes.data.data || [];
+        if (assignments.length > 0) {
+          assignment = assignments[0];
+        } else {
+          // No assignment found. Auto-enroll the employee in this public journey!
+          const meRes = await apiClient.get<ApiResponse<any>>('/employees/me');
+          const employee = meRes.data.data;
+          
+          await apiClient.post('/assignments', {
+            journeyId: id,
+            employeeId: employee._id || employee.id,
+            priority: 'normal'
+          });
+          
+          // Fetch the newly created assignment
+          const reListRes = await apiClient.get<ApiResponse<any[]>>('/assignments', {
+            params: { journeyId: id }
+          });
+          const reAssignments = reListRes.data.data || [];
+          if (reAssignments.length > 0) {
+            assignment = reAssignments[0];
+          } else {
+            throw new Error('Failed to create and retrieve assignment.');
+          }
+        }
+      } catch (innerErr) {
+        console.error('Error resolving assignment for ID:', id, innerErr);
+        throw err; // Throw the original error to trigger standard error UI
+      }
+    }
 
     // 2. Fetch original journey content
     const journeyRes = await apiClient.get<ApiResponse<any>>(`/journeys/${assignment.journey.journeyId}`);
@@ -23,16 +62,39 @@ export const courseService = {
         let type: LessonType = 'Article';
         if (l.quiz) {
           type = 'Quiz';
-        } else if (l.contentBlocks?.some((cb: any) => cb.type === 'video')) {
-          type = 'Video';
+        } else if (l.contentBlocks && l.contentBlocks.length > 0) {
+          const blockTypes = l.contentBlocks.map((cb: any) => cb.type);
+          if (blockTypes.includes('video')) {
+            type = 'Video';
+          } else if (blockTypes.includes('pdf')) {
+            type = 'PDF';
+          } else if (blockTypes.includes('document')) {
+            type = 'Document';
+          } else if (blockTypes.includes('audio')) {
+            type = 'Audio';
+          } else if (blockTypes.includes('image')) {
+            type = 'Image';
+          } else if (blockTypes.includes('checklist')) {
+            type = 'Task';
+          }
         }
 
         let completionRule: 'video' | 'button' | 'quiz' = 'button';
         if (l.completionRules?.requireQuizCompletion) {
           completionRule = 'quiz';
-        } else if (l.completionRules?.requireContentCompletion && type === 'Video') {
+        } else if (l.completionRules?.requireContentCompletion && (type === 'Video' || type === 'Audio')) {
           completionRule = 'video';
         }
+
+        const contentBlocksMapped = l.contentBlocks?.map((cb: any) => ({
+          id: cb._id,
+          type: cb.type,
+          title: cb.title,
+          content: cb.content,
+          uploadUrl: cb.uploadId?.storage?.publicUrl || (typeof cb.uploadId === 'string' ? cb.uploadId : ''),
+          embedUrl: cb.embedUrl,
+          order: cb.order,
+        })) || [];
 
         return {
           id: l._id,
@@ -45,17 +107,19 @@ export const courseService = {
           prerequisites: [],
           estimatedTime: l.estimatedDurationMinutes || 5,
           completionRule,
+          contentBlocks: contentBlocksMapped,
           quiz: l.quiz ? {
-            id: l.quiz._id,
-            passingScore: l.quiz.passingScore,
-            questions: l.quiz.questions.map((q: any) => ({
-              id: q._id,
-              questionText: q.questionText,
-              type: q.type,
-              points: q.points,
-              options: q.options.map((o: any) => ({
-                id: o._id,
-                optionText: o.optionText,
+            id: l.quiz._id || l.quiz.id,
+            passingScore: l.quiz.passingScore || 80,
+            questions: (l.quiz.questions || []).map((q: any) => ({
+              id: q._id || q.id,
+              questionText: q.question || q.questionText || '',
+              type: q.type || 'single_choice',
+              points: q.points || 1,
+              options: (q.options || []).map((o: any) => ({
+                id: o._id || o.id,
+                optionText: o.text || o.optionText || '',
+                isCorrect: o.isCorrect ?? false,
               })),
             })),
           } : null,

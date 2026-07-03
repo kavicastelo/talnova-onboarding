@@ -6,6 +6,13 @@ export const updateProfileSchema = z.object({
   phone: z.string().optional(),
   location: z.string().optional(),
   timezone: z.string().optional(),
+  avatar: z
+    .object({
+      uploadId: z.string(),
+      fileName: z.string(),
+      publicUrl: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const updatePreferencesSchema = z.object({
@@ -45,4 +52,16 @@ export const updateEmployeeSchema = z.object({
   managerId: z.string().nullable().optional(),
   status: z.enum(["invited", "active", "onboarding", "inactive"]).optional(),
   role: z.enum(["owner", "admin", "manager", "employee"]).optional(),
+});
+
+export const importEmployeesSchema = z.object({
+  users: z.array(
+    z.object({
+      email: z.string().email("Invalid email address"),
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"),
+      departmentId: z.string().optional().nullable(),
+      role: z.enum(["owner", "admin", "manager", "employee"]).optional(),
+    })
+  ),
 });

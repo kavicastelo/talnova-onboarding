@@ -1,0 +1,19 @@
+{
+  "title": "Tietopankki",
+  "subtitle": "Löydä vastauksia, oppaita ja materiaaleja",
+  "searchPlaceholder": "Hae artikkeleita…",
+  "popular": "Suositut artikkelit",
+  "categories": "Kategoriat",
+  "allArticles": "Kaikki artikkelit",
+  "quickLinks": "Pikalinkit",
+  "readMore": "Lue lisää",
+  "readTime_one": "{{count}} min lukuaikaa",
+  "readTime_other": "{{count}} min lukuaikaa",
+  "noArticles": "Artikkeleita ei löytynyt.",
+  "noResults": "Ei hakutuloksia haulle \"{{query}}\".",
+  "slideshow": {
+    "previous": "Edellinen",
+    "next": "Seuraava",
+    "backToKb": "Takaisin tietopankkiin"
+  }
+}

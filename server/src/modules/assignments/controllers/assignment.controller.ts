@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { EmployeeAssignmentService } from "../services/assignment.service.js";
+import mongoose from "mongoose";
 
 export class EmployeeAssignmentController {
   constructor(private readonly service: EmployeeAssignmentService) {}
@@ -229,6 +230,77 @@ export class EmployeeAssignmentController {
       success: true,
       message: "Quiz submitted and evaluated successfully",
       data: result,
+    });
+  };
+
+  verifyCertificatePublic = async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    try {
+      if (!mongoose.Types.ObjectId.isValid(params.id)) {
+        return reply.status(404).send({
+          success: false,
+          message: "No certificates found"
+        });
+      }
+      
+      const assignment = await mongoose.model("EmployeeAssignment").findById(params.id);
+      if (!assignment || assignment.status !== "completed" || !assignment.certificate?.issued) {
+        return reply.status(404).send({
+          success: false,
+          message: "No certificates found"
+        });
+      }
+
+      // Fetch user
+      const employee = await mongoose.model("User").findById(assignment.employeeId);
+      if (!employee) {
+        return reply.status(404).send({
+          success: false,
+          message: "No certificates found"
+        });
+      }
+
+      // Fetch organization branding
+      const org = await mongoose.model("Organization").findById(assignment.organizationId);
+      const branding = org ? {
+        orgName: org.name,
+        primaryColor: org.branding?.primaryColor || '#4F46E5',
+        logoUrl: org.branding?.logo?.publicUrl || ''
+      } : {
+        orgName: 'Talnova Onboarding',
+        primaryColor: '#4F46E5',
+        logoUrl: ''
+      };
+
+      return reply.status(200).send({
+        success: true,
+        message: "Certificate verified successfully",
+        data: {
+          id: assignment._id,
+          journeyTitle: assignment.journey.title,
+          recipientName: employee.profile?.fullName || `${employee.profile?.firstName || ''} ${employee.profile?.lastName || ''}`.trim() || 'Employee',
+          issuedAt: assignment.certificate.issuedAt || assignment.completedAt || assignment.updatedAt,
+          certificateId: assignment.certificate.certificateId || assignment._id,
+          branding
+        }
+      });
+    } catch (error) {
+      return reply.status(404).send({
+        success: false,
+        message: "No certificates found"
+      });
+    }
+  };
+
+  issueCertificate = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const assignment = await this.service.issueCertificate(params.id, user.organizationId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Certificate issued successfully",
+      data: assignment,
     });
   };
 }

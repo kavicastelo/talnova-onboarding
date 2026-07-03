@@ -148,7 +148,7 @@ const QuizSchema = new Schema({
 
 const AttachmentSchema = new Schema({
   title: { type: String, required: true },
-  uploadId: { type: Schema.Types.ObjectId, required: true },
+  uploadId: { type: Schema.Types.ObjectId, required: true, ref: "Upload" },
   downloadable: { type: Boolean, default: true },
 });
 
@@ -160,7 +160,7 @@ const ContentBlockSchema = new Schema({
   },
   title: { type: String },
   content: { type: String },
-  uploadId: { type: Schema.Types.ObjectId },
+  uploadId: { type: Schema.Types.ObjectId, ref: "Upload" },
   embedUrl: { type: String },
   order: { type: Number, required: true },
   settings: {

@@ -1,0 +1,33 @@
+{
+  "admin": {
+    "title": "Ylläpitäjän hallintapaneeli",
+    "welcome": "Tervetuloa takaisin",
+    "stats": {
+      "totalEmployees": "Työntekijöitä yhteensä",
+      "activeJourneys": "Aktiiviset perehdytyspolut",
+      "completionRate": "Suoritusaste",
+      "avgTimeToComplete": "Keskimääräinen suoritusaika"
+    },
+    "recentActivity": "Viimeaikainen toiminta",
+    "completionsOverTime": "Suoritukset ajan mittaan"
+  },
+  "employee": {
+    "title": "Tervetuloa takaisin",
+    "progress": "Edistymisesi",
+    "assignedJourneys": "Määritetyt perehdytyspolut",
+    "completedJourneys": "Suoritettu",
+    "inProgress": "Kesken",
+    "continuelearning": "Jatka oppimista",
+    "startJourney": "Aloita perehdytyspolku",
+    "noJourneys": "Sinulle ei ole vielä määritetty perehdytyspolkuja."
+  },
+  "superAdmin": {
+    "title": "Pääylläpitäjän hallintapaneeli",
+    "stats": {
+      "totalOrgs": "Organisaatioita yhteensä",
+      "activeOrgs": "Aktiiviset organisaatiot",
+      "totalRevenue": "Kokonaisliikevaihto",
+      "totalUsers": "Käyttäjiä yhteensä"
+    }
+  }
+}

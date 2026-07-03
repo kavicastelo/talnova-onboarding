@@ -1,0 +1,54 @@
+{
+  "workspace": "Työtila",
+  "createWorkspace": "Luo työtila",
+  "platformManagement": "Alustan hallinta",
+  "learning": "Oppiminen",
+  "items": {
+    "dashboard": "Kojelauta",
+    "journeys": "Perehdytyspolut",
+    "employees": "Työntekijät",
+    "analytics": "Analytiikka",
+    "knowledgeBase": "Tietopankki",
+    "settings": "Asetukset",
+    "home": "Etusivu",
+    "myLearning": "Oppimiseni",
+    "certificates": "Todistukset",
+    "superAdminDashboard": "Pääkäyttäjän kojelauta",
+    "organizations": "Organisaatiot",
+    "finance": "Rahoitus & laskut"
+  },
+  "breadcrumb": {
+    "dashboard": "Kojelauta",
+    "superAdmin": "Pääkäyttäjäportaali",
+    "organizations": "Organisaatiot",
+    "finance": "Rahoitus & laskutus",
+    "journeys": "Perehdytyspolut",
+    "directory": "Työntekijät",
+    "analytics": "Analytiikka",
+    "kb": "Tietopankki",
+    "settings": "Asetukset",
+    "employee": "Etusivu",
+    "course": "Kurssi",
+    "certificates": "Todistukseni"
+  },
+  "user": {
+    "profile": "Profiili",
+    "settings": "Asetukset",
+    "logout": "Kirjaudu ulos",
+    "logoutSuccess": "Kirjauduit onnistuneesti ulos.",
+    "logoutFailed": "Uloskirjautuminen epäonnistui."
+  },
+  "notifications": {
+    "title": "Ilmoitukset",
+    "viewAll": "Näytä kaikki",
+    "none": "Ei uusia ilmoituksia"
+  },
+  "search": "Hae…",
+  "viewAs": "Näytä nimellä",
+  "unsavedChanges": {
+    "title": "Tallentamattomat muutokset",
+    "message": "Sinulla on tallentamattomia muutoksia Journey Builderissa. Jos poistut, muutoksesi menetetään. Haluatko varmasti hylätä muutoksesi ja poistua?",
+    "stay": "Jää",
+    "discard": "Hylkää & poistu"
+  }
+}

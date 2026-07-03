@@ -1,0 +1,9 @@
+{
+  "required": "Tämä kenttä on pakollinen.",
+  "email": "Anna kelvollinen sähköpostiosoite.",
+  "minLength": "Vähimmäispituus on {{count}} merkkiä.",
+  "maxLength": "Enimmäispituus on {{count}} merkkiä.",
+  "passwordMatch": "Salasanat eivät täsmää.",
+  "invalidLocale": "Valittua kieltä ei tueta.",
+  "invalidFormat": "Virheellinen muoto."
+}

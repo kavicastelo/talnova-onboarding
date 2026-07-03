@@ -16,7 +16,13 @@ export const settingsService = {
         newAssignmentEmails: org.notificationSettings?.assignmentEmail ?? true,
         deadlineReminders: org.notificationSettings?.reminderEmail ?? true,
         weeklyManagerDigest: org.notificationSettings?.weeklyDigest ?? true,
-      }
+      },
+      security: {
+        allowPasswordLogin: org.securitySettings?.allowPasswordLogin ?? true,
+        enforceMfa: org.securitySettings?.enforceMfa ?? false,
+        sessionTimeout: org.securitySettings?.sessionTimeout ?? 3600,
+      },
+      categories: org.categories || ["Engineering", "Sales", "General"]
     };
   },
 
@@ -24,10 +30,11 @@ export const settingsService = {
     let updatedOrg = null;
 
     // 1. If updating name/supportEmail or notifications, send patch to current organization
-    if (settings.orgName !== undefined || settings.supportEmail !== undefined || settings.notifications !== undefined) {
+    if (settings.orgName !== undefined || settings.supportEmail !== undefined || settings.notifications !== undefined || settings.categories !== undefined) {
       const payload: Record<string, any> = {};
       if (settings.orgName !== undefined) payload.name = settings.orgName;
       if (settings.supportEmail !== undefined) payload.supportEmail = settings.supportEmail;
+      if (settings.categories !== undefined) payload.categories = settings.categories;
       if (settings.notifications !== undefined) {
         payload.notificationSettings = {
           assignmentEmail: settings.notifications.newAssignmentEmails,
@@ -40,15 +47,27 @@ export const settingsService = {
       updatedOrg = response.data.data;
     }
 
-    // 2. If updating branding primaryColor, send patch to branding
-    if (settings.primaryColor !== undefined) {
-      const response = await apiClient.patch<ApiResponse<any>>('/organizations/branding', {
-        primaryColor: settings.primaryColor
+    // 2. If updating branding primaryColor or logo, send patch to branding
+    if (settings.primaryColor !== undefined || settings.logo !== undefined) {
+      const brandingPayload: Record<string, any> = {};
+      if (settings.primaryColor !== undefined) brandingPayload.primaryColor = settings.primaryColor;
+      if (settings.logo !== undefined) brandingPayload.logo = settings.logo;
+
+      const response = await apiClient.patch<ApiResponse<any>>('/organizations/branding', brandingPayload);
+      updatedOrg = response.data.data;
+    }
+
+    // 3. If updating security settings, send patch to security
+    if (settings.security !== undefined) {
+      const response = await apiClient.patch<ApiResponse<any>>('/organizations/security', {
+        allowPasswordLogin: settings.security.allowPasswordLogin,
+        enforceMfa: settings.security.enforceMfa,
+        sessionTimeout: settings.security.sessionTimeout,
       });
       updatedOrg = response.data.data;
     }
 
-    // 3. Fallback to fetch current if nothing was updated or returned
+    // 4. Fallback to fetch current if nothing was updated or returned
     if (!updatedOrg) {
       const response = await apiClient.get<ApiResponse<any>>('/organizations/current');
       updatedOrg = response.data.data;
@@ -64,7 +83,13 @@ export const settingsService = {
         newAssignmentEmails: updatedOrg.notificationSettings?.assignmentEmail ?? true,
         deadlineReminders: updatedOrg.notificationSettings?.reminderEmail ?? true,
         weeklyManagerDigest: updatedOrg.notificationSettings?.weeklyDigest ?? true,
-      }
+      },
+      security: {
+        allowPasswordLogin: updatedOrg.securitySettings?.allowPasswordLogin ?? true,
+        enforceMfa: updatedOrg.securitySettings?.enforceMfa ?? false,
+        sessionTimeout: updatedOrg.securitySettings?.sessionTimeout ?? 3600,
+      },
+      categories: updatedOrg.categories || ["Engineering", "Sales", "General"]
     };
   },
 
@@ -76,6 +101,21 @@ export const settingsService = {
       subtitle: n.message || '',
       createdAt: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : '',
     }));
+  },
+
+  getDepartments: async (): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/organizations/departments');
+    return response.data.data || [];
+  },
+
+  createDepartment: async (deptData: { name: string; description?: string }): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/organizations/departments', deptData);
+    return response.data.data;
+  },
+
+  deleteDepartment: async (id: string): Promise<any> => {
+    const response = await apiClient.delete<ApiResponse<any>>(`/organizations/departments/${id}`);
+    return response.data.data;
   }
 };
 

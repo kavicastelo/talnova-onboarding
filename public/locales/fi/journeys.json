@@ -1,0 +1,31 @@
+{
+  "list": {
+    "title": "Perehdytyspolut",
+    "createNew": "Luo perehdytyspolku",
+    "searchPlaceholder": "Hae perehdytyspolkuja…",
+    "columns": {
+      "title": "Otsikko",
+      "status": "Tila",
+      "enrolled": "Osallistujat",
+      "completion": "Suoritusaste",
+      "lastUpdated": "Viimeksi päivitetty",
+      "actions": "Toiminnot"
+    },
+    "empty": "Perehdytyspolkuja ei löytynyt. Luo ensimmäinen perehdytyspolkusi.",
+    "filterAll": "Kaikki",
+    "filterActive": "Aktiiviset",
+    "filterDraft": "Luonnokset",
+    "filterArchived": "Arkistoidut"
+  },
+  "builder": {
+    "title": "Perehdytyspolun rakentaja",
+    "addModule": "Lisää moduuli",
+    "addLesson": "Lisää oppitunti",
+    "settings": "Perehdytyspolun asetukset",
+    "publish": "Julkaise perehdytyspolku",
+    "saveDraft": "Tallenna luonnoksena",
+    "unsavedWarning": "Sinulla on tallentamattomia muutoksia.",
+    "publishSuccess": "Perehdytyspolku julkaistiin onnistuneesti.",
+    "saveSuccess": "Perehdytyspolku tallennettiin."
+  }
+}

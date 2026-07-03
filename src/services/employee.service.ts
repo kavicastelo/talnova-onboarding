@@ -6,21 +6,26 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
   return {
     id: user._id,
     name: user.profile?.fullName || `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'Employee',
+    firstName: user.profile?.firstName || '',
+    lastName: user.profile?.lastName || '',
     role: user.permissions?.role || 'employee',
     department: deptName,
     status: user.employment?.status === 'active' ? 'Active' : (user.employment?.status === 'onboarding' ? 'Onboarding' : 'Inactive'),
     progress: user.statistics?.completionRate || 0,
     email: user.auth?.email || '',
     location: user.profile?.location || '',
+    phone: user.profile?.phone || '',
+    timezone: user.profile?.timezone || '',
     hireDate: user.employment?.hireDate ? new Date(user.employment.hireDate).toLocaleDateString() : '',
     completedJourneysCount: user.statistics?.completedJourneys || 0,
     certificatesCount: user.statistics?.certificates || 0,
+    avatar: user.profile?.avatar?.publicUrl || '',
     assignedJourneys: []
   };
 };
 
 export const employeeService = {
-  getEmployees: async (params?: { search?: string; department?: string }): Promise<Employee[]> => {
+  getEmployees: async (params?: { search?: string; departmentId?: string; status?: string; role?: string }): Promise<Employee[]> => {
     // 1. Fetch departments to translate departmentId
     const deptRes = await apiClient.get<ApiResponse<any[]>>('/organizations/departments').catch(() => ({ data: { data: [] } }));
     const departments = deptRes.data.data || [];
@@ -47,10 +52,16 @@ export const employeeService = {
     const mapped = mapBackendUserToEmployee(employee, departments);
     mapped.assignedJourneys = assignments.map((a: any) => ({
       id: a._id,
+      journeyId: a.journey.journeyId,
       title: a.journey.title,
       assignedAt: a.assignment?.assignedAt ? new Date(a.assignment.assignedAt).toLocaleDateString() : '',
       progress: a.progress?.completionPercentage || 0,
-      status: a.status === 'completed' ? 'Completed' : 'In Progress'
+      status: a.status === 'completed' ? 'Completed' : 'In Progress',
+      certificate: a.certificate ? {
+        issued: a.certificate.issued || false,
+        issuedAt: a.certificate.issuedAt ? new Date(a.certificate.issuedAt).toLocaleDateString() : undefined,
+        certificateId: a.certificate.certificateId ? a.certificate.certificateId.toString() : undefined
+      } : undefined
     }));
 
     return mapped;
@@ -94,15 +105,20 @@ export const employeeService = {
     return mapBackendUserToEmployee(response.data.data, departments);
   },
 
-  updateEmployee: async (id: string, employee: Partial<Employee>): Promise<Employee> => {
-    // Split full name if specified
+  updateEmployee: async (id: string, employee: Partial<Employee> & { departmentId?: string }): Promise<Employee> => {
     const payload: Record<string, any> = {};
-    if (employee.name) {
+    if (employee.firstName) payload.firstName = employee.firstName;
+    if (employee.lastName) payload.lastName = employee.lastName;
+    if (employee.name && !employee.firstName) {
       const nameParts = employee.name.trim().split(/\s+/);
       payload.firstName = nameParts[0];
       payload.lastName = nameParts.slice(1).join(' ');
     }
     if (employee.role) payload.role = employee.role;
+    if (employee.departmentId) payload.departmentId = employee.departmentId;
+    if (employee.status) {
+      payload.status = employee.status.toLowerCase();
+    }
 
     const response = await apiClient.patch<ApiResponse<any>>(`/employees/${id}`, payload);
     return mapBackendUserToEmployee(response.data.data);
@@ -110,6 +126,20 @@ export const employeeService = {
 
   deleteEmployee: async (id: string): Promise<void> => {
     await apiClient.delete(`/employees/${id}`);
+  },
+
+  updateMyProfile: async (profile: { firstName: string; lastName: string; phone?: string; location?: string; timezone?: string; avatar?: { uploadId: string; fileName: string; publicUrl?: string } }): Promise<Employee> => {
+    const response = await apiClient.patch<ApiResponse<any>>('/employees/me', profile);
+    return mapBackendUserToEmployee(response.data.data);
+  },
+
+  changeMyPassword: async (passwords: { oldPassword: string; newPassword: string }): Promise<void> => {
+    await apiClient.patch('/employees/me/password', passwords);
+  },
+
+  importEmployees: async (users: Array<{ email: string; firstName: string; lastName: string; departmentId?: string; role?: string }>): Promise<{ successCount: number; failures: Array<{ email: string; reason: string }> }> => {
+    const response = await apiClient.post<ApiResponse<any>>('/employees/import', { users });
+    return response.data.data;
   }
 };
 

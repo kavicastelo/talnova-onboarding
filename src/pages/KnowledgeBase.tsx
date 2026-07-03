@@ -22,7 +22,6 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Eye,
   Globe,
   Link as LinkIcon,
   Tag,
@@ -47,6 +46,7 @@ import {
 import { useRole } from '../context/RoleContext';
 import { toast } from 'sonner';
 import { CATEGORY_MAP } from '../services/knowledgeBase.service';
+import { useTranslation } from 'react-i18next';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   'Company Policies': Shield,
@@ -63,6 +63,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 export function KnowledgeBase() {
   const navigate = useNavigate();
   const { role } = useRole();
+  const { t } = useTranslation('kb');
   const hasToken = !!localStorage.getItem('auth_token');
   const isAdmin = hasToken && (role === 'admin' || role === 'owner');
 
@@ -447,9 +448,9 @@ export function KnowledgeBase() {
           {/* Header Title & Actions */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 border-b">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Knowledge Base</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
               <p className="text-muted-foreground mt-1">
-                Access reference guides, guidelines, and corporate information.
+                {t('subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -475,7 +476,7 @@ export function KnowledgeBase() {
               <Input
                 value={search}
                 onChange={(e: any) => setSearch(e.target.value)}
-                placeholder="Search articles, policies..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-12 h-12 text-base rounded-full bg-background border-muted-foreground/20"
               />
             </div>
@@ -488,7 +489,7 @@ export function KnowledgeBase() {
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
               >
-                All Categories
+                {t('categories')}
               </button>
               {(categories || []).map((cat) => (
                 <button
@@ -508,11 +509,11 @@ export function KnowledgeBase() {
           <div className="grid gap-8 md:grid-cols-3 pt-4">
             {/* Articles List */}
             <div className="md:col-span-2 space-y-4">
-              <h2 className="text-xl font-bold tracking-tight">Articles</h2>
+              <h2 className="text-xl font-bold tracking-tight">{t('allArticles')}</h2>
               <div className="space-y-3">
                 {!articles || articles.length === 0 ? (
                   <div className="text-center py-12 text-sm text-muted-foreground border border-dashed rounded-lg">
-                    No articles found matching filters.
+                    {t('noArticles')}
                   </div>
                 ) : (
                   articles.map((article: any) => (
@@ -554,7 +555,7 @@ export function KnowledgeBase() {
             {/* Quick Links Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold tracking-tight">Quick Links</h2>
+                <h2 className="text-xl font-bold tracking-tight">{t('quickLinks')}</h2>
                 {isAdmin && (
                   <Button variant="ghost" size="icon" onClick={() => handleOpenQlModal()}>
                     <Plus className="h-4 w-4 text-primary" />

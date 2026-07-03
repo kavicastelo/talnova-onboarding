@@ -19,17 +19,19 @@ import { ChartContainer, ChartTooltipContent } from '../components/Chart';
 import { useDashboardSummary } from '../hooks/useDashboard';
 import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
+import { useTranslation } from 'react-i18next';
 
 export function AdminDashboard() {
   const { data: summary, isLoading, isError, error, refetch } = useDashboardSummary();
+  const { t } = useTranslation('dashboard');
 
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-6xl mx-auto">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('admin.title')}</h1>
           <p className="text-muted-foreground">
-            Overview of your organization's learning progress.
+            {t('admin.stats.totalEmployees')}
           </p>
         </div>
 
@@ -112,7 +114,7 @@ export function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Employees
+              {t('admin.stats.totalEmployees')}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -124,7 +126,7 @@ export function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Active Journeys
+              {t('admin.stats.activeJourneys')}
             </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -136,7 +138,7 @@ export function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Completion Rate
+              {t('admin.stats.completionRate')}
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -148,7 +150,7 @@ export function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Avg. Time to Complete
+              {t('admin.stats.avgTimeToComplete')}
             </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -164,7 +166,7 @@ export function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Completions Over Time</CardTitle>
+            <CardTitle>{t('admin.completionsOverTime')}</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
             <ChartContainer
@@ -203,9 +205,9 @@ export function AdminDashboard() {
         </Card>
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle>{t('admin.recentActivity')}</CardTitle>
             <CardDescription>
-              Latest completions and enrollments.
+              {t('admin.recentActivity')}
             </CardDescription>
           </CardHeader>
           <CardContent>

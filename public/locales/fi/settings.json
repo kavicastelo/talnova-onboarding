@@ -1,0 +1,30 @@
+{
+  "title": "Asetukset",
+  "sections": {
+    "workspace": "Työtila",
+    "branding": "Brändäys",
+    "notifications": "Ilmoitukset",
+    "security": "Tietoturva",
+    "language": "Kieli ja alue",
+    "profile": "Profiili"
+  },
+  "workspace": {
+    "orgName": "Organisaation nimi",
+    "workspaceUrl": "Työtilan URL-osoite",
+    "supportEmail": "Tukisähköposti",
+    "primaryColor": "Pääväri",
+    "logo": "Logo",
+    "uploadLogo": "Lataa logo",
+    "saveChanges": "Tallenna muutokset",
+    "saved": "Asetukset tallennettu."
+  },
+  "notifications": {
+    "newAssignmentEmails": "Sähköpostit uusista tehtävistä",
+    "deadlineReminders": "Määräajan muistutukset",
+    "weeklyManagerDigest": "Viikoittainen yhteenveto esihenkilölle"
+  },
+  "language": {
+    "label": "Käyttöliittymän kieli",
+    "description": "Valitse kaikkien valikoiden, painikkeiden ja käyttöliittymän kiinteän tekstin kieli. Dynaaminen sisältö (artikkelit, perehdytyspolut) näytetään saatavilla olevalla käännöksellä."
+  }
+}

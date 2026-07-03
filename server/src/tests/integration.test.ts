@@ -29,11 +29,13 @@ describe("Talnova Backend Integration Test Suite", () => {
     await connectDatabase(app.log);
 
     // 3. Clear database test collections
+    const testOrgsBefore = await Organization.find({ $or: [{ name: /Test Org/ }, { slug: /test-org/ }] });
+    const testOrgIdsBefore = testOrgsBefore.map(o => o._id);
+    await EmployeeAssignment.deleteMany({ organizationId: { $in: testOrgIdsBefore } });
+    await Upload.deleteMany({ organizationId: { $in: testOrgIdsBefore } });
     await Organization.deleteMany({ $or: [{ name: /Test Org/ }, { slug: /test-org/ }] });
     await User.deleteMany({ "auth.email": /test/ });
     await Journey.deleteMany({ title: /Test Journey/ });
-    await EmployeeAssignment.deleteMany({});
-    await Upload.deleteMany({});
 
     const dummyCreatorId = new mongoose.Types.ObjectId();
     // 4. Seed test organizations
@@ -115,10 +117,11 @@ describe("Talnova Backend Integration Test Suite", () => {
 
   afterAll(async () => {
     // Clean up seeded documents
+    await EmployeeAssignment.deleteMany({ organizationId: { $in: [orgAId, orgBId] } });
+    await Upload.deleteMany({ organizationId: { $in: [orgAId, orgBId] } });
     await Organization.deleteMany({ name: /Test Org/ });
     await User.deleteMany({ "auth.email": /test/ });
     await Journey.deleteMany({ title: /Test Journey/ });
-    await EmployeeAssignment.deleteMany({});
     
     await app.close();
     await disconnectDatabase(app.log);

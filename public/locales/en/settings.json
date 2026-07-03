@@ -1,0 +1,30 @@
+{
+  "title": "Settings",
+  "sections": {
+    "workspace": "Workspace",
+    "branding": "Branding",
+    "notifications": "Notifications",
+    "security": "Security",
+    "language": "Language & Region",
+    "profile": "Profile"
+  },
+  "workspace": {
+    "orgName": "Organization Name",
+    "workspaceUrl": "Workspace URL",
+    "supportEmail": "Support Email",
+    "primaryColor": "Primary Color",
+    "logo": "Logo",
+    "uploadLogo": "Upload Logo",
+    "saveChanges": "Save Changes",
+    "saved": "Settings saved."
+  },
+  "notifications": {
+    "newAssignmentEmails": "New assignment emails",
+    "deadlineReminders": "Deadline reminders",
+    "weeklyManagerDigest": "Weekly manager digest"
+  },
+  "language": {
+    "label": "Interface Language",
+    "description": "Choose the language for all menus, buttons, and static UI text. Dynamic content (articles, journeys) is shown in the available translation."
+  }
+}

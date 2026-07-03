@@ -60,6 +60,11 @@ export interface AssignedJourneyOverview {
   assignedAt: string;
   progress: number;
   status: 'In Progress' | 'Completed';
+  certificate?: {
+    issued: boolean;
+    issuedAt?: string;
+    certificateId?: string;
+  };
 }
 
 export interface Employee {
@@ -75,12 +80,17 @@ export interface Employee {
   completedJourneysCount?: number;
   certificatesCount?: number;
   assignedJourneys?: AssignedJourneyOverview[];
+  avatar?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  timezone?: string;
 }
 
 // -------------------------
 // Course & Curriculum Types
 // -------------------------
-export type LessonType = 'Video' | 'Article' | 'Task' | 'Quiz';
+export type LessonType = 'Video' | 'Article' | 'Task' | 'Quiz' | 'PDF' | 'Document' | 'Audio' | 'Image';
 
 export interface Lesson {
   id: string;
@@ -93,13 +103,22 @@ export interface Lesson {
   prerequisites?: string[];
   estimatedTime?: number; // in minutes
   completionRule?: 'video' | 'button' | 'quiz';
+  contentBlocks?: Array<{
+    id: string;
+    type: string;
+    title?: string;
+    content?: string;
+    uploadUrl?: string;
+    embedUrl?: string;
+    order: number;
+  }>;
   quiz?: {
     id: string;
     passingScore: number;
     questions: Array<{
       id: string;
       questionText: string;
-      type: 'single_choice' | 'multiple_choice';
+      type: 'single_choice' | 'multiple_choice' | 'true_false';
       points: number;
       options: Array<{
         id: string;
@@ -219,7 +238,18 @@ export interface WorkspaceSettings {
   supportEmail: string;
   logoUrl?: string;
   primaryColor: string;
+  logo?: {
+    uploadId: string;
+    fileName: string;
+    publicUrl?: string;
+  };
   notifications: NotificationPreferences;
+  security: {
+    allowPasswordLogin: boolean;
+    enforceMfa: boolean;
+    sessionTimeout: number;
+  };
+  categories?: string[];
 }
 
 export interface AppNotification {

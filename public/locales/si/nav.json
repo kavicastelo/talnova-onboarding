@@ -1,0 +1,54 @@
+{
+  "workspace": "වැඩකිරීමේ අවකාශය",
+  "createWorkspace": "වැඩකිරීමේ අවකාශය සාදන්න",
+  "platformManagement": "වේදිකා කළමනාකරණය",
+  "learning": "ඉගෙනීම",
+  "items": {
+    "dashboard": "උපකරණ පුවරුව",
+    "journeys": "සංගමය ගමන්",
+    "employees": "සේවකයින්",
+    "analytics": "විශ්ලේෂණය",
+    "knowledgeBase": "දැනුම් පාදම",
+    "settings": "සැකසීම්",
+    "home": "මුල් පිටුව",
+    "myLearning": "මගේ ඉගෙනීම",
+    "certificates": "සහතිකය",
+    "superAdminDashboard": "ස්ථිර පරිපාලක උපකරණ පුවරුව",
+    "organizations": "සංවිධාන",
+    "finance": "මූල්‍ය සහ ගිණුම්"
+  },
+  "breadcrumb": {
+    "dashboard": "උපකරණ පුවරුව",
+    "superAdmin": "ස්ථිර පරිපාලක ද්වාරය",
+    "organizations": "සංවිධාන",
+    "finance": "මූල්‍ය සහ බිල්පත්",
+    "journeys": "සංගමය ගමන්",
+    "directory": "සේවකයින්",
+    "analytics": "විශ්ලේෂණය",
+    "kb": "දැනුම් පාදම",
+    "settings": "සැකසීම්",
+    "employee": "මුල් පිටුව",
+    "course": "පාඨමාලාව",
+    "certificates": "මගේ සහතිකය"
+  },
+  "user": {
+    "profile": "පැතිකඩ",
+    "settings": "සැකසීම්",
+    "logout": "ඉවත් වන්න",
+    "logoutSuccess": "සාර්ථකව ඉවත් විය.",
+    "logoutFailed": "ඉවත් වීමට අසමත් විය."
+  },
+  "notifications": {
+    "title": "දැනුම්දීම්",
+    "viewAll": "සියල්ල බලන්න",
+    "none": "නව දැනුම්දීම් නොමැත"
+  },
+  "search": "සොයන්න…",
+  "viewAs": "ලෙස බලන්න",
+  "unsavedChanges": {
+    "title": "සුරැකීමට නොයාවූ වෙනස්කම්",
+    "message": "ජර්නි බිල්ඩරයේ සුරැකීමට නොයාවූ වෙනස්කම් ඇත. ඔබ ඉවත් වුවහොත්, ඔබේ වෙනස්කම් නැති වේ. ඔබේ වෙනස්කම් ඉවත් කර ඉවත් වීමට කැමතිද?",
+    "stay": "රැඳෙන්න",
+    "discard": "ඉවත් කර යන්න"
+  }
+}

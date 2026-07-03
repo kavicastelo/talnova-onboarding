@@ -78,6 +78,21 @@ export const createJourneySchema = z.object({
       isPublic: z.boolean().optional(),
     })
     .optional(),
+  certificate: z
+    .object({
+      enabled: z.boolean(),
+      templateId: z.string().optional(),
+      passingScore: z.number().min(0).max(100).optional(),
+    })
+    .optional(),
+  settings: z
+    .object({
+      allowSkipLessons: z.boolean(),
+      requireSequentialCompletion: z.boolean(),
+      allowRetakes: z.boolean(),
+      maxRetakes: z.number().optional(),
+    })
+    .optional(),
 });
 
 export const updateJourneySchema = z.object({

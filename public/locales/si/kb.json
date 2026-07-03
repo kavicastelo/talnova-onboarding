@@ -1,0 +1,19 @@
+{
+  "title": "දැනුම් සමුදාය",
+  "subtitle": "පිළිතුරු, මාර්ගෝපදේශ සහ සම්පත් සොයන්න",
+  "searchPlaceholder": "ලිපි සොයන්න…",
+  "popular": "ජනප්‍රිය ලිපි",
+  "categories": "කාණ්ඩ",
+  "allArticles": "සියලු ලිපි",
+  "quickLinks": "ඉක්මන් සබැඳි",
+  "readMore": "තවත් කියවන්න",
+  "readTime_one": "කියවීමට මිනිත්තු {{count}}",
+  "readTime_other": "කියවීමට මිනිත්තු {{count}}",
+  "noArticles": "ලිපි කිසිවක් හමු නොවීය.",
+  "noResults": "\"{{query}}\" සඳහා ප්‍රතිඵල කිසිවක් හමු නොවීය.",
+  "slideshow": {
+    "previous": "පෙර",
+    "next": "ඊළඟ",
+    "backToKb": "දැනුම් සමුදාය වෙත ආපසු"
+  }
+}

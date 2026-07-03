@@ -9,6 +9,7 @@ import {
   changePasswordSchema,
   inviteEmployeeSchema,
   updateEmployeeSchema,
+  importEmployeesSchema,
 } from "../schemas/employee.schema.js";
 
 export async function employeeRoutes(app: FastifyInstance) {
@@ -40,6 +41,15 @@ export async function employeeRoutes(app: FastifyInstance) {
       schema: { body: inviteEmployeeSchema },
     },
     controller.inviteEmployee as any
+  );
+
+  app.post(
+    "/import",
+    {
+      preHandler: [requireRole(["owner", "admin"])],
+      schema: { body: importEmployeesSchema },
+    },
+    controller.importEmployees as any
   );
 
   app.get(

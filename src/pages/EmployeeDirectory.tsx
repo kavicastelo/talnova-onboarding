@@ -7,14 +7,18 @@ import {
   TableHead,
   TableHeader,
   TableRow
-} from
-  '../components/Table';
+} from '../components/Table';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { Plus, Search, Filter, AlertCircle, RefreshCw } from 'lucide-react';
-import { useEmployees, useCreateEmployee } from '../hooks/useEmployees';
+import { Plus, Search, Filter, AlertCircle, RefreshCw, Upload, Download } from 'lucide-react';
+import { 
+  useEmployees, 
+  useCreateEmployee, 
+  useImportEmployees 
+} from '../hooks/useEmployees';
+import { useDepartments } from '../hooks/useSettings';
 import { Input } from '../components/Input';
 import { Link } from 'react-router-dom';
 import {
@@ -22,6 +26,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter
 } from '../components/Dialog';
@@ -36,14 +41,37 @@ import { toast } from 'sonner';
 
 export function EmployeeDirectory() {
   const [search, setSearch] = useState('');
-  const { data: employees = [], isLoading, isError, error, refetch } = useEmployees({ search });
-  const createEmployee = useCreateEmployee();
+  
+  // Filtering States
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
+  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
+  const filterParams: any = { search };
+  if (selectedDeptId !== 'all') filterParams.departmentId = selectedDeptId;
+  if (selectedRole !== 'all') filterParams.role = selectedRole;
+  if (selectedStatus !== 'all') filterParams.status = selectedStatus;
+
+  const { data: employees = [], isLoading, isError, error, refetch } = useEmployees(filterParams);
+  const createEmployee = useCreateEmployee();
+  const importEmployeesMutation = useImportEmployees();
+  const { data: activeDepartments = [] } = useDepartments();
+
+  // Invite Modal States
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [roleName, setRoleName] = useState('');
   const [department, setDepartment] = useState('');
+
+  // Import Modal States
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [parsedEmployees, setParsedEmployees] = useState<any[]>([]);
+
+  const defaultDepts = ["Engineering", "Product", "Design", "Marketing", "Operations"];
+  const displayDepartments = activeDepartments.length > 0
+    ? activeDepartments.map((d: any) => d.name)
+    : defaultDepts;
 
   const handleInvite = () => {
     if (!name || !email || !roleName || !department) {
@@ -75,6 +103,98 @@ export function EmployeeDirectory() {
     );
   };
 
+  const downloadSampleCSV = () => {
+    const headers = 'email,firstName,lastName,departmentId,role\n';
+    const sampleRow1 = 'jane.doe@example.com,Jane,Doe,,employee\n';
+    const sampleRow2 = 'john.smith@example.com,John,Smith,,admin\n';
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + sampleRow1 + sampleRow2);
+    const link = document.createElement('a');
+    link.setAttribute('href', csvContent);
+    link.setAttribute('download', 'talnova_employee_import_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Sample CSV template downloaded successfully.');
+  };
+
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+      if (lines.length < 2) {
+        toast.error('CSV file is empty or missing data rows.');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      const emailIdx = headers.indexOf('email');
+      const firstIdx = headers.indexOf('firstname');
+      const lastIdx = headers.indexOf('lastname');
+      const deptIdx = headers.indexOf('departmentid');
+      const roleIdx = headers.indexOf('role');
+
+      if (emailIdx === -1 || firstIdx === -1 || lastIdx === -1) {
+        toast.error('CSV must contain "email", "firstName", and "lastName" columns.');
+        return;
+      }
+
+      const parsedList: any[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',').map(val => val.trim());
+        if (row.length < 3) continue;
+
+        const email = row[emailIdx];
+        const firstName = row[firstIdx];
+        const lastName = row[lastIdx];
+        const departmentId = deptIdx !== -1 ? row[deptIdx] : undefined;
+        const role = roleIdx !== -1 ? row[roleIdx] : 'employee';
+
+        if (email && firstName && lastName) {
+          parsedList.push({
+            email,
+            firstName,
+            lastName,
+            departmentId: departmentId || undefined,
+            role: role || 'employee'
+          });
+        }
+      }
+
+      if (parsedList.length === 0) {
+        toast.error('No valid rows could be parsed from the CSV.');
+      } else {
+        setParsedEmployees(parsedList);
+        toast.success(`Successfully parsed ${parsedList.length} employees.`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkImportSubmit = async () => {
+    if (parsedEmployees.length === 0) return;
+
+    try {
+      const res = await importEmployeesMutation.mutateAsync(parsedEmployees);
+      toast.success(`Successfully imported ${res.successCount} employees.`);
+      if (res.failures.length > 0) {
+        toast.warning(`Failed to import ${res.failures.length} employees.`);
+      }
+      setImportDialogOpen(false);
+      setParsedEmployees([]);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to import employees.');
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
@@ -84,61 +204,147 @@ export function EmployeeDirectory() {
             Manage employees and track their progress.
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Invite Employee
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Invite Employee</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Full Name</label>
-                <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Jane Doe" />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Email Address</label>
-                <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder="jane@company.com" />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Role / Title</label>
-                <Input value={roleName} onChange={(e: any) => setRoleName(e.target.value)} placeholder="Software Engineer" />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Department</label>
-                <Select value={department} onValueChange={setDepartment}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Engineering">Engineering</SelectItem>
-                    <SelectItem value="Product">Product</SelectItem>
-                    <SelectItem value="Design">Design</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
+        <div className="flex items-center gap-2">
+          {/* Bulk Import Trigger */}
+          <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" /> Bulk Import
               </Button>
-              <Button onClick={handleInvite} disabled={createEmployee.isPending}>
-                {createEmployee.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                Send Invitation
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Bulk Import Employees</DialogTitle>
+                <DialogDescription>
+                  Upload a CSV file containing employee details. The default password for all imported accounts will be set to <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-sm font-semibold">123456</code>.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-xs text-muted-foreground">Need a template?</span>
+                  <Button variant="link" size="sm" onClick={downloadSampleCSV} className="h-auto p-0 text-xs flex items-center gap-1 font-semibold text-primary">
+                    <Download className="h-3 w-3" /> Download Sample CSV
+                  </Button>
+                </div>
+
+                <div className="p-6 border-2 border-dashed border-muted rounded-lg text-center space-y-2">
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground opacity-50" />
+                  <p className="text-sm font-medium">Click to select CSV file</p>
+                  <p className="text-xs text-muted-foreground">CSV header: email, firstName, lastName, departmentId (optional), role (optional)</p>
+                  <Input 
+                    type="file" 
+                    accept=".csv" 
+                    onChange={handleCSVUpload}
+                    className="hidden" 
+                    id="csv-file-input"
+                  />
+                  <Button variant="secondary" size="sm" asChild className="mt-2">
+                    <label htmlFor="csv-file-input" className="cursor-pointer">
+                      Choose CSV File
+                    </label>
+                  </Button>
+                </div>
+
+                {parsedEmployees.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold flex justify-between">
+                      <span>Parsed {parsedEmployees.length} employees:</span>
+                      <Button variant="ghost" size="sm" onClick={() => setParsedEmployees([])} className="h-6 px-1.5 text-xs text-destructive">
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="max-h-[180px] overflow-y-auto border rounded-md divide-y text-xs">
+                      {parsedEmployees.map((pe, idx) => (
+                        <div key={idx} className="p-2 flex justify-between items-center gap-2 hover:bg-muted/50">
+                          <div className="truncate">
+                            <span className="font-medium text-foreground">{pe.firstName} {pe.lastName}</span>
+                            <span className="text-muted-foreground block truncate">{pe.email}</span>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase text-[10px]">
+                              {pe.role || 'employee'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleBulkImportSubmit} 
+                  disabled={parsedEmployees.length === 0 || importEmployeesMutation.isPending}
+                >
+                  {importEmployeesMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  Import Users
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Invite Employee Trigger */}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Invite Employee
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Invite Employee</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Full Name</label>
+                  <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Jane Doe" />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Email Address</label>
+                  <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder="jane@company.com" />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Role / Title</label>
+                  <Input value={roleName} onChange={(e: any) => setRoleName(e.target.value)} placeholder="Software Engineer" />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Department</label>
+                  <Select value={department} onValueChange={setDepartment} className="w-full">
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {displayDepartments.map((deptName) => (
+                        <SelectItem key={deptName} value={deptName}>
+                          {deptName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleInvite} disabled={createEmployee.isPending}>
+                  {createEmployee.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Invitation
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
+      {/* Directory Filters Bar */}
+      <div className="flex flex-wrap gap-3 items-center w-full">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search employees..."
@@ -147,10 +353,63 @@ export function EmployeeDirectory() {
             onChange={(e: any) => setSearch(e.target.value)}
           />
         </div>
-        <Button variant="outline">
-          <Filter className="mr-2 h-4 w-4" />
-          Filter
-        </Button>
+
+        {/* Department Filter */}
+        <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Department: All" />
+          </SelectTrigger>
+          <SelectContent className="z-[999]">
+            <SelectItem value="all">All Departments</SelectItem>
+            {activeDepartments.map((d: any) => (
+              <SelectItem key={d._id} value={d._id}>
+                {d.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Role Filter */}
+        <Select value={selectedRole} onValueChange={setSelectedRole}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Role: All" />
+          </SelectTrigger>
+          <SelectContent className="z-[999]">
+            <SelectItem value="all">All Roles</SelectItem>
+            <SelectItem value="owner">Owner</SelectItem>
+            <SelectItem value="admin">Administrator</SelectItem>
+            <SelectItem value="manager">Manager</SelectItem>
+            <SelectItem value="employee">Employee</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Status Filter */}
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Status: All" />
+          </SelectTrigger>
+          <SelectContent className="z-[999]">
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="onboarding">Onboarding</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {(selectedDeptId !== 'all' || selectedRole !== 'all' || selectedStatus !== 'all' || search) && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedDeptId('all');
+              setSelectedRole('all');
+              setSelectedStatus('all');
+              setSearch('');
+            }}
+            className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground"
+          >
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -200,7 +459,7 @@ export function EmployeeDirectory() {
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
                   <p className="font-medium">No employees found</p>
-                  <p className="text-xs">Invite new team members to track progress here.</p>
+                  <p className="text-xs">Try clearing filters or invite new team members.</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -214,7 +473,7 @@ export function EmployeeDirectory() {
                       {employee.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{employee.role}</TableCell>
+                  <TableCell className="capitalize">{employee.role}</TableCell>
                   <TableCell>{employee.department}</TableCell>
                   <TableCell>
                     <Badge
