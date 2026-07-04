@@ -6,5 +6,9 @@ declare module "fastify" {
     user?: TokenPayload;
     /** Resolved locale attached by extractLocale middleware. Defaults to "en". */
     locale: SupportedLocale;
+    kioskContext?: {
+      organizationId: string;
+      journeyId: string;
+    };
   }
 }

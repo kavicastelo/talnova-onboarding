@@ -19,6 +19,12 @@ export const updateOrganizationSchema = z.object({
     weeklyDigest: z.boolean().optional(),
   }).optional(),
   categories: z.array(z.string()).optional(),
+  certificate: z.object({
+    template: z.enum(["classic", "modern", "minimalist"]).optional(),
+    signatureUrl: z.string().optional().nullable(),
+    signatoryName: z.string().optional().nullable(),
+    signatoryTitle: z.string().optional().nullable(),
+  }).optional(),
 });
 
 export const updateBrandingSchema = z.object({

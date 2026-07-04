@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { User } from "../../auth/models/user.model.js";
 import { EmployeeAssignment } from "../../assignments/models/assignment.model.js";
 import { Organization } from "../../organizations/models/organization.model.js";
+import { Journey } from "../../journeys/models/journey.model.js";
 
 export class AnalyticsService {
   async getSummary(orgId: string | mongoose.Types.ObjectId) {
@@ -173,6 +174,52 @@ export class AnalyticsService {
       };
     });
 
+    // 7. Journey-wise Completion Rates
+    const journeys = await Journey.find({ organizationId: objectIdOrgId, isDeleted: false });
+    const journeyCompletionRates = [];
+
+    for (const journey of journeys) {
+      const assignments = await EmployeeAssignment.find({
+        organizationId: objectIdOrgId,
+        "journey.journeyId": journey._id
+      });
+
+      const totalAssignments = assignments.length;
+      const totalCompletions = assignments.filter((a) => a.status === "completed").length;
+      const completionRate = totalAssignments > 0 ? Math.round((totalCompletions / totalAssignments) * 100) : 0;
+
+      // Calculate average quiz score across all quiz attempts in these assignments
+      let totalScoresSum = 0;
+      let quizAttemptsCount = 0;
+
+      for (const assignment of assignments) {
+        if (assignment.modules) {
+          for (const m of assignment.modules) {
+            if (m.lessons) {
+              for (const l of m.lessons) {
+                if (l.quizAttempt && typeof l.quizAttempt.score === 'number') {
+                  totalScoresSum += l.quizAttempt.score;
+                  quizAttemptsCount++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const averageScore = quizAttemptsCount > 0 ? Math.round(totalScoresSum / quizAttemptsCount) : 0;
+
+      journeyCompletionRates.push({
+        id: journey._id.toString(),
+        title: journey.title,
+        category: journey.category || "General",
+        totalAssignments,
+        totalCompletions,
+        completionRate,
+        averageScore
+      });
+    }
+
     return {
       avgCompletionRate,
       avgCompletionRateDelta,
@@ -183,7 +230,8 @@ export class AnalyticsService {
       certificatesIssued,
       certificatesIssuedDelta,
       completionTrend,
-      departmentCompletions
+      departmentCompletions,
+      journeyCompletionRates
     };
   }
 }

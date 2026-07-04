@@ -20,6 +20,41 @@ export class LocalizationController {
   };
 
   /**
+   * POST /api/v1/localization/translate-realtime
+   * Translates text in real-time.
+   * Body: { text: string; targetLanguage: string }
+   */
+  translateRealtime = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { text, targetLanguage } = request.body as { text: string | string[]; targetLanguage: string };
+
+    if (!text) {
+      throw new AppError(400, "VALIDATION_ERROR", "'text' is required");
+    }
+
+    if (!targetLanguage || typeof targetLanguage !== "string") {
+      throw new AppError(400, "VALIDATION_ERROR", "'targetLanguage' is required");
+    }
+
+    if (Array.isArray(text)) {
+      const translatedText = await Promise.all(
+        text.map((t) => {
+          if (typeof t !== "string") {
+            throw new AppError(400, "VALIDATION_ERROR", "All items in 'text' array must be strings");
+          }
+          return localizationService.translateRealtime(t, targetLanguage);
+        })
+      );
+      return reply.send({ success: true, data: { text, targetLanguage, translatedText } });
+    } else {
+      if (typeof text !== "string") {
+        throw new AppError(400, "VALIDATION_ERROR", "'text' must be a string or array of strings");
+      }
+      const translatedText = await localizationService.translateRealtime(text, targetLanguage);
+      return reply.send({ success: true, data: { text, targetLanguage, translatedText } });
+    }
+  };
+
+  /**
    * GET /api/v1/localization/:entityType/:entityId
    * Fetch all approved translations for an entity in the resolved locale.
    * Response shape: { [field]: value } — clients see localized values only.

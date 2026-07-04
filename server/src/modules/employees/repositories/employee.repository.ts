@@ -58,6 +58,8 @@ export class EmployeeRepository {
         { "profile.lastName": searchRegex },
         { "auth.email": searchRegex },
         { "employment.employeeId": searchRegex },
+        { "employment.designation": searchRegex },
+        { "employment.payrollCategory": searchRegex },
       ];
     }
 

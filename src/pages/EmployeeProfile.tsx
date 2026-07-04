@@ -86,10 +86,13 @@ export function EmployeeProfile() {
   const [adminDeptId, setAdminDeptId] = useState('');
   const [adminRole, setAdminRole] = useState<'owner' | 'admin' | 'manager' | 'employee'>('employee');
   const [adminStatus, setAdminStatus] = useState<'active' | 'onboarding' | 'inactive'>('active');
+  const [adminDesignation, setAdminDesignation] = useState('');
+  const [adminPayrollCategory, setAdminPayrollCategory] = useState('');
+  const [adminHireDate, setAdminHireDate] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
   const isOwnProfile = id === 'me' || !id || (currentUser && employee && currentUser.id === employee.id);
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
 
   const updateSelfMutation = useUpdateMyProfile();
   const changePasswordMutation = useChangeMyPassword();
@@ -110,6 +113,17 @@ export function EmployeeProfile() {
       setAdminDeptId(matchedDept?._id || '');
       setAdminRole((employee.role === 'owner' || employee.role === 'admin' || employee.role === 'manager' || employee.role === 'employee' ? employee.role : 'employee') as any);
       setAdminStatus(employee.status === 'Active' ? 'active' : employee.status === 'Onboarding' ? 'onboarding' : 'inactive');
+      setAdminDesignation(employee.designation || '');
+      setAdminPayrollCategory(employee.payrollCategory || '');
+      
+      let parsedDate = '';
+      if (employee.hireDate) {
+        const d = new Date(employee.hireDate);
+        if (!isNaN(d.getTime())) {
+          parsedDate = d.toISOString().split('T')[0];
+        }
+      }
+      setAdminHireDate(parsedDate);
     }
   }, [employee, activeDepartments]);
 
@@ -189,7 +203,6 @@ export function EmployeeProfile() {
   const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const targetDept = activeDepartments.find(d => d._id === adminDeptId);
       await updateEmployeeMutation.mutateAsync({
         id: employee!.id,
         employee: {
@@ -197,7 +210,10 @@ export function EmployeeProfile() {
           lastName: adminLastName,
           departmentId: adminDeptId || null,
           role: adminRole,
-          status: adminStatus === 'active' ? 'Active' : adminStatus === 'onboarding' ? 'Onboarding' : 'Inactive'
+          status: adminStatus === 'active' ? 'Active' : adminStatus === 'onboarding' ? 'Onboarding' : 'Inactive',
+          designation: adminDesignation,
+          payrollCategory: adminPayrollCategory,
+          hireDate: adminHireDate || null
         } as any
       });
       toast.success('Employee account updated successfully.');
@@ -311,13 +327,13 @@ export function EmployeeProfile() {
                 <h2 className="text-2xl font-bold">{employee.name}</h2>
                 <Badge
                   variant={
-                    employee.status === 'Active' ? 'default' : 'secondary'
+                    employee.status === 'Active' ? 'default' : employee.status === 'Onboarding' ? 'secondary' : 'destructive'
                   }>
                   {employee.status}
                 </Badge>
               </div>
               <p className="text-lg text-muted-foreground capitalize">
-                {employee.role} • {employee.department}
+                {employee.designation || employee.role} • {employee.department}
               </p>
               <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
@@ -340,6 +356,11 @@ export function EmployeeProfile() {
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4" /> {employee.hireDate ? `Hired ${employee.hireDate}` : 'Hire date unknown'}
                 </div>
+                {employee.payrollCategory && (
+                  <div className="flex items-center gap-1.5 bg-muted px-2 py-0.5 rounded text-xs font-semibold text-muted-foreground border">
+                    Payroll: {employee.payrollCategory}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-2 w-full md:w-auto">
@@ -441,7 +462,7 @@ export function EmployeeProfile() {
                       </Button>
                     ) : (
                       <Button variant="outline" size="sm" className="w-full" asChild>
-                        <Link to={`/course/${aj.journeyId || aj.id}`}>
+                        <Link to={`/course/${aj.id}`}>
                           View Details
                         </Link>
                       </Button>
@@ -627,6 +648,16 @@ export function EmployeeProfile() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="adminDesignation">Designation</Label>
+              <Input 
+                id="adminDesignation"
+                value={adminDesignation}
+                onChange={(e) => setAdminDesignation(e.target.value)}
+                placeholder="Software Engineer"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="adminDepartment">Department</Label>
               <Select value={adminDeptId} onValueChange={setAdminDeptId}>
                 <SelectTrigger id="adminDepartment" className="w-full">
@@ -640,6 +671,28 @@ export function EmployeeProfile() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="adminHireDate">Date of Join</Label>
+                <Input 
+                  id="adminHireDate"
+                  type="date"
+                  value={adminHireDate}
+                  onChange={(e) => setAdminHireDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminPayrollCategory">Payroll Category</Label>
+                <Input 
+                  id="adminPayrollCategory"
+                  value={adminPayrollCategory}
+                  onChange={(e) => setAdminPayrollCategory(e.target.value)}
+                  placeholder="e.g. Standard, Executive"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -100,17 +100,19 @@ export function JourneysList() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {role === 'admin' ? t('list.title') : t('list.filterActive')}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            {role === 'admin' ? t('list.title') : 'My Onboarding Journeys'}
           </h1>
-          <p className="text-muted-foreground">
-            {role === 'admin' ? t('list.title') : t('list.empty')}
+          <p className="text-sm text-muted-foreground mt-1">
+            {role === 'admin' 
+              ? 'Manage and track employee onboarding paths.' 
+              : 'Track and complete your assigned onboarding paths.'}
           </p>
         </div>
         {role === 'admin' && (
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link to="/journeys/new">
               <Plus className="mr-2 h-4 w-4" />
               {t('list.createNew')}

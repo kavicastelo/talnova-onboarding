@@ -41,6 +41,7 @@ export const SidebarProvider = React.forwardRef<HTMLDivElement, SidebarProviderP
   ({ defaultOpen = true, open: controlledOpen, onOpenChange, className, style, children, ...props }, ref) => {
     const [internalOpen, setInternalOpen] = React.useState(defaultOpen);
     const open = controlledOpen ?? internalOpen;
+    const [isMobile, setIsMobile] = React.useState(false);
 
     const setOpen = (value: boolean) => {
       if (controlledOpen === undefined) setInternalOpen(value);
@@ -61,8 +62,24 @@ export const SidebarProvider = React.forwardRef<HTMLDivElement, SidebarProviderP
       return () => window.removeEventListener('keydown', handler);
     }, [open]);
 
+    React.useEffect(() => {
+      const mql = window.matchMedia('(max-width: 768px)');
+      const onChange = () => {
+        setIsMobile(mql.matches);
+        if (mql.matches) {
+          setInternalOpen(false); // Collapse by default on mobile
+        }
+      };
+      mql.addEventListener('change', onChange);
+      setIsMobile(mql.matches);
+      if (mql.matches) {
+        setInternalOpen(false);
+      }
+      return () => mql.removeEventListener('change', onChange);
+    }, []);
+
     return (
-      <SidebarContext.Provider value={{ state, open, setOpen, toggleSidebar, isMobile: false }}>
+      <SidebarContext.Provider value={{ state, open, setOpen, toggleSidebar, isMobile }}>
         <div
           ref={ref}
           data-slot="sidebar-wrapper"
@@ -90,7 +107,7 @@ export interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
   ({ side = 'left', variant = 'sidebar', collapsible = 'offcanvas', className, children, ...props }, ref) => {
-    const { state } = useSidebar();
+    const { state, open, setOpen, isMobile } = useSidebar();
 
     if (collapsible === 'none') {
       return (
@@ -106,49 +123,58 @@ export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
     }
 
     return (
-      <div
-        className="group peer text-sidebar-foreground"
-        data-state={state}
-        data-collapsible={state === 'collapsed' ? collapsible : ''}
-        data-variant={variant}
-        data-side={side}
-        data-slot="sidebar"
-      >
-        {/* Gap placeholder */}
-        <div
-          data-slot="sidebar-gap"
-          className={cn(
-            'relative w-[var(--sidebar-width)] bg-transparent transition-[width] duration-200 ease-linear',
-            'group-data-[collapsible=offcanvas]:w-0',
-            'group-data-[side=right]:rotate-180',
-            variant === 'floating' || variant === 'inset'
-              ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+1rem)]'
-              : 'group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]'
-          )}
-        />
-        {/* Fixed container */}
-        <div
-          ref={ref}
-          data-slot="sidebar-container"
-          data-side={side}
-          className={cn(
-            'fixed inset-y-0 z-10 flex h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-            variant === 'floating' || variant === 'inset'
-              ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+1rem+2px)]'
-              : 'group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)] group-data-[side=left]:border-r group-data-[side=right]:border-l',
-            className
-          )}
-          {...props}
-        >
+      <>
+        {isMobile && open && (
           <div
-            data-sidebar="sidebar"
-            data-slot="sidebar-inner"
-            className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200"
+            onClick={() => setOpen(false)}
+          />
+        )}
+        <div
+          className="group peer text-sidebar-foreground"
+          data-state={state}
+          data-collapsible={state === 'collapsed' ? collapsible : ''}
+          data-variant={variant}
+          data-side={side}
+          data-slot="sidebar"
+        >
+          {/* Gap placeholder */}
+          <div
+            data-slot="sidebar-gap"
+            className={cn(
+              'relative w-[var(--sidebar-width)] bg-transparent transition-[width] duration-200 ease-linear',
+              isMobile
+                ? 'w-0'
+                : 'group-data-[collapsible=offcanvas]:w-0 group-data-[side=right]:rotate-180 group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]'
+            )}
+          />
+          {/* Fixed container */}
+          <div
+            ref={ref}
+            data-slot="sidebar-container"
+            data-side={side}
+            className={cn(
+              'fixed inset-y-0 z-50 flex h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
+              isMobile
+                ? (open 
+                    ? (side === 'left' ? 'left-0' : 'right-0') 
+                    : (side === 'left' ? 'left-[calc(var(--sidebar-width)*-1)]' : 'right-[calc(var(--sidebar-width)*-1)]')
+                  )
+                : 'data-[side=left]:left-0 data-[side=right]:right-0 group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)] group-data-[side=left]:border-r group-data-[side=right]:border-l',
+              className
+            )}
+            {...props}
           >
-            {children}
+            <div
+              data-sidebar="sidebar"
+              data-slot="sidebar-inner"
+              className="flex size-full flex-col bg-sidebar"
+            >
+              {children}
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 );

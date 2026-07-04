@@ -85,6 +85,8 @@ export interface Employee {
   lastName?: string;
   phone?: string;
   timezone?: string;
+  designation?: string;
+  payrollCategory?: string;
 }
 
 // -------------------------
@@ -183,6 +185,16 @@ export interface DepartmentCompletion {
   completions: number;
 }
 
+export interface JourneyCompletionRate {
+  id: string;
+  title: string;
+  category: string;
+  totalAssignments: number;
+  totalCompletions: number;
+  completionRate: number;
+  averageScore: number;
+}
+
 export interface AnalyticsSummary {
   avgCompletionRate: number;
   avgCompletionRateDelta: string;
@@ -194,6 +206,7 @@ export interface AnalyticsSummary {
   certificatesIssuedDelta: string;
   completionTrend: CompletionTrendPoint[];
   departmentCompletions: DepartmentCompletion[];
+  journeyCompletionRates: JourneyCompletionRate[];
 }
 
 // -------------------------
@@ -250,6 +263,12 @@ export interface WorkspaceSettings {
     sessionTimeout: number;
   };
   categories?: string[];
+  certificate?: {
+    template: 'classic' | 'modern' | 'minimalist';
+    signatureUrl?: string;
+    signatoryName?: string;
+    signatoryTitle?: string;
+  };
 }
 
 export interface AppNotification {

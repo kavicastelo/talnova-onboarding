@@ -12,7 +12,7 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { Plus, Search, Filter, AlertCircle, RefreshCw, Upload, Download } from 'lucide-react';
+import { Plus, Search, AlertCircle, RefreshCw, Upload, Download } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee, 
@@ -61,8 +61,10 @@ export function EmployeeDirectory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [roleName, setRoleName] = useState('');
+  const [designation, setDesignation] = useState('');
   const [department, setDepartment] = useState('');
+  const [payrollCategory, setPayrollCategory] = useState('');
+  const [hireDate, setHireDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Import Modal States
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -74,18 +76,21 @@ export function EmployeeDirectory() {
     : defaultDepts;
 
   const handleInvite = () => {
-    if (!name || !email || !roleName || !department) {
-      toast.error('All fields are required.');
+    if (!name || !email || !department) {
+      toast.error('Name, Email, and Department are required.');
       return;
     }
     createEmployee.mutate(
       {
         name,
         email,
-        role: roleName,
+        role: 'employee',
         department,
         status: 'Onboarding',
-        progress: 0
+        progress: 0,
+        designation,
+        payrollCategory,
+        hireDate
       },
       {
         onSuccess: () => {
@@ -93,8 +98,10 @@ export function EmployeeDirectory() {
           setDialogOpen(false);
           setName('');
           setEmail('');
-          setRoleName('');
+          setDesignation('');
           setDepartment('');
+          setPayrollCategory('');
+          setHireDate(new Date().toISOString().split('T')[0]);
         },
         onError: (err: any) => {
           toast.error(err?.message || 'Failed to invite employee.');
@@ -197,14 +204,14 @@ export function EmployeeDirectory() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Directory</h1>
           <p className="text-muted-foreground">
             Manage employees and track their progress.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Bulk Import Trigger */}
           <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
             <DialogTrigger asChild>
@@ -309,8 +316,8 @@ export function EmployeeDirectory() {
                   <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder="jane@company.com" />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm font-medium">Role / Title</label>
-                  <Input value={roleName} onChange={(e: any) => setRoleName(e.target.value)} placeholder="Software Engineer" />
+                  <label className="text-sm font-medium">Designation</label>
+                  <Input value={designation} onChange={(e: any) => setDesignation(e.target.value)} placeholder="Software Engineer" />
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Department</label>
@@ -326,6 +333,14 @@ export function EmployeeDirectory() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Date of Join</label>
+                  <Input type="date" value={hireDate} onChange={(e: any) => setHireDate(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Payroll Category</label>
+                  <Input value={payrollCategory} onChange={(e: any) => setPayrollCategory(e.target.value)} placeholder="e.g. Standard, Executive" />
                 </div>
               </div>
               <DialogFooter>
@@ -412,91 +427,160 @@ export function EmployeeDirectory() {
         )}
       </div>
 
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Progress</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              // Loading Skeleton State
-              Array.from({ length: 3 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-2 w-32" />
-                      <Skeleton className="h-4 w-8" />
+      <div className="hidden md:block">
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Progress</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                // Loading Skeleton State
+                Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-2 w-32" />
+                        <Skeleton className="h-4 w-8" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : isError ? (
+                // Error State
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 text-destructive">
+                      <AlertCircle className="h-8 w-8" />
+                      <p className="font-semibold">Failed to load directory</p>
+                      <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
+                      <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            ) : isError ? (
-              // Error State
-              <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2 text-destructive">
-                    <AlertCircle className="h-8 w-8" />
-                    <p className="font-semibold">Failed to load directory</p>
-                    <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
-                    <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
-                      <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : employees.length === 0 ? (
-              // Empty State
-              <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  <p className="font-medium">No employees found</p>
-                  <p className="text-xs">Try clearing filters or invite new team members.</p>
-                </TableCell>
-              </TableRow>
-            ) : (
-              // Success State
-              employees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      to={`/directory/${employee.id}`}
-                      className="hover:underline">
-                      {employee.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="capitalize">{employee.role}</TableCell>
-                  <TableCell>{employee.department}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        employee.status === 'Active' ? 'default' : 'secondary'
-                      }>
-                      {employee.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="w-[200px]">
-                    <div className="flex items-center gap-2">
-                      <Progress value={employee.progress} className="h-2" />
-                      <span className="text-xs text-muted-foreground w-8">
-                        {employee.progress}%
-                      </span>
-                    </div>
+              ) : employees.length === 0 ? (
+                // Empty State
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                    <p className="font-medium">No employees found</p>
+                    <p className="text-xs">Try clearing filters or invite new team members.</p>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+              ) : (
+                // Success State
+                employees.map((employee) => (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        to={`/directory/${employee.id}`}
+                        className="hover:underline">
+                        {employee.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="capitalize">{employee.designation || employee.role}</TableCell>
+                    <TableCell>{employee.department}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          employee.status === 'Active' ? 'default' : employee.status === 'Onboarding' ? 'secondary' : 'destructive'
+                        }>
+                        {employee.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="w-[200px]">
+                      <div className="flex items-center gap-2">
+                        <Progress value={employee.progress} className="h-2" />
+                        <span className="text-xs text-muted-foreground w-8">
+                          {employee.progress}%
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
+
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          // Loading Skeleton State
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="p-4 border rounded-lg space-y-3 bg-card animate-pulse">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-16" />
+              </div>
+              <Skeleton className="h-4 w-24" />
+              <div className="flex items-center gap-2 pt-1">
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="h-4 w-8" />
+              </div>
+            </div>
+          ))
+        ) : isError ? (
+          // Error State
+          <div className="p-8 text-center border rounded-lg bg-card text-destructive flex flex-col items-center justify-center gap-2">
+            <AlertCircle className="h-8 w-8" />
+            <p className="font-semibold">Failed to load directory</p>
+            <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
+              <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
+            </Button>
+          </div>
+        ) : employees.length === 0 ? (
+          // Empty State
+          <div className="p-8 text-center border rounded-lg bg-card text-muted-foreground">
+            <p className="font-medium">No employees found</p>
+            <p className="text-xs">Try clearing filters or invite new team members.</p>
+          </div>
+        ) : (
+          // Success State
+          employees.map((employee) => (
+            <div key={employee.id} className="p-4 border rounded-lg bg-card space-y-3 shadow-sm hover:border-primary/50 transition-colors">
+              <div className="flex justify-between items-start gap-2">
+                <div>
+                  <Link
+                    to={`/directory/${employee.id}`}
+                    className="font-semibold text-base hover:underline text-foreground block">
+                    {employee.name}
+                  </Link>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {employee.designation || employee.role} • {employee.department}
+                  </span>
+                </div>
+                <Badge
+                  variant={
+                    employee.status === 'Active' ? 'default' : employee.status === 'Onboarding' ? 'secondary' : 'destructive'
+                  }>
+                  {employee.status}
+                </Badge>
+              </div>
+              
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{employee.progress}%</span>
+                </div>
+                <Progress value={employee.progress} className="h-1.5" />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

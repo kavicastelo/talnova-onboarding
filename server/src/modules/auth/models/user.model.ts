@@ -27,6 +27,8 @@ export interface IUser extends Document {
     departmentId?: mongoose.Types.ObjectId;
     teamId?: mongoose.Types.ObjectId;
     jobTitleId?: mongoose.Types.ObjectId;
+    designation?: string;
+    payrollCategory?: string;
     managerId?: mongoose.Types.ObjectId;
     employmentType: "full_time" | "part_time" | "contractor" | "intern";
     hireDate?: Date;
@@ -90,6 +92,8 @@ const UserSchema = new Schema<IUser>(
       departmentId: { type: Schema.Types.ObjectId },
       teamId: { type: Schema.Types.ObjectId },
       jobTitleId: { type: Schema.Types.ObjectId },
+      designation: { type: String },
+      payrollCategory: { type: String },
       managerId: { type: Schema.Types.ObjectId },
       employmentType: {
         type: String,

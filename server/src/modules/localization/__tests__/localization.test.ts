@@ -4,6 +4,20 @@ import { MemoryCacheProvider } from "../../../infrastructure/localization/Memory
 import { TranslationVersionManager } from "../../../infrastructure/localization/TranslationVersionManager.js";
 import { TranslationStatus } from "../models/translation.model.js";
 
+vi.mock("translatte", () => {
+  return {
+    default: vi.fn().mockImplementation((text, options) => {
+      if (text === "Some custom lesson text") {
+        return Promise.resolve({ text: "Some custom පාඩම text" });
+      }
+      if (text === "completely random text") {
+        return Promise.reject(new Error("Network error"));
+      }
+      return Promise.resolve({ text: `[translated:${options.to}] ${text}` });
+    })
+  };
+});
+
 // ─── LocaleNegotiator ────────────────────────────────────────────────────────
 
 describe("LocaleNegotiator", () => {
@@ -194,5 +208,29 @@ describe("Translation status contract", () => {
   it("OUTDATED is a valid editable status (not deleted)", () => {
     const status: TranslationStatus = "OUTDATED";
     expect(["DRAFT", "AI_GENERATED", "UNDER_REVIEW", "APPROVED", "OUTDATED"]).toContain(status);
+  });
+});
+
+// ─── Translation Provider & Real-Time Translation ──────────────────────────────
+
+describe("Translation Provider & Real-Time Translation", () => {
+  it("MockTranslationProvider translates common onboarding terms to Sinhala", async () => {
+    const { MockTranslationProvider } = await import("../services/translation-provider.impl.js");
+    const provider = new MockTranslationProvider();
+    const welcomeTrans = await provider.translate("Welcome to Talnova Onboarding", "en", "si");
+    expect(welcomeTrans).toBe("Talnova Onboarding වෙත සාදරයෙන් පිළිගනිමු");
+
+    const partialTrans = await provider.translate("Some custom lesson text", "en", "si");
+    expect(partialTrans).toBe("Some custom පාඩම text");
+
+    const unknownTrans = await provider.translate("completely random text", "en", "si");
+    expect(unknownTrans).toBe("[සිංහල] completely random text");
+  });
+
+  it("LocalizationService translateRealtime delegates to translation provider", async () => {
+    const { LocalizationService } = await import("../services/localization.service.js");
+    const service = new LocalizationService();
+    const result = await service.translateRealtime("Introduction", "si");
+    expect(result).toBe("හැඳින්වීම");
   });
 });

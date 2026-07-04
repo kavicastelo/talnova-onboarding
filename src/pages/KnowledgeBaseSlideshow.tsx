@@ -15,6 +15,7 @@ import {
   Clock,
   BookOpen
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function KnowledgeBaseSlideshow() {
   const navigate = useNavigate();
@@ -26,9 +27,13 @@ export function KnowledgeBaseSlideshow() {
   const [intervalMs, setIntervalMs] = useState<number>(5000); // default 5 seconds
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
+  const [isHovered, setIsHovered] = useState<boolean>(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const progressIntervalRef = useRef<any>(null);
+  const elapsedRef = useRef<number>(0);
+
+  const isHeld = !isPlaying || isHovered;
 
   const selectedArticle = articles[selectedArticleIndex];
 
@@ -74,22 +79,27 @@ export function KnowledgeBaseSlideshow() {
 
   // Handle slide transitions and autoplay progress
   useEffect(() => {
-    if (!isPlaying || slides.length === 0) {
+    if (slides.length === 0) {
       setProgress(0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       return;
     }
 
     const stepMs = 50;
-    let elapsed = 0;
     
     progressIntervalRef.current = setInterval(() => {
-      elapsed += stepMs;
-      const pct = Math.min((elapsed / intervalMs) * 100, 100);
+      // Pause if not playing or if hovered (holding autoplay progress)
+      if (!isPlaying || isHovered) {
+        return;
+      }
+
+      elapsedRef.current += stepMs;
+      const pct = Math.min((elapsedRef.current / intervalMs) * 100, 100);
       setProgress(pct);
 
-      if (elapsed >= intervalMs) {
-        elapsed = 0;
+      if (elapsedRef.current >= intervalMs) {
+        elapsedRef.current = 0;
+        setProgress(0);
         // Advance to next slide
         setCurrentSlideIndex((prev) => {
           if (prev < slides.length - 1) {
@@ -109,16 +119,43 @@ export function KnowledgeBaseSlideshow() {
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
-  }, [isPlaying, intervalMs, slides.length, articles.length]);
+  }, [isPlaying, isHovered, intervalMs, slides.length, articles.length]);
+
+  // Keyboard shortcut (Spacebar) to hold/resume play
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        const activeEl = document.activeElement;
+        if (
+          activeEl &&
+          (activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.tagName === 'SELECT')
+        ) {
+          return;
+        }
+        e.preventDefault();
+        setIsPlaying((prev) => {
+          const nextState = !prev;
+          toast.success(nextState ? 'Slideshow RESUMED' : 'Slideshow HELD', { duration: 1500 });
+          return nextState;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Reset slide index when changing articles manually
   const handleSelectArticle = (index: number) => {
     setSelectedArticleIndex(index);
     setCurrentSlideIndex(0);
+    elapsedRef.current = 0;
     setProgress(0);
   };
 
   const handleNext = () => {
+    elapsedRef.current = 0;
     setProgress(0);
     if (currentSlideIndex < slides.length - 1) {
       setCurrentSlideIndex(currentSlideIndex + 1);
@@ -129,6 +166,7 @@ export function KnowledgeBaseSlideshow() {
   };
 
   const handlePrev = () => {
+    elapsedRef.current = 0;
     setProgress(0);
     if (currentSlideIndex > 0) {
       setCurrentSlideIndex(currentSlideIndex - 1);
@@ -136,7 +174,6 @@ export function KnowledgeBaseSlideshow() {
       // Go to previous article's last slide
       const prevArticleIdx = selectedArticleIndex > 0 ? selectedArticleIndex - 1 : articles.length - 1;
       setSelectedArticleIndex(prevArticleIdx);
-      // We will set slide index to 0 or we could map it, but 0 is simpler
       setCurrentSlideIndex(0);
     }
   };
@@ -225,6 +262,7 @@ export function KnowledgeBaseSlideshow() {
               value={intervalMs}
               onChange={(e) => {
                 setIntervalMs(Number(e.target.value));
+                elapsedRef.current = 0;
                 setProgress(0);
               }}
               className="bg-transparent text-zinc-200 text-xs focus:outline-none cursor-pointer"
@@ -264,7 +302,7 @@ export function KnowledgeBaseSlideshow() {
       {/* Progress Bar */}
       <div className="h-1 w-full bg-zinc-800 shrink-0">
         <div 
-          className="h-full bg-indigo-500 transition-all duration-75 ease-linear"
+          className={`h-full transition-all duration-75 ease-linear ${isHeld ? 'bg-amber-500' : 'bg-indigo-500'}`}
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -282,10 +320,22 @@ export function KnowledgeBaseSlideshow() {
 
         {/* Slide Frame */}
         <div className="w-full max-w-5xl aspect-[16/9] flex items-center justify-center">
-          <Card className="w-full h-full border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm shadow-2xl relative flex flex-col justify-center px-16 py-12">
+          <Card 
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="w-full h-full border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm shadow-2xl relative flex flex-col justify-center px-16 py-12"
+          >
             
             {/* Background branding accent */}
             <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500/80 rounded-l-lg" />
+            
+            {/* Pulsing HOLD ACTIVE or PAUSED Badge */}
+            {isHeld && (
+              <div className="absolute top-6 right-6 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-semibold text-amber-400 animate-pulse uppercase tracking-wider z-20">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                {isHovered ? 'HOLD ACTIVE' : 'PAUSED'}
+              </div>
+            )}
             
             <CardContent className="flex flex-col justify-center items-center h-full text-center p-0">
               

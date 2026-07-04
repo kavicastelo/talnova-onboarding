@@ -3,7 +3,7 @@ import { FastifyInstance } from "fastify";
 
 export async function registerRateLimit(app: FastifyInstance) {
   await app.register(fastifyRateLimit, {
-    max: 100,
+    max: process.env.NODE_ENV === "test" ? 10000 : 100,
     timeWindow: "1 minute",
     errorResponseBuilder: (request, context) => {
       return {

@@ -107,6 +107,15 @@ export function JourneyBuilder() {
   }>({ type: null });
 
   const [isDirty, setIsDirty] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'editor'>('list');
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Sync state with loaded journey
   useEffect(() => {
@@ -479,8 +488,8 @@ export function JourneyBuilder() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-6">
-      <header className="flex-none border-b bg-background px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header className="flex-none border-b bg-background px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-4 min-w-0">
           <Button
             variant="ghost"
             size="icon"
@@ -497,9 +506,9 @@ export function JourneyBuilder() {
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">{isNew ? (title || 'New Journey') : (journey?.title || 'Engineering Onboarding')}</h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold truncate">{isNew ? (title || 'New Journey') : (journey?.title || 'Engineering Onboarding')}</h1>
               <Badge variant={journey?.status === 'Active' ? 'default' : 'secondary'}>
                 {journey?.status || 'Draft'}
               </Badge>
@@ -509,13 +518,13 @@ export function JourneyBuilder() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleSave} disabled={updateJourney.isPending || createJourney.isPending}>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <Button variant="outline" onClick={handleSave} disabled={updateJourney.isPending || createJourney.isPending} className="w-full sm:w-auto">
             {(updateJourney.isPending || createJourney.isPending) && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
             Save changes
           </Button>
           {!isNew && journey?.status !== 'Active' && (
-            <Button onClick={handlePublish} disabled={updateJourney.isPending}>
+            <Button onClick={handlePublish} disabled={updateJourney.isPending} className="w-full sm:w-auto">
               Publish
             </Button>
           )}
@@ -675,11 +684,12 @@ export function JourneyBuilder() {
 
           <TabsContent
             value="builder"
-            className="flex-1 flex overflow-hidden m-0 data-[state=active]:flex">
+            className="flex-1 flex flex-col md:flex-row overflow-hidden m-0 data-[state=active]:flex">
 
             {/* Left Sidebar - Outline */}
-            <div className="w-64 flex-none border-r bg-muted/10 flex flex-col">
-              <div className="p-4 border-b flex items-center justify-between">
+            {(!isMobile || mobileView === 'list') && (
+              <div className="w-full md:w-64 flex-none border-r bg-muted/10 flex flex-col">
+                <div className="p-4 border-b flex items-center justify-between">
                 <h3 className="font-medium">Curriculum</h3>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddModule}>
                   <Plus className="h-4 w-4" />
@@ -728,7 +738,10 @@ export function JourneyBuilder() {
                                   key={lesson.id}
                                   className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer group/lesson ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
                                     }`}>
-                                  <div className="flex items-center gap-2" onClick={() => setSelectedLessonId(lesson.id)}>
+                                  <div className="flex items-center gap-2" onClick={() => {
+                                    setSelectedLessonId(lesson.id);
+                                    if (isMobile) setMobileView('editor');
+                                  }}>
                                     {lesson.type === 'Video' ? (
                                       <Video className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                                     ) : lesson.type === 'Quiz' ? (
@@ -767,21 +780,33 @@ export function JourneyBuilder() {
                 </div>
               </ScrollArea>
             </div>
+          )}
 
-            {/* Main Content Area */}
-            <div className="flex-1 min-w-0 flex flex-col bg-background overflow-auto">
-              {selectedLesson ? (
-                <div className="max-w-3xl mx-auto w-full p-8 space-y-8">
-                  <div>
-                    <Input
-                      value={selectedLesson.title}
-                      onChange={(e: any) => updateSelectedLesson({ title: e.target.value })}
-                      className="text-3xl font-bold h-auto py-2 px-0 border-0 focus-visible:ring-0 rounded-none bg-transparent"
-                    />
-                    <p className="text-muted-foreground mt-2">
-                      {selectedLesson.type} Lesson • {selectedLesson.duration}
-                    </p>
-                  </div>
+            {/* Main Content Area & Lesson Settings Panel */}
+            {(!isMobile || mobileView === 'editor') && (
+              <div className="flex-1 min-w-0 flex flex-col md:flex-row bg-background overflow-auto">
+                {selectedLesson ? (
+                  <>
+                    <div className="flex-1 min-w-0 p-4 md:p-8 space-y-6 max-w-3xl mx-auto w-full">
+                      {isMobile && (
+                        <Button 
+                          variant="ghost" 
+                          className="self-start pl-0 text-primary mb-4" 
+                          onClick={() => setMobileView('list')}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Curriculum
+                        </Button>
+                      )}
+                      <div>
+                        <Input
+                          value={selectedLesson.title}
+                          onChange={(e: any) => updateSelectedLesson({ title: e.target.value })}
+                          className="text-2xl md:text-3xl font-bold h-auto py-2 px-0 border-0 focus-visible:ring-0 rounded-none bg-transparent"
+                        />
+                        <p className="text-muted-foreground mt-2 text-xs md:text-sm">
+                          {selectedLesson.type} Lesson • {selectedLesson.duration}
+                        </p>
+                      </div>
 
                   <Card>
                     <CardContent className="p-0">
@@ -1227,58 +1252,61 @@ export function JourneyBuilder() {
                     </CardContent>
                   </Card>
                 </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                  Select a lesson in the curriculum sidebar to edit content.
-                </div>
-              )}
-            </div>
 
-            {/* Right Sidebar - Settings */}
-            <div className="w-64 flex-none border-l bg-muted/10 flex flex-col">
-              <div className="p-4 border-b">
-                <h3 className="font-medium">Lesson Settings</h3>
-              </div>
-              <ScrollArea className="flex-1 p-4">
-                {selectedLesson ? (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Estimated Time</label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          value={selectedLesson.estimatedTime || 5}
-                          onChange={(e: any) => updateSelectedLesson({ estimatedTime: Number(e.target.value) })}
-                          className="w-20"
-                        />
-                        <span className="text-sm text-muted-foreground">minutes</span>
+                    {/* Right Sidebar - Settings */}
+                    <div className="w-full md:w-64 flex-none border-t md:border-t-0 md:border-l bg-muted/10 flex flex-col border-b md:border-b-0">
+                      <div className="p-4 border-b">
+                        <h3 className="font-medium">Lesson Settings</h3>
+                      </div>
+                      <div className="p-4 space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Estimated Time</label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={selectedLesson.estimatedTime || 5}
+                              onChange={(e: any) => updateSelectedLesson({ estimatedTime: Number(e.target.value) })}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-muted-foreground">minutes</span>
+                          </div>
+                        </div>
+                        <Separator />
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Completion Rule</label>
+                          <Select
+                            value={selectedLesson.completionRule || 'video'}
+                            onValueChange={(val: any) => updateSelectedLesson({ completionRule: val as any })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="video">Watch 90% of video</SelectItem>
+                              <SelectItem value="button">Click complete button</SelectItem>
+                              <SelectItem value="quiz">Pass attached quiz</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
-                    <Separator />
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Completion Rule</label>
-                      <Select
-                        value={selectedLesson.completionRule || 'video'}
-                        onValueChange={(val: any) => updateSelectedLesson({ completionRule: val as any })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="video">Watch 90% of video</SelectItem>
-                          <SelectItem value="button">Click complete button</SelectItem>
-                          <SelectItem value="quiz">Pass attached quiz</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  </>
                 ) : (
-                  <div className="text-xs text-muted-foreground text-center py-8">
-                    Select a lesson to configure settings.
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm p-8">
+                    {isMobile && (
+                      <Button 
+                        variant="ghost" 
+                        className="mb-4 text-primary" 
+                        onClick={() => setMobileView('list')}
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Curriculum
+                      </Button>
+                    )}
+                    Select a lesson in the curriculum sidebar to edit content.
                   </div>
                 )}
-              </ScrollArea>
-            </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent
