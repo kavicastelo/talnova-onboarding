@@ -83,7 +83,7 @@ export function useDuplicateJourney() {
 export function useIssueCertificate() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ assignmentId, journeyId }: { assignmentId: string; journeyId: string }) =>
+    mutationFn: ({ assignmentId, journeyId: _journeyId }: { assignmentId: string; journeyId: string }) =>
       journeyService.issueCertificate(assignmentId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['journeyAssignments', variables.journeyId] });

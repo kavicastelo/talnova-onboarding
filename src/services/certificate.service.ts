@@ -7,6 +7,12 @@ export interface PublicCertificate {
   recipientName: string;
   issuedAt: string;
   certificateId: string;
+  certificate?: {
+    template: 'classic' | 'modern' | 'minimalist';
+    signatureUrl?: string;
+    signatoryName?: string;
+    signatoryTitle?: string;
+  };
   branding: {
     orgName: string;
     primaryColor: string;

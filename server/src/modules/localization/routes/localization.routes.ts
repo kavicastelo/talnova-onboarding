@@ -11,6 +11,9 @@ export async function localizationRoutes(app: FastifyInstance) {
   /** Returns supported locales — frontend uses this for the LanguageSwitcher */
   app.get("/supported-locales", controller.getSupportedLocales as any);
 
+  /** Translate text in real-time */
+  app.post("/translate-realtime", controller.translateRealtime as any);
+
   /** Get approved translations for an entity in the resolved locale */
   app.get(
     "/:entityType/:entityId",

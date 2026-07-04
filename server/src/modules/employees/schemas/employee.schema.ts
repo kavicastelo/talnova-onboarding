@@ -40,8 +40,11 @@ export const inviteEmployeeSchema = z.object({
   departmentId: z.string().optional(),
   teamId: z.string().optional(),
   jobTitleId: z.string().optional(),
+  designation: z.string().optional(),
+  payrollCategory: z.string().optional(),
   managerId: z.string().optional(),
   employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]),
+  hireDate: z.string().optional(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -52,6 +55,9 @@ export const updateEmployeeSchema = z.object({
   managerId: z.string().nullable().optional(),
   status: z.enum(["invited", "active", "onboarding", "inactive"]).optional(),
   role: z.enum(["owner", "admin", "manager", "employee"]).optional(),
+  designation: z.string().optional(),
+  payrollCategory: z.string().optional(),
+  hireDate: z.string().optional(),
 });
 
 export const importEmployeesSchema = z.object({

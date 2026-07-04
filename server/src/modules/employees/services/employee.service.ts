@@ -95,8 +95,11 @@ export class EmployeeService {
       departmentId?: string;
       teamId?: string;
       jobTitleId?: string;
+      designation?: string;
+      payrollCategory?: string;
       managerId?: string;
       employmentType: "full_time" | "part_time" | "contractor" | "intern";
+      hireDate?: string | Date;
     },
     invitedBy: string | mongoose.Types.ObjectId
   ) {
@@ -131,8 +134,11 @@ export class EmployeeService {
         departmentId: invitationData.departmentId ? new mongoose.Types.ObjectId(invitationData.departmentId) : undefined,
         teamId: invitationData.teamId ? new mongoose.Types.ObjectId(invitationData.teamId) : undefined,
         jobTitleId: invitationData.jobTitleId ? new mongoose.Types.ObjectId(invitationData.jobTitleId) : undefined,
+        designation: invitationData.designation,
+        payrollCategory: invitationData.payrollCategory,
         managerId: invitationData.managerId ? new mongoose.Types.ObjectId(invitationData.managerId) : undefined,
         employmentType: invitationData.employmentType,
+        hireDate: invitationData.hireDate ? new Date(invitationData.hireDate) : new Date(),
         status: "invited" as const,
       },
       permissions: {
@@ -187,6 +193,11 @@ export class EmployeeService {
     }
     if (updateData.status !== undefined) updateObj["employment.status"] = updateData.status;
     if (updateData.role !== undefined) updateObj["permissions.role"] = updateData.role;
+    if (updateData.designation !== undefined) updateObj["employment.designation"] = updateData.designation;
+    if (updateData.payrollCategory !== undefined) updateObj["employment.payrollCategory"] = updateData.payrollCategory;
+    if (updateData.hireDate !== undefined) {
+      updateObj["employment.hireDate"] = updateData.hireDate ? new Date(updateData.hireDate) : null;
+    }
 
     return this.employeeRepository.update(employeeId, updateObj);
   }

@@ -79,6 +79,12 @@ export interface IOrganization extends Document {
     journeys: number;
     completionRate: number;
   };
+  certificate?: {
+    template: "classic" | "modern" | "minimalist";
+    signatureUrl?: string;
+    signatoryName?: string;
+    signatoryTitle?: string;
+  };
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   isDeleted: boolean;
@@ -166,6 +172,12 @@ const OrganizationSchema = new Schema<IOrganization>(
       activeEmployees: { type: Number, default: 0 },
       journeys: { type: Number, default: 0 },
       completionRate: { type: Number, default: 0 },
+    },
+    certificate: {
+      template: { type: String, enum: ["classic", "modern", "minimalist"], default: "classic" },
+      signatureUrl: { type: String },
+      signatoryName: { type: String },
+      signatoryTitle: { type: String },
     },
     createdBy: { type: Schema.Types.ObjectId, required: true },
     updatedBy: { type: Schema.Types.ObjectId },

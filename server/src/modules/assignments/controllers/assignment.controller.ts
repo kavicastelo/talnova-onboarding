@@ -272,6 +272,10 @@ export class EmployeeAssignmentController {
         logoUrl: ''
       };
 
+      const certificateConfig = org?.certificate || {
+        template: 'classic'
+      };
+
       return reply.status(200).send({
         success: true,
         message: "Certificate verified successfully",
@@ -281,7 +285,8 @@ export class EmployeeAssignmentController {
           recipientName: employee.profile?.fullName || `${employee.profile?.firstName || ''} ${employee.profile?.lastName || ''}`.trim() || 'Employee',
           issuedAt: assignment.certificate.issuedAt || assignment.completedAt || assignment.updatedAt,
           certificateId: assignment.certificate.certificateId || assignment._id,
-          branding
+          branding,
+          certificate: certificateConfig
         }
       });
     } catch (error) {

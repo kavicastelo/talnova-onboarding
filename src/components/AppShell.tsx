@@ -9,12 +9,11 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarProvider,
   SidebarTrigger,
   SidebarHeader,
-  SidebarFooter
-} from
-  './Sidebar';
+  SidebarFooter,
+  useSidebar
+} from './Sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from './Avatar';
 import {
   DropdownMenu,
@@ -46,7 +45,8 @@ import {
   GraduationCap,
   Award,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Tv
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -87,6 +87,7 @@ export function AppShell() {
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
     { title: t('items.journeys'), url: '/journeys', icon: Map },
+    { title: 'Kiosk Dashboard', url: '/kiosks', icon: Tv },
     { title: t('items.employees'), url: '/directory', icon: Users },
     { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
@@ -120,10 +121,14 @@ export function AppShell() {
     course: t('breadcrumb.course'),
     certificates: t('breadcrumb.certificates'),
   };
+  const { setOpen, isMobile } = useSidebar();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
 
   const handleNavClick = (url: string) => (e: React.MouseEvent) => {
+    if (isMobile) {
+      setOpen(false);
+    }
     if ((window as any).isJourneyBuilderDirty) {
       e.preventDefault();
       setPendingNavAction(() => () => {
@@ -134,6 +139,9 @@ export function AppShell() {
   };
 
   const handleSelectAction = (action: () => void) => (e?: any) => {
+    if (isMobile) {
+      setOpen(false);
+    }
     if ((window as any).isJourneyBuilderDirty) {
       e?.preventDefault?.();
       setPendingNavAction(() => () => {
@@ -238,7 +246,7 @@ export function AppShell() {
     }
   };
   return (
-    <SidebarProvider>
+    <>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <Toaster position="bottom-right" />
       <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -545,6 +553,6 @@ export function AppShell() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>);
+    </>);
 
 }

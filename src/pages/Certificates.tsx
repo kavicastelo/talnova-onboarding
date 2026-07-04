@@ -88,8 +88,8 @@ export function Certificates() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Certificates</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Certificates</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             View, download, and share verified digital credentials for onboarding journeys you completed.
           </p>
         </div>
@@ -158,85 +158,202 @@ export function Certificates() {
 
       {/* Certificate Viewer Modal */}
       <Dialog open={!!selectedCert} onOpenChange={() => setSelectedCert(null)}>
-        <DialogContent className="sm:max-w-2xl p-0 overflow-hidden bg-white border border-border">
+        <DialogContent className="max-w-full sm:max-w-2xl p-0 overflow-y-auto max-h-[90vh] bg-white border border-border">
           <DialogHeader className="sr-only">
             <DialogTitle>View Certificate</DialogTitle>
           </DialogHeader>
           
           {/* Certificate Board */}
-          <div className="p-8 md:p-12 text-center border-8 border-double border-primary/20 m-4 bg-white text-slate-800 relative overflow-hidden">
-            {/* Background elements */}
-            <div className="absolute -top-16 -left-16 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
-            <div className="absolute -bottom-16 -right-16 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
+          {(!settings?.certificate || settings.certificate.template === 'classic') && (
+            <div className="p-4 sm:p-8 md:p-12 text-center border-4 sm:border-8 border-double border-yellow-800/40 m-2 sm:m-4 bg-white text-slate-800 relative overflow-hidden flex flex-col justify-between min-h-[480px]">
+              {/* Background elements */}
+              <div className="absolute -top-16 -left-16 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
+              <div className="absolute -bottom-16 -right-16 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
 
-            <div className="flex justify-between items-center border-b pb-6 mb-6">
-              {/* Top Left: Company Logo */}
-              <div className="h-10 flex items-center">
-                {settings?.logoUrl ? (
-                  <img src={settings.logoUrl} alt={settings.orgName} className="h-8 object-contain" />
-                ) : (
-                  <div className="flex items-center gap-1.5 border px-2 py-1 rounded bg-slate-50">
-                    <div className="w-5 h-5 rounded bg-primary text-primary-foreground font-bold flex items-center justify-center text-[10px]">
-                      {settings?.orgName ? settings.orgName.charAt(0).toUpperCase() : 'T'}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-yellow-800/20 pb-4 mb-4">
+                {/* Top Left: Company Logo */}
+                <div className="h-10 flex items-center">
+                  {settings?.logoUrl ? (
+                    <img src={settings.logoUrl} alt={settings.orgName} className="h-8 object-contain" />
+                  ) : (
+                    <div className="flex items-center gap-1.5 border px-2 py-1 rounded bg-slate-50">
+                      <div className="w-5 h-5 rounded bg-primary text-primary-foreground font-bold flex items-center justify-center text-[10px]">
+                        {settings?.orgName ? settings.orgName.charAt(0).toUpperCase() : 'T'}
+                      </div>
+                      <span className="font-semibold text-xs tracking-tight text-slate-800">{settings?.orgName || 'Talnova'}</span>
                     </div>
-                    <span className="font-semibold text-xs tracking-tight text-slate-800">{settings?.orgName || 'Talnova'}</span>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* Top Right: Talnova Logo */}
+                <div className="h-10 flex items-center">
+                  <img src="/assets/images/talnova-long-black.png" alt="Talnova Logo" className="h-6 object-contain" />
+                </div>
               </div>
 
-              {/* Top Right: Talnova Logo */}
-              <div className="h-10 flex items-center">
-                <img src="/assets/images/talnova-long-black.png" alt="Talnova Logo" className="h-6 object-contain" />
+              <div className="flex justify-center mb-2">
+                <Award className="h-10 w-10 text-primary" />
+              </div>
+              
+              <h2 className="text-[10px] sm:text-xs font-semibold tracking-widest text-primary uppercase mb-1 font-mono">
+                Certificate of Completion
+              </h2>
+              <p className="italic text-muted-foreground text-[10px] sm:text-xs font-serif mb-2">
+                This credential is proudly presented to
+              </p>
+              <h3 className="text-xl font-bold font-serif tracking-tight text-slate-900 mb-2">
+                {employee?.name || user?.name || 'Jane Doe'}
+              </h3>
+              <p className="text-slate-500 text-[10px] sm:text-xs max-w-md mx-auto mb-2 font-serif leading-relaxed">
+                for successfully finishing all lessons, tasks, and evaluations in the onboarding journey
+              </p>
+              <h4 className="text-sm font-bold text-slate-900 mb-4 border-b border-dashed pb-2 max-w-md mx-auto">
+                {selectedCert?.title || 'General Onboarding'}
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[9px] text-muted-foreground font-mono pt-4 border-t border-yellow-800/20 items-end">
+                <div className="text-left">
+                  <p className="font-semibold text-slate-700">DATE</p>
+                  <p>{selectedCert?.assignedAt || 'June 2026'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-700">CREDENTIAL ID</p>
+                  <p className="uppercase">{selectedCert?.certificate?.certificateId?.slice(-12) || selectedCert?.id?.slice(-12) || 'ONB123'}</p>
+                </div>
+                <div className="text-right flex flex-col items-center sm:items-end">
+                  {settings?.certificate?.signatureUrl ? (
+                    <img src={settings.certificate.signatureUrl} alt="Signature" className="h-6 object-contain mb-1" />
+                  ) : (
+                    <div className="h-6" />
+                  )}
+                  <p className="font-semibold text-slate-800">{settings?.certificate?.signatoryName || 'Talnova Admin'}</p>
+                  <p className="text-[8px] text-slate-500">{settings?.certificate?.signatoryTitle || 'Authorized Representative'}</p>
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-center mb-4">
-              <Award className="h-16 w-16 text-primary" />
-            </div>
-            
-            <h2 className="text-xs font-semibold tracking-widest text-primary uppercase mb-1.5 font-mono">
-              Certificate of Completion
-            </h2>
-            <div className="h-0.5 w-16 bg-primary/30 mx-auto mb-4" />
-            <p className="italic text-muted-foreground text-xs font-serif mb-3">
-              This credential is proudly presented to
-            </p>
-            <h3 className="text-2xl font-bold font-serif tracking-tight text-slate-900 mb-4">
-              {employee?.name || user?.name || 'Jane Doe'}
-            </h3>
-            <p className="text-slate-500 text-xs max-w-md mx-auto mb-4 font-serif leading-relaxed">
-              for successfully finishing all lessons, tasks, and evaluations in the onboarding journey
-            </p>
-            <h4 className="text-lg font-bold text-slate-900 mb-6 border-b border-dashed pb-3 max-w-md mx-auto">
-              {selectedCert?.title || 'General Onboarding'}
-            </h4>
-            
-            <div className="flex justify-between items-center max-w-sm mx-auto text-[10px] text-muted-foreground font-mono pt-2">
-              <div>
-                <p className="font-semibold text-slate-700">DATE</p>
-                <p>{selectedCert?.assignedAt || 'June 2026'}</p>
+          {settings?.certificate?.template === 'modern' && (
+            <div className="p-4 sm:p-8 md:p-12 text-slate-150 m-2 sm:m-4 bg-[#0c101d] rounded-2xl shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[480px] border border-white/10">
+              <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-primary/30 to-transparent rounded-br-full" />
+              
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 z-10 border-b border-white/10 pb-4 mb-4">
+                <div className="h-10 flex items-center">
+                  {settings?.logoUrl ? (
+                    <img src={settings.logoUrl} alt={settings.orgName} className="h-8 object-contain" />
+                  ) : (
+                    <div className="flex items-center gap-1.5 border border-white/10 px-2 py-1 rounded bg-white/5">
+                      <div className="w-5 h-5 rounded bg-primary text-primary-foreground font-bold flex items-center justify-center text-[10px]">
+                        {settings?.orgName ? settings.orgName.charAt(0).toUpperCase() : 'T'}
+                      </div>
+                      <span className="font-semibold text-xs tracking-tight text-white">{settings?.orgName || 'Talnova'}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="h-10 flex items-center">
+                  <img src="/assets/images/talnova-long-black.png" alt="Talnova Logo" className="h-6 invert object-contain" />
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-slate-700">CREDENTIAL ID</p>
-                <p className="uppercase">{selectedCert?.certificate?.certificateId?.slice(-12) || selectedCert?.id?.slice(-12) || 'ONB123'}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex justify-between items-center p-4 bg-muted border-t">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleShareLinkedIn(selectedCert.id)}>
+              <div className="my-2 text-left space-y-2 z-10">
+                <span className="text-[8px] font-mono tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full font-semibold uppercase">Verification Credential</span>
+                <h1 className="text-lg font-extrabold text-white tracking-tight mt-2">CERTIFICATE OF COMPLETION</h1>
+                <div>
+                  <p className="text-[9px] text-slate-400">Awarded to:</p>
+                  <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 tracking-tight mt-0.5">
+                    {employee?.name || user?.name || 'Jane Doe'}
+                  </h2>
+                </div>
+                <p className="text-slate-400 text-[10px]">
+                  For the successful review, study, and completion of all lessons, quizzes, and standard practices of:
+                  <span className="block text-xs font-semibold text-white mt-0.5">{selectedCert?.title || 'General Onboarding'}</span>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[9px] font-mono pt-4 border-t border-white/10 z-10 items-end">
+                <div>
+                  <p className="text-slate-500">ISSUED ON</p>
+                  <p className="text-white">{selectedCert?.assignedAt || 'June 2026'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">CREDENTIAL ID</p>
+                  <p className="text-white uppercase">{selectedCert?.certificate?.certificateId?.slice(-12) || selectedCert?.id?.slice(-12) || 'ONB123'}</p>
+                </div>
+                <div className="text-right flex flex-col items-end">
+                  {settings?.certificate?.signatureUrl ? (
+                    <img src={settings.certificate.signatureUrl} alt="Signature" className="h-6 object-contain mb-1 brightness-200" />
+                  ) : (
+                    <div className="h-6" />
+                  )}
+                  <p className="font-semibold text-white">{settings?.certificate?.signatoryName || 'Talnova Admin'}</p>
+                  <p className="text-slate-400 text-[8px]">{settings?.certificate?.signatoryTitle || 'Authorized Representative'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {settings?.certificate?.template === 'minimalist' && (
+            <div className="p-4 sm:p-8 md:p-12 text-slate-800 dark:text-slate-200 m-2 sm:m-4 bg-white dark:bg-slate-950 rounded-2xl shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[480px] border border-slate-200 dark:border-white/10">
+              <div className="flex justify-between items-center border-b pb-4 mb-4 border-slate-100 dark:border-white/5">
+                <div className="h-8 flex items-center">
+                  {settings?.logoUrl ? (
+                    <img src={settings.logoUrl} alt={settings.orgName} className="h-6 object-contain" />
+                  ) : (
+                    <span className="font-semibold text-[10px] tracking-widest uppercase">{settings?.orgName || 'Talnova'}</span>
+                  )}
+                </div>
+                <span className="text-[8px] tracking-widest text-slate-400 font-mono">ATTESTATION</span>
+              </div>
+
+              <div className="my-4 text-center space-y-2">
+                <p className="text-[8px] uppercase tracking-widest text-slate-400 font-mono">This is to certify that</p>
+                <h2 className="text-2xl font-light text-slate-900 dark:text-white my-1 tracking-wide">
+                  {employee?.name || user?.name || 'Jane Doe'}
+                </h2>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  has successfully fulfilled all course requirements and assessments for the onboarding learning path:
+                </p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 font-mono uppercase tracking-wider">
+                  {selectedCert?.title || 'General Onboarding'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[9px] font-mono pt-4 border-t border-slate-100 dark:border-white/5 items-end">
+                <div className="text-left">
+                  <p className="text-slate-400">ISSUED ON</p>
+                  <p className="text-slate-805 dark:text-slate-200">{selectedCert?.assignedAt || 'June 2026'}</p>
+                </div>
+                <div className="text-center sm:text-left">
+                  <p className="text-slate-400">CREDENTIAL ID</p>
+                  <p className="text-slate-805 dark:text-slate-200 uppercase">{selectedCert?.certificate?.certificateId?.slice(-12) || selectedCert?.id?.slice(-12) || 'ONB123'}</p>
+                </div>
+                <div className="text-right flex flex-col items-end">
+                  {settings?.certificate?.signatureUrl ? (
+                    <img src={settings.certificate.signatureUrl} alt="Signature" className="h-6 object-contain mb-1 dark:brightness-200" />
+                  ) : (
+                    <div className="h-6" />
+                  )}
+                  <p className="font-semibold text-slate-805 dark:text-slate-200">{settings?.certificate?.signatoryName || 'Talnova Admin'}</p>
+                  <p className="text-slate-450 text-[8px]">{settings?.certificate?.signatoryTitle || 'Authorized Representative'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center p-4 bg-muted border-t">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 justify-center" onClick={() => handleShareLinkedIn(selectedCert.id)}>
                 <Linkedin className="h-3.5 w-3.5 text-[#0A66C2] fill-[#0A66C2]" /> Share on LinkedIn
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleCopyLink(selectedCert.id)}>
+              <Button variant="outline" size="sm" className="gap-1.5 justify-center" onClick={() => handleCopyLink(selectedCert.id)}>
                 <ExternalLink className="h-3.5 w-3.5" /> Copy Link
               </Button>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setSelectedCert(null)}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" size="sm" className="justify-center" onClick={() => setSelectedCert(null)}>
                 Close
               </Button>
-              <Button size="sm" onClick={handlePrint}>
+              <Button size="sm" className="justify-center" onClick={handlePrint}>
                 <Download className="mr-1.5 h-3.5 w-3.5" /> Save / Print
               </Button>
             </div>

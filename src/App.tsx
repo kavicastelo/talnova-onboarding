@@ -19,8 +19,11 @@ import { SuperAdminOrganizations } from './pages/SuperAdminOrganizations';
 import { SuperAdminFinance } from './pages/SuperAdminFinance';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
+import { KioskPlayerPage } from './features/kiosk';
+import { KioskDashboard } from './pages/KioskDashboard';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { LocalizationProvider } from './context/LocalizationProvider';
+import { SidebarProvider } from './components/Sidebar';
 import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
 // Initialize i18n — must be imported before any component renders
@@ -45,13 +48,14 @@ export function App() {
             <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
             <Route path="/public/certificate/:id" element={<PublicCertificateViewer />} />
 
-            <Route path="/" element={<AppShell />}>
+            <Route path="/" element={<SidebarProvider><AppShell /></SidebarProvider>}>
               <Route index element={<DashboardRedirect />} />
               <Route path="super-admin" element={<SuperAdminDashboard />} />
               <Route path="super-admin/organizations" element={<SuperAdminOrganizations />} />
               <Route path="super-admin/finance" element={<SuperAdminFinance />} />
               <Route path="journeys" element={<JourneysList />} />
               <Route path="journeys/:id" element={<JourneyBuilder />} />
+              <Route path="kiosks" element={<KioskDashboard />} />
               <Route path="directory" element={<EmployeeDirectory />} />
               <Route path="directory/:id" element={<EmployeeProfile />} />
               <Route path="employee" element={<EmployeeDashboard />} />
@@ -69,6 +73,7 @@ export function App() {
               />
             </Route>
             <Route path="/course/:id" element={<CourseViewer />} />
+            <Route path="/kiosk/play/:id" element={<KioskPlayerPage />} />
           </Routes>
         </BrowserRouter>
         <Toaster richColors closeButton position="top-right" />

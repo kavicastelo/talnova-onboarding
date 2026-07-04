@@ -36,6 +36,31 @@ export function Analytics() {
   const [range, setRange] = useState('30d');
   const { data: analytics, isLoading, isError, error, refetch } = useAnalytics(range);
 
+  const handleExportCSV = () => {
+    if (!analytics || !analytics.journeyCompletionRates) return;
+    
+    const headers = ['Journey Name', 'Category', 'Enrolled Employees', 'Completed Employees', 'Completion Rate (%)', 'Average Quiz Score (%)'];
+    const rows = analytics.journeyCompletionRates.map((j) => [
+      `"${j.title.replace(/"/g, '""')}"`,
+      `"${j.category.replace(/"/g, '""')}"`,
+      j.totalAssignments,
+      j.totalCompletions,
+      `${j.completionRate}%`,
+      `${j.averageScore}%`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `journey_analytics_${range}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-6xl mx-auto animate-pulse">
@@ -119,7 +144,7 @@ export function Analytics() {
               <SelectItem value="1y">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCSV}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
@@ -295,6 +320,79 @@ export function Analytics() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Journey-wise Completion Rate</CardTitle>
+          <CardDescription>
+            Performance analytics, enrollments, completions, and average quiz scores across all active onboarding curricula.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wider">
+                <tr>
+                  <th scope="col" className="px-6 py-4 font-medium">Journey Name</th>
+                  <th scope="col" className="px-6 py-4 font-medium">Category</th>
+                  <th scope="col" className="px-6 py-4 font-medium text-center">Enrolled</th>
+                  <th scope="col" className="px-6 py-4 font-medium text-center">Completed</th>
+                  <th scope="col" className="px-6 py-4 font-medium">Completion Rate</th>
+                  <th scope="col" className="px-6 py-4 font-medium text-center">Avg Quiz Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {analytics.journeyCompletionRates?.length > 0 ? (
+                  analytics.journeyCompletionRates.map((j) => (
+                    <tr key={j.id} className="hover:bg-muted/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-foreground max-w-[200px] truncate" title={j.title}>
+                        {j.title}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
+                          {j.category}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center text-foreground font-semibold">
+                        {j.totalAssignments}
+                      </td>
+                      <td className="px-6 py-4 text-center text-foreground font-semibold">
+                        {j.totalCompletions}
+                      </td>
+                      <td className="px-6 py-4 min-w-[200px]">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 text-right font-medium text-foreground">{j.completionRate}%</span>
+                          <div className="w-full bg-secondary rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${j.completionRate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {j.averageScore > 0 ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-emerald-500">
+                            {j.averageScore}%
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                      No journey analytics data available.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

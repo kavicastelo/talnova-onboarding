@@ -10,7 +10,8 @@ import {
   AlertCircle,
   RefreshCw,
   Award,
-  Check
+  Check,
+  Menu
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ScrollArea } from '../components/ScrollArea';
@@ -18,7 +19,112 @@ import { Separator } from '../components/Separator';
 import { useCourse, useUpdateLessonCompletion, useSubmitQuiz } from '../hooks/useCourses';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
-import { LessonType } from '../types';
+import { apiClient } from '../api/client';
+
+interface TranslateTextProps {
+  text?: string;
+  children?: string;
+  language: 'en' | 'si' | 'ta';
+}
+
+class TranslationQueue {
+  private queue: Array<{ text: string; language: string; resolve: (val: string) => void; reject: (err: any) => void }> = [];
+  private timeoutId: any = null;
+
+  add(text: string, language: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ text, language, resolve, reject });
+      this.scheduleProcessing();
+    });
+  }
+
+  private scheduleProcessing() {
+    if (this.timeoutId) return;
+    this.timeoutId = setTimeout(() => this.processQueue(), 50);
+  }
+
+  private async processQueue() {
+    this.timeoutId = null;
+    const currentQueue = [...this.queue];
+    this.queue = [];
+
+    if (currentQueue.length === 0) return;
+
+    // Group by language
+    const byLanguage: Record<string, typeof currentQueue> = {};
+    for (const item of currentQueue) {
+      if (!byLanguage[item.language]) {
+        byLanguage[item.language] = [];
+      }
+      byLanguage[item.language].push(item);
+    }
+
+    // Process each language group in parallel
+    for (const [lang, items] of Object.entries(byLanguage)) {
+      const textsToTranslate = items.map((i) => i.text);
+
+      try {
+        const res = await apiClient.post('/localization/translate-realtime', {
+          text: textsToTranslate,
+          targetLanguage: lang
+        });
+
+        const translatedArray = res.data.data.translatedText;
+        items.forEach((item, index) => {
+          const translated = Array.isArray(translatedArray) ? translatedArray[index] : translatedArray;
+          item.resolve(translated || item.text);
+        });
+      } catch (err) {
+        items.forEach((item) => {
+          item.resolve(item.text); // fallback to original text on error
+        });
+      }
+    }
+  }
+}
+
+const translationQueue = new TranslationQueue();
+
+function TranslateText({ text, children, language }: TranslateTextProps) {
+  const rawText = text || children || '';
+  const [translatedText, setTranslatedText] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (language === 'en' || !rawText.trim()) {
+      setTranslatedText(rawText);
+      return;
+    }
+
+    // Check localStorage cache
+    const cacheKey = `tr:v2:${language}:${rawText}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      setTranslatedText(cached);
+      return;
+    }
+
+    // Trigger API translation via queue
+    setIsLoading(true);
+    translationQueue.add(rawText, language)
+      .then(translated => {
+        localStorage.setItem(cacheKey, translated);
+        setTranslatedText(translated);
+      })
+      .catch(() => {
+        setTranslatedText(rawText); // fallback
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [rawText, language]);
+
+  if (isLoading) {
+    return <span className="animate-pulse text-indigo-400">Translating...</span>;
+  }
+
+  return <>{translatedText}</>;
+}
 
 export function CourseViewer() {
   const { id } = useParams();
@@ -29,6 +135,22 @@ export function CourseViewer() {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({});
   const [retryMode, setRetryMode] = useState<boolean>(false);
+  const [translationLanguage, setTranslationLanguage] = useState<'en' | 'si' | 'ta'>('en');
+
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1024px)');
+    const onChange = () => {
+      setIsMobile(mql.matches);
+      setSidebarOpen(!mql.matches);
+    };
+    mql.addEventListener('change', onChange);
+    setIsMobile(mql.matches);
+    setSidebarOpen(!mql.matches);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   const allLessons = course?.modules.flatMap((m) => m.lessons) || [];
   const selectedLesson =
@@ -167,7 +289,7 @@ export function CourseViewer() {
         if (videoDetails.type === 'youtube' || videoDetails.type === 'vimeo') {
           return (
             <div key={block.id} className="space-y-2">
-              {block.title && <h3 className="text-white font-semibold text-lg">{block.title}</h3>}
+              {block.title && <h3 className="text-white font-semibold text-lg"><TranslateText language={translationLanguage}>{block.title}</TranslateText></h3>}
               <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
                 <iframe
                   className="w-full h-full"
@@ -182,7 +304,7 @@ export function CourseViewer() {
         } else if (videoDetails.src) {
           return (
             <div key={block.id} className="space-y-2">
-              {block.title && <h3 className="text-white font-semibold text-lg">{block.title}</h3>}
+              {block.title && <h3 className="text-white font-semibold text-lg"><TranslateText language={translationLanguage}>{block.title}</TranslateText></h3>}
               <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center">
                 <video
                   src={videoDetails.src}
@@ -205,8 +327,12 @@ export function CourseViewer() {
                 <PlayCircle className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-white font-semibold text-sm">{block.title || 'Audio Lesson'}</h4>
-                <p className="text-xs text-gray-400">Audio Playback</p>
+                <h4 className="text-white font-semibold text-sm">
+                  <TranslateText language={translationLanguage}>{block.title || 'Audio Lesson'}</TranslateText>
+                </h4>
+                <p className="text-xs text-gray-400">
+                  <TranslateText language={translationLanguage}>Audio Playback</TranslateText>
+                </p>
               </div>
             </div>
             {block.uploadUrl && (
@@ -230,13 +356,17 @@ export function CourseViewer() {
                   <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold text-sm">{block.title || 'Document.pdf'}</h4>
-                  <p className="text-xs text-gray-400">PDF Reader</p>
+                  <h4 className="text-white font-semibold text-sm">
+                    <TranslateText language={translationLanguage}>{block.title || 'Document.pdf'}</TranslateText>
+                  </h4>
+                  <p className="text-xs text-gray-400">
+                    <TranslateText language={translationLanguage}>PDF Reader</TranslateText>
+                  </p>
                 </div>
               </div>
               {block.uploadUrl && (
                 <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/10" onClick={() => window.open(block.uploadUrl, '_blank')}>
-                  Open PDF
+                  <TranslateText language={translationLanguage}>Open PDF</TranslateText>
                 </Button>
               )}
             </div>
@@ -256,7 +386,11 @@ export function CourseViewer() {
       case 'image': {
         return (
           <div key={block.id} className="space-y-2">
-            {block.title && <h4 className="text-white font-semibold text-sm">{block.title}</h4>}
+            {block.title && (
+              <h4 className="text-white font-semibold text-sm">
+                <TranslateText language={translationLanguage}>{block.title}</TranslateText>
+              </h4>
+            )}
             <div className="rounded-xl overflow-hidden border border-white/10 shadow-xl bg-black/20">
               <img src={block.uploadUrl} alt={block.title || "Image block"} className="w-full max-h-[500px] object-contain mx-auto" />
             </div>
@@ -272,13 +406,17 @@ export function CourseViewer() {
                 <FileText className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-white font-semibold text-sm">{block.title || 'Attached Document'}</h4>
-                <p className="text-xs text-gray-400">Word/Excel/Powerpoint Attachment</p>
+                <h4 className="text-white font-semibold text-sm">
+                  <TranslateText language={translationLanguage}>{block.title || 'Attached Document'}</TranslateText>
+                </h4>
+                <p className="text-xs text-gray-400">
+                  <TranslateText language={translationLanguage}>Word/Excel/Powerpoint Attachment</TranslateText>
+                </p>
               </div>
             </div>
             {block.uploadUrl && (
               <Button size="sm" onClick={() => window.open(block.uploadUrl, '_blank')}>
-                Download File
+                <TranslateText language={translationLanguage}>Download File</TranslateText>
               </Button>
             )}
           </div>
@@ -288,7 +426,11 @@ export function CourseViewer() {
       case 'embed': {
         return (
           <div key={block.id} className="space-y-2">
-            {block.title && <h4 className="text-white font-semibold text-sm">{block.title}</h4>}
+            {block.title && (
+              <h4 className="text-white font-semibold text-sm">
+                <TranslateText language={translationLanguage}>{block.title}</TranslateText>
+              </h4>
+            )}
             <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl">
               <iframe
                 className="w-full h-full"
@@ -304,8 +446,12 @@ export function CourseViewer() {
       case 'checklist': {
         return (
           <div key={block.id} className="bg-white/[0.02] border border-white/10 rounded-xl p-4 space-y-3 shadow-xl">
-            <h4 className="text-white font-semibold text-sm">{block.title || 'Checklist Tasks'}</h4>
-            <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{block.content}</div>
+            <h4 className="text-white font-semibold text-sm">
+              <TranslateText language={translationLanguage}>{block.title || 'Checklist Tasks'}</TranslateText>
+            </h4>
+            <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+              <TranslateText language={translationLanguage}>{block.content}</TranslateText>
+            </div>
           </div>
         );
       }
@@ -314,8 +460,12 @@ export function CourseViewer() {
       default: {
         return (
           <div key={block.id} className="prose prose-sm dark:prose-invert max-w-none text-gray-300 leading-relaxed">
-            {block.title && <h3 className="text-white font-bold text-xl mt-6">{block.title}</h3>}
-            <MarkdownPreview content={block.content || ''} />
+            {block.title && (
+              <h3 className="text-white font-bold text-xl mt-6">
+                <TranslateText language={translationLanguage}>{block.title}</TranslateText>
+              </h3>
+            )}
+            <MarkdownPreview content={block.content || ''} language={translationLanguage} />
           </div>
         );
       }
@@ -357,20 +507,50 @@ export function CourseViewer() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#0B0F19]">
-      <div className="w-80 border-r border-white/10 flex flex-col bg-white/[0.02] backdrop-blur-md">
-        <div className="p-4 border-b border-white/10">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4 -ml-2 text-gray-400 hover:text-white"
-            asChild>
-            <Link to="/employee">
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to Dashboard
-            </Link>
-          </Button>
-          <h2 className="font-semibold text-lg text-white leading-tight mb-2">
+    <div className="flex h-screen w-full bg-[#0B0F19] overflow-hidden">
+      {/* Backdrop for mobile */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Curriculum Sidebar */}
+      <div
+        className={`${
+          isMobile
+            ? `fixed inset-y-0 left-0 z-40 w-80 bg-[#0E1321] transition-transform duration-200 transform ${
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+              }`
+            : `transition-[width,margin-left] duration-200 ${
+                sidebarOpen ? 'w-80 border-r border-white/10 bg-white/[0.02]' : 'w-0 overflow-hidden'
+              }`
+        } flex flex-col h-full shrink-0`}
+      >
+        <div className="p-4 border-b border-white/10 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-2 text-gray-400 hover:text-white"
+              asChild>
+              <Link to="/employee">
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Dashboard
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(false)}
+              className="text-gray-400 hover:text-white h-8 w-8"
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
+          <h2 className="font-semibold text-lg text-white leading-tight mb-2 truncate">
             {course.title}
           </h2>
           <div className="flex items-center gap-2 mb-1">
@@ -396,7 +576,10 @@ export function CourseViewer() {
                     return (
                       <button
                         key={lesson.id}
-                        onClick={() => setSelectedLessonId(lesson.id)}
+                        onClick={() => {
+                          setSelectedLessonId(lesson.id);
+                          if (isMobile) setSidebarOpen(false);
+                        }}
                         className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-all text-left ${
                           isSelected ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'hover:bg-white/[0.04] text-gray-400 hover:text-white border border-transparent'
                         }`}>
@@ -434,60 +617,121 @@ export function CourseViewer() {
       <div className="flex-1 flex flex-col min-w-0 bg-[#0B0F19]">
         {selectedLesson ? (
           <>
-            <header className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-white/[0.01]">
-              <h1 className="font-semibold text-white text-sm">{selectedLesson.title}</h1>
-              <div className="flex items-center gap-2">
+            <header className="h-14 border-b border-white/10 flex items-center justify-between px-4 sm:px-6 bg-white/[0.01]">
+              <div className="flex items-center gap-2 min-w-0">
+                {!sidebarOpen && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSidebarOpen(true)}
+                    className="text-gray-400 hover:text-white shrink-0 mr-1"
+                    title="Show Sidebar"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                )}
+                <h1 className="font-semibold text-white text-sm truncate">
+                  <TranslateText language={translationLanguage}>{selectedLesson.title}</TranslateText>
+                </h1>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Real-time Translation Toggle Switcher */}
+                <div className="flex items-center bg-white/[0.04] p-0.5 rounded-lg border border-white/10 mr-2 shadow-inner">
+                  <button
+                    onClick={() => setTranslationLanguage('en')}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-150 ${
+                      translationLanguage === 'en'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    onClick={() => setTranslationLanguage('si')}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-150 ${
+                      translationLanguage === 'si'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    සිංහල (SI)
+                  </button>
+                  <button
+                    onClick={() => setTranslationLanguage('ta')}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-150 ${
+                      translationLanguage === 'ta'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    தமிழ் (TA)
+                  </button>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handlePrevious}
                   disabled={selectedIndex <= 0}
-                  className="border-white/10 text-gray-300 hover:bg-white/5"
+                  className="border-white/10 text-gray-300 hover:bg-white/5 px-2.5 sm:px-3"
                 >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                  Previous
+                  <ChevronLeft className="sm:mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Previous</span>
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleNext}
                   disabled={selectedIndex >= allLessons.length - 1}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3"
                 >
-                  Next
-                  <ChevronRight className="ml-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="sm:ml-2 h-4 w-4" />
                 </Button>
               </div>
             </header>
-            <main className="flex-1 p-8 overflow-auto flex justify-center">
+            <main className="flex-1 p-4 sm:p-8 overflow-auto flex justify-center">
               <div className="max-w-3xl w-full space-y-8">
                 {selectedLesson.type === 'Quiz' && selectedLesson.quiz ? (
                   <div className="space-y-6">
                     {selectedLesson.quizAttempt && !retryMode ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center space-y-6 shadow-xl">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-8 text-center space-y-6 shadow-xl">
                         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
                           <Award className="h-7 w-7" />
                         </div>
                         <div className="space-y-2">
-                          <h3 className="text-2xl font-bold text-white">Quiz Evaluation Results</h3>
+                          <h3 className="text-xl sm:text-2xl font-bold text-white">
+                            <TranslateText language={translationLanguage}>Quiz Evaluation Results</TranslateText>
+                          </h3>
                           <p className="text-gray-400 text-sm">
-                            {selectedLesson.quizAttempt.passed ? 'Excellent work! You passed the assessment requirements.' : 'You did not score enough to pass the assessment this time.'}
+                            {selectedLesson.quizAttempt.passed ? (
+                              <TranslateText language={translationLanguage}>Excellent work! You passed the assessment requirements.</TranslateText>
+                            ) : (
+                              <TranslateText language={translationLanguage}>You did not score enough to pass the assessment this time.</TranslateText>
+                            )}
                           </p>
                         </div>
-                        <div className="flex justify-center gap-6 text-sm">
+                        <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm">
                           <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
-                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">Your Score</span>
+                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                              <TranslateText language={translationLanguage}>Your Score</TranslateText>
+                            </span>
                             <span className={`text-2xl font-bold block mt-1 ${selectedLesson.quizAttempt.passed ? 'text-emerald-400' : 'text-red-400'}`}>
                               {selectedLesson.quizAttempt.score}%
                             </span>
                           </div>
                           <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
-                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">Passing Score</span>
+                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                              <TranslateText language={translationLanguage}>Passing Score</TranslateText>
+                            </span>
                             <span className="text-2xl font-bold text-white block mt-1">
                               {selectedLesson.quiz.passingScore}%
                             </span>
                           </div>
                           <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
-                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">Attempt No</span>
+                            <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                              <TranslateText language={translationLanguage}>Attempt No</TranslateText>
+                            </span>
                             <span className="text-2xl font-bold text-white block mt-1">
                               {selectedLesson.quizAttempt.attemptNumber}
                             </span>
@@ -496,26 +740,32 @@ export function CourseViewer() {
 
                         {selectedLesson.quizAttempt.passed ? (
                           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
-                            <CheckCircle2 className="h-4 w-4" /> Passed & Completed
+                            <CheckCircle2 className="h-4 w-4" /> <TranslateText language={translationLanguage}>Completed</TranslateText>
                           </div>
                         ) : (
                           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold">
-                            <AlertCircle className="h-4 w-4" /> Verification Incomplete
+                            <AlertCircle className="h-4 w-4" /> <TranslateText language={translationLanguage}>Verification Incomplete</TranslateText>
                           </div>
                         )}
 
                         <div className="pt-4">
-                          <Button onClick={() => setRetryMode(true)} className="bg-indigo-600 hover:bg-indigo-700">
-                            {selectedLesson.quizAttempt.passed ? 'Retake Quiz' : 'Try Again'}
+                          <Button onClick={() => setRetryMode(true)} className="bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto">
+                            {selectedLesson.quizAttempt.passed ? (
+                              <TranslateText language={translationLanguage}>Retake Quiz</TranslateText>
+                            ) : (
+                              <TranslateText language={translationLanguage}>Try Again</TranslateText>
+                            )}
                           </Button>
                         </div>
                       </div>
                     ) : (
                       <div className="space-y-8">
                         <div className="border-b border-white/10 pb-4">
-                          <h3 className="text-xl font-bold text-white">Lesson Assessment</h3>
+                          <h3 className="text-xl font-bold text-white">
+                            <TranslateText language={translationLanguage}>Lesson Assessment</TranslateText>
+                          </h3>
                           <p className="text-sm text-gray-400 mt-1">
-                            Answer the questions below to verify your learning. You need at least {selectedLesson.quiz.passingScore}% to pass.
+                            <TranslateText language={translationLanguage}>Answer the questions below to verify your learning. You need at least</TranslateText> {selectedLesson.quiz.passingScore}% <TranslateText language={translationLanguage}>to pass.</TranslateText>
                           </p>
                         </div>
 
@@ -529,11 +779,13 @@ export function CourseViewer() {
                                     {qIdx + 1}
                                   </span>
                                   <div className="space-y-1">
-                                    <h4 className="font-semibold text-white leading-snug">{question.questionText}</h4>
+                                    <h4 className="font-semibold text-white leading-snug">
+                                      <TranslateText language={translationLanguage}>{question.questionText}</TranslateText>
+                                    </h4>
                                     <p className="text-xs text-gray-500 font-medium">
-                                      {question.type === 'single_choice' && 'Select single choice option'}
-                                      {question.type === 'true_false' && 'Select True or False'}
-                                      {question.type === 'multiple_choice' && 'Multiple choices allowed'} • {question.points} points
+                                      {question.type === 'single_choice' && <TranslateText language={translationLanguage}>Select single choice option</TranslateText>}
+                                      {question.type === 'true_false' && <TranslateText language={translationLanguage}>Select True or False</TranslateText>}
+                                      {question.type === 'multiple_choice' && <TranslateText language={translationLanguage}>Multiple choices allowed</TranslateText>} • {question.points} points
                                     </p>
                                   </div>
                                 </div>
@@ -552,7 +804,9 @@ export function CourseViewer() {
                                             : 'border-white/10 bg-white/[0.01] hover:border-white/20 text-gray-300'
                                         }`}
                                       >
-                                        <span>{option.optionText}</span>
+                                        <span>
+                                          <TranslateText language={translationLanguage}>{option.optionText}</TranslateText>
+                                        </span>
                                         <div className={`flex h-5 w-5 shrink-0 items-center justify-center border transition-all ${
                                           question.type === 'multiple_choice' ? 'rounded-md' : 'rounded-full'
                                         } ${
@@ -586,7 +840,7 @@ export function CourseViewer() {
                             {submitQuiz.isPending ? (
                               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                             ) : null}
-                            Submit Assessment
+                            <TranslateText language={translationLanguage}>Submit Assessment</TranslateText>
                           </Button>
                         </div>
                       </div>
@@ -595,8 +849,14 @@ export function CourseViewer() {
                 ) : (
                   <div className="space-y-8">
                     <div className="border-b border-white/10 pb-4">
-                      <h2 className="text-white text-2xl font-bold">{selectedLesson.title}</h2>
-                      {selectedLesson.description && <p className="text-sm text-gray-400 mt-1">{selectedLesson.description}</p>}
+                      <h2 className="text-white text-2xl font-bold">
+                        <TranslateText language={translationLanguage}>{selectedLesson.title}</TranslateText>
+                      </h2>
+                      {selectedLesson.description && (
+                        <p className="text-sm text-gray-400 mt-1">
+                          <TranslateText language={translationLanguage}>{selectedLesson.description}</TranslateText>
+                        </p>
+                      )}
                     </div>
                     {selectedLesson.contentBlocks && selectedLesson.contentBlocks.length > 0 ? (
                       <div className="space-y-8">
@@ -605,7 +865,7 @@ export function CourseViewer() {
                     ) : (
                       <div className="prose prose-sm dark:prose-invert max-w-none">
                         <div className="text-gray-300 leading-relaxed">
-                          <MarkdownPreview content={selectedLesson.content || ''} />
+                          <MarkdownPreview content={selectedLesson.content || ''} language={translationLanguage} />
                         </div>
                       </div>
                     )}
@@ -618,7 +878,7 @@ export function CourseViewer() {
                     <div>
                       {selectedLesson.completionRule === 'video' && (
                         <p className="text-xs text-indigo-400 italic">
-                          This lesson will complete automatically when you watch 90% of the video / listen to 90% of the audio.
+                          <TranslateText language={translationLanguage}>This lesson will complete automatically when you watch 90% of the video / listen to 90% of the audio.</TranslateText>
                         </p>
                       )}
                     </div>
@@ -633,7 +893,11 @@ export function CourseViewer() {
                       ) : selectedLesson.isCompleted ? (
                         <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-400" />
                       ) : null}
-                      {selectedLesson.isCompleted ? 'Completed' : 'Mark as Completed'}
+                      {selectedLesson.isCompleted ? (
+                        <TranslateText language={translationLanguage}>Completed</TranslateText>
+                      ) : (
+                        <TranslateText language={translationLanguage}>Mark as Completed</TranslateText>
+                      )}
                     </Button>
                   </div>
                 )}
@@ -669,7 +933,7 @@ function getVideoEmbedUrl(url: string): { type: 'youtube' | 'vimeo' | 'direct' |
   return { type: 'direct', src: url };
 }
 
-function MarkdownPreview({ content }: { content: string }) {
+function MarkdownPreview({ content, language }: { content: string; language: 'en' | 'si' | 'ta' }) {
   if (!content) return <p className="text-gray-400 italic text-sm">No content written yet.</p>;
 
   const lines = content.split('\n');
@@ -678,23 +942,23 @@ function MarkdownPreview({ content }: { content: string }) {
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('# ')) {
-          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b border-white/10 pb-2 mt-6 text-white">{trimmed.slice(2)}</h1>;
+          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b border-white/10 pb-2 mt-6 text-white"><TranslateText language={language}>{trimmed.slice(2)}</TranslateText></h1>;
         }
         if (trimmed.startsWith('## ')) {
-          return <h2 key={idx} className="text-xl font-semibold mt-5 text-white">{trimmed.slice(3)}</h2>;
+          return <h2 key={idx} className="text-xl font-semibold mt-5 text-white"><TranslateText language={language}>{trimmed.slice(3)}</TranslateText></h2>;
         }
         if (trimmed.startsWith('### ')) {
-          return <h3 key={idx} className="text-lg font-semibold mt-4 text-white">{trimmed.slice(4)}</h3>;
+          return <h3 key={idx} className="text-lg font-semibold mt-4 text-white"><TranslateText language={language}>{trimmed.slice(4)}</TranslateText></h3>;
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
             <ul key={idx} className="list-disc pl-6 space-y-1 text-gray-300">
-              <li>{trimmed.slice(2)}</li>
+              <li><TranslateText language={language}>{trimmed.slice(2)}</TranslateText></li>
             </ul>
           );
         }
         if (trimmed.startsWith('> ')) {
-          return <blockquote key={idx} className="border-l-4 border-indigo-500 pl-4 italic my-2 bg-white/[0.02] py-1 rounded-r text-gray-400">{trimmed.slice(2)}</blockquote>;
+          return <blockquote key={idx} className="border-l-4 border-indigo-500 pl-4 italic my-2 bg-white/[0.02] py-1 rounded-r text-gray-400"><TranslateText language={language}>{trimmed.slice(2)}</TranslateText></blockquote>;
         }
         if (trimmed.startsWith('```')) {
           if (trimmed === '```') return null;
@@ -703,7 +967,7 @@ function MarkdownPreview({ content }: { content: string }) {
         if (!trimmed) {
           return <div key={idx} className="h-2" />;
         }
-        return <p key={idx} className="leading-relaxed text-gray-300">{trimmed}</p>;
+        return <p key={idx} className="leading-relaxed text-gray-300"><TranslateText language={language}>{trimmed}</TranslateText></p>;
       })}
     </div>
   );

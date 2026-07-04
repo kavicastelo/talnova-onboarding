@@ -22,7 +22,8 @@ export const settingsService = {
         enforceMfa: org.securitySettings?.enforceMfa ?? false,
         sessionTimeout: org.securitySettings?.sessionTimeout ?? 3600,
       },
-      categories: org.categories || ["Engineering", "Sales", "General"]
+      categories: org.categories || ["Engineering", "Sales", "General"],
+      certificate: org.certificate || { template: 'classic' }
     };
   },
 
@@ -30,11 +31,12 @@ export const settingsService = {
     let updatedOrg = null;
 
     // 1. If updating name/supportEmail or notifications, send patch to current organization
-    if (settings.orgName !== undefined || settings.supportEmail !== undefined || settings.notifications !== undefined || settings.categories !== undefined) {
+    if (settings.orgName !== undefined || settings.supportEmail !== undefined || settings.notifications !== undefined || settings.categories !== undefined || settings.certificate !== undefined) {
       const payload: Record<string, any> = {};
       if (settings.orgName !== undefined) payload.name = settings.orgName;
       if (settings.supportEmail !== undefined) payload.supportEmail = settings.supportEmail;
       if (settings.categories !== undefined) payload.categories = settings.categories;
+      if (settings.certificate !== undefined) payload.certificate = settings.certificate;
       if (settings.notifications !== undefined) {
         payload.notificationSettings = {
           assignmentEmail: settings.notifications.newAssignmentEmails,
@@ -89,7 +91,8 @@ export const settingsService = {
         enforceMfa: updatedOrg.securitySettings?.enforceMfa ?? false,
         sessionTimeout: updatedOrg.securitySettings?.sessionTimeout ?? 3600,
       },
-      categories: updatedOrg.categories || ["Engineering", "Sales", "General"]
+      categories: updatedOrg.categories || ["Engineering", "Sales", "General"],
+      certificate: updatedOrg.certificate || { template: 'classic' }
     };
   },
 

@@ -20,7 +20,9 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
     completedJourneysCount: user.statistics?.completedJourneys || 0,
     certificatesCount: user.statistics?.certificates || 0,
     avatar: user.profile?.avatar?.publicUrl || '',
-    assignedJourneys: []
+    assignedJourneys: [],
+    designation: user.employment?.designation || '',
+    payrollCategory: user.employment?.payrollCategory || ''
   };
 };
 
@@ -98,7 +100,10 @@ export const employeeService = {
       lastName,
       role: 'employee',
       departmentId,
-      employmentType: 'full_time'
+      employmentType: 'full_time',
+      designation: employee.designation,
+      payrollCategory: employee.payrollCategory,
+      hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString() : undefined
     };
 
     const response = await apiClient.post<ApiResponse<any>>('/employees/invite', invitePayload);
@@ -119,6 +124,9 @@ export const employeeService = {
     if (employee.status) {
       payload.status = employee.status.toLowerCase();
     }
+    if (employee.designation !== undefined) payload.designation = employee.designation;
+    if (employee.payrollCategory !== undefined) payload.payrollCategory = employee.payrollCategory;
+    if (employee.hireDate !== undefined) payload.hireDate = employee.hireDate;
 
     const response = await apiClient.patch<ApiResponse<any>>(`/employees/${id}`, payload);
     return mapBackendUserToEmployee(response.data.data);

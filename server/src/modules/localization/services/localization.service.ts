@@ -16,6 +16,8 @@ import {
   type SupportedLocale,
 } from "../../../config/localization.config.js";
 import AppError from "../../../common/errors/app-error.js";
+import { TranslationProvider } from "./translation-provider.interface.js";
+import { MockTranslationProvider } from "./translation-provider.impl.js";
 
 // Re-export so existing callers don't break
 export { SUPPORTED_LOCALES, type SupportedLocale };
@@ -42,18 +44,28 @@ export class LocalizationService {
   private readonly negotiator: LocaleNegotiator;
   private readonly versionManager: TranslationVersionManager;
   private readonly events: ILocalizationEventBus;
+  private readonly translationProvider: TranslationProvider;
 
   constructor(options?: {
     repository?: TranslationRepository;
     cache?: ICacheProvider;
     negotiator?: LocaleNegotiator;
     events?: ILocalizationEventBus;
+    translationProvider?: TranslationProvider;
   }) {
     this.cache = options?.cache ?? new MemoryCacheProvider();
     this.repository = options?.repository ?? new TranslationRepository();
     this.negotiator = options?.negotiator ?? new LocaleNegotiator();
     this.versionManager = new TranslationVersionManager(this.repository, this.cache);
     this.events = options?.events ?? new NoOpEventBus();
+    this.translationProvider = options?.translationProvider ?? new MockTranslationProvider();
+  }
+
+  /**
+   * Translate text in real-time using the registered provider.
+   */
+  async translateRealtime(text: string, targetLanguage: string): Promise<string> {
+    return this.translationProvider.translate(text, "en", targetLanguage);
   }
 
   // ─── Locale resolution ────────────────────────────────────────────────────

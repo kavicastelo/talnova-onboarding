@@ -58,7 +58,7 @@ export const TabsList = React.forwardRef<HTMLDivElement, TabsListProps>(
       data-variant={variant}
       role="tablist"
       className={cn(
-        'inline-flex h-8 w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground',
+        'inline-flex h-8 w-fit max-w-full overflow-x-auto items-center justify-start rounded-lg p-[3px] text-muted-foreground scrollbar-none',
         variant === 'default' ? 'bg-muted' : 'gap-1 bg-transparent rounded-none',
         className
       )}
@@ -88,7 +88,7 @@ export const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>
         aria-selected={isActive}
         onClick={() => onValueChange(value)}
         className={cn(
-          "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+          "relative inline-flex h-[calc(100%-1px)] flex-1 shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
           isActive && 'bg-background text-foreground shadow-sm dark:border-input dark:bg-input/30',
           className
         )}
