@@ -111,9 +111,9 @@ export function EmployeeDirectory() {
   };
 
   const downloadSampleCSV = () => {
-    const headers = 'email,firstName,lastName,departmentId,role\n';
-    const sampleRow1 = 'jane.doe@example.com,Jane,Doe,,employee\n';
-    const sampleRow2 = 'john.smith@example.com,John,Smith,,admin\n';
+    const headers = 'email,firstName,lastName,departmentId,role,employeeId,designation,payrollCategory,employmentType,hireDate,phone,location,timezone\n';
+    const sampleRow1 = 'jane.doe@example.com,Jane,Doe,,employee,EMP001,Software Engineer,Standard,full_time,2026-07-01,+1234567890,New York,America/New_York\n';
+    const sampleRow2 = 'john.smith@example.com,John,Smith,,admin,EMP002,Project Manager,Executive,full_time,2026-07-01,+1987654321,London,Europe/London\n';
     const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + sampleRow1 + sampleRow2);
     const link = document.createElement('a');
     link.setAttribute('href', csvContent);
@@ -146,6 +146,14 @@ export function EmployeeDirectory() {
       const lastIdx = headers.indexOf('lastname');
       const deptIdx = headers.indexOf('departmentid');
       const roleIdx = headers.indexOf('role');
+      const empIdIdx = headers.indexOf('employeeid');
+      const desIdx = headers.indexOf('designation');
+      const payIdx = headers.indexOf('payrollcategory');
+      const typeIdx = headers.indexOf('employmenttype');
+      const hireIdx = headers.indexOf('hiredate');
+      const phoneIdx = headers.indexOf('phone');
+      const locIdx = headers.indexOf('location');
+      const tzIdx = headers.indexOf('timezone');
 
       if (emailIdx === -1 || firstIdx === -1 || lastIdx === -1) {
         toast.error('CSV must contain "email", "firstName", and "lastName" columns.');
@@ -163,6 +171,14 @@ export function EmployeeDirectory() {
         const lastName = row[lastIdx];
         const departmentId = deptIdx !== -1 ? row[deptIdx] : undefined;
         const role = roleIdx !== -1 ? row[roleIdx] : 'employee';
+        const employeeId = empIdIdx !== -1 ? row[empIdIdx] : undefined;
+        const designation = desIdx !== -1 ? row[desIdx] : undefined;
+        const payrollCategory = payIdx !== -1 ? row[payIdx] : undefined;
+        const employmentType = typeIdx !== -1 ? row[typeIdx] : undefined;
+        const hireDate = hireIdx !== -1 ? row[hireIdx] : undefined;
+        const phone = phoneIdx !== -1 ? row[phoneIdx] : undefined;
+        const location = locIdx !== -1 ? row[locIdx] : undefined;
+        const timezone = tzIdx !== -1 ? row[tzIdx] : undefined;
 
         if (email && firstName && lastName) {
           parsedList.push({
@@ -170,7 +186,15 @@ export function EmployeeDirectory() {
             firstName,
             lastName,
             departmentId: departmentId || undefined,
-            role: role || 'employee'
+            role: role || 'employee',
+            employeeId: employeeId || undefined,
+            designation: designation || undefined,
+            payrollCategory: payrollCategory || undefined,
+            employmentType: employmentType || undefined,
+            hireDate: hireDate || undefined,
+            phone: phone || undefined,
+            location: location || undefined,
+            timezone: timezone || undefined
           });
         }
       }
@@ -219,25 +243,36 @@ export function EmployeeDirectory() {
                 <Upload className="h-4 w-4" /> Bulk Import
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>Bulk Import Employees</DialogTitle>
                 <DialogDescription>
-                  Upload a CSV file containing employee details. The default password for all imported accounts will be set to <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-sm font-semibold">123456</code>.
+                  Upload a CSV file containing employee details. The default password for all imported accounts will be set to <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-sm font-semibold">Welcome@2026!</code>.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
                 <div className="flex justify-between items-center px-1">
                   <span className="text-xs text-muted-foreground">Need a template?</span>
                   <Button variant="link" size="sm" onClick={downloadSampleCSV} className="h-auto p-0 text-xs flex items-center gap-1 font-semibold text-primary">
                     <Download className="h-3 w-3" /> Download Sample CSV
                   </Button>
                 </div>
+                <div className="bg-muted/30 border border-muted/50 rounded-md p-3 text-xs space-y-2">
+                  <span className="font-semibold text-foreground block">Field Value Guidelines:</span>
+                  <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                    <li>
+                      <strong className="text-foreground">role:</strong> <code className="bg-muted px-1 rounded">owner</code>, <code className="bg-muted px-1 rounded">admin</code>, <code className="bg-muted px-1 rounded">manager</code>, or <code className="bg-muted px-1 rounded">employee</code> (default)
+                    </li>
+                    <li>
+                      <strong className="text-foreground">employmentType:</strong> <code className="bg-muted px-1 rounded">full_time</code> (default), <code className="bg-muted px-1 rounded">part_time</code>, <code className="bg-muted px-1 rounded">contractor</code>, or <code className="bg-muted px-1 rounded">intern</code>
+                    </li>
+                  </ul>
+                </div>
 
                 <div className="p-6 border-2 border-dashed border-muted rounded-lg text-center space-y-2">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground opacity-50" />
                   <p className="text-sm font-medium">Click to select CSV file</p>
-                  <p className="text-xs text-muted-foreground">CSV header: email, firstName, lastName, departmentId (optional), role (optional)</p>
+                  <p className="text-xs text-muted-foreground">CSV header: email, firstName, lastName, departmentId (opt), role (opt), employeeId (opt), designation (opt), payrollCategory (opt), employmentType (opt), hireDate (opt), phone (opt), location (opt), timezone (opt)</p>
                   <Input 
                     type="file" 
                     accept=".csv" 

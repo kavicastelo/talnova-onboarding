@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { getErrorMessage } from '../api/client';
 
 export function ForgotPassword() {
   const { t } = useTranslation('auth');
@@ -23,7 +24,7 @@ export function ForgotPassword() {
       await authService.forgotPassword(email);
       setSent(true);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('forgotPassword.subtitle'));
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

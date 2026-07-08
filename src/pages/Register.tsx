@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { getErrorMessage } from '../api/client';
 
 export function Register() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export function Register() {
         navigate('/login');
       }, 1500);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create organization.');
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

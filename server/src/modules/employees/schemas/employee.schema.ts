@@ -67,7 +67,15 @@ export const importEmployeesSchema = z.object({
       firstName: z.string().min(1, "First name is required"),
       lastName: z.string().min(1, "Last name is required"),
       departmentId: z.string().optional().nullable(),
-      role: z.enum(["owner", "admin", "manager", "employee"]).optional(),
+      role: z.enum(["owner", "admin", "manager", "employee"]).optional().nullable(),
+      employeeId: z.string().optional().nullable(),
+      designation: z.string().optional().nullable(),
+      payrollCategory: z.string().optional().nullable(),
+      employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]).optional().nullable(),
+      hireDate: z.string().optional().nullable(),
+      phone: z.string().optional().nullable(),
+      location: z.string().optional().nullable(),
+      timezone: z.string().optional().nullable(),
     })
   ),
 });
