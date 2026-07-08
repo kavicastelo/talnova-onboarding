@@ -222,6 +222,14 @@ export class EmployeeService {
       lastName: string;
       departmentId?: string;
       role?: string;
+      employeeId?: string;
+      designation?: string;
+      payrollCategory?: string;
+      employmentType?: "full_time" | "part_time" | "contractor" | "intern";
+      hireDate?: string | Date;
+      phone?: string;
+      location?: string;
+      timezone?: string;
     }>,
     creatorId: string | mongoose.Types.ObjectId
   ) {
@@ -230,7 +238,12 @@ export class EmployeeService {
       failures: [] as Array<{ email: string; reason: string }>,
     };
 
-    const defaultPasswordHash = await hashPassword("123456");
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      throw new AppError(404, "NOT_FOUND", "Organization not found");
+    }
+
+    const defaultPasswordHash = await hashPassword("Welcome@2026!");
 
     for (const data of usersData) {
       try {
@@ -246,6 +259,33 @@ export class EmployeeService {
           continue;
         }
 
+        // Resolve departmentId dynamically
+        let resolvedDeptId: mongoose.Types.ObjectId | undefined = undefined;
+        if (data.departmentId) {
+          const cleanDept = data.departmentId.trim();
+          if (mongoose.Types.ObjectId.isValid(cleanDept)) {
+            resolvedDeptId = new mongoose.Types.ObjectId(cleanDept);
+          } else {
+            // Find existing department by name
+            const matchedDept = org.departments.find(
+              (d) => d.name.toLowerCase() === cleanDept.toLowerCase()
+            );
+            if (matchedDept) {
+              resolvedDeptId = matchedDept._id;
+            } else {
+              // Create a new department with this name on the fly
+              const newDeptId = new mongoose.Types.ObjectId();
+              org.departments.push({
+                _id: newDeptId,
+                name: cleanDept,
+                active: true,
+              } as any);
+              await org.save();
+              resolvedDeptId = newDeptId;
+            }
+          }
+        }
+
         const employeeObj = {
           organizationId: new mongoose.Types.ObjectId(orgId),
           auth: {
@@ -257,12 +297,18 @@ export class EmployeeService {
             firstName: data.firstName,
             lastName: data.lastName,
             fullName: `${data.firstName} ${data.lastName}`.trim(),
+            phone: data.phone || undefined,
+            location: data.location || undefined,
+            timezone: data.timezone || undefined,
           },
           employment: {
-            departmentId: data.departmentId ? new mongoose.Types.ObjectId(data.departmentId) : undefined,
+            employeeId: data.employeeId || undefined,
+            departmentId: resolvedDeptId,
             status: "active" as const,
-            employmentType: "full_time" as const,
-            hireDate: new Date(),
+            employmentType: data.employmentType || ("full_time" as const),
+            designation: data.designation || undefined,
+            payrollCategory: data.payrollCategory || undefined,
+            hireDate: data.hireDate ? new Date(data.hireDate) : new Date(),
           },
           permissions: {
             role: (data.role || "employee") as any,

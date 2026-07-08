@@ -8,6 +8,7 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { getErrorMessage } from '../api/client';
 
 export function Login() {
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ export function Login() {
         navigate('/employee');
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('login.errorInvalid'));
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

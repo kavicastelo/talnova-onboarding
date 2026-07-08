@@ -40,12 +40,22 @@ export function normalizeError(error: any): ApiError {
       response: responseData,
     });
 
+    const details = responseData?.error?.details || responseData?.details || null;
+    let message = responseData?.message || responseData?.error || axiosError.message || 'An unexpected server error occurred.';
+    
+    // Extract validation error messages to provide descriptive human-readable errors
+    if (Array.isArray(details) && details.length > 0) {
+      message = details.map((d: any) => d.message).join(', ');
+    } else if (typeof responseData?.error === 'object' && responseData?.error?.message) {
+      message = responseData.error.message;
+    }
+
     // Handle standard API responses or default fallbacks
     return {
-      message: responseData?.message || responseData?.error || axiosError.message || 'An unexpected server error occurred.',
+      message,
       status,
-      code: responseData?.code || 'AXIOS_ERROR',
-      details: responseData?.details || null,
+      code: responseData?.code || responseData?.error?.code || 'AXIOS_ERROR',
+      details,
       raw: error,
     };
   }
@@ -57,6 +67,10 @@ export function normalizeError(error: any): ApiError {
     code: 'UNKNOWN_ERROR',
     raw: error,
   };
+}
+
+export function getErrorMessage(error: any): string {
+  return normalizeError(error).message;
 }
 
 // Global request cancelation controller utility

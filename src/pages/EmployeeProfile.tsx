@@ -55,6 +55,7 @@ import {
   SelectValue
 } from '../components/Select';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../api/client';
 
 export function EmployeeProfile() {
   const { id } = useParams();
@@ -154,7 +155,7 @@ export function EmployeeProfile() {
       toast.success('Avatar updated successfully.', { id: toastId });
       refetch();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to upload avatar.', { id: toastId });
+      toast.error(getErrorMessage(err), { id: toastId });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -175,7 +176,7 @@ export function EmployeeProfile() {
       setEditSelfOpen(false);
       refetch();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update profile.');
+      toast.error(getErrorMessage(err));
     }
   };
 
@@ -196,7 +197,7 @@ export function EmployeeProfile() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to change password.');
+      toast.error(getErrorMessage(err));
     }
   };
 
@@ -220,7 +221,7 @@ export function EmployeeProfile() {
       setEditEmployeeOpen(false);
       refetch();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update employee.');
+      toast.error(getErrorMessage(err));
     }
   };
 
