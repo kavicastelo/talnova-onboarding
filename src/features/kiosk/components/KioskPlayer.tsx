@@ -606,8 +606,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
           {/* Next Button */}
           {currentStepIndex < (journey.steps?.length || 0) - 1 && 
-           activeStep?.interaction?.type !== 'yes_no' && 
-           activeStep?.interaction?.type !== 'hold_to_confirm' && (
+           (activeStep?.interaction?.type === 'tap_to_continue' || !activeStep?.interaction?.type) && (
             <button
               onClick={nextStep}
               className="flex items-center space-x-2 rounded-lg bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 transition"
@@ -619,8 +618,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
           {/* Complete Button (Only visible on last slide for standard steps) */}
           {currentStepIndex === (journey.steps?.length || 0) - 1 && 
-           activeStep?.interaction?.type !== 'yes_no' && 
-           activeStep?.interaction?.type !== 'hold_to_confirm' && (
+           (activeStep?.interaction?.type === 'tap_to_continue' || 
+            activeStep?.interaction?.type === 'none' || 
+            !activeStep?.interaction?.type) && (
             <button
               onClick={() => {
                 completeSession();

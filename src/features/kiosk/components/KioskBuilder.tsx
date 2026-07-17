@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { KioskStepType, KioskInteractionType } from '../../../types/kiosk/step.types';
 import { KioskBlockType } from '../../../types/kiosk/block.types';
+import { toast } from 'sonner';
 
 interface KioskBuilderInnerProps {
   journeyId: string;
@@ -71,18 +72,30 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
   };
 
   const handleSave = async () => {
-    await saveJourney();
+    try {
+      await saveJourney();
+      toast.success('Draft saved successfully');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save draft');
+    }
   };
 
   const handlePublish = async () => {
     const valid = validateJourney();
     if (!valid) {
       setActiveTab('journey'); // focus settings to view validation errors
+      toast.error('Cannot publish: Journey has validation errors.');
       return;
     }
-    const result = await publishJourney();
-    if (result) {
-      // success handled by context
+    try {
+      const result = await publishJourney();
+      if (result) {
+        toast.success('Kiosk journey published successfully!');
+      } else {
+        toast.error('Failed to publish kiosk journey');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to publish kiosk journey');
     }
   };
 
@@ -149,7 +162,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                 <Plus className="w-4 h-4" />
               </button>
               {showAddStepMenu && (
-                <div className="absolute left-0 mt-2 z-30 w-64 rounded-xl border border-slate-900 bg-slate-950 p-2 shadow-xl">
+                <div className="absolute right-0 mt-2 z-30 w-64 rounded-xl border border-slate-900 bg-slate-950 p-2 shadow-xl">
                   <div className="text-xs font-semibold text-slate-500 p-2 uppercase tracking-wider border-b border-slate-900">
                     Choose Step Type
                   </div>
@@ -267,12 +280,11 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           </button>
         </div>
       </div>
-
       {/* 2. CENTER PANEL: TABLET PREVIEW CANVAS */}
-      <div className="flex-1 bg-slate-900 flex flex-col items-center justify-center p-8 relative overflow-hidden border-r border-slate-900">
+      <div className="flex-1 bg-slate-900 flex flex-col items-center justify-start relative overflow-hidden border-r border-slate-900">
         
         {/* Canvas Header bar */}
-        <div className="absolute top-4 left-6 right-6 flex items-center justify-between z-10">
+        <div className="absolute top-4 left-6 right-6 flex items-center justify-between z-10 bg-slate-900/80 backdrop-blur-sm pb-2">
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Active Preview Canvas</span>
@@ -290,7 +302,8 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           </button>
         </div>
 
-        {activeStep ? (
+        <div className="w-full h-full overflow-y-auto pt-16 pb-8 px-6 flex flex-col items-center justify-start">
+          {activeStep ? (
           <div className="w-full max-w-2xl bg-slate-950 rounded-2xl border border-slate-950 p-8 shadow-2xl relative min-h-[400px] flex flex-col justify-between">
             {/* Tablet Mock Bezel details */}
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-20 h-2 bg-slate-800 rounded-full" />
@@ -431,13 +444,14 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               </div>
             )}
           </div>
-        ) : (
-          <div className="text-center text-slate-600 text-sm max-w-sm">
-            <Layers className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-            <p className="font-semibold text-slate-500">No Step Selected</p>
-            <p className="mt-1 text-xs">Choose or create a step from the left hierarchy panel to begin designing layout blocks.</p>
-          </div>
-        )}
+          ) : (
+            <div className="text-center text-slate-600 text-sm max-w-sm my-auto">
+              <Layers className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+              <p className="font-semibold text-slate-500">No Step Selected</p>
+              <p className="mt-1 text-xs text-slate-500">Choose or create a step from the left hierarchy panel to begin designing layout blocks.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 3. RIGHT PANEL: SETTINGS & COMPONENT INSPECTOR */}
