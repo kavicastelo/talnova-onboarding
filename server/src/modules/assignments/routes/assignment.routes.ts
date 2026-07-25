@@ -44,6 +44,15 @@ export async function assignmentRoutes(app: FastifyInstance) {
     },
     controller.assignJourney as any
   );
+
+  // POST /api/v1/assignments/bulk (bulk assign journeys)
+  app.post(
+    "/bulk",
+    {
+      preHandler: [requireRole(["owner", "admin", "manager"])],
+    },
+    controller.bulkAssignJourneys as any
+  );
   // POST /api/v1/assignments/:id/start
   app.post("/:id/start", controller.startAssignment as any);
 

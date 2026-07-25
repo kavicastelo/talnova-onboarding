@@ -6,17 +6,32 @@ const mapBackendModuleToCourseModule = (m: any): any => {
     id: m._id,
     title: m.title || '',
     lessons: (m.lessons || []).map((l: any) => {
-      let type: 'Video' | 'Article' | 'Task' | 'Quiz' = 'Article';
+      let type: 'Video' | 'Article' | 'Task' | 'Quiz' | 'PDF' | 'Document' | 'Audio' | 'Image' = 'Article';
       if (l.quiz) {
         type = 'Quiz';
-      } else if (l.contentBlocks?.some((cb: any) => cb.type === 'video')) {
-        type = 'Video';
+      } else if (l.contentBlocks && l.contentBlocks.length > 0) {
+        const blockTypes = l.contentBlocks.map((cb: any) => cb.type);
+        if (blockTypes.includes('video')) {
+          type = 'Video';
+        } else if (blockTypes.includes('pdf') || l.contentBlocks.some((cb: any) => cb.content?.toLowerCase().includes('.pdf'))) {
+          type = 'PDF';
+        } else if (blockTypes.includes('document')) {
+          type = 'Document';
+        } else if (blockTypes.includes('audio')) {
+          type = 'Audio';
+        } else if (blockTypes.includes('image')) {
+          type = 'Image';
+        } else if (blockTypes.includes('checklist')) {
+          type = 'Task';
+        }
+      } else if (l.description?.toLowerCase().includes('.pdf')) {
+        type = 'PDF';
       }
 
       let completionRule: 'video' | 'button' | 'quiz' = 'button';
       if (l.completionRules?.requireQuizCompletion) {
         completionRule = 'quiz';
-      } else if (l.completionRules?.requireContentCompletion && type === 'Video') {
+      } else if (l.completionRules?.requireContentCompletion && (type === 'Video' || type === 'Audio')) {
         completionRule = 'video';
       }
 
@@ -145,7 +160,13 @@ export const journeyService = {
           description: l.description || '',
           contentBlocks: [
             {
-              type: l.type === 'Video' ? 'video' : 'text',
+              type: l.type === 'Video' ? 'video'
+                  : l.type === 'PDF' ? 'pdf'
+                  : l.type === 'Document' ? 'document'
+                  : l.type === 'Audio' ? 'audio'
+                  : l.type === 'Image' ? 'image'
+                  : l.type === 'Task' ? 'checklist'
+                  : (l.content?.toLowerCase().includes('.pdf') ? 'pdf' : 'text'),
               content: l.content || '',
               order: 0
             }
@@ -199,6 +220,15 @@ export const journeyService = {
       journeyId,
       priority: 'normal'
     });
+  },
+
+  bulkAssignJourneys: async (journeyId: string, employeeIds: string[]): Promise<{ assignedCount: number; skippedCount: number }> => {
+    const response = await apiClient.post<ApiResponse<any>>('/assignments/bulk', {
+      journeyId,
+      employeeIds,
+      priority: 'normal'
+    });
+    return response.data.data;
   },
 
   getJourneyAssignments: async (journeyId: string): Promise<any[]> => {

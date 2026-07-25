@@ -1,0 +1,4 @@
+email,firstName,lastName,departmentId,role,employeeId,designation,payrollCategory,employmentType,hireDate,phone,location,timezone
+thevindi@mdgunasena.com,Thevindi,MDG,HR,admin,,Software Engineer,Standard,full_time,7/1/2026,,,
+hasitha@mdgunasena.com,Hasitha,MDG,HR,admin,,Project Manager,Standard,full_time,7/1/2026,,,
+rajiv@mdgunasena.com,Rajiv,MDG,HR,admin,,Marketing Executive,Standard,full_time,7/2/2026,,,

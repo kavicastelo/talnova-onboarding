@@ -180,6 +180,42 @@ export class EmployeeAssignmentController {
     });
   };
 
+  bulkAssignJourneys = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+
+    if (!Array.isArray(body.employeeIds) || body.employeeIds.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        message: "employeeIds must be a non-empty array",
+      });
+    }
+
+    if (!body.journeyId) {
+      return reply.status(400).send({
+        success: false,
+        message: "journeyId is required",
+      });
+    }
+
+    const result = await this.service.bulkAssignJourneys(
+      user.organizationId,
+      body.employeeIds,
+      body.journeyId,
+      user.userId,
+      {
+        dueDate: body.dueDate,
+        priority: body.priority,
+      }
+    );
+
+    return reply.status(201).send({
+      success: true,
+      message: `Bulk assignment completed: ${result.assignedCount} assigned, ${result.skippedCount} skipped.`,
+      data: result,
+    });
+  };
+
   startAssignment = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;

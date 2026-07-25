@@ -140,6 +140,38 @@ export class EmployeeAssignmentService {
     return doc;
   }
 
+  async bulkAssignJourneys(
+    orgId: string | mongoose.Types.ObjectId,
+    employeeIds: string[],
+    journeyId: string,
+    assignedBy: string | mongoose.Types.ObjectId,
+    assignmentData: {
+      dueDate?: string;
+      priority?: "low" | "normal" | "high" | "critical";
+    } = {}
+  ) {
+    let assignedCount = 0;
+    let skippedCount = 0;
+    const errors: string[] = [];
+
+    const parsedData = {
+      dueDate: assignmentData.dueDate ? new Date(assignmentData.dueDate) : undefined,
+      priority: assignmentData.priority || "normal",
+    };
+
+    for (const empId of employeeIds) {
+      try {
+        await this.assignJourney(orgId, empId, journeyId, assignedBy, parsedData, false);
+        assignedCount++;
+      } catch (err: any) {
+        skippedCount++;
+        errors.push(`Employee ${empId}: ${err.message}`);
+      }
+    }
+
+    return { assignedCount, skippedCount, errors };
+  }
+
   async getAssignment(id: string | mongoose.Types.ObjectId, orgId: string | mongoose.Types.ObjectId) {
     const assignment = await this.repository.findByIdAndOrg(id, orgId);
     if (!assignment) {

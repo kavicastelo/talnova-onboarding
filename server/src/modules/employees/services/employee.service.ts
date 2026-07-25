@@ -8,7 +8,7 @@ import { EmailService } from "../../../shared/email/email.service.js";
 import { Organization } from "../../organizations/models/organization.model.js";
 
 export class EmployeeService {
-  constructor(private readonly employeeRepository: EmployeeRepository) {}
+  constructor(private readonly employeeRepository: EmployeeRepository) { }
 
   async getProfile(userId: string | mongoose.Types.ObjectId) {
     const employee = await this.employeeRepository.findById(userId);

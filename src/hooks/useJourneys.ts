@@ -61,6 +61,18 @@ export function useAssignJourney() {
   });
 }
 
+export function useBulkAssignJourney() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ journeyId, employeeIds }: { journeyId: string; employeeIds: string[] }) =>
+      journeyService.bulkAssignJourneys(journeyId, employeeIds),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['journeyAssignments', variables.journeyId] });
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
+
 export function useJourneyAssignments(journeyId: string) {
   return useQuery({
     queryKey: ['journeyAssignments', journeyId],

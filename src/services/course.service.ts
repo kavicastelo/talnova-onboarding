@@ -66,7 +66,7 @@ export const courseService = {
           const blockTypes = l.contentBlocks.map((cb: any) => cb.type);
           if (blockTypes.includes('video')) {
             type = 'Video';
-          } else if (blockTypes.includes('pdf')) {
+          } else if (blockTypes.includes('pdf') || l.contentBlocks.some((cb: any) => cb.content?.toLowerCase().includes('.pdf'))) {
             type = 'PDF';
           } else if (blockTypes.includes('document')) {
             type = 'Document';
@@ -77,6 +77,8 @@ export const courseService = {
           } else if (blockTypes.includes('checklist')) {
             type = 'Task';
           }
+        } else if (l.description?.toLowerCase().includes('.pdf')) {
+          type = 'PDF';
         }
 
         let completionRule: 'video' | 'button' | 'quiz' = 'button';
@@ -88,10 +90,10 @@ export const courseService = {
 
         const contentBlocksMapped = l.contentBlocks?.map((cb: any) => ({
           id: cb._id,
-          type: cb.type,
+          type: cb.type === 'text' && cb.content?.toLowerCase().includes('.pdf') ? 'pdf' : cb.type,
           title: cb.title,
           content: cb.content,
-          uploadUrl: cb.uploadId?.storage?.publicUrl || (typeof cb.uploadId === 'string' ? cb.uploadId : ''),
+          uploadUrl: cb.uploadId?.storage?.publicUrl || (typeof cb.uploadId === 'string' ? cb.uploadId : '') || cb.content || '',
           embedUrl: cb.embedUrl,
           order: cb.order,
         })) || [];

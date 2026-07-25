@@ -29,6 +29,7 @@ import {
 } from '../components/Select';
 import {
   ChevronLeft,
+  ChevronRight,
   GripVertical,
   Plus,
   Users,
@@ -45,13 +46,23 @@ import {
   Code,
   List,
   Eye,
-  PlusCircle
+  PlusCircle,
+  Save,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  ExternalLink,
+  Search,
+  UserCheck,
+  ChevronsLeft,
+  ChevronsRight,
+  Square
 } from 'lucide-react';
 import {
   useJourney,
   useUpdateJourney,
   useCreateJourney,
-  useAssignJourney,
+  useBulkAssignJourney,
   useJourneyAssignments,
   useIssueCertificate
 } from '../hooks/useJourneys';
@@ -75,7 +86,7 @@ export function JourneyBuilder() {
   const { data: assignments = [] } = useJourneyAssignments(isNew ? '' : (id || ''));
   const { data: employees = [] } = useEmployees();
   const { data: workspaceSettings } = useWorkspaceSettings();
-  const assignJourneyMut = useAssignJourney();
+  const bulkAssignMut = useBulkAssignJourney();
   const issueCertificateMut = useIssueCertificate();
 
   const availableCategories = workspaceSettings?.categories || ["Engineering", "Sales", "General"];
@@ -86,7 +97,13 @@ export function JourneyBuilder() {
   const [modules, setModules] = useState<CourseModule[]>([]);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+
+  // Bulk employee selector state
+  const [empSearch, setEmpSearch] = useState('');
+  const [empDeptFilter, setEmpDeptFilter] = useState('all');
+  const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
+  const [empPage, setEmpPage] = useState(1);
+  const [empPageSize, setEmpPageSize] = useState(10);
 
   // settings & certificate options
   const [allowSkipLessons, setAllowSkipLessons] = useState(false);
@@ -109,6 +126,15 @@ export function JourneyBuilder() {
   const [isDirty, setIsDirty] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'editor'>('list');
+  const [activeTab, setActiveTab] = useState<'settings' | 'builder' | 'assignments'>('settings');
+
+  const handleTabChange = (newTab: 'settings' | 'builder' | 'assignments') => {
+    if (isDirty) {
+      handleSave(() => setActiveTab(newTab));
+    } else {
+      setActiveTab(newTab);
+    }
+  };
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -193,7 +219,7 @@ export function JourneyBuilder() {
     return data?.message || data?.error || err?.message || 'An error occurred';
   };
 
-  const handleSave = () => {
+  const handleSave = (onSuccessCallback?: () => void) => {
     const settings = {
       allowSkipLessons,
       requireSequentialCompletion,
@@ -205,15 +231,26 @@ export function JourneyBuilder() {
       passingScore
     };
 
+    const journeyPayload = {
+      title: title.trim() || 'Untitled Journey',
+      description,
+      category: category || (availableCategories[0] ? availableCategories[0].toLowerCase() : 'engineering'),
+      modules,
+      audience: { isPublic },
+      settings,
+      certificate
+    };
+
     if (isNew) {
       createJourney.mutate(
-        { title, description, category, audience: { isPublic }, settings, certificate },
+        journeyPayload,
         {
           onSuccess: (newJourney) => {
             (window as any).isJourneyBuilderDirty = false;
             setIsDirty(false);
-            toast.success('Journey created successfully!');
-            navigate(`/journeys/${newJourney.id}`);
+            toast.success('Journey draft saved!');
+            navigate(`/journeys/${newJourney.id}`, { replace: true });
+            if (onSuccessCallback) onSuccessCallback();
           },
           onError: (err: any) => {
             toast.error(getErrorMessage(err));
@@ -224,21 +261,14 @@ export function JourneyBuilder() {
       updateJourney.mutate(
         {
           id,
-          journey: {
-            title,
-            description,
-            category,
-            modules,
-            audience: { isPublic },
-            settings,
-            certificate
-          }
+          journey: journeyPayload
         },
         {
           onSuccess: () => {
             (window as any).isJourneyBuilderDirty = false;
             setIsDirty(false);
-            toast.success('Changes saved successfully!');
+            toast.success('Draft saved successfully!');
+            if (onSuccessCallback) onSuccessCallback();
           },
           onError: (err: any) => {
             toast.error(getErrorMessage(err));
@@ -406,13 +436,6 @@ export function JourneyBuilder() {
     );
   }
 
-  const unassignedEmployees = employees.filter((emp: any) => {
-    return !assignments.some((assign: any) => {
-      const assignEmpId = typeof assign.employeeId === 'object' ? assign.employeeId?._id : assign.employeeId;
-      return assignEmpId === emp.id;
-    });
-  });
-
   const handleTogglePublic = (publicVal: boolean) => {
     setIsPublic(publicVal);
     if (!isNew && id) {
@@ -431,27 +454,86 @@ export function JourneyBuilder() {
     }
   };
 
-  const handleAssignEmployee = () => {
-    if (!selectedEmployeeId) {
-      toast.error('Please select an employee.');
+  const handleBulkAssign = () => {
+    if (selectedEmpIds.length === 0) {
+      toast.error('Please select at least one employee.');
       return;
     }
     if (!id || isNew) {
       toast.error('Please save the journey first.');
       return;
     }
-    assignJourneyMut.mutate(
-      { journeyId: id, employeeId: selectedEmployeeId },
+
+    bulkAssignMut.mutate(
+      { journeyId: id, employeeIds: selectedEmpIds },
       {
-        onSuccess: () => {
-          toast.success('Journey assigned successfully!');
-          setSelectedEmployeeId('');
+        onSuccess: (res: any) => {
+          toast.success(`Successfully assigned journey to ${res.assignedCount || selectedEmpIds.length} employees!`);
+          setSelectedEmpIds([]);
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to assign journey.');
+          toast.error(err?.message || 'Failed to assign journey in bulk.');
         }
       }
     );
+  };
+
+  // Helper calculations for Bulk Employee Table
+  const employeeDepartments = Array.from(
+    new Set(employees.map((emp: any) => emp.department || 'General').filter(Boolean))
+  );
+
+  const assignedEmployeeIds = new Set(
+    assignments.map((assign: any) => {
+      return typeof assign.employeeId === 'object' ? assign.employeeId?._id : assign.employeeId;
+    })
+  );
+
+  const filteredEmployees = employees.filter((emp: any) => {
+    const nameMatch = (emp.name || '').toLowerCase().includes(empSearch.toLowerCase());
+    const emailMatch = (emp.email || '').toLowerCase().includes(empSearch.toLowerCase());
+    const roleMatch = (emp.role || '').toLowerCase().includes(empSearch.toLowerCase());
+    const deptMatch = (emp.department || '').toLowerCase().includes(empSearch.toLowerCase());
+
+    const matchesSearch = nameMatch || emailMatch || roleMatch || deptMatch;
+    const matchesDept = empDeptFilter === 'all' || (emp.department || 'General').toLowerCase() === empDeptFilter.toLowerCase();
+
+    return matchesSearch && matchesDept;
+  });
+
+  const totalEmpCount = filteredEmployees.length;
+  const totalEmpPages = Math.ceil(totalEmpCount / empPageSize) || 1;
+  const currentEmpPage = Math.min(empPage, totalEmpPages);
+
+  const paginatedEmployees = filteredEmployees.slice(
+    (currentEmpPage - 1) * empPageSize,
+    currentEmpPage * empPageSize
+  );
+
+  const pageUnassignedIds = paginatedEmployees
+    .filter((emp: any) => !assignedEmployeeIds.has(emp.id))
+    .map((emp: any) => emp.id);
+
+  const isPageAllSelected = pageUnassignedIds.length > 0 && pageUnassignedIds.every((empId: string) => selectedEmpIds.includes(empId));
+
+  const toggleSelectPage = () => {
+    if (isPageAllSelected) {
+      setSelectedEmpIds((prev) => prev.filter((id) => !pageUnassignedIds.includes(id)));
+    } else {
+      setSelectedEmpIds((prev) => Array.from(new Set([...prev, ...pageUnassignedIds])));
+    }
+  };
+
+  const toggleSelectFilteredAll = () => {
+    const allFilteredUnassignedIds = filteredEmployees
+      .filter((emp: any) => !assignedEmployeeIds.has(emp.id))
+      .map((emp: any) => emp.id);
+
+    if (allFilteredUnassignedIds.length > 0 && allFilteredUnassignedIds.every((empId: string) => selectedEmpIds.includes(empId))) {
+      setSelectedEmpIds((prev) => prev.filter((id) => !allFilteredUnassignedIds.includes(id)));
+    } else {
+      setSelectedEmpIds((prev) => Array.from(new Set([...prev, ...allFilteredUnassignedIds])));
+    }
   };
 
   const handleIssueCertificate = (assignmentId: string) => {
@@ -513,42 +595,72 @@ export function JourneyBuilder() {
                 {journey?.status || 'Draft'}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {isNew ? 'Not saved yet' : `Last saved ${journey?.lastUpdated || 'just now'}`}
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              {isDirty ? (
+                <span className="text-amber-500 font-medium">● Unsaved changes</span>
+              ) : isNew ? (
+                'Not saved yet'
+              ) : (
+                <span className="text-emerald-500 font-medium">✓ Draft saved</span>
+              )}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <Button variant="outline" onClick={handleSave} disabled={updateJourney.isPending || createJourney.isPending} className="w-full sm:w-auto">
-            {(updateJourney.isPending || createJourney.isPending) && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            Save changes
+          <Button
+            variant="outline"
+            onClick={() => handleSave()}
+            disabled={updateJourney.isPending || createJourney.isPending}
+            className="w-full sm:w-auto"
+          >
+            {(updateJourney.isPending || createJourney.isPending) ? (
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Draft
           </Button>
-          {!isNew && journey?.status !== 'Active' && (
-            <Button onClick={handlePublish} disabled={updateJourney.isPending} className="w-full sm:w-auto">
-              Publish
+
+          {activeTab === 'assignments' ? (
+            journey?.status !== 'Active' ? (
+              <Button onClick={handlePublish} disabled={updateJourney.isPending || createJourney.isPending} className="w-full sm:w-auto">
+                <Check className="mr-2 h-4 w-4" /> Publish Journey
+              </Button>
+            ) : (
+              <Button onClick={() => handleSave(() => navigate('/journeys'))} disabled={updateJourney.isPending || createJourney.isPending} className="w-full sm:w-auto">
+                <Check className="mr-2 h-4 w-4" /> Finish
+              </Button>
+            )
+          ) : (
+            <Button
+              onClick={() => handleSave(() => setActiveTab(activeTab === 'settings' ? 'builder' : 'assignments'))}
+              disabled={updateJourney.isPending || createJourney.isPending}
+              className="w-full sm:w-auto"
+            >
+              Save & Next <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
         </div>
       </header>
 
       <div className="flex-1 overflow-hidden">
-        <Tabs defaultValue="settings" className="h-full flex flex-col">
+        <Tabs value={activeTab} onValueChange={(val) => handleTabChange(val as any)} className="h-full flex flex-col">
           <div className="px-6 border-b">
             <TabsList className="h-12 bg-transparent">
               <TabsTrigger
                 value="settings"
                 className="data-[state=active]:bg-muted">
-                Settings
+                1. Settings
               </TabsTrigger>
               <TabsTrigger
                 value="builder"
                 className="data-[state=active]:bg-muted">
-                Builder
+                2. Builder
               </TabsTrigger>
               <TabsTrigger
                 value="assignments"
                 className="data-[state=active]:bg-muted">
-                Assignments
+                3. Assignments
               </TabsTrigger>
             </TabsList>
           </div>
@@ -678,6 +790,15 @@ export function JourneyBuilder() {
                     </CardContent>
                   </Card>
                 </div>
+
+                <div className="flex items-center justify-between pt-6 border-t mt-8">
+                  <Button variant="outline" onClick={() => handleSave()} disabled={updateJourney.isPending || createJourney.isPending}>
+                    <Save className="mr-2 h-4 w-4" /> Save Draft
+                  </Button>
+                  <Button onClick={() => handleSave(() => setActiveTab('builder'))} disabled={updateJourney.isPending || createJourney.isPending}>
+                    Save & Next <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -690,97 +811,97 @@ export function JourneyBuilder() {
             {(!isMobile || mobileView === 'list') && (
               <div className="w-full md:w-64 flex-none border-r bg-muted/10 flex flex-col">
                 <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="font-medium">Curriculum</h3>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddModule}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {modules.length === 0 ? (
-                    <div className="text-center text-xs text-muted-foreground p-4">
-                      Add your first module to get started building curriculum.
-                    </div>
-                  ) : (
-                    modules.map((module, mIdx) => (
-                      <div key={module.id}>
-                        {mIdx > 0 && <Separator className="my-2" />}
-                        <div>
-                          <div className="flex items-center justify-between mb-2 group">
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab" />
-                              <h4 className="text-sm font-semibold">{mIdx + 1}. {module.title}</h4>
+                  <h3 className="font-medium">Curriculum</h3>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddModule}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
+                    {modules.length === 0 ? (
+                      <div className="text-center text-xs text-muted-foreground p-4">
+                        Add your first module to get started building curriculum.
+                      </div>
+                    ) : (
+                      modules.map((module, mIdx) => (
+                        <div key={module.id}>
+                          {mIdx > 0 && <Separator className="my-2" />}
+                          <div>
+                            <div className="flex items-center justify-between mb-2 group">
+                              <div className="flex items-center gap-2">
+                                <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab" />
+                                <h4 className="text-sm font-semibold">{mIdx + 1}. {module.title}</h4>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-indigo-400"
+                                  onClick={() => handleAddLesson(module.id)}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-red-400"
+                                  onClick={() => handleRemoveModule(module.id)}
+                                >
+                                  <Trash className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-indigo-400"
-                                onClick={() => handleAddLesson(module.id)}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-red-400"
-                                onClick={() => handleRemoveModule(module.id)}
-                              >
-                                <Trash className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="space-y-1 pl-6">
-                            {module.lessons.map((lesson) => {
-                              const isSelected = selectedLesson?.id === lesson.id;
-                              return (
-                                <div
-                                  key={lesson.id}
-                                  className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer group/lesson ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
-                                    }`}>
-                                  <div className="flex items-center gap-2" onClick={() => {
-                                    setSelectedLessonId(lesson.id);
-                                    if (isMobile) setMobileView('editor');
-                                  }}>
-                                    {lesson.type === 'Video' ? (
-                                      <Video className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : lesson.type === 'Quiz' ? (
-                                      <HelpCircle className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : lesson.type === 'Audio' ? (
-                                      <Headphones className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : lesson.type === 'Image' ? (
-                                      <ImageIcon className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : lesson.type === 'Task' ? (
-                                      <CheckSquare className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : lesson.type === 'Document' ? (
-                                      <FileSpreadsheet className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : lesson.type === 'PDF' ? (
-                                      <FileText className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    ) : (
-                                      <BookOpen className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                                    )}
-                                    <span>{lesson.title}</span>
+                            <div className="space-y-1 pl-6">
+                              {module.lessons.map((lesson) => {
+                                const isSelected = selectedLesson?.id === lesson.id;
+                                return (
+                                  <div
+                                    key={lesson.id}
+                                    className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer group/lesson ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+                                      }`}>
+                                    <div className="flex items-center gap-2" onClick={() => {
+                                      setSelectedLessonId(lesson.id);
+                                      if (isMobile) setMobileView('editor');
+                                    }}>
+                                      {lesson.type === 'Video' ? (
+                                        <Video className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : lesson.type === 'Quiz' ? (
+                                        <HelpCircle className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : lesson.type === 'Audio' ? (
+                                        <Headphones className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : lesson.type === 'Image' ? (
+                                        <ImageIcon className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : lesson.type === 'Task' ? (
+                                        <CheckSquare className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : lesson.type === 'Document' ? (
+                                        <FileSpreadsheet className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : lesson.type === 'PDF' ? (
+                                        <FileText className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      ) : (
+                                        <BookOpen className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                      )}
+                                      <span>{lesson.title}</span>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-5 w-5 opacity-0 group-hover/lesson:opacity-100 text-muted-foreground hover:text-red-400"
+                                      onClick={() => handleRemoveLesson(module.id, lesson.id)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-5 w-5 opacity-0 group-hover/lesson:opacity-100 text-muted-foreground hover:text-red-400"
-                                    onClick={() => handleRemoveLesson(module.id, lesson.id)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
             {/* Main Content Area & Lesson Settings Panel */}
             {(!isMobile || mobileView === 'editor') && (
@@ -789,9 +910,9 @@ export function JourneyBuilder() {
                   <>
                     <div className="flex-1 min-w-0 p-4 md:p-8 space-y-6 max-w-3xl mx-auto w-full">
                       {isMobile && (
-                        <Button 
-                          variant="ghost" 
-                          className="self-start pl-0 text-primary mb-4" 
+                        <Button
+                          variant="ghost"
+                          className="self-start pl-0 text-primary mb-4"
                           onClick={() => setMobileView('list')}
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" /> Back to Curriculum
@@ -808,450 +929,486 @@ export function JourneyBuilder() {
                         </p>
                       </div>
 
-                  <Card>
-                    <CardContent className="p-0">
-                      {selectedLesson.type === 'Video' && (
-                        <div className="space-y-6 p-6">
-                          <div className="space-y-4">
-                            <label className="text-sm font-medium">Video Source</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
-                                <div className="space-y-1">
-                                  <h4 className="text-sm font-medium flex items-center gap-2">
-                                    <Upload className="h-4 w-4 text-primary" />
-                                    Upload Video File
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">Upload an MP4, WebM or Ogg video file.</p>
-                                </div>
-                                <div>
-                                  <input
-                                    type="file"
-                                    id="video-upload-input"
-                                    accept="video/*"
-                                    className="hidden"
-                                    onChange={handleUploadFile}
-                                    disabled={isUploading}
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={() => document.getElementById('video-upload-input')?.click()}
-                                    disabled={isUploading}
-                                  >
-                                    {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
-                                  </Button>
+                      <Card>
+                        <CardContent className="p-0">
+                          {selectedLesson.type === 'Video' && (
+                            <div className="space-y-6 p-6">
+                              <div className="space-y-4">
+                                <label className="text-sm font-medium">Video Source</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                    <div className="space-y-1">
+                                      <h4 className="text-sm font-medium flex items-center gap-2">
+                                        <Upload className="h-4 w-4 text-primary" />
+                                        Upload Video File
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">Upload an MP4, WebM or Ogg video file.</p>
+                                    </div>
+                                    <div>
+                                      <input
+                                        type="file"
+                                        id="video-upload-input"
+                                        accept="video/*"
+                                        className="hidden"
+                                        onChange={handleUploadFile}
+                                        disabled={isUploading}
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => document.getElementById('video-upload-input')?.click()}
+                                        disabled={isUploading}
+                                      >
+                                        {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                    <div className="space-y-1">
+                                      <h4 className="text-sm font-medium flex items-center gap-2">
+                                        <Link2 className="h-4 w-4 text-primary" />
+                                        Embed Video URL
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">Paste a YouTube, Vimeo, or raw MP4 URL.</p>
+                                    </div>
+                                    <Input
+                                      placeholder="https://example.com/video.mp4"
+                                      value={selectedLesson.content || ''}
+                                      onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
+                                    />
+                                  </div>
                                 </div>
                               </div>
-                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
-                                <div className="space-y-1">
-                                  <h4 className="text-sm font-medium flex items-center gap-2">
-                                    <Link2 className="h-4 w-4 text-primary" />
-                                    Embed Video URL
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">Paste a YouTube, Vimeo, or raw MP4 URL.</p>
-                                </div>
-                                <Input
-                                  placeholder="https://example.com/video.mp4"
-                                  value={selectedLesson.content || ''}
-                                  onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
-                                />
-                              </div>
-                            </div>
-                          </div>
 
-                          {selectedLesson.content && (
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Video Preview</label>
-                              {selectedLesson.content.includes('youtube.com') || selectedLesson.content.includes('youtu.be') ? (
-                                <div className="aspect-video bg-black rounded-lg overflow-hidden border">
-                                  <iframe
-                                    className="w-full h-full"
-                                    src={selectedLesson.content.replace('watch?v=', 'embed/')}
-                                    title="YouTube video player"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                  />
+                              {selectedLesson.content && (
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">Video Preview</label>
+                                  {selectedLesson.content.includes('youtube.com') || selectedLesson.content.includes('youtu.be') ? (
+                                    <div className="aspect-video bg-black rounded-lg overflow-hidden border">
+                                      <iframe
+                                        className="w-full h-full"
+                                        src={selectedLesson.content.replace('watch?v=', 'embed/')}
+                                        title="YouTube video player"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                      />
+                                    </div>
+                                  ) : (
+                                    <video
+                                      src={selectedLesson.content}
+                                      controls
+                                      className="w-full aspect-video rounded-lg border bg-black"
+                                    />
+                                  )}
                                 </div>
-                              ) : (
-                                <video
-                                  src={selectedLesson.content}
-                                  controls
-                                  className="w-full aspect-video rounded-lg border bg-black"
-                                />
                               )}
                             </div>
                           )}
-                        </div>
-                      )}
 
-                      {(selectedLesson.type === 'Article' || selectedLesson.type === 'Task') && (
-                        <div className="space-y-4 p-6">
-                          <div className="flex items-center justify-between border-b pb-2">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant={editorTab === 'write' ? 'secondary' : 'ghost'}
-                                onClick={() => setEditorTab('write')}
-                                className="h-8"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={editorTab === 'preview' ? 'secondary' : 'ghost'}
-                                onClick={() => setEditorTab('preview')}
-                                className="h-8"
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Preview
-                              </Button>
-                            </div>
-
-                            {editorTab === 'write' && (
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    const val = selectedLesson.content || '';
-                                    updateSelectedLesson({ content: val + ' **Bold Text** ' });
-                                  }}
-                                  title="Bold"
-                                >
-                                  <Bold className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    const val = selectedLesson.content || '';
-                                    updateSelectedLesson({ content: val + ' *Italic Text* ' });
-                                  }}
-                                  title="Italic"
-                                >
-                                  <Italic className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    const val = selectedLesson.content || '';
-                                    updateSelectedLesson({ content: val + '\n# Header\n' });
-                                  }}
-                                  title="Header"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    const val = selectedLesson.content || '';
-                                    updateSelectedLesson({ content: val + '\n```\nCode Block\n```\n' });
-                                  }}
-                                  title="Code"
-                                >
-                                  <Code className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    const val = selectedLesson.content || '';
-                                    updateSelectedLesson({ content: val + '\n- Bullet item\n' });
-                                  }}
-                                  title="List"
-                                >
-                                  <List className="h-4 w-4" />
-                                </Button>
-                                <Separator orientation="vertical" className="h-4 mx-1" />
-                                <input
-                                  type="file"
-                                  id="article-file-upload"
-                                  className="hidden"
-                                  onChange={handleUploadFile}
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => document.getElementById('article-file-upload')?.click()}
-                                  title="Upload Image/File"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-
-                          {editorTab === 'write' ? (
-                            <textarea
-                              placeholder="Write your content here in Markdown format..."
-                              className="w-full min-h-[300px] border-0 focus:ring-0 resize-y bg-transparent p-0 outline-none text-sm leading-relaxed"
-                              value={selectedLesson.content || ''}
-                              onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
-                            />
-                          ) : (
-                            <div className="min-h-[300px] p-2">
-                              <MarkdownPreview content={selectedLesson.content || ''} />
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {(selectedLesson.type === 'PDF' || selectedLesson.type === 'Document' || selectedLesson.type === 'Audio' || selectedLesson.type === 'Image') && (
-                        <div className="space-y-6 p-6">
-                          <div className="space-y-4">
-                            <label className="text-sm font-medium">{selectedLesson.type} File Source</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
-                                <div className="space-y-1">
-                                  <h4 className="text-sm font-medium flex items-center gap-2">
-                                    <Upload className="h-4 w-4 text-primary" />
-                                    Upload File
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">
-                                    {selectedLesson.type === 'PDF' && 'Upload a PDF document.'}
-                                    {selectedLesson.type === 'Document' && 'Upload a Word, Excel or PowerPoint document.'}
-                                    {selectedLesson.type === 'Audio' && 'Upload an MP3, WAV or M4A audio file.'}
-                                    {selectedLesson.type === 'Image' && 'Upload an PNG, JPG, JPEG or SVG image.'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <input
-                                    type="file"
-                                    id="file-upload-input-generic"
-                                    accept={
-                                      selectedLesson.type === 'PDF' ? 'application/pdf' :
-                                      selectedLesson.type === 'Document' ? '.doc,.docx,.xls,.xlsx,.ppt,.pptx' :
-                                      selectedLesson.type === 'Audio' ? 'audio/*' :
-                                      selectedLesson.type === 'Image' ? 'image/*' : '*'
-                                    }
-                                    className="hidden"
-                                    onChange={handleUploadFile}
-                                    disabled={isUploading}
-                                  />
+                          {(selectedLesson.type === 'Article' || selectedLesson.type === 'Task') && (
+                            <div className="space-y-4 p-6">
+                              <div className="flex items-center justify-between border-b pb-2">
+                                <div className="flex gap-2">
                                   <Button
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={() => document.getElementById('file-upload-input-generic')?.click()}
-                                    disabled={isUploading}
+                                    size="sm"
+                                    variant={editorTab === 'write' ? 'secondary' : 'ghost'}
+                                    onClick={() => setEditorTab('write')}
+                                    className="h-8"
                                   >
-                                    {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={editorTab === 'preview' ? 'secondary' : 'ghost'}
+                                    onClick={() => setEditorTab('preview')}
+                                    className="h-8"
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Preview
                                   </Button>
                                 </div>
+
+                                {editorTab === 'write' && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        const val = selectedLesson.content || '';
+                                        updateSelectedLesson({ content: val + ' **Bold Text** ' });
+                                      }}
+                                      title="Bold"
+                                    >
+                                      <Bold className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        const val = selectedLesson.content || '';
+                                        updateSelectedLesson({ content: val + ' *Italic Text* ' });
+                                      }}
+                                      title="Italic"
+                                    >
+                                      <Italic className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        const val = selectedLesson.content || '';
+                                        updateSelectedLesson({ content: val + '\n# Header\n' });
+                                      }}
+                                      title="Header"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        const val = selectedLesson.content || '';
+                                        updateSelectedLesson({ content: val + '\n```\nCode Block\n```\n' });
+                                      }}
+                                      title="Code"
+                                    >
+                                      <Code className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        const val = selectedLesson.content || '';
+                                        updateSelectedLesson({ content: val + '\n- Bullet item\n' });
+                                      }}
+                                      title="List"
+                                    >
+                                      <List className="h-4 w-4" />
+                                    </Button>
+                                    <Separator orientation="vertical" className="h-4 mx-1" />
+                                    <input
+                                      type="file"
+                                      id="article-file-upload"
+                                      className="hidden"
+                                      onChange={handleUploadFile}
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => document.getElementById('article-file-upload')?.click()}
+                                      title="Upload Image/File"
+                                    >
+                                      <Upload className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
-                              <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
-                                <div className="space-y-1">
-                                  <h4 className="text-sm font-medium flex items-center gap-2">
-                                    <Link2 className="h-4 w-4 text-primary" />
-                                    File URL
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">Or paste a public link to the file.</p>
-                                </div>
-                                <Input
-                                  placeholder="https://example.com/file"
+
+                              {editorTab === 'write' ? (
+                                <textarea
+                                  placeholder="Write your content here in Markdown format..."
+                                  className="w-full min-h-[300px] border-0 focus:ring-0 resize-y bg-transparent p-0 outline-none text-sm leading-relaxed"
                                   value={selectedLesson.content || ''}
                                   onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
                                 />
-                              </div>
-                            </div>
-                          </div>
-
-                          {selectedLesson.content && (
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Preview / Current Link</label>
-                              <div className="border rounded-lg p-4 bg-muted/5 flex items-center justify-between">
-                                <div className="flex items-center gap-2 overflow-hidden mr-4">
-                                  <FileText className="h-5 w-5 text-indigo-400 shrink-0" />
-                                  <span className="text-sm truncate text-muted-foreground">{selectedLesson.content}</span>
+                              ) : (
+                                <div className="min-h-[300px] p-2">
+                                  <MarkdownPreview content={selectedLesson.content || ''} />
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(selectedLesson.content, '_blank')}
-                                >
-                                  Open in New Tab
+                              )}
+                            </div>
+                          )}
+
+                          {(selectedLesson.type === 'PDF' || selectedLesson.type === 'Document' || selectedLesson.type === 'Audio' || selectedLesson.type === 'Image') && (
+                            <div className="space-y-6 p-6">
+                              <div className="space-y-4">
+                                <label className="text-sm font-medium">{selectedLesson.type} File Source</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                    <div className="space-y-1">
+                                      <h4 className="text-sm font-medium flex items-center gap-2">
+                                        <Upload className="h-4 w-4 text-primary" />
+                                        Upload File
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">
+                                        {selectedLesson.type === 'PDF' && 'Upload a PDF document.'}
+                                        {selectedLesson.type === 'Document' && 'Upload a Word, Excel or PowerPoint document.'}
+                                        {selectedLesson.type === 'Audio' && 'Upload an MP3, WAV or M4A audio file.'}
+                                        {selectedLesson.type === 'Image' && 'Upload an PNG, JPG, JPEG or SVG image.'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <input
+                                        type="file"
+                                        id="file-upload-input-generic"
+                                        accept={
+                                          selectedLesson.type === 'PDF' ? 'application/pdf' :
+                                            selectedLesson.type === 'Document' ? '.doc,.docx,.xls,.xlsx,.ppt,.pptx' :
+                                              selectedLesson.type === 'Audio' ? 'audio/*' :
+                                                selectedLesson.type === 'Image' ? 'image/*' : '*'
+                                        }
+                                        className="hidden"
+                                        onChange={handleUploadFile}
+                                        disabled={isUploading}
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => document.getElementById('file-upload-input-generic')?.click()}
+                                        disabled={isUploading}
+                                      >
+                                        {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
+                                    <div className="space-y-1">
+                                      <h4 className="text-sm font-medium flex items-center gap-2">
+                                        <Link2 className="h-4 w-4 text-primary" />
+                                        File URL
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">Or paste a public link to the file.</p>
+                                    </div>
+                                    <Input
+                                      placeholder="https://example.com/file"
+                                      value={selectedLesson.content || ''}
+                                      onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {selectedLesson.content && (
+                                <div className="space-y-4">
+                                  <label className="text-sm font-medium">Preview / Current Link</label>
+                                  <div className="border rounded-lg p-4 bg-muted/5 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 overflow-hidden mr-4 min-w-0">
+                                      <FileText className="h-5 w-5 text-indigo-400 shrink-0" />
+                                      <a
+                                        href={selectedLesson.content}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm truncate font-medium text-primary hover:underline"
+                                        title={selectedLesson.content}
+                                      >
+                                        {selectedLesson.content}
+                                      </a>
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => window.open(selectedLesson.content, '_blank')}
+                                      className="shrink-0"
+                                    >
+                                      <ExternalLink className="h-4 w-4 mr-1.5" />
+                                      Open in New Tab
+                                    </Button>
+                                  </div>
+
+                                  {(selectedLesson.type === 'PDF' || selectedLesson.content.toLowerCase().includes('.pdf')) && (
+                                    <div className="border rounded-xl overflow-hidden bg-muted/10 shadow-sm mt-3">
+                                      <div className="p-3 bg-muted/30 border-b flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                          <FileText className="h-4 w-4 text-red-500" />
+                                          PDF Document Live Preview
+                                        </span>
+                                        <a
+                                          href={selectedLesson.content}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
+                                        >
+                                          Full Screen <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      </div>
+                                      <div className="h-[450px] w-full bg-white">
+                                        <iframe
+                                          src={`${selectedLesson.content}#toolbar=1`}
+                                          className="w-full h-full border-none"
+                                          title={selectedLesson.title || 'PDF Document Preview'}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {selectedLesson.type === 'Quiz' && (
+                            <div className="space-y-6 p-6">
+                              <div className="flex items-center justify-between border-b pb-4">
+                                <div>
+                                  <h4 className="text-sm font-medium">Quiz Questions</h4>
+                                  <p className="text-xs text-muted-foreground">Add multiple choice questions for your employees.</p>
+                                </div>
+                                <Button size="sm" onClick={handleAddQuestion}>
+                                  <PlusCircle className="h-4 w-4 mr-2" />
+                                  Add Question
                                 </Button>
+                              </div>
+
+                              <div className="space-y-6">
+                                {(!selectedLesson.quiz || !selectedLesson.quiz.questions || selectedLesson.quiz.questions.length === 0) ? (
+                                  <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-lg">
+                                    No questions added yet. Click "Add Question" to begin.
+                                  </div>
+                                ) : (
+                                  selectedLesson.quiz.questions.map((q, qIdx) => (
+                                    <div key={q.id} className="border rounded-lg p-4 space-y-4 bg-muted/10">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3">
+                                        <h5 className="text-sm font-semibold">Question {qIdx + 1}</h5>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-xs text-muted-foreground">Type:</span>
+                                            <Select
+                                              value={q.type || 'single_choice'}
+                                              onValueChange={(val: 'single_choice' | 'multiple_choice' | 'true_false' | any) => {
+                                                const updatedFields: any = { type: val };
+                                                if (val === 'true_false') {
+                                                  updatedFields.options = [
+                                                    { id: Math.random().toString(36).substring(7), optionText: 'True', isCorrect: true },
+                                                    { id: Math.random().toString(36).substring(7), optionText: 'False', isCorrect: false }
+                                                  ];
+                                                }
+                                                handleUpdateQuestion(q.id, updatedFields);
+                                              }}
+                                            >
+                                              <SelectTrigger className="w-[140px] h-8 text-xs">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="single_choice">Single Choice</SelectItem>
+                                                <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                                                <SelectItem value="true_false">True / False</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-xs text-muted-foreground">Points:</span>
+                                            <Input
+                                              type="number"
+                                              value={q.points || 1}
+                                              onChange={(e: any) => handleUpdateQuestion(q.id, { points: Number(e.target.value) })}
+                                              className="w-16 h-8 text-xs"
+                                            />
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                            onClick={() => handleRemoveQuestion(q.id)}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-xs font-medium">Question Text</label>
+                                        <Input
+                                          value={q.questionText}
+                                          onChange={(e: any) => handleUpdateQuestion(q.id, { questionText: e.target.value })}
+                                          placeholder="e.g. What is our core customer value proposition?"
+                                        />
+                                      </div>
+
+                                      <div className="space-y-3">
+                                        <label className="text-xs font-medium flex items-center justify-between">
+                                          <span>Options</span>
+                                          <span className="text-[10px] text-muted-foreground italic">
+                                            {q.type === 'multiple_choice' && 'Select correct answer(s) using checkboxes'}
+                                            {q.type === 'single_choice' && 'Select correct answer using radio buttons'}
+                                            {q.type === 'true_false' && 'Select correct answer (True or False)'}
+                                          </span>
+                                        </label>
+                                        <div className="space-y-2">
+                                          {q.options.map((opt, oIdx) => (
+                                            <div key={opt.id} className="flex items-center gap-2">
+                                              <input
+                                                type={q.type === 'multiple_choice' ? 'checkbox' : 'radio'}
+                                                name={`q-builder-${q.id}`}
+                                                checked={opt.isCorrect || false}
+                                                onChange={(e) => {
+                                                  const newOpts = q.options.map((o) => {
+                                                    if (o.id === opt.id) return { ...o, isCorrect: e.target.checked };
+                                                    // If single choice or true/false, uncheck other choices
+                                                    return q.type !== 'multiple_choice' ? { ...o, isCorrect: false } : o;
+                                                  });
+                                                  handleUpdateQuestion(q.id, { options: newOpts });
+                                                }}
+                                                className={q.type === 'multiple_choice' ? "rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" : "rounded-full border-gray-300 text-primary focus:ring-primary h-4 w-4"}
+                                              />
+                                              <Input
+                                                value={opt.optionText}
+                                                disabled={q.type === 'true_false'}
+                                                onChange={(e: any) => {
+                                                  const newOpts = q.options.map((o) =>
+                                                    o.id === opt.id ? { ...o, optionText: e.target.value } : o
+                                                  );
+                                                  handleUpdateQuestion(q.id, { options: newOpts });
+                                                }}
+                                                placeholder={`Option ${oIdx + 1}`}
+                                                className="flex-1 h-9"
+                                              />
+                                              {q.type !== 'true_false' && (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                  onClick={() => {
+                                                    const newOpts = q.options.filter((o) => o.id !== opt.id);
+                                                    handleUpdateQuestion(q.id, { options: newOpts });
+                                                  }}
+                                                >
+                                                  <X className="h-3 w-3" />
+                                                </Button>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {q.type !== 'true_false' && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              const newOpts = [
+                                                ...q.options,
+                                                { id: Math.random().toString(36).substring(7), optionText: '', isCorrect: false }
+                                              ];
+                                              handleUpdateQuestion(q.id, { options: newOpts });
+                                            }}
+                                            className="h-8 text-xs"
+                                          >
+                                            Add Option
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
                           )}
-                        </div>
-                      )}
 
-                      {selectedLesson.type === 'Quiz' && (
-                        <div className="space-y-6 p-6">
-                          <div className="flex items-center justify-between border-b pb-4">
-                            <div>
-                              <h4 className="text-sm font-medium">Quiz Questions</h4>
-                              <p className="text-xs text-muted-foreground">Add multiple choice questions for your employees.</p>
-                            </div>
-                            <Button size="sm" onClick={handleAddQuestion}>
-                              <PlusCircle className="h-4 w-4 mr-2" />
-                              Add Question
-                            </Button>
+                          <div className="p-4 border-t bg-muted/10">
+                            <label className="text-xs font-medium text-muted-foreground">Lesson Description</label>
+                            <Input
+                              placeholder="Add a brief summary or transcript for this lesson..."
+                              className="border-0 focus-visible:ring-0 px-0 bg-transparent"
+                              value={selectedLesson.description || ''}
+                              onChange={(e: any) => updateSelectedLesson({ description: e.target.value })}
+                            />
                           </div>
-
-                          <div className="space-y-6">
-                            {(!selectedLesson.quiz || !selectedLesson.quiz.questions || selectedLesson.quiz.questions.length === 0) ? (
-                              <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-lg">
-                                No questions added yet. Click "Add Question" to begin.
-                              </div>
-                            ) : (
-                              selectedLesson.quiz.questions.map((q, qIdx) => (
-                                <div key={q.id} className="border rounded-lg p-4 space-y-4 bg-muted/10">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3">
-                                    <h5 className="text-sm font-semibold">Question {qIdx + 1}</h5>
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-xs text-muted-foreground">Type:</span>
-                                        <Select
-                                          value={q.type || 'single_choice'}
-                                          onValueChange={(val: 'single_choice' | 'multiple_choice' | 'true_false' | any) => {
-                                            const updatedFields: any = { type: val };
-                                            if (val === 'true_false') {
-                                              updatedFields.options = [
-                                                { id: Math.random().toString(36).substring(7), optionText: 'True', isCorrect: true },
-                                                { id: Math.random().toString(36).substring(7), optionText: 'False', isCorrect: false }
-                                              ];
-                                            }
-                                            handleUpdateQuestion(q.id, updatedFields);
-                                          }}
-                                        >
-                                          <SelectTrigger className="w-[140px] h-8 text-xs">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="single_choice">Single Choice</SelectItem>
-                                            <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                                            <SelectItem value="true_false">True / False</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <span className="text-xs text-muted-foreground">Points:</span>
-                                        <Input
-                                          type="number"
-                                          value={q.points || 1}
-                                          onChange={(e: any) => handleUpdateQuestion(q.id, { points: Number(e.target.value) })}
-                                          className="w-16 h-8 text-xs"
-                                        />
-                                      </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleRemoveQuestion(q.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-xs font-medium">Question Text</label>
-                                    <Input
-                                      value={q.questionText}
-                                      onChange={(e: any) => handleUpdateQuestion(q.id, { questionText: e.target.value })}
-                                      placeholder="e.g. What is our core customer value proposition?"
-                                    />
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <label className="text-xs font-medium flex items-center justify-between">
-                                      <span>Options</span>
-                                      <span className="text-[10px] text-muted-foreground italic">
-                                        {q.type === 'multiple_choice' && 'Select correct answer(s) using checkboxes'}
-                                        {q.type === 'single_choice' && 'Select correct answer using radio buttons'}
-                                        {q.type === 'true_false' && 'Select correct answer (True or False)'}
-                                      </span>
-                                    </label>
-                                    <div className="space-y-2">
-                                      {q.options.map((opt, oIdx) => (
-                                        <div key={opt.id} className="flex items-center gap-2">
-                                          <input
-                                            type={q.type === 'multiple_choice' ? 'checkbox' : 'radio'}
-                                            name={`q-builder-${q.id}`}
-                                            checked={opt.isCorrect || false}
-                                            onChange={(e) => {
-                                              const newOpts = q.options.map((o) => {
-                                                if (o.id === opt.id) return { ...o, isCorrect: e.target.checked };
-                                                // If single choice or true/false, uncheck other choices
-                                                return q.type !== 'multiple_choice' ? { ...o, isCorrect: false } : o;
-                                              });
-                                              handleUpdateQuestion(q.id, { options: newOpts });
-                                            }}
-                                            className={q.type === 'multiple_choice' ? "rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" : "rounded-full border-gray-300 text-primary focus:ring-primary h-4 w-4"}
-                                          />
-                                          <Input
-                                            value={opt.optionText}
-                                            disabled={q.type === 'true_false'}
-                                            onChange={(e: any) => {
-                                              const newOpts = q.options.map((o) =>
-                                                o.id === opt.id ? { ...o, optionText: e.target.value } : o
-                                              );
-                                              handleUpdateQuestion(q.id, { options: newOpts });
-                                            }}
-                                            placeholder={`Option ${oIdx + 1}`}
-                                            className="flex-1 h-9"
-                                          />
-                                          {q.type !== 'true_false' && (
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                              onClick={() => {
-                                                const newOpts = q.options.filter((o) => o.id !== opt.id);
-                                                handleUpdateQuestion(q.id, { options: newOpts });
-                                              }}
-                                            >
-                                              <X className="h-3 w-3" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                    {q.type !== 'true_false' && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                          const newOpts = [
-                                            ...q.options,
-                                            { id: Math.random().toString(36).substring(7), optionText: '', isCorrect: false }
-                                          ];
-                                          handleUpdateQuestion(q.id, { options: newOpts });
-                                        }}
-                                        className="h-8 text-xs"
-                                      >
-                                        Add Option
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="p-4 border-t bg-muted/10">
-                        <label className="text-xs font-medium text-muted-foreground">Lesson Description</label>
-                        <Input
-                          placeholder="Add a brief summary or transcript for this lesson..."
-                          className="border-0 focus-visible:ring-0 px-0 bg-transparent"
-                          value={selectedLesson.description || ''}
-                          onChange={(e: any) => updateSelectedLesson({ description: e.target.value })}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                        </CardContent>
+                      </Card>
+                    </div>
 
                     {/* Right Sidebar - Settings */}
                     <div className="w-full md:w-64 flex-none border-t md:border-t-0 md:border-l bg-muted/10 flex flex-col border-b md:border-b-0">
@@ -1294,9 +1451,9 @@ export function JourneyBuilder() {
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm p-8">
                     {isMobile && (
-                      <Button 
-                        variant="ghost" 
-                        className="mb-4 text-primary" 
+                      <Button
+                        variant="ghost"
+                        className="mb-4 text-primary"
                         onClick={() => setMobileView('list')}
                       >
                         <ChevronLeft className="h-4 w-4 mr-1" /> Back to Curriculum
@@ -1307,6 +1464,19 @@ export function JourneyBuilder() {
                 )}
               </div>
             )}
+            {/* <div className="border-t bg-background p-3 px-6 flex items-center justify-between flex-none border-t">
+              <Button variant="outline" onClick={() => setActiveTab('settings')}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Previous: Settings
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => handleSave()} disabled={updateJourney.isPending || createJourney.isPending}>
+                  <Save className="mr-2 h-4 w-4" /> Save Draft
+                </Button>
+                <Button onClick={() => handleSave(() => setActiveTab('assignments'))} disabled={updateJourney.isPending || createJourney.isPending}>
+                  Save & Next <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div> */}
           </TabsContent>
 
           <TabsContent
@@ -1376,34 +1546,251 @@ export function JourneyBuilder() {
                 </div>
               </div>
 
-              {!isPublic && journey?.status === 'Active' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Assign Journey</h3>
-                  <div className="flex gap-3 max-w-md">
-                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} className="flex-1">
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select an employee..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {unassignedEmployees.length === 0 ? (
-                          <SelectItem value="_empty" disabled>All employees assigned</SelectItem>
-                        ) : (
-                          unassignedEmployees.map((emp: any) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.name} ({emp.department})
-                            </SelectItem>
-                          ))
+              {!isPublic && (
+                <Card>
+                  <CardHeader className="pb-3 border-b bg-muted/10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                          <Users className="h-5 w-5 text-indigo-500" />
+                          Bulk Target Employee Assignment
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Search, filter by department, select multiple employees, and assign this journey at scale (supports 10,000+ employees).
+                        </p>
+                      </div>
+                      {selectedEmpIds.length > 0 && (
+                        <Button
+                          onClick={handleBulkAssign}
+                          disabled={bulkAssignMut.isPending || (isNew && !id)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                        >
+                          {bulkAssignMut.isPending ? (
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserCheck className="mr-2 h-4 w-4" />
+                          )}
+                          Assign {selectedEmpIds.length} Selected {selectedEmpIds.length === 1 ? 'Employee' : 'Employees'}
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-4">
+                    {/* Filter Controls Bar */}
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      <div className="sm:col-span-6 relative">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search employees by name, email, department..."
+                          value={empSearch}
+                          onChange={(e: any) => {
+                            setEmpSearch(e.target.value);
+                            setEmpPage(1);
+                          }}
+                          className="pl-9"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <Select value={empDeptFilter} onValueChange={(val: any) => { setEmpDeptFilter(val); setEmpPage(1); }}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="All Departments" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {employeeDepartments.map((dept: any) => (
+                              <SelectItem key={dept} value={dept.toLowerCase()}>{dept}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <Select value={empPageSize.toString()} onValueChange={(val: any) => { setEmpPageSize(Number(val)); setEmpPage(1); }}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Page Size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10 per page</SelectItem>
+                            <SelectItem value="25">25 per page</SelectItem>
+                            <SelectItem value="50">50 per page</SelectItem>
+                            <SelectItem value="100">100 per page</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Batch Selection Action Ribbon */}
+                    <div className="flex items-center justify-between text-xs bg-muted/20 p-2.5 px-4 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={toggleSelectPage}
+                          className="h-7 text-xs px-2"
+                        >
+                          {isPageAllSelected ? <CheckSquare className="h-4 w-4 mr-1.5 text-indigo-500" /> : <Square className="h-4 w-4 mr-1.5" />}
+                          Select Page ({pageUnassignedIds.length})
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={toggleSelectFilteredAll}
+                          className="h-7 text-xs px-2 text-indigo-500 hover:text-indigo-600 font-medium"
+                        >
+                          Select All Matched ({totalEmpCount})
+                        </Button>
+
+                        {selectedEmpIds.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedEmpIds([])}
+                            className="h-7 text-xs px-2 text-red-500 hover:text-red-600"
+                          >
+                            Clear Selection
+                          </Button>
                         )}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      onClick={handleAssignEmployee}
-                      disabled={assignJourneyMut.isPending || !selectedEmployeeId}
-                    >
-                      {assignJourneyMut.isPending ? 'Assigning...' : 'Assign'}
-                    </Button>
-                  </div>
-                </div>
+                      </div>
+
+                      <span className="font-semibold text-muted-foreground">
+                        {selectedEmpIds.length} selected
+                      </span>
+                    </div>
+
+                    {/* Pageable Table */}
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/30 text-xs font-semibold text-muted-foreground uppercase border-b">
+                          <tr>
+                            <th className="p-3 w-10 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isPageAllSelected && pageUnassignedIds.length > 0}
+                                onChange={toggleSelectPage}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                              />
+                            </th>
+                            <th className="p-3">Employee</th>
+                            <th className="p-3">Department</th>
+                            <th className="p-3">Role</th>
+                            <th className="p-3 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {paginatedEmployees.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-muted-foreground text-xs">
+                                No employees found matching the search criteria.
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedEmployees.map((emp: any) => {
+                              const isAssigned = assignedEmployeeIds.has(emp.id);
+                              const isSelected = selectedEmpIds.includes(emp.id);
+
+                              return (
+                                <tr
+                                  key={emp.id}
+                                  className={`hover:bg-muted/10 transition-colors ${isSelected ? 'bg-indigo-500/5' : ''}`}
+                                >
+                                  <td className="p-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      disabled={isAssigned}
+                                      checked={isSelected || isAssigned}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedEmpIds((prev) => [...prev, emp.id]);
+                                        } else {
+                                          setSelectedEmpIds((prev) => prev.filter((id) => id !== emp.id));
+                                        }
+                                      }}
+                                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 disabled:opacity-50"
+                                    />
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="font-medium text-foreground">{emp.name}</div>
+                                    <div className="text-xs text-muted-foreground">{emp.email}</div>
+                                  </td>
+                                  <td className="p-3">
+                                    <Badge variant="outline" className="capitalize text-xs font-normal">
+                                      {emp.department || 'General'}
+                                    </Badge>
+                                  </td>
+                                  <td className="p-3">
+                                    <span className="text-xs text-muted-foreground capitalize">{emp.role}</span>
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {isAssigned ? (
+                                      <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs font-normal">
+                                        Assigned
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs font-normal">
+                                        Available
+                                      </Badge>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Table Pagination Footer */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs text-muted-foreground">
+                      <div>
+                        Showing {totalEmpCount === 0 ? 0 : (currentEmpPage - 1) * empPageSize + 1} to{' '}
+                        {Math.min(currentEmpPage * empPageSize, totalEmpCount)} of {totalEmpCount} employees
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEmpPage(1)}
+                          disabled={currentEmpPage <= 1}
+                        >
+                          <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEmpPage((p) => Math.max(p - 1, 1))}
+                          disabled={currentEmpPage <= 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="px-2 font-medium">
+                          Page {currentEmpPage} of {totalEmpPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEmpPage((p) => Math.min(p + 1, totalEmpPages))}
+                          disabled={currentEmpPage >= totalEmpPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEmpPage(totalEmpPages)}
+                          disabled={currentEmpPage >= totalEmpPages}
+                        >
+                          <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               <div className="space-y-4">
@@ -1512,6 +1899,26 @@ export function JourneyBuilder() {
                     </CardContent>
                   </Card>
                 )}
+
+                <div className="flex items-center justify-between pt-6 border-t mt-8">
+                  <Button variant="outline" onClick={() => setActiveTab('builder')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Previous: Builder
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => handleSave()} disabled={updateJourney.isPending || createJourney.isPending}>
+                      <Save className="mr-2 h-4 w-4" /> Save Draft
+                    </Button>
+                    {journey?.status !== 'Active' ? (
+                      <Button onClick={handlePublish} disabled={updateJourney.isPending || createJourney.isPending}>
+                        <Check className="mr-2 h-4 w-4" /> Save & Publish Journey
+                      </Button>
+                    ) : (
+                      <Button onClick={() => handleSave(() => navigate('/journeys'))} disabled={updateJourney.isPending || createJourney.isPending}>
+                        <Check className="mr-2 h-4 w-4" /> Finish & Exit
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -1718,6 +2125,28 @@ export function JourneyBuilder() {
   );
 }
 
+function renderFormattedText(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline hover:text-primary/80 break-all font-medium"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 function MarkdownPreview({ content }: { content: string }) {
   if (!content) return <p className="text-muted-foreground italic text-sm">No content written yet. Use the editor to add text.</p>;
 
@@ -1727,23 +2156,23 @@ function MarkdownPreview({ content }: { content: string }) {
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('# ')) {
-          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b pb-2 mt-6">{trimmed.slice(2)}</h1>;
+          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b pb-2 mt-6">{renderFormattedText(trimmed.slice(2))}</h1>;
         }
         if (trimmed.startsWith('## ')) {
-          return <h2 key={idx} className="text-xl font-semibold mt-5">{trimmed.slice(3)}</h2>;
+          return <h2 key={idx} className="text-xl font-semibold mt-5">{renderFormattedText(trimmed.slice(3))}</h2>;
         }
         if (trimmed.startsWith('### ')) {
-          return <h3 key={idx} className="text-lg font-semibold mt-4">{trimmed.slice(4)}</h3>;
+          return <h3 key={idx} className="text-lg font-semibold mt-4">{renderFormattedText(trimmed.slice(4))}</h3>;
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
             <ul key={idx} className="list-disc pl-6 space-y-1">
-              <li>{trimmed.slice(2)}</li>
+              <li>{renderFormattedText(trimmed.slice(2))}</li>
             </ul>
           );
         }
         if (trimmed.startsWith('> ')) {
-          return <blockquote key={idx} className="border-l-4 border-primary pl-4 italic my-2 bg-muted/30 py-1 rounded-r">{trimmed.slice(2)}</blockquote>;
+          return <blockquote key={idx} className="border-l-4 border-primary pl-4 italic my-2 bg-muted/30 py-1 rounded-r">{renderFormattedText(trimmed.slice(2))}</blockquote>;
         }
         if (trimmed.startsWith('```')) {
           if (trimmed === '```') return null;
@@ -1752,7 +2181,7 @@ function MarkdownPreview({ content }: { content: string }) {
         if (!trimmed) {
           return <div key={idx} className="h-2" />;
         }
-        return <p key={idx} className="leading-relaxed">{trimmed}</p>;
+        return <p key={idx} className="leading-relaxed">{renderFormattedText(trimmed)}</p>;
       })}
     </div>
   );

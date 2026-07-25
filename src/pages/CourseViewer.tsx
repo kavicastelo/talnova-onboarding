@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Award,
   Check,
-  Menu
+  Menu,
+  ExternalLink
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ScrollArea } from '../components/ScrollArea';
@@ -862,6 +863,68 @@ export function CourseViewer() {
                       <div className="space-y-8">
                         {selectedLesson.contentBlocks.map((block) => renderContentBlock(block))}
                       </div>
+                    ) : (selectedLesson.type === 'PDF' || selectedLesson.type === 'Document' || selectedLesson.content?.toLowerCase().includes('.pdf')) ? (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/10 rounded-xl shadow-lg">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-10 w-10 bg-red-500/10 rounded-lg flex items-center justify-center text-red-400 shrink-0">
+                              <FileText className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-white font-semibold text-sm truncate">
+                                <TranslateText language={translationLanguage}>{selectedLesson.title || 'Document.pdf'}</TranslateText>
+                              </h4>
+                              <p className="text-xs text-gray-400">
+                                <TranslateText language={translationLanguage}>PDF Document Viewer</TranslateText>
+                              </p>
+                            </div>
+                          </div>
+                          {selectedLesson.content && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-white/20 text-white hover:bg-white/10 shrink-0"
+                              onClick={() => window.open(selectedLesson.content, '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              <TranslateText language={translationLanguage}>Open PDF</TranslateText>
+                            </Button>
+                          )}
+                        </div>
+                        {selectedLesson.content ? (
+                          <div className="w-full h-[650px] rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-white">
+                            <iframe
+                              src={`${selectedLesson.content}#toolbar=1`}
+                              className="w-full h-full border-none"
+                              title={selectedLesson.title || 'PDF Document Viewer'}
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center text-gray-400 border border-white/10 rounded-xl bg-white/[0.02]">
+                            <TranslateText language={translationLanguage}>No PDF document attached to this lesson.</TranslateText>
+                          </div>
+                        )}
+                      </div>
+                    ) : selectedLesson.type === 'Video' && selectedLesson.content ? (
+                      <div className="space-y-4">
+                        {selectedLesson.content.includes('youtube.com') || selectedLesson.content.includes('youtu.be') ? (
+                          <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-xl">
+                            <iframe
+                              className="w-full h-full"
+                              src={selectedLesson.content.replace('watch?v=', 'embed/')}
+                              title="Video player"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        ) : (
+                          <video
+                            src={selectedLesson.content}
+                            controls
+                            className="w-full aspect-video rounded-xl border border-white/10 bg-black shadow-xl"
+                          />
+                        )}
+                      </div>
                     ) : (
                       <div className="prose prose-sm dark:prose-invert max-w-none">
                         <div className="text-gray-300 leading-relaxed">
@@ -933,6 +996,28 @@ function getVideoEmbedUrl(url: string): { type: 'youtube' | 'vimeo' | 'direct' |
   return { type: 'direct', src: url };
 }
 
+function renderFormattedText(text: string, language: 'en' | 'si' | 'ta') {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-400 hover:text-indigo-300 underline font-medium break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <TranslateText key={i} language={language}>{part}</TranslateText>;
+  });
+}
+
 function MarkdownPreview({ content, language }: { content: string; language: 'en' | 'si' | 'ta' }) {
   if (!content) return <p className="text-gray-400 italic text-sm">No content written yet.</p>;
 
@@ -942,23 +1027,23 @@ function MarkdownPreview({ content, language }: { content: string; language: 'en
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('# ')) {
-          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b border-white/10 pb-2 mt-6 text-white"><TranslateText language={language}>{trimmed.slice(2)}</TranslateText></h1>;
+          return <h1 key={idx} className="text-2xl font-bold tracking-tight border-b border-white/10 pb-2 mt-6 text-white">{renderFormattedText(trimmed.slice(2), language)}</h1>;
         }
         if (trimmed.startsWith('## ')) {
-          return <h2 key={idx} className="text-xl font-semibold mt-5 text-white"><TranslateText language={language}>{trimmed.slice(3)}</TranslateText></h2>;
+          return <h2 key={idx} className="text-xl font-semibold mt-5 text-white">{renderFormattedText(trimmed.slice(3), language)}</h2>;
         }
         if (trimmed.startsWith('### ')) {
-          return <h3 key={idx} className="text-lg font-semibold mt-4 text-white"><TranslateText language={language}>{trimmed.slice(4)}</TranslateText></h3>;
+          return <h3 key={idx} className="text-lg font-semibold mt-4 text-white">{renderFormattedText(trimmed.slice(4), language)}</h3>;
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
             <ul key={idx} className="list-disc pl-6 space-y-1 text-gray-300">
-              <li><TranslateText language={language}>{trimmed.slice(2)}</TranslateText></li>
+              <li>{renderFormattedText(trimmed.slice(2), language)}</li>
             </ul>
           );
         }
         if (trimmed.startsWith('> ')) {
-          return <blockquote key={idx} className="border-l-4 border-indigo-500 pl-4 italic my-2 bg-white/[0.02] py-1 rounded-r text-gray-400"><TranslateText language={language}>{trimmed.slice(2)}</TranslateText></blockquote>;
+          return <blockquote key={idx} className="border-l-4 border-indigo-500 pl-4 italic my-2 bg-white/[0.02] py-1 rounded-r text-gray-400">{renderFormattedText(trimmed.slice(2), language)}</blockquote>;
         }
         if (trimmed.startsWith('```')) {
           if (trimmed === '```') return null;
@@ -967,7 +1052,7 @@ function MarkdownPreview({ content, language }: { content: string; language: 'en
         if (!trimmed) {
           return <div key={idx} className="h-2" />;
         }
-        return <p key={idx} className="leading-relaxed text-gray-300"><TranslateText language={language}>{trimmed}</TranslateText></p>;
+        return <p key={idx} className="leading-relaxed text-gray-300">{renderFormattedText(trimmed, language)}</p>;
       })}
     </div>
   );
