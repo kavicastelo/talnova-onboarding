@@ -63,9 +63,12 @@ export class EmployeeController {
       search,
     };
 
+    const parsedLimit = limit !== undefined ? parseInt(limit, 10) : 1000;
+    const limitVal = isNaN(parsedLimit) || parsedLimit <= 0 ? 10000 : parsedLimit;
+
     const pagination = {
       page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
+      limit: limitVal,
       sortBy,
       sortOrder,
     };
@@ -80,6 +83,7 @@ export class EmployeeController {
         total: result.total,
         page: pagination.page,
         limit: pagination.limit,
+        totalPages: Math.ceil(result.total / pagination.limit) || 1,
       },
     });
   };

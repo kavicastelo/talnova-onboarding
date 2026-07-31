@@ -27,14 +27,23 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
 };
 
 export const employeeService = {
-  getEmployees: async (params?: { search?: string; departmentId?: string; status?: string; role?: string }): Promise<Employee[]> => {
+  getEmployees: async (params?: { search?: string; departmentId?: string; status?: string; role?: string; page?: number; limit?: number }): Promise<{ employees: Employee[]; total: number; page: number; limit: number; totalPages: number }> => {
     // 1. Fetch departments to translate departmentId
     const deptRes = await apiClient.get<ApiResponse<any[]>>('/organizations/departments').catch(() => ({ data: { data: [] } }));
     const departments = deptRes.data.data || [];
 
     // 2. Fetch employees
     const response = await apiClient.get<ApiResponse<any[]>>('/employees', { params });
-    return (response.data.data || []).map(u => mapBackendUserToEmployee(u, departments));
+    const employees = (response.data.data || []).map(u => mapBackendUserToEmployee(u, departments));
+    const meta: any = response.data.meta || {};
+
+    return {
+      employees,
+      total: meta.total ?? employees.length,
+      page: meta.page ?? 1,
+      limit: meta.limit ?? 20,
+      totalPages: meta.totalPages ?? 1,
+    };
   },
 
   getEmployee: async (id: string): Promise<Employee> => {
