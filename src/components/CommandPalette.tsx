@@ -76,7 +76,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { role } = useRole();
   const { data: journeys = [] } = useJourneys();
-  const { data: employees = [] } = useEmployees();
+  const { data: employeesRes } = useEmployees({ limit: 1000 });
+  const employees = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.employees || []);
 
   const go = (url: string) => {
     onOpenChange(false);

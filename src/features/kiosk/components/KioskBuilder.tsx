@@ -914,24 +914,24 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                   </div>
                 </div>
 
-                {/* Spanish Content configuration */}
+                {/* Sinhala Content configuration */}
                 <div className="bg-slate-950 border border-slate-900 p-4 rounded-xl space-y-3">
                   <h5 className="text-xs font-bold text-slate-300 flex items-center space-x-1">
                     <span className="w-2.5 h-2.5 rounded bg-sky-500" />
-                    <span>Spanish (ES)</span>
+                    <span>Sinhala (SI)</span>
                   </h5>
 
                   {activeBlock.type === 'text' && (
                     <div>
                       <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Text Value</label>
                       <textarea
-                        value={activeBlock.mediaReferences?.es?.textValue || ''}
+                        value={activeBlock.mediaReferences?.si?.textValue || ''}
                         onChange={(e) => {
                           const refs = activeBlock.mediaReferences || {};
                           updateBlockInStep(activeStep.id, activeBlock.id, {
                             mediaReferences: {
                               ...refs,
-                              es: { ...refs.es, textValue: e.target.value }
+                              si: { ...refs.si, textValue: e.target.value }
                             }
                           });
                         }}
@@ -946,18 +946,18 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                       <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Asset URL / path</label>
                       <input
                         type="text"
-                        value={activeBlock.mediaReferences?.es?.embedUrl || ''}
+                        value={activeBlock.mediaReferences?.si?.embedUrl || ''}
                         onChange={(e) => {
                           const refs = activeBlock.mediaReferences || {};
                           updateBlockInStep(activeStep.id, activeBlock.id, {
                             mediaReferences: {
                               ...refs,
-                              es: { ...refs.es, embedUrl: e.target.value }
+                              si: { ...refs.si, embedUrl: e.target.value }
                             }
                           });
                         }}
                         className="w-full rounded border border-slate-900 bg-slate-950 p-2 text-xs text-slate-200 focus:border-emerald-500 focus:outline-none transition"
-                        placeholder="https://example.com/asset-es.jpg"
+                        placeholder="https://example.com/asset-si.jpg"
                       />
                     </div>
                   )}
@@ -967,13 +967,13 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                     <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Voiceover audio path</label>
                     <input
                       type="text"
-                      value={activeBlock.mediaReferences?.es?.audioUploadId || ''}
+                      value={activeBlock.mediaReferences?.si?.audioUploadId || ''}
                       onChange={(e) => {
                         const refs = activeBlock.mediaReferences || {};
                         updateBlockInStep(activeStep.id, activeBlock.id, {
                           mediaReferences: {
                             ...refs,
-                            es: { ...refs.es, audioUploadId: e.target.value }
+                            si: { ...refs.si, audioUploadId: e.target.value }
                           }
                         });
                       }}

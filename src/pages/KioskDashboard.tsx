@@ -682,7 +682,7 @@ export function KioskDashboard() {
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase block">Supported Languages</label>
               <div className="flex space-x-3">
-                {['en', 'es'].map((lang) => {
+                {['en', 'si'].map((lang) => {
                   const selected = newJourneyLangs.includes(lang);
                   return (
                     <button
@@ -703,7 +703,7 @@ export function KioskDashboard() {
                           : 'bg-white border-slate-200 text-slate-600 hover:border-slate-350'
                       }`}
                     >
-                      {lang === 'en' ? 'English (EN)' : 'Spanish (ES)'}
+                      {lang === 'en' ? 'English (EN)' : 'Sinhala (SI)'}
                     </button>
                   );
                 })}

@@ -17,7 +17,8 @@ export const dashboardService = {
     const journeys = journeyRes.data.data || [];
     const analytics = analyticsRes.data?.data;
 
-    const totalEmployees = employees.length || org.analytics?.totalEmployees || 0;
+    const empResData: any = empRes.data;
+    const totalEmployees = empResData?.meta?.total ?? (employees.length || org.analytics?.totalEmployees || 0);
     const activeJourneys = journeys.filter((j: any) => j.publishing?.status === 'published').length || org.analytics?.journeys || 0;
     
     // Map completions trend over time

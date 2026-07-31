@@ -245,87 +245,129 @@ export class EmployeeService {
 
     const defaultPasswordHash = await hashPassword("Welcome@2026!");
 
+    // 1. Pre-fetch existing emails for fast O(1) duplicate checks
+    const targetEmails = usersData
+      .map((u) => u.email?.toLowerCase().trim())
+      .filter(Boolean);
+    const existingUsers = await User.find(
+      { "auth.email": { $in: targetEmails }, isDeleted: false },
+      { "auth.email": 1 }
+    );
+    const existingEmailSet = new Set(existingUsers.map((u) => u.auth.email.toLowerCase()));
+    const inFlightEmailSet = new Set<string>();
+
+    // 2. Pre-index existing departments by ID and lower-case Name
+    const deptMap = new Map<string, mongoose.Types.ObjectId>();
+    org.departments.forEach((d) => {
+      deptMap.set(d._id.toString(), d._id);
+      deptMap.set(d.name.toLowerCase(), d._id);
+    });
+
+    let orgModified = false;
+    const documentsToInsert: any[] = [];
+
     for (const data of usersData) {
+      const email = data.email?.toLowerCase().trim() || "";
+      if (!email) {
+        results.failures.push({ email: "", reason: "Email is required" });
+        continue;
+      }
+
+      if (existingEmailSet.has(email) || inFlightEmailSet.has(email)) {
+        results.failures.push({ email, reason: "A user with this email address already exists." });
+        continue;
+      }
+      inFlightEmailSet.add(email);
+
+      // Resolve departmentId dynamically
+      let resolvedDeptId: mongoose.Types.ObjectId | undefined = undefined;
+      if (data.departmentId) {
+        const cleanDept = data.departmentId.trim();
+        if (mongoose.Types.ObjectId.isValid(cleanDept) && deptMap.has(cleanDept)) {
+          resolvedDeptId = deptMap.get(cleanDept);
+        } else if (deptMap.has(cleanDept.toLowerCase())) {
+          resolvedDeptId = deptMap.get(cleanDept.toLowerCase());
+        } else {
+          // Create new department on the fly
+          const newDeptId = new mongoose.Types.ObjectId();
+          org.departments.push({
+            _id: newDeptId,
+            name: cleanDept,
+            active: true,
+          } as any);
+          deptMap.set(cleanDept.toLowerCase(), newDeptId);
+          deptMap.set(newDeptId.toString(), newDeptId);
+          resolvedDeptId = newDeptId;
+          orgModified = true;
+        }
+      }
+
+      documentsToInsert.push({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        auth: {
+          email,
+          passwordHash: defaultPasswordHash,
+          emailVerified: true,
+        },
+        profile: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          fullName: `${data.firstName} ${data.lastName}`.trim(),
+          phone: data.phone || undefined,
+          location: data.location || undefined,
+          timezone: data.timezone || undefined,
+        },
+        employment: {
+          employeeId: data.employeeId || undefined,
+          departmentId: resolvedDeptId,
+          status: "active" as const,
+          employmentType: data.employmentType || ("full_time" as const),
+          designation: data.designation || undefined,
+          payrollCategory: data.payrollCategory || undefined,
+          hireDate: data.hireDate ? new Date(data.hireDate) : new Date(),
+        },
+        permissions: {
+          role: (data.role || "employee") as any,
+          customRoles: [],
+        },
+        security: {
+          mfaEnabled: false,
+          failedLoginAttempts: 0,
+        },
+        createdBy: new mongoose.Types.ObjectId(creatorId),
+        isDeleted: false,
+      });
+    }
+
+    // Save updated departments once if new departments were added
+    if (orgModified) {
+      await org.save();
+    }
+
+    // 3. Batch insert users in chunks of 250
+    const BATCH_SIZE = 250;
+    for (let i = 0; i < documentsToInsert.length; i += BATCH_SIZE) {
+      const batch = documentsToInsert.slice(i, i + BATCH_SIZE);
       try {
-        const email = data.email.toLowerCase().trim();
-        if (!email) {
-          results.failures.push({ email: "", reason: "Email is required" });
-          continue;
+        const inserted = await User.insertMany(batch, { ordered: false });
+        results.successCount += inserted.length;
+      } catch (err: any) {
+        if (err.insertedDocs && Array.isArray(err.insertedDocs)) {
+          results.successCount += err.insertedDocs.length;
         }
-
-        const existingEmail = await User.findOne({ "auth.email": email, isDeleted: false });
-        if (existingEmail) {
-          results.failures.push({ email, reason: "A user with this email address already exists." });
-          continue;
-        }
-
-        // Resolve departmentId dynamically
-        let resolvedDeptId: mongoose.Types.ObjectId | undefined = undefined;
-        if (data.departmentId) {
-          const cleanDept = data.departmentId.trim();
-          if (mongoose.Types.ObjectId.isValid(cleanDept)) {
-            resolvedDeptId = new mongoose.Types.ObjectId(cleanDept);
-          } else {
-            // Find existing department by name
-            const matchedDept = org.departments.find(
-              (d) => d.name.toLowerCase() === cleanDept.toLowerCase()
-            );
-            if (matchedDept) {
-              resolvedDeptId = matchedDept._id;
-            } else {
-              // Create a new department with this name on the fly
-              const newDeptId = new mongoose.Types.ObjectId();
-              org.departments.push({
-                _id: newDeptId,
-                name: cleanDept,
-                active: true,
-              } as any);
-              await org.save();
-              resolvedDeptId = newDeptId;
-            }
+        if (err.writeErrors && Array.isArray(err.writeErrors)) {
+          for (const we of err.writeErrors) {
+            const failedDoc = batch[we.index];
+            results.failures.push({
+              email: failedDoc?.auth?.email || "",
+              reason: we.errmsg || "Insert failed",
+            });
+          }
+        } else {
+          for (const item of batch) {
+            results.failures.push({ email: item.auth.email, reason: err.message || "Batch insert error" });
           }
         }
-
-        const employeeObj = {
-          organizationId: new mongoose.Types.ObjectId(orgId),
-          auth: {
-            email,
-            passwordHash: defaultPasswordHash,
-            emailVerified: true,
-          },
-          profile: {
-            firstName: data.firstName,
-            lastName: data.lastName,
-            fullName: `${data.firstName} ${data.lastName}`.trim(),
-            phone: data.phone || undefined,
-            location: data.location || undefined,
-            timezone: data.timezone || undefined,
-          },
-          employment: {
-            employeeId: data.employeeId || undefined,
-            departmentId: resolvedDeptId,
-            status: "active" as const,
-            employmentType: data.employmentType || ("full_time" as const),
-            designation: data.designation || undefined,
-            payrollCategory: data.payrollCategory || undefined,
-            hireDate: data.hireDate ? new Date(data.hireDate) : new Date(),
-          },
-          permissions: {
-            role: (data.role || "employee") as any,
-            customRoles: [],
-          },
-          security: {
-            mfaEnabled: false,
-            failedLoginAttempts: 0,
-          },
-          createdBy: new mongoose.Types.ObjectId(creatorId),
-          isDeleted: false,
-        };
-
-        await this.employeeRepository.create(employeeObj as any);
-        results.successCount++;
-      } catch (err: any) {
-        results.failures.push({ email: data.email || "", reason: err.message });
       }
     }
 

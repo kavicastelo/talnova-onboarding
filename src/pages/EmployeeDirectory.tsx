@@ -12,7 +12,7 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { Plus, Search, AlertCircle, RefreshCw, Upload, Download } from 'lucide-react';
+import { Plus, Search, AlertCircle, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee, 
@@ -47,12 +47,19 @@ export function EmployeeDirectory() {
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
-  const filterParams: any = { search };
+  // Pagination States
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+
+  const filterParams: any = { search, page, limit };
   if (selectedDeptId !== 'all') filterParams.departmentId = selectedDeptId;
   if (selectedRole !== 'all') filterParams.role = selectedRole;
   if (selectedStatus !== 'all') filterParams.status = selectedStatus;
 
-  const { data: employees = [], isLoading, isError, error, refetch } = useEmployees(filterParams);
+  const { data: employeesRes, isLoading, isError, error, refetch } = useEmployees(filterParams);
+  const employees = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.employees || []);
+  const totalEmployees = Array.isArray(employeesRes) ? employees.length : (employeesRes?.total || 0);
+  const totalPages = Array.isArray(employeesRes) ? Math.ceil(employees.length / limit) || 1 : (employeesRes?.totalPages || 1);
   const createEmployee = useCreateEmployee();
   const importEmployeesMutation = useImportEmployees();
   const { data: activeDepartments = [] } = useDepartments();
@@ -213,10 +220,22 @@ export function EmployeeDirectory() {
     if (parsedEmployees.length === 0) return;
 
     try {
-      const res = await importEmployeesMutation.mutateAsync(parsedEmployees);
-      toast.success(`Successfully imported ${res.successCount} employees.`);
-      if (res.failures.length > 0) {
-        toast.warning(`Failed to import ${res.failures.length} employees.`);
+      const CHUNK_SIZE = 250;
+      let totalSuccess = 0;
+      const allFailures: Array<{ email: string; reason: string }> = [];
+
+      for (let i = 0; i < parsedEmployees.length; i += CHUNK_SIZE) {
+        const chunk = parsedEmployees.slice(i, i + CHUNK_SIZE);
+        const res = await importEmployeesMutation.mutateAsync(chunk);
+        totalSuccess += res.successCount || 0;
+        if (res.failures && res.failures.length > 0) {
+          allFailures.push(...res.failures);
+        }
+      }
+
+      toast.success(`Successfully imported ${totalSuccess} employees.`);
+      if (allFailures.length > 0) {
+        toast.warning(`Skipped / Failed to import ${allFailures.length} employees.`);
       }
       setImportDialogOpen(false);
       setParsedEmployees([]);
@@ -400,12 +419,15 @@ export function EmployeeDirectory() {
             placeholder="Search employees..."
             className="pl-9"
             value={search}
-            onChange={(e: any) => setSearch(e.target.value)}
+            onChange={(e: any) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
 
         {/* Department Filter */}
-        <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
+        <Select value={selectedDeptId} onValueChange={(val) => { setSelectedDeptId(val); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Department: All" />
           </SelectTrigger>
@@ -420,7 +442,7 @@ export function EmployeeDirectory() {
         </Select>
 
         {/* Role Filter */}
-        <Select value={selectedRole} onValueChange={setSelectedRole}>
+        <Select value={selectedRole} onValueChange={(val) => { setSelectedRole(val); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Role: All" />
           </SelectTrigger>
@@ -434,7 +456,7 @@ export function EmployeeDirectory() {
         </Select>
 
         {/* Status Filter */}
-        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+        <Select value={selectedStatus} onValueChange={(val) => { setSelectedStatus(val); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Status: All" />
           </SelectTrigger>
@@ -454,6 +476,7 @@ export function EmployeeDirectory() {
               setSelectedRole('all');
               setSelectedStatus('all');
               setSearch('');
+              setPage(1);
             }}
             className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground"
           >
@@ -463,7 +486,7 @@ export function EmployeeDirectory() {
       </div>
 
       <div className="hidden md:block">
-        <Card>
+        <Card className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -479,25 +502,28 @@ export function EmployeeDirectory() {
                 // Loading Skeleton State
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-2 w-32" />
-                        <Skeleton className="h-4 w-8" />
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-3 w-36" />
+                        </div>
                       </div>
                     </TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-2 w-full" /></TableCell>
                   </TableRow>
                 ))
               ) : isError ? (
                 // Error State
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-destructive">
-                      <AlertCircle className="h-8 w-8" />
-                      <p className="font-semibold">Failed to load directory</p>
+                  <TableCell colSpan={5} className="h-32 text-center text-destructive">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <AlertCircle className="h-6 w-6" />
+                      <p className="font-semibold text-sm">Failed to load employee directory</p>
                       <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
                       <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
                         <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
@@ -509,14 +535,14 @@ export function EmployeeDirectory() {
                 // Empty State
                 <TableRow>
                   <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                    <p className="font-medium">No employees found</p>
+                    <p className="font-medium text-sm">No employees found</p>
                     <p className="text-xs">Try clearing filters or invite new team members.</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 // Success State
                 employees.map((employee) => (
-                  <TableRow key={employee.id}>
+                  <TableRow key={employee.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell className="font-medium">
                       <Link
                         to={`/directory/${employee.id}`}
@@ -547,6 +573,74 @@ export function EmployeeDirectory() {
               )}
             </TableBody>
           </Table>
+          {!isLoading && !isError && totalEmployees > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t bg-card text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span>Showing <strong className="text-foreground">{totalEmployees === 0 ? 0 : (page - 1) * limit + 1}</strong> to <strong className="text-foreground">{Math.min(page * limit, totalEmployees)}</strong> of <strong className="text-foreground">{totalEmployees}</strong> employees</span>
+                <span className="hidden sm:inline">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span>Per page:</span>
+                  <select
+                    value={limit}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="bg-background border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(1)}
+                  disabled={page <= 1}
+                  className="h-8 w-8 p-0"
+                  title="First Page"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="h-8 px-2.5 flex items-center gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </Button>
+                <span className="px-2 font-medium text-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="h-8 px-2.5 flex items-center gap-1"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(totalPages)}
+                  disabled={page >= totalPages}
+                  className="h-8 w-8 p-0"
+                  title="Last Page"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -584,36 +678,80 @@ export function EmployeeDirectory() {
           </div>
         ) : (
           // Success State
-          employees.map((employee) => (
-            <div key={employee.id} className="p-4 border rounded-lg bg-card space-y-3 shadow-sm hover:border-primary/50 transition-colors">
-              <div className="flex justify-between items-start gap-2">
-                <div>
-                  <Link
-                    to={`/directory/${employee.id}`}
-                    className="font-semibold text-base hover:underline text-foreground block">
-                    {employee.name}
-                  </Link>
-                  <span className="text-xs text-muted-foreground capitalize">
-                    {employee.designation || employee.role} • {employee.department}
-                  </span>
+          <>
+            {employees.map((employee) => (
+              <div key={employee.id} className="p-4 border rounded-lg bg-card space-y-3 shadow-sm hover:border-primary/50 transition-colors">
+                <div className="flex justify-between items-start gap-2">
+                  <div>
+                    <Link
+                      to={`/directory/${employee.id}`}
+                      className="font-semibold text-base hover:underline text-foreground block">
+                      {employee.name}
+                    </Link>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {employee.designation || employee.role} • {employee.department}
+                    </span>
+                  </div>
+                  <Badge
+                    variant={
+                      employee.status === 'Active' ? 'default' : employee.status === 'Onboarding' ? 'secondary' : 'destructive'
+                    }>
+                    {employee.status}
+                  </Badge>
                 </div>
-                <Badge
-                  variant={
-                    employee.status === 'Active' ? 'default' : employee.status === 'Onboarding' ? 'secondary' : 'destructive'
-                  }>
-                  {employee.status}
-                </Badge>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Progress</span>
-                  <span>{employee.progress}%</span>
+                
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Progress</span>
+                    <span>{employee.progress}%</span>
+                  </div>
+                  <Progress value={employee.progress} className="h-1.5" />
                 </div>
-                <Progress value={employee.progress} className="h-1.5" />
               </div>
-            </div>
-          ))
+            ))}
+
+            {!isLoading && !isError && totalEmployees > 0 && (
+              <div className="flex flex-col items-center justify-between gap-3 p-4 border rounded-lg bg-card text-xs text-muted-foreground">
+                <div className="flex items-center justify-between w-full">
+                  <span>Page <strong className="text-foreground">{page}</strong> of <strong className="text-foreground">{totalPages}</strong> ({totalEmployees} total)</span>
+                  <select
+                    value={limit}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="bg-background border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value={10}>10 / page</option>
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                    <option value={100}>100 / page</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 w-full pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="flex-1 h-8"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="flex-1 h-8"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -84,7 +84,8 @@ export function JourneyBuilder() {
   const createJourney = useCreateJourney();
 
   const { data: assignments = [] } = useJourneyAssignments(isNew ? '' : (id || ''));
-  const { data: employees = [] } = useEmployees();
+  const { data: employeesRes } = useEmployees({ limit: 10000 });
+  const employees = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.employees || []);
   const { data: workspaceSettings } = useWorkspaceSettings();
   const bulkAssignMut = useBulkAssignJourney();
   const issueCertificateMut = useIssueCertificate();

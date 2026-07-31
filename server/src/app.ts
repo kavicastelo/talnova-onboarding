@@ -35,6 +35,7 @@ export async function buildApp() {
   const app = Fastify({
     logger: loggerConfig,
     disableRequestLogging: true, // We will use custom request/response lifecycle logging
+    bodyLimit: 50 * 1024 * 1024, // 50MB body limit for bulk operations
   });
 
   // Register foundational plugins

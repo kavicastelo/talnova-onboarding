@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService } from '../services/employee.service';
 import { Employee } from '../types';
 
-export function useEmployees(params?: { search?: string; departmentId?: string; status?: string; role?: string }) {
+export function useEmployees(params?: { search?: string; departmentId?: string; status?: string; role?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['employees', params],
     queryFn: () => employeeService.getEmployees(params),
