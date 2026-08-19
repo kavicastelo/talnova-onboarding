@@ -6,6 +6,7 @@ import smartAssignmentService from "../../modules/journeys/services/smart-assign
 import documentService from "../../modules/documents/services/document.service.js";
 import milestoneService from "../../modules/milestones/services/milestone.service.js";
 import buddyService from "../../modules/buddy/services/buddy.service.js";
+import calendarService from "../../modules/calendar/services/calendar.service.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -165,6 +166,10 @@ export function registerEventSubscribers(): void {
         event.actorId
       );
       await buddyService.autoAssignBuddyToNewHire(
+        event.organizationId,
+        event.actorId
+      );
+      await calendarService.autoScheduleOnboardingMeetings(
         event.organizationId,
         event.actorId
       );

@@ -52,7 +52,8 @@ import {
   UserCheck,
   FileText,
   CalendarCheck,
-  HeartHandshake
+  HeartHandshake,
+  Calendar
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -104,6 +105,7 @@ export function AppShell() {
     { title: 'Digital Documents', url: '/documents', icon: FileText },
     { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
     { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+    { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
     { title: 'Workflows', url: '/workflows', icon: Workflow },
     { title: 'Kiosk Dashboard', url: '/kiosks', icon: Tv },
     { title: t('items.employees'), url: '/directory', icon: Users },
@@ -119,6 +121,7 @@ export function AppShell() {
     { title: 'Digital Documents', url: '/documents', icon: FileText },
     { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
     { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+    { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
     { title: t('items.certificates'), url: '/certificates', icon: Award },
   ];

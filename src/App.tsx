@@ -18,6 +18,7 @@ import { Documents } from './pages/Documents';
 import { DocumentSigner } from './pages/DocumentSigner';
 import { Milestones } from './pages/Milestones';
 import { BuddyProgram } from './pages/BuddyProgram';
+import { CalendarIntegration } from './pages/CalendarIntegration';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -77,6 +78,7 @@ export function App() {
               <Route path="documents/:id/sign" element={<DocumentSigner />} />
               <Route path="milestones" element={<Milestones />} />
               <Route path="buddy" element={<BuddyProgram />} />
+              <Route path="calendar" element={<CalendarIntegration />} />
               <Route
                 path="*"
                 element={
