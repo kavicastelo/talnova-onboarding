@@ -241,6 +241,36 @@ export const journeyService = {
   issueCertificate: async (assignmentId: string): Promise<any> => {
     const response = await apiClient.post<ApiResponse<any>>(`/assignments/${assignmentId}/issue-certificate`);
     return response.data.data;
+  },
+
+  previewSmartAssignment: async (journeyId: string): Promise<{
+    journeyId: string;
+    journeyTitle: string;
+    totalMatchingEmployees: number;
+    alreadyAssignedCount: number;
+    netNewEnrolleesCount: number;
+    matchingEmployees: Array<{
+      _id: string;
+      fullName: string;
+      email: string;
+      department?: string;
+      jobTitle?: string;
+      location?: string;
+      isAlreadyAssigned: boolean;
+    }>;
+  }> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/journeys/${journeyId}/assignment-preview`);
+    return response.data.data;
+  },
+
+  executeSmartAssignment: async (journeyId: string, overrideDueDate?: string): Promise<{ assignedCount: number; skippedCount: number; message: string }> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/journeys/${journeyId}/smart-assign`, { overrideDueDate });
+    return response.data.data;
+  },
+
+  updateTargeting: async (journeyId: string, targeting: any): Promise<Journey> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/journeys/${journeyId}/targeting`, targeting);
+    return mapBackendJourneyToJourney(response.data.data);
   }
 };
 

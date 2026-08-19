@@ -81,6 +81,27 @@ export async function journeyRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(["owner", "admin", "manager"])] },
     controller.getJourneyAnalytics as any
   );
+
+  // POST /api/v1/journeys/:id/assignment-preview
+  app.post(
+    "/:id/assignment-preview",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.previewSmartAssignment as any
+  );
+
+  // POST /api/v1/journeys/:id/smart-assign
+  app.post(
+    "/:id/smart-assign",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.executeSmartAssignment as any
+  );
+
+  // PATCH /api/v1/journeys/:id/targeting
+  app.patch(
+    "/:id/targeting",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.updateTargeting as any
+  );
 }
 
 export default journeyRoutes;

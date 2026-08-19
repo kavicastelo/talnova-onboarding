@@ -131,4 +131,23 @@ export const duplicateJourneySchema = z.object({
   title: z.string().min(3, "New title must be at least 3 characters"),
 });
 
+export const updateTargetingSchema = z.object({
+  departments: z.array(z.string()).optional(),
+  departmentNames: z.array(z.string()).optional(),
+  jobTitles: z.array(z.string()).optional(),
+  jobTitleNames: z.array(z.string()).optional(),
+  locations: z.array(z.string()).optional(),
+  employmentTypes: z.array(z.string()).optional(),
+  startDateOffsetDays: z.number().min(0).optional(),
+  autoEnrollNewHires: z.boolean().optional(),
+  reassignmentPolicy: z.enum(["keep_progress", "reset_progress", "archive_previous"]).optional(),
+  isPublic: z.boolean().optional(),
+});
+
+export const previewSmartAssignmentSchema = z.object({});
+
+export const executeSmartAssignmentSchema = z.object({
+  overrideDueDate: z.string().datetime().optional(),
+});
+
 

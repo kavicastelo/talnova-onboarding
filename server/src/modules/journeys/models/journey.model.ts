@@ -80,9 +80,15 @@ export interface IJourney extends Document {
   tags: string[];
   audience: {
     departments?: mongoose.Types.ObjectId[];
+    departmentNames?: string[];
     teams?: mongoose.Types.ObjectId[];
     jobTitles?: mongoose.Types.ObjectId[];
+    jobTitleNames?: string[];
+    locations?: string[];
     employmentTypes?: string[];
+    startDateOffsetDays?: number;
+    autoEnrollNewHires?: boolean;
+    reassignmentPolicy?: "keep_progress" | "reset_progress" | "archive_previous";
     isPublic?: boolean;
   };
   modules: IModule[];
@@ -204,9 +210,19 @@ const JourneySchema = new Schema<IJourney>(
     tags: { type: [String], default: [] },
     audience: {
       departments: { type: [Schema.Types.ObjectId], ref: "Organization.departments" },
+      departmentNames: { type: [String], default: [] },
       teams: { type: [Schema.Types.ObjectId], ref: "Organization.teams" },
       jobTitles: { type: [Schema.Types.ObjectId] },
-      employmentTypes: { type: [String] },
+      jobTitleNames: { type: [String], default: [] },
+      locations: { type: [String], default: [] },
+      employmentTypes: { type: [String], default: [] },
+      startDateOffsetDays: { type: Number, default: 0 },
+      autoEnrollNewHires: { type: Boolean, default: false },
+      reassignmentPolicy: {
+        type: String,
+        enum: ["keep_progress", "reset_progress", "archive_previous"],
+        default: "keep_progress",
+      },
       isPublic: { type: Boolean, default: false },
     },
     modules: { type: [ModuleSchema], default: [] },

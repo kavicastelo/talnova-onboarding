@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { JourneyService } from "../services/journey.service.js";
+import { smartAssignmentService } from "../services/smart-assignment.service.js";
 import mongoose from "mongoose";
 
 export class JourneyController {
@@ -158,6 +159,63 @@ export class JourneyController {
     return reply.status(201).send({
       success: true,
       message: "Journey duplicated successfully",
+      data: journey,
+    });
+  };
+
+  previewSmartAssignment = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const result = await smartAssignmentService.previewSmartAssignment(user.organizationId, params.id);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Smart assignment preview generated successfully",
+      data: result,
+    });
+  };
+
+  executeSmartAssignment = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const result = await smartAssignmentService.executeSmartAssignment(
+      user.organizationId,
+      params.id,
+      user.userId,
+      { overrideDueDate: body?.overrideDueDate ? new Date(body.overrideDueDate) : undefined }
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  };
+
+  updateTargeting = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const existingJourney = await this.journeyService.getJourney(params.id, user.organizationId);
+    const updatedAudience = {
+      ...(existingJourney.audience || {}),
+      ...body,
+    };
+
+    const journey = await this.journeyService.updateJourney(
+      params.id,
+      user.organizationId,
+      { audience: updatedAudience },
+      user.userId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Journey targeting rules updated successfully",
       data: journey,
     });
   };

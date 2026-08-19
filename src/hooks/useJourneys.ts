@@ -103,3 +103,36 @@ export function useIssueCertificate() {
     },
   });
 }
+
+export function useSmartAssignmentPreview(journeyId: string | null) {
+  return useQuery({
+    queryKey: ['smartAssignmentPreview', journeyId],
+    queryFn: () => journeyService.previewSmartAssignment(journeyId!),
+    enabled: !!journeyId,
+  });
+}
+
+export function useExecuteSmartAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ journeyId, overrideDueDate }: { journeyId: string; overrideDueDate?: string }) =>
+      journeyService.executeSmartAssignment(journeyId, overrideDueDate),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['journeyAssignments', variables.journeyId] });
+      queryClient.invalidateQueries({ queryKey: ['smartAssignmentPreview', variables.journeyId] });
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
+
+export function useUpdateTargeting() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ journeyId, targeting }: { journeyId: string; targeting: any }) =>
+      journeyService.updateTargeting(journeyId, targeting),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['journey', variables.journeyId] });
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
