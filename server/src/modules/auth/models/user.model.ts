@@ -35,6 +35,9 @@ export interface IUser extends Document {
     employmentType: "full_time" | "part_time" | "contractor" | "intern";
     hireDate?: Date;
     status: "invited" | "active" | "onboarding" | "inactive";
+    onboardingState?: "not_started" | "active" | "paused" | "completed" | "archived";
+    onboardingStateReason?: string;
+    onboardingPausedAt?: Date;
   };
   permissions: {
     role: "owner" | "admin" | "manager" | "employee" | "super_admin";
@@ -110,6 +113,13 @@ const UserSchema = new Schema<IUser>(
         enum: ["invited", "active", "onboarding", "inactive"],
         default: "invited",
       },
+      onboardingState: {
+        type: String,
+        enum: ["not_started", "active", "paused", "completed", "archived"],
+        default: "active",
+      },
+      onboardingStateReason: { type: String },
+      onboardingPausedAt: { type: Date },
     },
     permissions: {
       role: {

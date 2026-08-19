@@ -37,6 +37,7 @@ import { documentRoutes } from "./modules/documents/routes/document.routes.js";
 import { milestoneRoutes } from "./modules/milestones/routes/milestone.routes.js";
 import { buddyRoutes } from "./modules/buddy/routes/buddy.routes.js";
 import { calendarRoutes } from "./modules/calendar/routes/calendar.routes.js";
+import { hrOperationsRoutes } from "./modules/hr/routes/hr-operations.routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -87,6 +88,7 @@ export async function buildApp() {
   await app.register(milestoneRoutes, { prefix: "/api/v1/milestones" });
   await app.register(buddyRoutes, { prefix: "/api/v1/buddy" });
   await app.register(calendarRoutes, { prefix: "/api/v1/calendar" });
+  await app.register(hrOperationsRoutes, { prefix: "/api/v1/hr" });
 
   // Health checks
   app.get("/live", async () => {
