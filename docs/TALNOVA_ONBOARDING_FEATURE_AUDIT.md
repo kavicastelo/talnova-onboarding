@@ -134,11 +134,11 @@ Talnova System Requirements
 | **GAM-003** | Gamification | Achievement Badges | `MISSING` | None | Badge collection & award triggers | P2 | GAM-001 |
 | **GAM-004** | Gamification | Leaderboards | `MISSING` | None | MongoDB aggregation pipeline for org leaderboards | P3 | GAM-001 |
 | **GAM-005** | Gamification | Daily Learning Streaks | `MISSING` | None | Streak tracking (`lastActiveDate`, `streakCount`) | P2 | Assignments |
-| **DOC-001** | E-Signing | Document Template Config | `MISSING` | None | `DocumentTemplate` model for NDA, Code of Conduct | P0 | None |
-| **DOC-002** | E-Signing | Role/Dept Target Assignment | `MISSING` | None | Dynamic document requirement rules | P0 | DOC-001 |
-| **DOC-003** | E-Signing | In-App E-Signature Capture | `MISSING` | None | Canvas signature draw component & submit API | P0 | DOC-001 |
-| **DOC-004** | E-Signing | Audit Trail & Timestamping | `MISSING` | None | IP address, timestamp, hash audit logging | P0 | DOC-003 |
-| **DOC-005** | E-Signing | Signed Document PDF Storage | `MISSING` | None | PDF generation (pdfkit/puppeteer) to S3/R2 | P0 | DOC-003 |
+| **DOC-001** | E-Signing | Document Template Config | `IMPLEMENTED` | [document-template.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/documents/models/document-template.model.ts) | None | P0 | None |
+| **DOC-002** | E-Signing | Role/Dept Target Assignment | `IMPLEMENTED` | [document.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/documents/services/document.service.ts) | None | P0 | DOC-001 |
+| **DOC-003** | E-Signing | In-App E-Signature Capture | `IMPLEMENTED` | [SignatureCanvas.tsx](file:///d:/talnova/talnova-onboarding/src/components/SignatureCanvas.tsx) | None | P0 | DOC-001 |
+| **DOC-004** | E-Signing | Audit Trail & Timestamping | `IMPLEMENTED` | [document.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/documents/services/document.service.ts) | None | P0 | DOC-003 |
+| **DOC-005** | E-Signing | Signed Document PDF Storage | `IMPLEMENTED` | [document.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/documents/services/document.service.ts) | None | P0 | DOC-003 |
 | **REM-001** | Reminders | Overdue Training Reminders | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-002** | Reminders | Compliance Due Alerts | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-003** | Reminders | Multi-Channel Delivery | `IMPLEMENTED` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts) | None | P0 | None |
