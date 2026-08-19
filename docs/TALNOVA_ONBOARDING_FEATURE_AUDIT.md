@@ -174,9 +174,9 @@ Talnova System Requirements
 | **CER-003** | Certificates | Branding & Signature Setup | `IMPLEMENTED` | [Settings.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Settings.tsx#L750-L785) | None | Core | None |
 | **CER-004** | Certificates | Public Verification URL & UUID | `IMPLEMENTED` | [PublicCertificateViewer.tsx](file:///d:/talnova/talnova-onboarding/src/pages/PublicCertificateViewer.tsx#L1-L100) | None | Core | None |
 | **CER-005** | Certificates | PDF / Print Export | `IMPLEMENTED` | [PublicCertificateViewer.tsx](file:///d:/talnova/talnova-onboarding/src/pages/PublicCertificateViewer.tsx#L100-L120) | None | Core | None |
-| **LAN-001** | Analytics | Onboarding Duration Metrics | `PARTIAL` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts#L100-L120) | Completion trend exists; avg duration in days missing | P1 | Analytics |
-| **LAN-002** | Analytics | Highest Failure Modules | `MISSING` | None | Aggregate quiz failure rates by module | P1 | Analytics |
-| **LAN-003** | Analytics | Difficult Quiz Questions | `MISSING` | None | Question item analysis & error percentage | P2 | Analytics |
+| **LAN-001** | Analytics | Onboarding Duration Metrics | `IMPLEMENTED` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts) | None | P1 | Analytics |
+| **LAN-002** | Analytics | Highest Failure Modules | `IMPLEMENTED` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts) | None | P1 | Analytics |
+| **LAN-003** | Analytics | Difficult Quiz Questions | `IMPLEMENTED` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts) | None | P2 | Analytics |
 | **LAN-004** | Analytics | Department Comparison | `IMPLEMENTED` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts#L150-L180) | None | Core | None |
 | **LAN-005** | Analytics | Engagement & Time Spent | `IMPLEMENTED` | [Analytics.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Analytics.tsx#L1-L150) | None | Core | None |
 | **MOB-001** | Mobile | Responsive Viewport Layout | `IMPLEMENTED` | [AppShell.tsx](file:///d:/talnova/talnova-onboarding/src/components/AppShell.tsx#L1-L100) | None | Core | None |
