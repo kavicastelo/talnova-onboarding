@@ -17,7 +17,7 @@ export class CalendarService {
     orgId: string | mongoose.Types.ObjectId,
     userId: string | mongoose.Types.ObjectId,
     provider: "google" | "outlook" | "ical" = "ical",
-    timezone: string = "UTC"
+    timezone = "UTC"
   ) {
     const orgObjectId = new mongoose.Types.ObjectId(orgId);
     const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -82,7 +82,7 @@ export class CalendarService {
       return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
     };
 
-    let icsContent = [
+    const icsContent = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "PRODID:-//Talnova Onboarding//Calendar Integration//EN",

@@ -75,7 +75,7 @@ export const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.HTMLAttrib
 );
 BreadcrumbPage.displayName = 'BreadcrumbPage';
 
-export interface BreadcrumbSeparatorProps extends React.HTMLAttributes<HTMLLIElement> {}
+export type BreadcrumbSeparatorProps = React.HTMLAttributes<HTMLLIElement>
 
 export const BreadcrumbSeparator = ({ children, className, ...props }: BreadcrumbSeparatorProps) => (
   <li

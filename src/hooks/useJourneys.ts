@@ -136,3 +136,40 @@ export function useUpdateTargeting() {
     },
   });
 }
+
+export function useCheckPrerequisites(journeyId: string | null) {
+  return useQuery({
+    queryKey: ['prerequisitesCheck', journeyId],
+    queryFn: () => journeyService.checkPrerequisites(journeyId!),
+    enabled: !!journeyId,
+  });
+}
+
+export function useCloneJourney() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (journeyId: string) => journeyService.cloneJourney(journeyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
+
+export function useReorderCurriculum() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ journeyId, moduleOrders }: { journeyId: string; moduleOrders: any[] }) =>
+      journeyService.reorderCurriculum(journeyId, moduleOrders),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['journey', variables.journeyId] });
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
+
+export function useDispatchReminders() {
+  return useMutation({
+    mutationFn: () => journeyService.dispatchReminders(),
+  });
+}
+

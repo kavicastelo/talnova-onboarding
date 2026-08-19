@@ -9,7 +9,7 @@ interface TabsContextValue {
 
 const TabsContext = React.createContext<TabsContextValue>({
   value: '',
-  onValueChange: () => {},
+  onValueChange: () => undefined,
 });
 
 // --- Tabs ---

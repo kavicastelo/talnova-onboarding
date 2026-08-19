@@ -12,7 +12,7 @@ interface DialogContextValue {
 
 const DialogContext = React.createContext<DialogContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- Dialog ---

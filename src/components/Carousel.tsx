@@ -18,11 +18,11 @@ const CarouselContext = React.createContext<CarouselContextValue>({
   orientation: 'horizontal',
   currentIndex: 0,
   totalItems: 0,
-  scrollPrev: () => {},
-  scrollNext: () => {},
+  scrollPrev: () => undefined,
+  scrollNext: () => undefined,
   canScrollPrev: false,
   canScrollNext: false,
-  setTotalItems: () => {},
+  setTotalItems: () => undefined,
 });
 
 export interface CarouselProps extends React.HTMLAttributes<HTMLDivElement> {

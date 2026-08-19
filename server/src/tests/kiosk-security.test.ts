@@ -182,7 +182,9 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
       });
 
       const request: any = {
-        jwtVerify: async () => {},
+        jwtVerify: async () => {
+          // mock
+        },
         user: {
           deviceId,
           organizationId: orgId.toString(),
@@ -196,7 +198,9 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
 
     it("should throw AppError if role claims in JWT are invalid", async () => {
       const request: any = {
-        jwtVerify: async () => {},
+        jwtVerify: async () => {
+          // mock
+        },
         user: {
           deviceId,
           organizationId: orgId.toString(),
@@ -214,7 +218,9 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
       await KioskDeviceModel.deleteMany({ deviceId });
 
       const request: any = {
-        jwtVerify: async () => {},
+        jwtVerify: async () => {
+          // mock
+        },
         user: {
           deviceId,
           organizationId: orgId.toString(),

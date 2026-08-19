@@ -11,7 +11,7 @@ interface AccordionContextValue {
 
 const AccordionContext = React.createContext<AccordionContextValue>({
   openItems: [],
-  toggle: () => {},
+  toggle: () => undefined,
   type: 'single',
 });
 
@@ -94,7 +94,7 @@ export const AccordionItem = React.forwardRef<HTMLDivElement, AccordionItemProps
 AccordionItem.displayName = 'AccordionItem';
 
 // --- AccordionTrigger ---
-export interface AccordionTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+export type AccordionTriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement>
 
 export const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTriggerProps>(
   ({ className, children, ...props }, ref) => {
@@ -127,7 +127,7 @@ export const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTri
 AccordionTrigger.displayName = 'AccordionTrigger';
 
 // --- AccordionContent ---
-export interface AccordionContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type AccordionContentProps = React.HTMLAttributes<HTMLDivElement>
 
 export const AccordionContent = React.forwardRef<HTMLDivElement, AccordionContentProps>(
   ({ className, children, ...props }, ref) => {

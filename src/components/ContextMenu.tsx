@@ -12,8 +12,8 @@ interface ContextMenuContextValue {
 const ContextMenuContext = React.createContext<ContextMenuContextValue>({
   open: false,
   position: { x: 0, y: 0 },
-  setOpen: () => {},
-  setPosition: () => {},
+  setOpen: () => undefined,
+  setPosition: () => undefined,
 });
 
 // --- ContextMenu ---

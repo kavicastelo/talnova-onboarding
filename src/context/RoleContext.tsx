@@ -1,5 +1,5 @@
 import React, { useCallback, useState, createContext, useContext } from 'react';
-export type Role = 'admin' | 'owner' | 'employee' | 'super_admin';
+export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 'hr_admin';
 interface RoleContextValue {
   role: Role;
   setRole: (role: Role) => void;

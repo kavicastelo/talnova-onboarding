@@ -6,19 +6,12 @@ import {
   Plus,
   Copy,
   Check,
-  CheckCircle2,
-  XCircle,
   ExternalLink,
-  Users,
-  RefreshCw,
-  Coffee,
-  UserCheck,
   Globe
 } from 'lucide-react';
 import {
   useCalendarConnection,
   useMeetingEvents,
-  useConnectCalendar,
   useCreateMeetingEvent,
   useCancelMeetingEvent
 } from '../hooks/useCalendar';
@@ -55,13 +48,12 @@ export const CalendarIntegration: React.FC = () => {
   const [locationUrl, setLocationUrl] = useState('https://meet.google.com/talnova-onboarding');
   const [selectedAttendeeId, setSelectedAttendeeId] = useState('');
 
-  const { data: connection, isLoading: connectionLoading } = useCalendarConnection();
+  const { data: connection } = useCalendarConnection();
   const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useMeetingEvents();
   const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
 
   const createEventMutation = useCreateMeetingEvent();
   const cancelEventMutation = useCancelMeetingEvent();
-  const connectCalendarMutation = useConnectCalendar();
 
   const employees = employeesData?.employees || [];
   const icalFeedUrl = `${window.location.origin}/api/v1/calendar/feed/${connection?.icalToken || 'token'}.ics`;

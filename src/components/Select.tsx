@@ -12,9 +12,9 @@ interface SelectContextValue {
 
 const SelectContext = React.createContext<SelectContextValue>({
   value: '',
-  onValueChange: () => {},
+  onValueChange: () => undefined,
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- Select ---

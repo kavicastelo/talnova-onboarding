@@ -11,7 +11,7 @@ interface TooltipContextValue {
 
 const TooltipContext = React.createContext<TooltipContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- TooltipProvider (no-op wrapper for API compat) ---

@@ -10,7 +10,7 @@ interface NavigationMenuContextValue {
 
 const NavigationMenuContext = React.createContext<NavigationMenuContextValue>({
   openItem: null,
-  setOpenItem: () => {},
+  setOpenItem: () => undefined,
 });
 
 const NavigationMenuItemContext = React.createContext<string>('');

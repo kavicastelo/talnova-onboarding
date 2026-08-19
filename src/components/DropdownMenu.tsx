@@ -11,7 +11,7 @@ interface DropdownMenuContextValue {
 
 const DropdownMenuContext = React.createContext<DropdownMenuContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- DropdownMenu ---

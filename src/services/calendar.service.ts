@@ -32,7 +32,7 @@ export interface MeetingEvent {
 }
 
 export const calendarService = {
-  connectProvider: async (provider: 'google' | 'outlook' | 'ical', timezone: string = 'UTC'): Promise<CalendarConnection> => {
+  connectProvider: async (provider: 'google' | 'outlook' | 'ical', timezone = 'UTC'): Promise<CalendarConnection> => {
     const response = await apiClient.post<ApiResponse<CalendarConnection>>('/calendar/connection', {
       provider,
       timezone,

@@ -115,6 +115,18 @@ export interface IJourney extends Document {
     allowRetakes: boolean;
     maxRetakes?: number;
   };
+  prerequisites?: mongoose.Types.ObjectId[];
+  conditionalBranches?: Array<{
+    minScore: number;
+    maxScore: number;
+    unlockJourneyId?: mongoose.Types.ObjectId;
+    message?: string;
+  }>;
+  dueDateRules?: {
+    type: "fixed" | "relative_hire" | "relative_enrollment";
+    offsetDays: number;
+    enforceGate?: boolean;
+  };
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   deletedAt?: Date;
@@ -252,6 +264,20 @@ const JourneySchema = new Schema<IJourney>(
       requireSequentialCompletion: { type: Boolean, default: true },
       allowRetakes: { type: Boolean, default: true },
       maxRetakes: { type: Number },
+    },
+    prerequisites: [{ type: Schema.Types.ObjectId, ref: "Journey" }],
+    conditionalBranches: [
+      {
+        minScore: { type: Number, required: true },
+        maxScore: { type: Number, required: true },
+        unlockJourneyId: { type: Schema.Types.ObjectId, ref: "Journey" },
+        message: { type: String },
+      },
+    ],
+    dueDateRules: {
+      type: { type: String, enum: ["fixed", "relative_hire", "relative_enrollment"], default: "relative_enrollment" },
+      offsetDays: { type: Number, default: 7 },
+      enforceGate: { type: Boolean, default: false },
     },
     createdBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },

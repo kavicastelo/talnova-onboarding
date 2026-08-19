@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Toaster as SonnerToaster } from 'sonner';
 
-export interface SonnerProps extends React.ComponentProps<typeof SonnerToaster> {}
+export type SonnerProps = React.ComponentProps<typeof SonnerToaster>
 
 export const Sonner = ({ theme = 'light', ...props }: SonnerProps) => (
   <SonnerToaster

@@ -9,7 +9,7 @@ interface HoverCardContextValue {
 
 const HoverCardContext = React.createContext<HoverCardContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- HoverCard ---

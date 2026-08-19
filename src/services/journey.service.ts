@@ -271,6 +271,26 @@ export const journeyService = {
   updateTargeting: async (journeyId: string, targeting: any): Promise<Journey> => {
     const response = await apiClient.patch<ApiResponse<any>>(`/journeys/${journeyId}/targeting`, targeting);
     return mapBackendJourneyToJourney(response.data.data);
+  },
+
+  checkPrerequisites: async (journeyId: string): Promise<{ locked: boolean; pendingPrerequisites: Array<{ _id: string; title: string }> }> => {
+    const response = await apiClient.get<ApiResponse<any>>(`/journeys/${journeyId}/prerequisites-check`);
+    return response.data.data;
+  },
+
+  cloneJourney: async (journeyId: string): Promise<Journey> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/journeys/${journeyId}/clone`);
+    return mapBackendJourneyToJourney(response.data.data);
+  },
+
+  reorderCurriculum: async (journeyId: string, moduleOrders: any[]): Promise<Journey> => {
+    const response = await apiClient.put<ApiResponse<any>>(`/journeys/${journeyId}/reorder`, { moduleOrders });
+    return mapBackendJourneyToJourney(response.data.data);
+  },
+
+  dispatchReminders: async (): Promise<{ dispatchedCount: number }> => {
+    const response = await apiClient.post<ApiResponse<any>>('/journeys/reminders/dispatch');
+    return response.data.data;
   }
 };
 

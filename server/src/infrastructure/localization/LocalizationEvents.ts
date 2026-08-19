@@ -78,7 +78,7 @@ export interface ILocalizationEventBus {
     type: T["type"],
     handler: (event: T) => void | Promise<void>
   ): void;
-  unsubscribe(type: string, handler: Function): void;
+  unsubscribe(type: string, handler: (...args: any[]) => any): void;
 }
 
 /**
@@ -86,7 +86,13 @@ export interface ILocalizationEventBus {
  * Replace with a real implementation when needed.
  */
 export class NoOpEventBus implements ILocalizationEventBus {
-  publish(_event: LocalizationEventType): void {}
-  subscribe<T extends LocalizationEventType>(_type: T["type"], _handler: (e: T) => void): void {}
-  unsubscribe(_type: string, _handler: Function): void {}
+  publish(_event: LocalizationEventType): void {
+    // No-op
+  }
+  subscribe<T extends LocalizationEventType>(_type: T["type"], _handler: (e: T) => void): void {
+    // No-op
+  }
+  unsubscribe(_type: string, _handler: (...args: any[]) => any): void {
+    // No-op
+  }
 }
