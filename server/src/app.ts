@@ -34,6 +34,7 @@ import { taskRoutes } from "./modules/tasks/index.js";
 import { workflowRoutes } from "./modules/workflows/index.js";
 import { managerRoutes } from "./modules/manager/routes/manager.routes.js";
 import { documentRoutes } from "./modules/documents/routes/document.routes.js";
+import { milestoneRoutes } from "./modules/milestones/routes/milestone.routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -81,6 +82,7 @@ export async function buildApp() {
   await app.register(workflowRoutes, { prefix: "/api/v1/workflows" });
   await app.register(managerRoutes, { prefix: "/api/v1/manager" });
   await app.register(documentRoutes, { prefix: "/api/v1/documents" });
+  await app.register(milestoneRoutes, { prefix: "/api/v1/milestones" });
 
   // Health checks
   app.get("/live", async () => {
