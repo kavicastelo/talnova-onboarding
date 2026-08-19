@@ -3,6 +3,7 @@ import NotificationRepository, {
   PaginationOptions,
 } from "../repositories/notification.repository.js";
 import NotificationPreference from "../models/notification-preference.model.js";
+import PushSubscription from "../models/push-subscription.model.js";
 import AppError from "../../../common/errors/app-error.js";
 import mongoose from "mongoose";
 import EmailService from "../../../shared/email/email.service.js";
@@ -272,6 +273,49 @@ export class NotificationService {
         data: { journeyId, assignmentId, actorUserId },
       });
     }
+  }
+
+  /**
+   * Register Web Push Subscription (MOB-004)
+   */
+  async registerPushSubscription(
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    subscriptionData: { endpoint: string; keys: { p256dh: string; auth: string } },
+    userAgent?: string
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const userObjectId = new mongoose.Types.ObjectId(userId.toString());
+
+    return PushSubscription.findOneAndUpdate(
+      { endpoint: subscriptionData.endpoint },
+      {
+        organizationId: orgObjectId,
+        userId: userObjectId,
+        endpoint: subscriptionData.endpoint,
+        keys: subscriptionData.keys,
+        userAgent,
+      },
+      { upsert: true, new: true }
+    );
+  }
+
+  /**
+   * Unregister Web Push Subscription (MOB-004)
+   */
+  async unregisterPushSubscription(
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    endpoint: string
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const userObjectId = new mongoose.Types.ObjectId(userId.toString());
+
+    return PushSubscription.deleteOne({
+      endpoint,
+      organizationId: orgObjectId,
+      userId: userObjectId,
+    });
   }
 }
 

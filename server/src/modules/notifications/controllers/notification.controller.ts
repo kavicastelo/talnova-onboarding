@@ -136,6 +136,54 @@ export class NotificationController {
       data: prefs,
     });
   };
+
+  registerPushSubscription = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+
+    if (!body.endpoint || !body.keys) {
+      return reply.status(400).send({
+        success: false,
+        message: "Endpoint and keys are required for Web Push subscription",
+      });
+    }
+
+    const subscription = await this.service.registerPushSubscription(
+      user.organizationId,
+      user.userId,
+      { endpoint: body.endpoint, keys: body.keys },
+      request.headers["user-agent"]
+    );
+
+    return reply.status(201).send({
+      success: true,
+      message: "Web Push subscription registered successfully",
+      data: subscription,
+    });
+  };
+
+  unregisterPushSubscription = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+
+    if (!body.endpoint) {
+      return reply.status(400).send({
+        success: false,
+        message: "Endpoint is required to unregister Web Push subscription",
+      });
+    }
+
+    await this.service.unregisterPushSubscription(
+      user.organizationId,
+      user.userId,
+      body.endpoint
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Web Push subscription unregistered successfully",
+    });
+  };
 }
 
 export default NotificationController;

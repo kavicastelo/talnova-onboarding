@@ -78,6 +78,8 @@ import {
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { PWAInstallBanner } from './PWAInstallBanner';
+import { MobileBottomNav } from './MobileBottomNav';
 import {
   Dialog,
   DialogContent,
@@ -291,7 +293,8 @@ export function AppShell() {
     <>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <Toaster position="bottom-right" />
-      <div className="flex min-h-screen w-full bg-background text-foreground">
+      <PWAInstallBanner />
+      <div className="flex min-h-screen w-full bg-background text-foreground pb-12 md:pb-0">
         <Sidebar collapsible="icon">
           <SidebarHeader className="p-3">
             <DropdownMenu>
@@ -616,6 +619,7 @@ export function AppShell() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>);
-
+      <MobileBottomNav />
+    </>
+  );
 }

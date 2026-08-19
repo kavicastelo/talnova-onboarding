@@ -36,6 +36,10 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/notifications/:id
   app.delete("/:id", controller.deleteNotification as any);
+
+  // Web Push Subscription Routes (MOB-004)
+  app.post("/push-subscription", controller.registerPushSubscription as any);
+  app.delete("/push-subscription", controller.unregisterPushSubscription as any);
 }
 
 export default notificationRoutes;
