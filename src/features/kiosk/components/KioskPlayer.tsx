@@ -293,7 +293,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           </p>
         );
 
-      case 'image':
+      case 'image': {
         const imageUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
         return (
           <div key={block.id} className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800">
@@ -310,8 +310,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             )}
           </div>
         );
+      }
 
-      case 'video':
+      case 'video': {
         const videoUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
         return (
           <div key={block.id} className="aspect-video w-full overflow-hidden rounded-xl bg-black border border-slate-900">
@@ -330,6 +331,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             )}
           </div>
         );
+      }
 
       case 'icon':
         return (

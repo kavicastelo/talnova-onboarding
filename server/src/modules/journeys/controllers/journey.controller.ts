@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { JourneyService } from "../services/journey.service.js";
 import { smartAssignmentService } from "../services/smart-assignment.service.js";
+import { advancedJourneyService } from "../services/advanced-journey.service.js";
 import mongoose from "mongoose";
 
 export class JourneyController {
@@ -229,6 +230,66 @@ export class JourneyController {
       success: true,
       message: "Journey analytics retrieved successfully",
       data: journey.analytics,
+    });
+  };
+
+  checkPrerequisites = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const result = await advancedJourneyService.checkJourneyPrerequisites(
+      user.organizationId,
+      user.userId,
+      params.id
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Prerequisite check completed",
+      data: result,
+    });
+  };
+
+  cloneJourney = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const cloned = await advancedJourneyService.cloneJourney(user.organizationId, params.id, user.userId);
+
+    return reply.status(201).send({
+      success: true,
+      message: "Journey cloned successfully",
+      data: cloned,
+    });
+  };
+
+  reorderCurriculum = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const updated = await advancedJourneyService.reorderCurriculum(
+      user.organizationId,
+      params.id,
+      body.moduleOrders
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Curriculum reordered successfully",
+      data: updated,
+    });
+  };
+
+  dispatchReminders = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+
+    const count = await advancedJourneyService.dispatchLearningReminders(user.organizationId);
+
+    return reply.status(200).send({
+      success: true,
+      message: `Dispatched ${count} learning progress reminders`,
+      data: { dispatchedCount: count },
     });
   };
 }

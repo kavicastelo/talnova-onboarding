@@ -9,7 +9,7 @@ interface CollapsibleContextValue {
 
 const CollapsibleContext = React.createContext<CollapsibleContextValue>({
   open: false,
-  toggle: () => {},
+  toggle: () => undefined,
 });
 
 // --- Collapsible ---

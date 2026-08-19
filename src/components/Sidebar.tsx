@@ -19,8 +19,8 @@ interface SidebarContextValue {
 const SidebarContext = React.createContext<SidebarContextValue>({
   state: 'expanded',
   open: true,
-  setOpen: () => {},
-  toggleSidebar: () => {},
+  setOpen: () => undefined,
+  toggleSidebar: () => undefined,
   isMobile: false,
 });
 

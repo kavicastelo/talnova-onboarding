@@ -14,7 +14,7 @@ const InputOTPContext = React.createContext<InputOTPContextValue>({
   value: '',
   maxLength: 6,
   activeIndex: -1,
-  setActiveIndex: () => {},
+  setActiveIndex: () => undefined,
 });
 
 // --- InputOTP ---

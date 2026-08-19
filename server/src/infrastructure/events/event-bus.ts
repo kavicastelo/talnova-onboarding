@@ -6,7 +6,9 @@ export class EventBus {
   private static instance: EventBus;
   private handlers: Map<EventType, Set<EventHandler>> = new Map();
 
-  private constructor() {}
+  private constructor() {
+    // Singleton
+  }
 
   public static getInstance(): EventBus {
     if (!EventBus.instance) {

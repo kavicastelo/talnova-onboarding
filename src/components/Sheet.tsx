@@ -12,7 +12,7 @@ interface SheetContextValue {
 
 const SheetContext = React.createContext<SheetContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- Sheet ---

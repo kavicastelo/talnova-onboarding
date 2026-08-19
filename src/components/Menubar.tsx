@@ -9,7 +9,7 @@ interface MenubarContextValue {
 
 const MenubarContext = React.createContext<MenubarContextValue>({
   openMenu: null,
-  setOpenMenu: () => {},
+  setOpenMenu: () => undefined,
 });
 
 const MenubarMenuContext = React.createContext<string>('');

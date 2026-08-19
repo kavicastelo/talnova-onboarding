@@ -102,6 +102,30 @@ export async function journeyRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(["owner", "admin"])] },
     controller.updateTargeting as any
   );
+
+  // GET /api/v1/journeys/:id/prerequisites-check
+  app.get("/:id/prerequisites-check", controller.checkPrerequisites as any);
+
+  // POST /api/v1/journeys/:id/clone
+  app.post(
+    "/:id/clone",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.cloneJourney as any
+  );
+
+  // PUT /api/v1/journeys/:id/reorder
+  app.put(
+    "/:id/reorder",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.reorderCurriculum as any
+  );
+
+  // POST /api/v1/journeys/reminders/dispatch
+  app.post(
+    "/reminders/dispatch",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.dispatchReminders as any
+  );
 }
 
 export default journeyRoutes;

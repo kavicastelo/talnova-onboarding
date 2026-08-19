@@ -32,7 +32,7 @@ interface ToggleGroupContextValue {
 
 const ToggleGroupContext = React.createContext<ToggleGroupContextValue>({
   value: [],
-  onValueChange: () => {},
+  onValueChange: () => undefined,
 });
 
 // --- ToggleGroup ---

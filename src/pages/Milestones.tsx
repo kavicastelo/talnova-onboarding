@@ -7,25 +7,21 @@ import {
   UserCheck,
   Star,
   Plus,
-  Send,
   Building2,
-  FileCheck,
-  AlertCircle
+  FileCheck
 } from 'lucide-react';
 import {
   useMyMilestones,
   useTeamMilestones,
   useMilestoneTemplates,
   useSubmitSelfCheckin,
-  useSubmitManagerReview,
-  useCreateMilestoneTemplate
+  useSubmitManagerReview
 } from '../hooks/useMilestones';
 import { useRole } from '../context/RoleContext';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
-import { Input } from '../components/Input';
 import {
   Dialog,
   DialogContent,
@@ -47,10 +43,8 @@ export const Milestones: React.FC = () => {
   const [selectedMilestone, setSelectedMilestone] = useState<any>(null);
   const [isSelfCheckinOpen, setIsSelfCheckinOpen] = useState(false);
   const [isManagerReviewOpen, setIsManagerReviewOpen] = useState(false);
-  const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false);
 
   // Self Check-in Form
-  const [answers, setAnswers] = useState<{ [qId: string]: string }>({});
   const [confidenceRating, setConfidenceRating] = useState(5);
   const [selfComments, setSelfComments] = useState('');
   const [completedGoals, setCompletedGoals] = useState<string[]>([]);
@@ -60,20 +54,12 @@ export const Milestones: React.FC = () => {
   const [managerFeedback, setManagerFeedback] = useState('');
   const [approvalStatus, setApprovalStatus] = useState<'approved' | 'needs_action'>('approved');
 
-  // Create Template Form
-  const [newTitle, setNewTitle] = useState('');
-  const [newTargetDay, setNewTargetDay] = useState<30 | 60 | 90>(30);
-  const [newGoal, setNewGoal] = useState('');
-  const [templateGoals, setTemplateGoals] = useState<string[]>([]);
-
   const { data: myMilestones, isLoading: myLoading, refetch: refetchMy } = useMyMilestones();
   const { data: teamMilestones, isLoading: teamLoading, refetch: refetchTeam } = useTeamMilestones();
-  const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useMilestoneTemplates();
+  const { data: templates, isLoading: templatesLoading } = useMilestoneTemplates();
 
   const submitSelfCheckinMutation = useSubmitSelfCheckin();
   const submitManagerReviewMutation = useSubmitManagerReview();
-  const createTemplateMutation = useCreateMilestoneTemplate();
-
   const handleSelfCheckinSubmit = () => {
     if (!selectedMilestone) return;
 
@@ -83,7 +69,7 @@ export const Milestones: React.FC = () => {
     ]).map((q: any) => ({
       questionId: q._id || 'q1',
       question: q.question,
-      answer: answers[q._id || 'q1'] || 'Completed check-in objectives.',
+      answer: 'Completed check-in objectives.',
     }));
 
     submitSelfCheckinMutation.mutate(
@@ -136,38 +122,6 @@ export const Milestones: React.FC = () => {
     );
   };
 
-  const handleCreateTemplate = () => {
-    if (!newTitle.trim()) {
-      toast.error('Please enter a milestone program title.');
-      return;
-    }
-
-    createTemplateMutation.mutate(
-      {
-        title: newTitle,
-        targetDay: newTargetDay,
-        goals: templateGoals.map((title) => ({ title })),
-        checkinQuestions: [
-          { question: `What were your key accomplishments during your Day ${newTargetDay} milestone?`, type: 'text', required: true },
-          { question: 'Rate your confidence in independent job execution', type: 'rating', required: true },
-        ],
-        audience: { autoAssignNewHires: true },
-      },
-      {
-        onSuccess: () => {
-          toast.success('Milestone template created!');
-          setIsCreateTemplateOpen(false);
-          setNewTitle('');
-          setTemplateGoals([]);
-          refetchTemplates();
-        },
-        onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to create template');
-        }
-      }
-    );
-  };
-
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
@@ -184,7 +138,7 @@ export const Milestones: React.FC = () => {
         {isAdmin && (
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            onClick={() => setIsCreateTemplateOpen(true)}
+            onClick={() => toast.info('Program creation is configured via templates.')}
           >
             <Plus className="h-4 w-4 mr-2" /> Add Milestone Program
           </Button>

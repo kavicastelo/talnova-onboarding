@@ -6,13 +6,8 @@ import {
   Send,
   CheckCircle2,
   Clock,
-  Search,
-  ShieldCheck,
   Building2,
-  Lock,
-  ArrowRight,
-  RefreshCw,
-  Trash2
+  ArrowRight
 } from 'lucide-react';
 import {
   useDocumentTemplates,
@@ -42,7 +37,6 @@ export const Documents: React.FC = () => {
   const isAdmin = role === 'admin' || role === 'owner';
 
   const [activeTab, setActiveTab] = useState<'inbox' | 'templates'>(isAdmin ? 'templates' : 'inbox');
-  const [search, setSearch] = useState('');
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -57,7 +51,7 @@ export const Documents: React.FC = () => {
   const [autoAssign, setAutoAssign] = useState(false);
 
   const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useDocumentTemplates();
-  const { data: inbox, isLoading: inboxLoading, refetch: refetchInbox } = useEmployeeDocumentInbox();
+  const { data: inbox, isLoading: inboxLoading } = useEmployeeDocumentInbox();
   const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
 
   const createTemplateMutation = useCreateDocumentTemplate();

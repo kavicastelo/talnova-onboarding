@@ -11,7 +11,7 @@ interface AlertDialogContextValue {
 
 const AlertDialogContext = React.createContext<AlertDialogContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- AlertDialog ---
@@ -60,7 +60,7 @@ export const AlertDialogTrigger = React.forwardRef<HTMLButtonElement, AlertDialo
 AlertDialogTrigger.displayName = 'AlertDialogTrigger';
 
 // --- AlertDialogContent ---
-export interface AlertDialogContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type AlertDialogContentProps = React.HTMLAttributes<HTMLDivElement>
 
 export const AlertDialogContent = React.forwardRef<HTMLDivElement, AlertDialogContentProps>(
   ({ className, children, ...props }, ref) => {

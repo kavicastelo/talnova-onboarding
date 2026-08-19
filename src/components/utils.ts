@@ -1,7 +1,7 @@
 import { twMerge } from 'tailwind-merge';
 
 function clsx(...args: any[]): string {
-  let classes = [];
+  const classes = [];
   for (const arg of args) {
     if (!arg) continue;
     if (typeof arg === 'string' || typeof arg === 'number') {

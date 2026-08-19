@@ -4,7 +4,7 @@ import { FastifyInstance } from "fastify";
 import buildApp from "../app.js";
 import { connectDatabase } from "../database/connection.js";
 import DocumentTemplate from "../modules/documents/models/document-template.model.js";
-import DocumentAssignment from "../modules/documents/models/assignment.model.js"; // Wait, document-assignment.model.js!
+import DocumentAssignment from "../modules/documents/models/document-assignment.model.js";
 import User from "../modules/auth/models/user.model.js";
 import Organization from "../modules/organizations/models/organization.model.js";
 import documentService from "../modules/documents/services/document.service.js";

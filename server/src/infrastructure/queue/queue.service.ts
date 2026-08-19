@@ -30,7 +30,9 @@ export class QueueService {
   private completedJobs: Job[] = [];
   private failedJobs: Job[] = [];
 
-  private constructor() {}
+  private constructor() {
+    // Singleton
+  }
 
   public static getInstance(): QueueService {
     if (!QueueService.instance) {

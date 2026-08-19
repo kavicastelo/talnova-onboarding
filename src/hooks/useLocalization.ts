@@ -18,7 +18,7 @@ import type { SupportedLocale } from '../i18n';
  *
  * @param namespace  The i18n namespace to load (default: 'common')
  */
-export function useLocalization(namespace: string = 'common') {
+export function useLocalization(namespace = 'common') {
   const { t, i18n, ready } = useTranslation(namespace);
   const { language, setLanguage } = useLanguage();
 

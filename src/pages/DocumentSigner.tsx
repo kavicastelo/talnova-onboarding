@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  FileText,
   ShieldCheck,
   CheckCircle2,
   Clock,
   ArrowLeft,
   PenTool,
   History,
-  Lock,
   Hash
 } from 'lucide-react';
 import { useDocumentAssignment, useSignDocument } from '../hooks/useDocuments';

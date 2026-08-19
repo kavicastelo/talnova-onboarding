@@ -11,7 +11,7 @@ interface PopoverContextValue {
 
 const PopoverContext = React.createContext<PopoverContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
 });
 
 // --- Popover ---

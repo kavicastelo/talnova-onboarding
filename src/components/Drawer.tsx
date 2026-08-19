@@ -11,7 +11,7 @@ interface DrawerContextValue {
 
 const DrawerContext = React.createContext<DrawerContextValue>({
   open: false,
-  setOpen: () => {},
+  setOpen: () => undefined,
   direction: 'bottom',
 });
 

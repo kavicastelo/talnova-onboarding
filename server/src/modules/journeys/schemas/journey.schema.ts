@@ -150,4 +150,21 @@ export const executeSmartAssignmentSchema = z.object({
   overrideDueDate: z.string().datetime().optional(),
 });
 
+export const reorderCurriculumSchema = z.object({
+  moduleOrders: z.array(
+    z.object({
+      moduleId: z.string(),
+      order: z.number(),
+      lessonOrders: z
+        .array(
+          z.object({
+            lessonId: z.string(),
+            order: z.number(),
+          })
+        )
+        .optional(),
+    })
+  ),
+});
+
 

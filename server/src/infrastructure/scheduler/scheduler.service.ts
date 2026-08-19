@@ -10,7 +10,9 @@ export class SchedulerService {
   private timer: NodeJS.Timeout | null = null;
   private isRunning = false;
 
-  private constructor() {}
+  private constructor() {
+    // Singleton
+  }
 
   public static getInstance(): SchedulerService {
     if (!SchedulerService.instance) {

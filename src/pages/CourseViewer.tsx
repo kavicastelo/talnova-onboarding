@@ -981,7 +981,7 @@ function getVideoEmbedUrl(url: string): { type: 'youtube' | 'vimeo' | 'direct' |
   if (!url) return { type: 'invalid', src: '' };
 
   // YouTube
-  const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  const ytMatch = url.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/i);
   if (ytMatch && ytMatch[1]) {
     return { type: 'youtube', src: `https://www.youtube.com/embed/${ytMatch[1]}` };
   }

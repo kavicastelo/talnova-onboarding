@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import {
   HeartHandshake,
-  UserCheck,
   Mail,
-  CheckCircle2,
-  Clock,
   Plus,
   MessageSquare,
   Sparkles,
