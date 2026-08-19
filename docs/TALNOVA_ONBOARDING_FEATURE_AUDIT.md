@@ -188,6 +188,11 @@ Talnova System Requirements
 | **AI-003** | AI Assistant | Smart Action Suggestions Engine | `IMPLEMENTED` | [ai-assistant.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-assistant.service.ts) | None | P1 | AI-001 |
 | **AI-004** | AI Assistant | Tenant Isolation & Safety Guardrails | `IMPLEMENTED` | [ai-assistant.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-assistant.service.ts) | None | P0 | AI-001 |
 | **AI-005** | AI Assistant | History & Response Feedback Logging | `IMPLEMENTED` | [ai-conversation.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/models/ai-conversation.model.ts) | None | P2 | AI-001 |
+| **AI-006** | AI Course Builder | AI Journey Outline Generator | `IMPLEMENTED` | [ai-course-builder.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-course-builder.service.ts) | None | P1 | AI-001 |
+| **AI-007** | AI Course Builder | Lesson & Quiz Item Synthesizer | `IMPLEMENTED` | [ai-course-builder.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-course-builder.service.ts) | None | P1 | AI-006 |
+| **AI-008** | AI Course Builder | Document & Policy Grounding Context | `IMPLEMENTED` | [ai-course-builder.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-course-builder.service.ts) | None | P1 | AI-006 |
+| **AI-009** | AI Course Builder | Human Review & Publishing Workflow | `IMPLEMENTED` | [ai-course-builder.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-course-builder.service.ts) | None | P1 | AI-006 |
+| **AI-010** | AI Course Builder | Usage Limits & Admin Guardrails | `IMPLEMENTED` | [ai-assistant.routes.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/routes/ai-assistant.routes.ts) | None | P0 | AI-006 |
 | **MOB-001** | Mobile | Responsive Viewport Layout | `IMPLEMENTED` | [AppShell.tsx](file:///d:/talnova/talnova-onboarding/src/components/AppShell.tsx#L1-L100) | None | Core | None |
 | **MOB-002** | Mobile | Native App / PWA Manifest | `MISSING` | None | Web App Manifest & Service Worker / React Native | P2 | None |
 | **MOB-003** | Mobile | Offline Content Caching & Sync | `MISSING` | None | Workbox service worker offline storage | P2 | MOB-002 |

@@ -56,7 +56,8 @@ import {
   Calendar,
   ShieldAlert,
   Trophy,
-  Bot
+  Bot,
+  Wand2
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -103,6 +104,7 @@ export function AppShell() {
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
     { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
+    { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
     { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
     { title: 'Team Operations', url: '/manager', icon: UserCheck },
