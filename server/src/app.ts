@@ -39,6 +39,7 @@ import { buddyRoutes } from "./modules/buddy/routes/buddy.routes.js";
 import { calendarRoutes } from "./modules/calendar/routes/calendar.routes.js";
 import { hrOperationsRoutes } from "./modules/hr/routes/hr-operations.routes.js";
 import { gamificationRoutes } from "./modules/gamification/routes/gamification.routes.js";
+import { aiAssistantRoutes } from "./modules/ai/routes/ai-assistant.routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -91,6 +92,7 @@ export async function buildApp() {
   await app.register(calendarRoutes, { prefix: "/api/v1/calendar" });
   await app.register(hrOperationsRoutes, { prefix: "/api/v1/hr" });
   await app.register(gamificationRoutes, { prefix: "/api/v1/gamification" });
+  await app.register(aiAssistantRoutes, { prefix: "/api/v1/ai" });
 
   // Health checks
   app.get("/live", async () => {

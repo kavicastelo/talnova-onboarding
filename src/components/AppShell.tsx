@@ -55,7 +55,8 @@ import {
   HeartHandshake,
   Calendar,
   ShieldAlert,
-  Trophy
+  Trophy,
+  Bot
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -101,6 +102,7 @@ export function AppShell() {
   // Nav arrays computed inside component so they re-render on language change
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
+    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
     { title: 'Team Operations', url: '/manager', icon: UserCheck },
@@ -120,6 +122,7 @@ export function AppShell() {
 
   const employeeNav: NavItem[] = [
     { title: t('items.home'), url: '/employee', icon: LayoutDashboard },
+    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
     { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
