@@ -206,9 +206,10 @@ Talnova System Requirements
 | **HRIS-001** | HRIS Sync | Automated Employee Lifecycle Sync | `IMPLEMENTED` | [hris-integration.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/services/hris-integration.service.ts) | None | P0 | INT-001 |
 | **HRIS-002** | HRIS Sync | Multi-HRIS Connector Admin Dashboard | `IMPLEMENTED` | [HRISIntegrations.tsx](file:///d:/talnova/talnova-onboarding/src/pages/HRISIntegrations.tsx) | None | P1 | HRIS-001 |
 | **MOB-001** | Mobile | Responsive Viewport Layout | `IMPLEMENTED` | [AppShell.tsx](file:///d:/talnova/talnova-onboarding/src/components/AppShell.tsx#L1-L100) | None | Core | None |
-| **MOB-002** | Mobile | Native App / PWA Manifest | `MISSING` | None | Web App Manifest & Service Worker / React Native | P2 | None |
-| **MOB-003** | Mobile | Offline Content Caching & Sync | `MISSING` | None | Workbox service worker offline storage | P2 | MOB-002 |
-| **MOB-004** | Mobile | Native Push Notifications | `MISSING` | None | Web Push API / Firebase Cloud Messaging (FCM) | P2 | MOB-002 |
+| **MOB-002** | Mobile | Native App / PWA Manifest | `IMPLEMENTED` | [manifest.json](file:///d:/talnova/talnova-onboarding/public/manifest.json) | None | P2 | None |
+| **MOB-003** | Mobile | Offline Content Caching & Sync | `IMPLEMENTED` | [sw.js](file:///d:/talnova/talnova-onboarding/public/sw.js) | None | P2 | MOB-002 |
+| **MOB-004** | Mobile | Native Push Notifications | `IMPLEMENTED` | [push-subscription.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/models/push-subscription.model.ts) | None | P2 | MOB-002 |
+| **MOB-005** | Mobile | Field-Staff Offline Task Sign-off | `IMPLEMENTED` | [pwa.service.ts](file:///d:/talnova/talnova-onboarding/src/services/pwa.service.ts) | None | P2 | MOB-003 |
 | **CAL-001** | Calendar | Automated Meeting Scheduler | `MISSING` | None | Meeting event model & scheduling API | P1 | None |
 | **CAL-002** | Calendar | Google / Outlook Calendar API | `MISSING` | None | OAuth2 integrations for Google Workspace / MS365 | P1 | CAL-001 |
 | **CAL-003** | Calendar | iCal (.ics) File Generation | `MISSING` | None | `ical-generator` package endpoint | P2 | CAL-001 |
