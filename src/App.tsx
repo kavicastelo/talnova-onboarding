@@ -11,6 +11,7 @@ import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Analytics } from './pages/Analytics';
 import { Settings } from './pages/Settings';
 import { Certificates } from './pages/Certificates';
+import { Tasks } from './pages/Tasks';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -63,6 +64,7 @@ export function App() {
               <Route path="analytics" element={<Analytics />} />
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />
+              <Route path="tasks" element={<Tasks />} />
               <Route
                 path="*"
                 element={

@@ -1,6 +1,7 @@
 import Assignment from "../../modules/assignments/models/assignment.model.js";
 import User from "../../modules/auth/models/user.model.js";
 import Journey from "../../modules/journeys/models/journey.model.js";
+import Task from "../../modules/tasks/models/task.model.js";
 import eventBus from "../events/event-bus.js";
 import queueService from "../queue/queue.service.js";
 
@@ -29,6 +30,10 @@ export class SchedulerService {
 
     queueService.registerWorker("scan_compliance_due_alerts", async () => {
       await this.scanComplianceAlerts();
+    });
+
+    queueService.registerWorker("scan_overdue_tasks", async () => {
+      await this.scanOverdueTasks();
     });
 
     this.timer = setInterval(async () => {
@@ -75,7 +80,58 @@ export class SchedulerService {
           idempotencyKey: `scan_compliance_${new Date().toISOString().substring(0, 13)}`,
         }
       );
+
+      await queueService.enqueue(
+        "scan_overdue_tasks",
+        { organizationId: orgId.toString() },
+        {
+          organizationId: orgId.toString(),
+          idempotencyKey: `scan_overdue_tasks_${new Date().toISOString().substring(0, 13)}`,
+        }
+      );
     }
+  }
+
+  public async scanOverdueTasks(): Promise<number> {
+    const now = new Date();
+
+    const overdueTasks = await Task.find({
+      status: { $in: ["pending", "in_progress"] },
+      dueDate: { $lt: now },
+      isDeleted: false,
+    });
+
+    let count = 0;
+    for (const task of overdueTasks) {
+      task.status = "overdue";
+      task.statusHistory.push({
+        status: "overdue",
+        changedBy: task.assignedToUserId,
+        changedAt: now,
+        note: "Automatically marked overdue by Scheduler",
+      });
+      await task.save();
+      count++;
+
+      await eventBus.publish({
+        eventName: "TASK_OVERDUE",
+        organizationId: task.organizationId,
+        actorId: task.assignedToUserId,
+        entityId: task._id,
+        payload: {
+          taskId: task._id.toString(),
+          title: task.title,
+          assignedToUserId: task.assignedToUserId.toString(),
+          employeeId: task.employeeId?.toString(),
+          dueDate: task.dueDate,
+        },
+      });
+    }
+
+    if (count > 0) {
+      console.log(`[SchedulerService] Updated ${count} standalone tasks to OVERDUE.`);
+    }
+    return count;
   }
 
   public async scanOverdueAssignments(): Promise<number> {

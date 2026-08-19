@@ -46,7 +46,8 @@ import {
   Award,
   Check,
   ChevronsUpDown,
-  Tv
+  Tv,
+  CheckSquare
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -93,6 +94,7 @@ export function AppShell() {
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
     { title: t('items.journeys'), url: '/journeys', icon: Map },
+    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
     { title: 'Kiosk Dashboard', url: '/kiosks', icon: Tv },
     { title: t('items.employees'), url: '/directory', icon: Users },
     { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
@@ -103,6 +105,7 @@ export function AppShell() {
   const employeeNav: NavItem[] = [
     { title: t('items.home'), url: '/employee', icon: LayoutDashboard },
     { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
+    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
     { title: t('items.certificates'), url: '/certificates', icon: Award },
   ];
@@ -126,6 +129,7 @@ export function AppShell() {
     employee: t('breadcrumb.employee'),
     course: t('breadcrumb.course'),
     certificates: t('breadcrumb.certificates'),
+    tasks: 'Tasks & Checklists',
   };
   const { setOpen, isMobile } = useSidebar();
   const [paletteOpen, setPaletteOpen] = useState(false);
