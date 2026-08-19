@@ -89,8 +89,10 @@ const UserSchema = new Schema<IUser>(
     },
     employment: {
       employeeId: { type: String },
+      department: { type: String },
       departmentId: { type: Schema.Types.ObjectId },
       teamId: { type: Schema.Types.ObjectId },
+      jobTitle: { type: String },
       jobTitleId: { type: Schema.Types.ObjectId },
       designation: { type: String },
       payrollCategory: { type: String },

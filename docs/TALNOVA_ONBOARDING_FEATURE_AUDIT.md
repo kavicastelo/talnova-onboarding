@@ -162,11 +162,11 @@ Talnova System Requirements
 | **CAL-002** | Calendar | Google / Outlook Calendar API | `MISSING` | None | OAuth2 integrations for Google Workspace / MS365 | P1 | CAL-001 |
 | **CAL-003** | Calendar | iCal (.ics) File Generation | `MISSING` | None | `ical-generator` package endpoint | P2 | CAL-001 |
 | **CAL-004** | Calendar | Calendar Event Sync & Updates | `MISSING` | None | Two-way sync webhooks | P2 | CAL-002 |
-| **WF-001** | Workflow | Trigger-Based Automation Rules | `MISSING` | None | Event-driven workflow engine (`WorkflowRule` schema) | P0 | None |
-| **WF-002** | Workflow | Auto-Assign Journey & Checklists | `MISSING` | None | Action handlers for onboarding triggers | P0 | WF-001 |
+| **WF-001** | Workflow | Trigger-Based Automation Rules | `IMPLEMENTED` | [workflow-rule.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/workflows/models/workflow-rule.model.ts) | None | P0 | None |
+| **WF-002** | Workflow | Auto-Assign Journey & Checklists | `IMPLEMENTED` | [workflow.engine.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/workflows/services/workflow.engine.ts) | None | P0 | WF-001 |
 | **WF-003** | Workflow | Auto-Provisioning (Teams/Laptop) | `MISSING` | None | External IT ticketing & channel provisioning | P2 | WF-001 |
-| **WF-004** | Workflow | Auto-Schedule Meetings & Buddy | `MISSING` | None | Automated meeting & buddy trigger actions | P1 | WF-001 |
-| **WF-005** | Workflow | Asynchronous Step Orchestration | `MISSING` | None | State machine worker execution engine | P0 | WF-001 |
+| **WF-004** | Workflow | Auto-Schedule Meetings & Buddy | `IMPLEMENTED` | [workflow.engine.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/workflows/services/workflow.engine.ts) | None | P1 | WF-001 |
+| **WF-005** | Workflow | Asynchronous Step Orchestration | `IMPLEMENTED` | [Workflows.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Workflows.tsx) | None | P0 | WF-001 |
 | **INT-001** | Marketplace | Microsoft 365 & Teams | `MISSING` | None | Graph API client & OAuth integration | P2 | None |
 | **INT-002** | Marketplace | Google Workspace | `MISSING` | None | Google Admin & Directory SDK integration | P2 | None |
 | **INT-003** | Marketplace | Slack Integration | `MISSING` | None | Slack Bot API & webhook notifications | P2 | None |

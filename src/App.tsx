@@ -12,6 +12,7 @@ import { Analytics } from './pages/Analytics';
 import { Settings } from './pages/Settings';
 import { Certificates } from './pages/Certificates';
 import { Tasks } from './pages/Tasks';
+import { Workflows } from './pages/Workflows';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -65,6 +66,7 @@ export function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />
               <Route path="tasks" element={<Tasks />} />
+              <Route path="workflows" element={<Workflows />} />
               <Route
                 path="*"
                 element={
