@@ -12,6 +12,10 @@ import {
   useCreateDepartment,
   useDeleteDepartment
 } from '../hooks/useSettings';
+import {
+  useNotificationPreferences,
+  useUpdateNotificationPreferences
+} from '../hooks/useNotifications';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCw, X, Plus, Trash2 } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
@@ -20,6 +24,7 @@ import { uploadService } from '../services/upload.service';
 
 export function Settings() {
   const { data: settings, isLoading, isError, error, refetch } = useWorkspaceSettings();
+  const { data: userNotificationPrefs } = useNotificationPreferences();
   const updateSettings = useUpdateWorkspaceSettings();
   const { t } = useTranslation('settings');
 
@@ -66,7 +71,10 @@ export function Settings() {
       } else {
         setCategories(["Engineering", "Sales", "General"]);
       }
-      if (settings.notifications) {
+      if (userNotificationPrefs?.categories) {
+        setNewAssignmentEmails(userNotificationPrefs.categories.journeyAssigned?.email ?? true);
+        setDeadlineReminders(userNotificationPrefs.categories.journeyOverdue?.email ?? true);
+      } else if (settings.notifications) {
         setNewAssignmentEmails(settings.notifications.newAssignmentEmails ?? true);
         setDeadlineReminders(settings.notifications.deadlineReminders ?? true);
         setWeeklyManagerDigest(settings.notifications.weeklyManagerDigest ?? true);
@@ -192,6 +200,8 @@ export function Settings() {
     }
   };
 
+  const updateNotificationPrefs = useUpdateNotificationPreferences();
+
   const handleSaveNotifications = () => {
     updateSettings.mutate(
       {
@@ -203,6 +213,15 @@ export function Settings() {
       },
       {
         onSuccess: () => {
+          updateNotificationPrefs.mutate({
+            categories: {
+              journeyAssigned: { inApp: true, email: newAssignmentEmails },
+              journeyOverdue: { inApp: true, email: deadlineReminders },
+              complianceDue: { inApp: true, email: deadlineReminders },
+              announcements: { inApp: true, email: true },
+              reminders: { inApp: true, email: deadlineReminders },
+            },
+          });
           toast.success('Notification preferences updated successfully!');
         },
         onError: (err: any) => {

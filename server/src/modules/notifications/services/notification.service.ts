@@ -2,11 +2,18 @@ import NotificationRepository, {
   NotificationFilter,
   PaginationOptions,
 } from "../repositories/notification.repository.js";
+import NotificationPreference from "../models/notification-preference.model.js";
 import AppError from "../../../common/errors/app-error.js";
 import mongoose from "mongoose";
+import EmailService from "../../../shared/email/email.service.js";
+import User from "../../auth/models/user.model.js";
 
 export class NotificationService {
-  constructor(private readonly repository: NotificationRepository) {}
+  private emailService: EmailService;
+
+  constructor(private readonly repository: NotificationRepository) {
+    this.emailService = new EmailService();
+  }
 
   private calculateExpiration(priority: "low" | "medium" | "high" | "critical"): Date {
     const days = priority === "critical" ? 365 : 180;
@@ -43,7 +50,63 @@ export class NotificationService {
     return notification;
   }
 
-  // General delivery channel orchestrator
+  async getPreferences(userId: string | mongoose.Types.ObjectId, orgId: string | mongoose.Types.ObjectId) {
+    let prefs = await NotificationPreference.findOne({ userId, organizationId: orgId });
+    if (!prefs) {
+      prefs = await NotificationPreference.create({
+        userId,
+        organizationId: orgId,
+        channels: { inApp: true, email: true },
+        categories: {
+          journeyAssigned: { inApp: true, email: true },
+          journeyOverdue: { inApp: true, email: true },
+          complianceDue: { inApp: true, email: true },
+          announcements: { inApp: true, email: true },
+          reminders: { inApp: true, email: true },
+        },
+        quietHours: { enabled: false },
+        frequency: "immediate",
+      });
+    }
+    return prefs;
+  }
+
+  async updatePreferences(
+    userId: string | mongoose.Types.ObjectId,
+    orgId: string | mongoose.Types.ObjectId,
+    data: any
+  ) {
+    const prefs = await NotificationPreference.findOneAndUpdate(
+      { userId, organizationId: orgId },
+      { $set: data },
+      { new: true, upsert: true }
+    );
+    return prefs;
+  }
+
+  // Escalation & Frequency Rules Check (REM-005)
+  private async shouldSuppressNotification(
+    recipientUserId: string | mongoose.Types.ObjectId,
+    type: string
+  ): Promise<boolean> {
+    // If overdue alert, suppress if another alert of same type was sent in last 24 hrs
+    if (type === "journey_overdue" || type === "journey_due_soon") {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recent = await this.repository.find(
+        {
+          recipientUserId,
+          type,
+        },
+        { page: 1, limit: 1 }
+      );
+      if (recent.notifications.length > 0 && recent.notifications[0].createdAt > oneDayAgo) {
+        return true; // Suppress duplicate frequency
+      }
+    }
+    return false;
+  }
+
+  // Multi-channel delivery dispatcher (REM-003, REM-005)
   async createNotification(data: {
     organizationId: string | mongoose.Types.ObjectId;
     recipientUserId: string | mongoose.Types.ObjectId;
@@ -63,9 +126,41 @@ export class NotificationService {
     priority?: "low" | "medium" | "high" | "critical";
     data?: any;
   }) {
+    // Check escalation & frequency throttling rules
+    const suppress = await this.shouldSuppressNotification(data.recipientUserId, data.type);
+    if (suppress) {
+      console.log(
+        `[NotificationService] Suppressed notification ${data.type} to user ${data.recipientUserId} due to frequency escalation rules.`
+      );
+      return null;
+    }
+
+    // Fetch user preferences
+    const prefs = await this.getPreferences(data.recipientUserId, data.organizationId);
+
     const priority = data.priority || "medium";
     const expiresAt = this.calculateExpiration(priority);
     const channel = data.channel || "in_app";
+
+    // Determine category key for preference check
+    let categoryKey: keyof typeof prefs.categories = "reminders";
+    if (data.type === "journey_assigned") categoryKey = "journeyAssigned";
+    else if (data.type === "journey_overdue") categoryKey = "journeyOverdue";
+    else if (data.type === "journey_due_soon") categoryKey = "complianceDue";
+    else if (data.type === "announcement") categoryKey = "announcements";
+
+    // Verify channel enabled in preferences
+    const isChannelEnabled =
+      channel === "email"
+        ? prefs.channels.email && prefs.categories[categoryKey]?.email !== false
+        : prefs.channels.inApp && prefs.categories[categoryKey]?.inApp !== false;
+
+    if (!isChannelEnabled) {
+      console.log(
+        `[NotificationService] Notification ${data.type} channel ${channel} disabled in recipient preferences.`
+      );
+      return null;
+    }
 
     const notificationData = {
       organizationId: new mongoose.Types.ObjectId(data.organizationId),
@@ -91,12 +186,25 @@ export class NotificationService {
 
     const notification = await this.repository.create(notificationData as any);
 
-    // Mock Email/Push dispatch logs
+    // Real Email Delivery Adapter
     if (channel === "email") {
-      console.log(`[NotificationService] Sending email to user ${data.recipientUserId}: "${data.title}" - ${data.message}`);
-      notification.status = "sent";
-      notification.deliveredAt = new Date();
-      await notification.save();
+      const recipientUser = await User.findById(data.recipientUserId).select("auth.email profile.firstName");
+      if (recipientUser && recipientUser.auth?.email) {
+        const html = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #4f46e5; font-family: 'Inter', sans-serif;">${data.title}</h2>
+            <p>Hello ${recipientUser.profile?.firstName || ""},</p>
+            <p>${data.message}</p>
+            ${data.data?.deepLink ? `<div style="margin: 25px 0;"><a href="http://localhost:5173${data.data.deepLink}" style="background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Details</a></div>` : ""}
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #64748b;">Talnova Onboarding Platform</p>
+          </div>
+        `;
+        const sent = await this.emailService.sendEmail(recipientUser.auth.email, data.title, html);
+        notification.status = sent ? "sent" : "failed";
+        if (sent) notification.deliveredAt = new Date();
+        await notification.save();
+      }
     } else {
       notification.status = "sent";
       notification.deliveredAt = new Date();

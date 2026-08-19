@@ -13,6 +13,12 @@ export async function notificationRoutes(app: FastifyInstance) {
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
 
+  // GET /api/v1/notifications/preferences
+  app.get("/preferences", controller.getPreferences as any);
+
+  // PUT /api/v1/notifications/preferences
+  app.put("/preferences", controller.updatePreferences as any);
+
   // GET /api/v1/notifications/unread
   app.get("/unread", controller.getUnreadNotifications as any);
 

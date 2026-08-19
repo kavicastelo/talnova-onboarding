@@ -6,6 +6,8 @@ import { NotificationRepository } from "../../notifications/repositories/notific
 import AppError from "../../../common/errors/app-error.js";
 import mongoose from "mongoose";
 
+import eventBus from "../../../infrastructure/events/event-bus.js";
+
 export class EmployeeAssignmentService {
   constructor(private readonly repository: EmployeeAssignmentRepository) {}
 
@@ -129,12 +131,22 @@ export class EmployeeAssignmentService {
       console.error("Failed to log journey assignment audit log:", err);
     }
 
-    // Send assignment notification
+    // Publish event & dispatch notification
     try {
-      const notificationService = new NotificationService(new NotificationRepository());
-      await notificationService.notifyJourneyAssignment(orgId, employeeId, journey.title, doc._id as any, journeyId);
+      await eventBus.publish({
+        eventName: "JOURNEY_ASSIGNED",
+        organizationId: orgId,
+        actorId: employeeId,
+        entityId: doc._id as any,
+        payload: {
+          journeyId: journeyId.toString(),
+          assignmentId: (doc._id as any).toString(),
+          journeyTitle: journey.title,
+          assignedBy: assignedBy.toString(),
+        },
+      });
     } catch (e) {
-      console.error("Failed to dispatch assignment notification:", e);
+      console.error("Failed to publish journey assignment event:", e);
     }
 
     return doc;
@@ -496,25 +508,26 @@ export class EmployeeAssignmentService {
         }
       );
 
-      // Send completion notification
+      // Publish completion event
       try {
-        const notificationService = new NotificationService(new NotificationRepository());
-        
-        // Fetch employee details to get their full name and manager
         const employee = await mongoose.model("User").findById(assignment.employeeId);
         const employeeName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
         
-        await notificationService.notifyJourneyCompletion(
-          assignment.organizationId,
-          assignment.employeeId,
-          employeeName,
-          journey.title,
-          assignment._id as any,
-          journey._id,
-          employee?.employment?.managerId
-        );
+        await eventBus.publish({
+          eventName: "JOURNEY_COMPLETED",
+          organizationId: assignment.organizationId,
+          actorId: assignment.employeeId,
+          entityId: assignment._id,
+          payload: {
+            journeyId: journey._id.toString(),
+            assignmentId: assignment._id.toString(),
+            journeyTitle: journey.title,
+            employeeName,
+            managerUserId: employee?.employment?.managerId,
+          },
+        });
       } catch (e) {
-        console.error("Failed to dispatch completion notification:", e);
+        console.error("Failed to publish completion event:", e);
       }
     }
   }

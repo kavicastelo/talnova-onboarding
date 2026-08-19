@@ -112,6 +112,30 @@ export class NotificationController {
       data: null,
     });
   };
+
+  getPreferences = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const prefs = await this.service.getPreferences(user.userId, user.organizationId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Notification preferences retrieved successfully",
+      data: prefs,
+    });
+  };
+
+  updatePreferences = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+
+    const prefs = await this.service.updatePreferences(user.userId, user.organizationId, body);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Notification preferences updated successfully",
+      data: prefs,
+    });
+  };
 }
 
 export default NotificationController;

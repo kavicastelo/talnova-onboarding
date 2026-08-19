@@ -139,11 +139,11 @@ Talnova System Requirements
 | **DOC-003** | E-Signing | In-App E-Signature Capture | `MISSING` | None | Canvas signature draw component & submit API | P0 | DOC-001 |
 | **DOC-004** | E-Signing | Audit Trail & Timestamping | `MISSING` | None | IP address, timestamp, hash audit logging | P0 | DOC-003 |
 | **DOC-005** | E-Signing | Signed Document PDF Storage | `MISSING` | None | PDF generation (pdfkit/puppeteer) to S3/R2 | P0 | DOC-003 |
-| **REM-001** | Reminders | Overdue Training Reminders | `BACKEND_ONLY` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts#L52) | Type exists; automatic background trigger missing | P0 | REM-004 |
-| **REM-002** | Reminders | Compliance Due Alerts | `BACKEND_ONLY` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts#L53) | Type exists; automatic background trigger missing | P0 | REM-004 |
-| **REM-003** | Reminders | Multi-Channel Delivery | `PARTIAL` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts#L96) | In-app works; Email console logs; Push/SMS missing | P0 | None |
-| **REM-004** | Reminders | Background Scheduler / Cron | `MISSING` | None | BullMQ / Agenda / Node-cron runner engine | P0 | None |
-| **REM-005** | Reminders | Escalation & Frequency Rules | `PLACEHOLDER` | [Settings.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Settings.tsx#L42-L44) | Settings UI toggles exist; business logic missing | P1 | REM-004 |
+| **REM-001** | Reminders | Overdue Training Reminders | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
+| **REM-002** | Reminders | Compliance Due Alerts | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
+| **REM-003** | Reminders | Multi-Channel Delivery | `IMPLEMENTED` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts) | None | P0 | None |
+| **REM-004** | Reminders | Background Scheduler / Cron | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | None |
+| **REM-005** | Reminders | Escalation & Frequency Rules | `IMPLEMENTED` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts) | None | P1 | REM-004 |
 | **CER-001** | Certificates | Configurable Templates | `IMPLEMENTED` | [Settings.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Settings.tsx#L700-L800) | None | Core | None |
 | **CER-002** | Certificates | Automatic Completion Trigger | `IMPLEMENTED` | [assignment.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/assignments/services/assignment.service.ts#L483-L487) | None | Core | None |
 | **CER-003** | Certificates | Branding & Signature Setup | `IMPLEMENTED` | [Settings.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Settings.tsx#L750-L785) | None | Core | None |
