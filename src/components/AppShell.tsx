@@ -48,7 +48,8 @@ import {
   ChevronsUpDown,
   Tv,
   CheckSquare,
-  Workflow
+  Workflow,
+  UserCheck
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -94,6 +95,7 @@ export function AppShell() {
   // Nav arrays computed inside component so they re-render on language change
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
+    { title: 'Team Operations', url: '/manager', icon: UserCheck },
     { title: t('items.journeys'), url: '/journeys', icon: Map },
     { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
     { title: 'Workflows', url: '/workflows', icon: Workflow },

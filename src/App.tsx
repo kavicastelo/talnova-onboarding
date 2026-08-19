@@ -13,6 +13,7 @@ import { Settings } from './pages/Settings';
 import { Certificates } from './pages/Certificates';
 import { Tasks } from './pages/Tasks';
 import { Workflows } from './pages/Workflows';
+import { ManagerDashboard } from './pages/ManagerDashboard';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -67,6 +68,7 @@ export function App() {
               <Route path="certificates" element={<Certificates />} />
               <Route path="tasks" element={<Tasks />} />
               <Route path="workflows" element={<Workflows />} />
+              <Route path="manager" element={<ManagerDashboard />} />
               <Route
                 path="*"
                 element={
