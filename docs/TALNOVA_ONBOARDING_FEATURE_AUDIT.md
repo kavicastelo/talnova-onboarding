@@ -144,6 +144,11 @@ Talnova System Requirements
 | **S90-003** | Milestones | Employee Self Check-In | `IMPLEMENTED` | [Milestones.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Milestones.tsx) | None | P0 | S90-001 |
 | **S90-004** | Milestones | Manager Review & Rating | `IMPLEMENTED` | [Milestones.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Milestones.tsx) | None | P0 | S90-003 |
 | **S90-005** | Milestones | Milestone Completion & Sign-Off | `IMPLEMENTED` | [milestone.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/milestones/services/milestone.service.ts) | None | P0 | S90-004 |
+| **BUD-001** | Buddy Support | Buddy Eligibility & Registration | `IMPLEMENTED` | [buddy-profile.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/buddy/models/buddy-profile.model.ts) | None | P0 | None |
+| **BUD-002** | Buddy Support | Smart & Manual Buddy Assignment | `IMPLEMENTED` | [buddy.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/buddy/services/buddy.service.ts) | None | P0 | BUD-001 |
+| **BUD-003** | Buddy Support | Communication Links & Contact | `IMPLEMENTED` | [BuddyProgram.tsx](file:///d:/talnova/talnova-onboarding/src/pages/BuddyProgram.tsx) | None | P0 | BUD-001 |
+| **BUD-004** | Buddy Support | Buddy Onboarding Checklist | `IMPLEMENTED` | [BuddyProgram.tsx](file:///d:/talnova/talnova-onboarding/src/pages/BuddyProgram.tsx) | None | P0 | BUD-002 |
+| **BUD-005** | Buddy Support | 1-on-1 Check-In Meeting Logger | `IMPLEMENTED` | [buddy.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/buddy/services/buddy.service.ts) | None | P0 | BUD-002 |
 | **REM-001** | Reminders | Overdue Training Reminders | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-002** | Reminders | Compliance Due Alerts | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-003** | Reminders | Multi-Channel Delivery | `IMPLEMENTED` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts) | None | P0 | None |

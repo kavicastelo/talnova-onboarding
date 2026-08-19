@@ -5,6 +5,7 @@ import workflowEngine from "../../modules/workflows/services/workflow.engine.js"
 import smartAssignmentService from "../../modules/journeys/services/smart-assignment.service.js";
 import documentService from "../../modules/documents/services/document.service.js";
 import milestoneService from "../../modules/milestones/services/milestone.service.js";
+import buddyService from "../../modules/buddy/services/buddy.service.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -160,6 +161,10 @@ export function registerEventSubscribers(): void {
         event.actorId
       );
       await milestoneService.autoAssignMilestonesToNewHire(
+        event.organizationId,
+        event.actorId
+      );
+      await buddyService.autoAssignBuddyToNewHire(
         event.organizationId,
         event.actorId
       );
