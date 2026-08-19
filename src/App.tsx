@@ -20,6 +20,7 @@ import { Milestones } from './pages/Milestones';
 import { BuddyProgram } from './pages/BuddyProgram';
 import { CalendarIntegration } from './pages/CalendarIntegration';
 import { HROperations } from './pages/HROperations';
+import { Leaderboard } from './pages/Leaderboard';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -81,6 +82,7 @@ export function App() {
               <Route path="buddy" element={<BuddyProgram />} />
               <Route path="calendar" element={<CalendarIntegration />} />
               <Route path="hr-ops" element={<HROperations />} />
+              <Route path="leaderboard" element={<Leaderboard />} />
               <Route
                 path="*"
                 element={
