@@ -3,6 +3,7 @@ import { User } from "../../auth/models/user.model.js";
 import { EmployeeAssignment } from "../../assignments/models/assignment.model.js";
 import { Organization } from "../../organizations/models/organization.model.js";
 import { Journey } from "../../journeys/models/journey.model.js";
+import ScheduledReport from "../models/scheduled-report.model.js";
 
 export class AnalyticsService {
   async getSummary(orgId: string | mongoose.Types.ObjectId) {
@@ -233,5 +234,198 @@ export class AnalyticsService {
       departmentCompletions,
       journeyCompletionRates
     };
+  }
+
+  /**
+   * Time-to-Completion & Cohort Velocity Analytics (ANA-001)
+   */
+  async getTimeToCompletionMetrics(orgId: string | mongoose.Types.ObjectId) {
+    const objectIdOrgId = new mongoose.Types.ObjectId(orgId.toString());
+
+    const completedAssignments = await EmployeeAssignment.find({
+      organizationId: objectIdOrgId,
+      status: "completed",
+      completedAt: { $exists: true },
+      isDeleted: { $ne: true },
+    });
+
+    if (completedAssignments.length === 0) {
+      return {
+        averageCompletionDays: 0,
+        fastestCompletionDays: 0,
+        slowestCompletionDays: 0,
+        totalCompletedAssignments: 0,
+      };
+    }
+
+    let totalMs = 0;
+    let minMs = Infinity;
+    let maxMs = 0;
+
+    for (const a of completedAssignments) {
+      const assignedAt = a.assignment?.assignedAt ? new Date(a.assignment.assignedAt).getTime() : new Date(a.createdAt).getTime();
+      const completedAt = new Date(a.completedAt!).getTime();
+      const durationMs = Math.max(0, completedAt - assignedAt);
+
+      totalMs += durationMs;
+      if (durationMs < minMs) minMs = durationMs;
+      if (durationMs > maxMs) maxMs = durationMs;
+    }
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const averageCompletionDays = Math.round((totalMs / completedAssignments.length / msPerDay) * 10) / 10;
+    const fastestCompletionDays = Math.round((minMs / msPerDay) * 10) / 10;
+    const slowestCompletionDays = Math.round((maxMs / msPerDay) * 10) / 10;
+
+    return {
+      averageCompletionDays,
+      fastestCompletionDays,
+      slowestCompletionDays: slowestCompletionDays === Infinity ? 0 : slowestCompletionDays,
+      totalCompletedAssignments: completedAssignments.length,
+    };
+  }
+
+  /**
+   * Module & Quiz Bottleneck Analytics + Difficult Question Analysis (ANA-002, ANA-003)
+   */
+  async getQuizAndModuleBottlenecks(orgId: string | mongoose.Types.ObjectId) {
+    const objectIdOrgId = new mongoose.Types.ObjectId(orgId.toString());
+
+    const assignments = await EmployeeAssignment.find({
+      organizationId: objectIdOrgId,
+      isDeleted: { $ne: true },
+    });
+
+    const moduleStatsMap = new Map<string, { title: string; attempts: number; passes: number; totalScore: number }>();
+    const questionStatsMap = new Map<string, { questionText: string; attempts: number; incorrect: number }>();
+
+    for (const a of assignments) {
+      if (a.modules) {
+        for (const m of a.modules) {
+          const modKey = m.moduleId.toString();
+          if (!moduleStatsMap.has(modKey)) {
+            moduleStatsMap.set(modKey, { title: m.title, attempts: 0, passes: 0, totalScore: 0 });
+          }
+
+          const mStats = moduleStatsMap.get(modKey)!;
+
+          if (m.lessons) {
+            for (const l of m.lessons) {
+              if (l.quizAttempt) {
+                mStats.attempts++;
+                mStats.totalScore += l.quizAttempt.score || 0;
+                if (l.quizAttempt.passed) mStats.passes++;
+
+                if (l.quizAttempt.answers) {
+                  for (const ans of l.quizAttempt.answers) {
+                    const qKey = ans.questionId.toString();
+                    if (!questionStatsMap.has(qKey)) {
+                      questionStatsMap.set(qKey, { questionText: `Question ${qKey.slice(-6)}`, attempts: 0, incorrect: 0 });
+                    }
+                    const qStats = questionStatsMap.get(qKey)!;
+                    qStats.attempts++;
+                    if (!ans.correct) qStats.incorrect++;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const moduleBottlenecks = Array.from(moduleStatsMap.entries())
+      .map(([id, stats]) => ({
+        moduleId: id,
+        title: stats.title,
+        attempts: stats.attempts,
+        passRate: stats.attempts > 0 ? Math.round((stats.passes / stats.attempts) * 100) : 100,
+        averageScore: stats.attempts > 0 ? Math.round(stats.totalScore / stats.attempts) : 0,
+      }))
+      .sort((a, b) => a.passRate - b.passRate);
+
+    const difficultQuestions = Array.from(questionStatsMap.entries())
+      .map(([id, stats]) => ({
+        questionId: id,
+        questionText: stats.questionText,
+        attempts: stats.attempts,
+        incorrectRate: stats.attempts > 0 ? Math.round((stats.incorrect / stats.attempts) * 100) : 0,
+      }))
+      .sort((a, b) => b.incorrectRate - a.incorrectRate)
+      .slice(0, 10);
+
+    return {
+      moduleBottlenecks,
+      difficultQuestions,
+    };
+  }
+
+  /**
+   * Export CSV Raw Compliance Data (ANA-006)
+   */
+  async exportAnalyticsCSV(orgId: string | mongoose.Types.ObjectId): Promise<string> {
+    const objectIdOrgId = new mongoose.Types.ObjectId(orgId.toString());
+
+    const assignments = await EmployeeAssignment.find({
+      organizationId: objectIdOrgId,
+      isDeleted: { $ne: true },
+    }).populate("employeeId", "profile auth employment");
+
+    const lines = ["Employee Name,Email,Department,Journey Title,Status,Completion %,Assigned Date,Completed Date"];
+
+    for (const a of assignments) {
+      const emp = a.employeeId as any;
+      const empName = emp?.profile ? `${emp.profile.firstName} ${emp.profile.lastName}` : "Unknown";
+      const email = emp?.auth?.email || "";
+      const dept = emp?.employment?.department || "Unassigned";
+      const title = a.journey?.title || "Journey";
+      const status = a.status;
+      const progress = a.progress?.completionPercentage || 0;
+      const assignedDate = a.assignment?.assignedAt ? new Date(a.assignment.assignedAt).toISOString().split("T")[0] : "";
+      const completedDate = a.completedAt ? new Date(a.completedAt).toISOString().split("T")[0] : "";
+
+      lines.push(`"${empName}","${email}","${dept}","${title}",${status},${progress}%,${assignedDate},${completedDate}`);
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Scheduled Reports Management (ANA-006)
+   */
+  async createScheduledReport(
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    data: {
+      title: string;
+      frequency: "daily" | "weekly" | "monthly";
+      recipients: string[];
+      format: "csv" | "json";
+    }
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const userObjectId = new mongoose.Types.ObjectId(userId.toString());
+
+    return ScheduledReport.create({
+      organizationId: orgObjectId,
+      title: data.title,
+      frequency: data.frequency || "weekly",
+      recipients: data.recipients,
+      format: data.format || "csv",
+      status: "active",
+      createdBy: userObjectId,
+    });
+  }
+
+  async listScheduledReports(orgId: string | mongoose.Types.ObjectId) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    return ScheduledReport.find({ organizationId: orgObjectId }).sort({ createdAt: -1 });
+  }
+
+  async deleteScheduledReport(orgId: string | mongoose.Types.ObjectId, reportId: string | mongoose.Types.ObjectId) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const reportObjectId = new mongoose.Types.ObjectId(reportId.toString());
+
+    return ScheduledReport.deleteOne({ _id: reportObjectId, organizationId: orgObjectId });
   }
 }
