@@ -3,6 +3,7 @@ import NotificationService from "../../modules/notifications/services/notificati
 import NotificationRepository from "../../modules/notifications/repositories/notification.repository.js";
 import workflowEngine from "../../modules/workflows/services/workflow.engine.js";
 import smartAssignmentService from "../../modules/journeys/services/smart-assignment.service.js";
+import documentService from "../../modules/documents/services/document.service.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -150,6 +151,10 @@ export function registerEventSubscribers(): void {
         event.payload
       );
       await smartAssignmentService.autoEnrollNewHire(
+        event.organizationId,
+        event.actorId
+      );
+      await documentService.autoAssignDocumentsToNewHire(
         event.organizationId,
         event.actorId
       );

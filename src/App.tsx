@@ -14,6 +14,8 @@ import { Certificates } from './pages/Certificates';
 import { Tasks } from './pages/Tasks';
 import { Workflows } from './pages/Workflows';
 import { ManagerDashboard } from './pages/ManagerDashboard';
+import { Documents } from './pages/Documents';
+import { DocumentSigner } from './pages/DocumentSigner';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -69,6 +71,8 @@ export function App() {
               <Route path="tasks" element={<Tasks />} />
               <Route path="workflows" element={<Workflows />} />
               <Route path="manager" element={<ManagerDashboard />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="documents/:id/sign" element={<DocumentSigner />} />
               <Route
                 path="*"
                 element={

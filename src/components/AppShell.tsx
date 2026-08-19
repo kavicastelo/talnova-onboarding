@@ -49,7 +49,8 @@ import {
   Tv,
   CheckSquare,
   Workflow,
-  UserCheck
+  UserCheck,
+  FileText
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -98,6 +99,7 @@ export function AppShell() {
     { title: 'Team Operations', url: '/manager', icon: UserCheck },
     { title: t('items.journeys'), url: '/journeys', icon: Map },
     { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+    { title: 'Digital Documents', url: '/documents', icon: FileText },
     { title: 'Workflows', url: '/workflows', icon: Workflow },
     { title: 'Kiosk Dashboard', url: '/kiosks', icon: Tv },
     { title: t('items.employees'), url: '/directory', icon: Users },
@@ -110,6 +112,7 @@ export function AppShell() {
     { title: t('items.home'), url: '/employee', icon: LayoutDashboard },
     { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
     { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+    { title: 'Digital Documents', url: '/documents', icon: FileText },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
     { title: t('items.certificates'), url: '/certificates', icon: Award },
   ];
