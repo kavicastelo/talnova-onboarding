@@ -77,6 +77,67 @@ export function registerEventSubscribers(): void {
     }
   });
 
+  // Listener for TASK_CREATED event
+  eventBus.subscribe("TASK_CREATED", async (event) => {
+    const { title, assignedToUserId, taskId } = event.payload || {};
+    if (assignedToUserId) {
+      await notificationService.createNotification({
+        organizationId: event.organizationId,
+        recipientUserId: assignedToUserId,
+        type: "journey_due_soon",
+        channel: "in_app",
+        title: "New Task Assigned",
+        message: `You have been assigned a new task: "${title || "Operational Task"}".`,
+        priority: "medium",
+        data: {
+          taskId: taskId || event.entityId,
+          deepLink: `/tasks`,
+        },
+      });
+    }
+  });
+
+  // Listener for TASK_COMPLETED event
+  eventBus.subscribe("TASK_COMPLETED", async (event) => {
+    const { title, taskId, assignedToUserId } = event.payload || {};
+    if (event.actorId) {
+      await notificationService.createNotification({
+        organizationId: event.organizationId,
+        recipientUserId: event.actorId,
+        type: "announcement",
+        channel: "in_app",
+        title: "Task Completed",
+        message: `Task "${title || "Operational Task"}" has been completed successfully.`,
+        priority: "low",
+        data: {
+          taskId: taskId || event.entityId,
+          deepLink: `/tasks`,
+        },
+      });
+    }
+  });
+
+  // Listener for TASK_OVERDUE event
+  eventBus.subscribe("TASK_OVERDUE", async (event) => {
+    const { title, taskId, assignedToUserId } = event.payload || {};
+    const recipient = assignedToUserId || event.actorId;
+    if (recipient) {
+      await notificationService.createNotification({
+        organizationId: event.organizationId,
+        recipientUserId: recipient,
+        type: "journey_overdue",
+        channel: "in_app",
+        title: "Task Overdue Alert",
+        message: `Task "${title || "Operational Task"}" is overdue. Please execute it immediately.`,
+        priority: "high",
+        data: {
+          taskId: taskId || event.entityId,
+          deepLink: `/tasks`,
+        },
+      });
+    }
+  });
+
   console.log("[EventSubscribers] Registered platform event listeners.");
 }
 

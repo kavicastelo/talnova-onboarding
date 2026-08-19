@@ -109,11 +109,11 @@ Talnova System Requirements
 | **JRN-005** | Journeys | Mandatory Rules & Quiz Gating | `IMPLEMENTED` | [CourseViewer.tsx](file:///d:/talnova/talnova-onboarding/src/pages/CourseViewer.tsx#L400-L500) | None | Core | None |
 | **JRN-006** | Journeys | Employee Progress Tracking | `IMPLEMENTED` | [assignment.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/assignments/models/assignment.model.ts#L60-L68) | None | Core | None |
 | **JRN-007** | Journeys | Journey Versioning & Reassignment | `IMPLEMENTED` | [journey.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/journeys/models/journey.model.ts#L97) | None | Core | None |
-| **CHK-001** | Checklists | Multi-Stage Onboarding Checklists | `PARTIAL` | [journey.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/journeys/models/journey.model.ts#L35) | Only lesson block type exists; no standalone task workflow | P0 | None |
-| **CHK-002** | Checklists | Cross-Person Task Assignment | `MISSING` | None | Task owner `assignedTo` (IT, HR, Manager) field | P0 | CHK-001 |
-| **CHK-003** | Checklists | Task Deadlines & Scheduling | `MISSING` | None | Task-level due date & trigger engine | P1 | CHK-001 |
-| **CHK-004** | Checklists | Responsible Person Task Execution | `MISSING` | None | Responsible person task inbox UI | P1 | CHK-002 |
-| **CHK-005** | Checklists | Task Overdue Notifications | `MISSING` | None | Scheduler job scanning pending tasks | P1 | REM-004 |
+| **CHK-001** | Checklists | Multi-Stage Onboarding Checklists | `IMPLEMENTED` | [task.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/tasks/models/task.model.ts) | None | P0 | None |
+| **CHK-002** | Checklists | Cross-Person Task Assignment | `IMPLEMENTED` | [task.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/tasks/services/task.service.ts) | None | P0 | CHK-001 |
+| **CHK-003** | Checklists | Task Deadlines & Scheduling | `IMPLEMENTED` | [task.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/tasks/services/task.service.ts) | None | P1 | CHK-001 |
+| **CHK-004** | Checklists | Responsible Person Task Execution | `IMPLEMENTED` | [Tasks.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Tasks.tsx) | None | P1 | CHK-002 |
+| **CHK-005** | Checklists | Task Overdue Notifications | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P1 | REM-004 |
 | **MGR-001** | Manager | Direct Report Progress Dashboard | `PARTIAL` | [AdminDashboard.tsx](file:///d:/talnova/talnova-onboarding/src/pages/AdminDashboard.tsx#L24-L120) | Admin dashboard exists; manager team filter missing | P0 | Auth |
 | **MGR-002** | Manager | Overdue Task & Training Drill-Down | `PARTIAL` | [assignment.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/assignments/models/assignment.model.ts#L59) | Status tracked; manager team filter screen missing | P1 | MGR-001 |
 | **MGR-003** | Manager | Quiz Score Visibility per Direct Report | `PARTIAL` | [assignment.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/assignments/models/assignment.model.ts#L10-L17) | Score saved in DB; team breakdown view missing | P1 | MGR-001 |
