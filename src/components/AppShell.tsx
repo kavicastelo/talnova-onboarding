@@ -47,7 +47,8 @@ import {
   Check,
   ChevronsUpDown,
   Tv,
-  CheckSquare
+  CheckSquare,
+  Workflow
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -95,6 +96,7 @@ export function AppShell() {
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
     { title: t('items.journeys'), url: '/journeys', icon: Map },
     { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+    { title: 'Workflows', url: '/workflows', icon: Workflow },
     { title: 'Kiosk Dashboard', url: '/kiosks', icon: Tv },
     { title: t('items.employees'), url: '/directory', icon: Users },
     { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },

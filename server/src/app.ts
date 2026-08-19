@@ -31,6 +31,7 @@ import { analyticsRoutes } from "./modules/analytics/index.js";
 import { localizationRoutes } from "./modules/localization/index.js";
 import { kioskRoutes } from "./modules/kiosk/index.js";
 import { taskRoutes } from "./modules/tasks/index.js";
+import { workflowRoutes } from "./modules/workflows/index.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -75,6 +76,7 @@ export async function buildApp() {
   await app.register(localizationRoutes, { prefix: "/api/v1/localization" });
   await app.register(kioskRoutes, { prefix: "/api/v1/kiosk" });
   await app.register(taskRoutes, { prefix: "/api/v1/tasks" });
+  await app.register(workflowRoutes, { prefix: "/api/v1/workflows" });
 
   // Health checks
   app.get("/live", async () => {

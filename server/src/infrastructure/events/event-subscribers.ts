@@ -1,6 +1,7 @@
 import eventBus from "./event-bus.js";
 import NotificationService from "../../modules/notifications/services/notification.service.js";
 import NotificationRepository from "../../modules/notifications/repositories/notification.repository.js";
+import workflowEngine from "../../modules/workflows/services/workflow.engine.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -135,6 +136,42 @@ export function registerEventSubscribers(): void {
           deepLink: `/tasks`,
         },
       });
+    }
+  });
+
+  // Workflow Engine Listener for USER_CREATED event
+  eventBus.subscribe("USER_CREATED", async (event) => {
+    if (event.actorId) {
+      await workflowEngine.processEvent(
+        event.organizationId,
+        "user_created",
+        event.actorId,
+        event.payload
+      );
+    }
+  });
+
+  // Workflow Engine Listener for JOURNEY_COMPLETED event
+  eventBus.subscribe("JOURNEY_COMPLETED", async (event) => {
+    if (event.actorId) {
+      await workflowEngine.processEvent(
+        event.organizationId,
+        "journey_completed",
+        event.actorId,
+        event.payload
+      );
+    }
+  });
+
+  // Workflow Engine Listener for TASK_COMPLETED event
+  eventBus.subscribe("TASK_COMPLETED", async (event) => {
+    if (event.actorId) {
+      await workflowEngine.processEvent(
+        event.organizationId,
+        "task_completed",
+        event.actorId,
+        event.payload
+      );
     }
   });
 
