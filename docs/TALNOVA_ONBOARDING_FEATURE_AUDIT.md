@@ -139,6 +139,11 @@ Talnova System Requirements
 | **DOC-003** | E-Signing | In-App E-Signature Capture | `IMPLEMENTED` | [SignatureCanvas.tsx](file:///d:/talnova/talnova-onboarding/src/components/SignatureCanvas.tsx) | None | P0 | DOC-001 |
 | **DOC-004** | E-Signing | Audit Trail & Timestamping | `IMPLEMENTED` | [document.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/documents/services/document.service.ts) | None | P0 | DOC-003 |
 | **DOC-005** | E-Signing | Signed Document PDF Storage | `IMPLEMENTED` | [document.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/documents/services/document.service.ts) | None | P0 | DOC-003 |
+| **S90-001** | Milestones | Milestone Definitions & Templates | `IMPLEMENTED` | [milestone-template.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/milestones/models/milestone-template.model.ts) | None | P0 | None |
+| **S90-002** | Milestones | Hire-Date Relative Scheduling | `IMPLEMENTED` | [milestone.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/milestones/services/milestone.service.ts) | None | P0 | S90-001 |
+| **S90-003** | Milestones | Employee Self Check-In | `IMPLEMENTED` | [Milestones.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Milestones.tsx) | None | P0 | S90-001 |
+| **S90-004** | Milestones | Manager Review & Rating | `IMPLEMENTED` | [Milestones.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Milestones.tsx) | None | P0 | S90-003 |
+| **S90-005** | Milestones | Milestone Completion & Sign-Off | `IMPLEMENTED` | [milestone.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/milestones/services/milestone.service.ts) | None | P0 | S90-004 |
 | **REM-001** | Reminders | Overdue Training Reminders | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-002** | Reminders | Compliance Due Alerts | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-003** | Reminders | Multi-Channel Delivery | `IMPLEMENTED` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts) | None | P0 | None |
