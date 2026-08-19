@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -34,12 +34,9 @@ import {
   Users,
   Clock,
   Award,
-  AlertCircle,
-  RefreshCw,
   Zap,
   HelpCircle,
   Calendar,
-  Mail,
   Plus,
   Trash2
 } from 'lucide-react';
@@ -56,7 +53,7 @@ import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
 
 export function Analytics() {
-  const [range, setRange] = useState('30d');
+  const [range] = useState('30d');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Scheduled Report Form State
@@ -64,7 +61,7 @@ export function Analytics() {
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [recipientsInput, setRecipientsInput] = useState('');
 
-  const { data: analytics, isLoading, isError, refetch } = useAnalytics(range);
+  const { data: analytics, isLoading } = useAnalytics(range);
   const { data: timeStats } = useTimeToCompletion();
   const { data: bottlenecks } = useAnalyticsBottlenecks();
   const { data: scheduledReports, refetch: refetchReports } = useScheduledReports();

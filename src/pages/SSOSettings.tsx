@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -17,8 +17,6 @@ import {
   Plus,
   Trash2,
   Save,
-  CheckCircle,
-  AlertCircle,
   Users
 } from 'lucide-react';
 import { useSSOConfig, useSaveSSOConfig } from '../hooks/useSSO';

@@ -1,5 +1,4 @@
 import { apiClient } from '../api/client';
-import { ApiResponse } from '../types';
 
 export interface OfflineQueueItem {
   id: string;

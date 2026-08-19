@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ShieldAlert,
   Users,
   CheckCircle2,
-  Clock,
   AlertTriangle,
   Pause,
   Play,
   Calendar,
   Send,
   FileSpreadsheet,
-  Plus,
   Search,
-  ChevronRight,
   UserX,
   FileText
 } from 'lucide-react';
@@ -58,7 +55,7 @@ export const HROperations: React.FC = () => {
   const [selectedJourneyId, setSelectedJourneyId] = useState('');
   const [bulkMessage, setBulkMessage] = useState('Please complete your pending onboarding tasks.');
 
-  const { data: metrics, isLoading: metricsLoading } = useHRDashboard();
+  const { data: metrics } = useHRDashboard();
   const { data: exceptions, isLoading: exceptionsLoading, refetch: refetchExceptions } = useHRExceptions();
   const { data: complianceReport } = useHRComplianceReport();
   const { data: employeesData, isLoading: employeesLoading, refetch: refetchEmployees } = useEmployees({ page: 1, limit: 100 });

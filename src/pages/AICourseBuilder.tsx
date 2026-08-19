@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -18,9 +18,7 @@ import {
   HelpCircle,
   CheckCircle,
   RefreshCw,
-  Send,
   Trash2,
-  ArrowRight,
   Layers
 } from 'lucide-react';
 import {
@@ -70,11 +68,11 @@ export function AICourseBuilder() {
 
   const handlePublish = (draftId: string) => {
     publishDraftMutation.mutate(draftId, {
-      onSuccess: (res) => {
+      onSuccess: () => {
         toast.success('Course draft published to live Journeys!');
         navigate('/journeys');
       },
-      onError: (err: any) => {
+      onError: () => {
         toast.error('Failed to publish draft to journeys');
       },
     });

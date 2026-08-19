@@ -35,7 +35,6 @@ import {
   './Breadcrumb';
 import {
   LayoutDashboard,
-  Map,
   Users,
   BookOpen,
   Settings,
@@ -46,7 +45,6 @@ import {
   Award,
   Check,
   ChevronsUpDown,
-  Tv,
   CheckSquare,
   Workflow,
   UserCheck,
@@ -58,7 +56,8 @@ import {
   Trophy,
   Bot,
   Wand2,
-  KeyRound
+  KeyRound,
+  MapPin
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -106,6 +105,7 @@ export function AppShell() {
   // Nav arrays computed inside component so they re-render on language change
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
+    { title: 'Office Map', url: '/office-map', icon: MapPin },
     { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
     { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
@@ -113,15 +113,6 @@ export function AppShell() {
     { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
     { title: 'Team Operations', url: '/manager', icon: UserCheck },
-    { title: t('items.journeys'), url: '/journeys', icon: Map },
-    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
-    { title: 'Digital Documents', url: '/documents', icon: FileText },
-    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
-    { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
-    { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
-    { title: 'Workflows', url: '/workflows', icon: Workflow },
-    { title: 'Kiosk Dashboard', url: '/kiosks', icon: Tv },
-    { title: t('items.employees'), url: '/directory', icon: Users },
     { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
     { title: t('items.settings'), url: '/settings', icon: Settings },

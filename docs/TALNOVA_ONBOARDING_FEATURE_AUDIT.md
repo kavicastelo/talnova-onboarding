@@ -210,6 +210,10 @@ Talnova System Requirements
 | **MOB-003** | Mobile | Offline Content Caching & Sync | `IMPLEMENTED` | [sw.js](file:///d:/talnova/talnova-onboarding/public/sw.js) | None | P2 | MOB-002 |
 | **MOB-004** | Mobile | Native Push Notifications | `IMPLEMENTED` | [push-subscription.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/models/push-subscription.model.ts) | None | P2 | MOB-002 |
 | **MOB-005** | Mobile | Field-Staff Offline Task Sign-off | `IMPLEMENTED` | [pwa.service.ts](file:///d:/talnova/talnova-onboarding/src/services/pwa.service.ts) | None | P2 | MOB-003 |
+| **LOC-001** | Location | Multi-Office Facility Management | `IMPLEMENTED` | [office-location.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/locations/models/office-location.model.ts) | None | P2 | None |
+| **LOC-002** | Location | Interactive Floor Plan & Desk Map | `IMPLEMENTED` | [OfficeMap.tsx](file:///d:/talnova/talnova-onboarding/src/pages/OfficeMap.tsx) | None | P2 | LOC-001 |
+| **LOC-003** | Location | Employee Office & Desk Assignment | `IMPLEMENTED` | [office-location.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/locations/services/office-location.service.ts) | None | P2 | LOC-001 |
+| **LOC-004** | Location | Location-Aware Guidance & Directions | `IMPLEMENTED` | [office-location.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/locations/services/office-location.service.ts) | None | P2 | LOC-001 |
 | **CAL-001** | Calendar | Automated Meeting Scheduler | `MISSING` | None | Meeting event model & scheduling API | P1 | None |
 | **CAL-002** | Calendar | Google / Outlook Calendar API | `MISSING` | None | OAuth2 integrations for Google Workspace / MS365 | P1 | CAL-001 |
 | **CAL-003** | Calendar | iCal (.ics) File Generation | `MISSING` | None | `ical-generator` package endpoint | P2 | CAL-001 |

@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 import User from "../../auth/models/user.model.js";
 import EmployeeAssignment from "../../assignments/models/assignment.model.js";
 import DocumentAssignment from "../../documents/models/document-assignment.model.js";
-import EmployeeMilestone from "../../milestones/models/employee-milestone.model.ts";
-import BuddyAssignment from "../../buddy/models/buddy-assignment.model.ts";
+import EmployeeMilestone from "../../milestones/models/employee-milestone.model.js";
+import BuddyAssignment from "../../buddy/models/buddy-assignment.model.js";
 import Task from "../../tasks/models/task.model.js";
 import NotificationService from "../../notifications/services/notification.service.js";
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
@@ -60,7 +60,7 @@ export class HROperationsService {
           organizationId: orgObjectId,
           status: "active",
         });
-        const assignedSet = new Set(assignedBuddyUserIds.map((id) => id.toString()));
+        const assignedSet = new Set(assignedBuddyUserIds.map((id: any) => id.toString()));
         return employees.filter((e) => !assignedSet.has(e._id.toString())).length;
       })(),
     ]);
@@ -122,7 +122,7 @@ export class HROperationsService {
       }),
     ]);
 
-    const buddyMap = new Set(buddyAssignments.map((b) => b.menteeUserId.toString()));
+    const buddyMap = new Set(buddyAssignments.map((b: any) => b.menteeUserId.toString()));
 
     const exceptions: Array<{
       employee: any;
@@ -139,12 +139,12 @@ export class HROperationsService {
         issues.push(`${empOverdueJourneys.length} overdue learning journey(s)`);
       }
 
-      const empOverdueDocs = pendingDocs.filter((d) => d.recipientUserId.toString() === empIdStr);
+      const empOverdueDocs = pendingDocs.filter((d: any) => d.recipientUserId.toString() === empIdStr);
       if (empOverdueDocs.length > 0) {
         issues.push(`${empOverdueDocs.length} overdue e-signature document(s)`);
       }
 
-      const empOverdueTasks = overdueTasks.filter((t) => t.assigneeId?.toString() === empIdStr);
+      const empOverdueTasks = overdueTasks.filter((t: any) => t.assigneeId?.toString() === empIdStr);
       if (empOverdueTasks.length > 0) {
         issues.push(`${empOverdueTasks.length} overdue onboarding task(s)`);
       }

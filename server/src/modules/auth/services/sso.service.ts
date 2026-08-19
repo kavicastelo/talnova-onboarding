@@ -189,7 +189,7 @@ export class SSOService {
       organizationId: user.organizationId,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       ipAddress: ipAddress || "127.0.0.1",
-      userAgent: deviceInfo || "SSO Client",
+      deviceInfo: deviceInfo || "SSO Client",
     });
 
     const tokenPayload = {
@@ -197,7 +197,7 @@ export class SSOService {
       organizationId: user.organizationId.toString(),
       role: user.permissions.role,
       sessionId: session._id.toString(),
-      tokenVersion: user.security?.tokenVersion || 1,
+      tokenVersion: 1,
     };
 
     const token = this.jwt ? this.jwt.sign(tokenPayload) : "dummy_sso_token";
