@@ -2,6 +2,7 @@ import eventBus from "./event-bus.js";
 import NotificationService from "../../modules/notifications/services/notification.service.js";
 import NotificationRepository from "../../modules/notifications/repositories/notification.repository.js";
 import workflowEngine from "../../modules/workflows/services/workflow.engine.js";
+import smartAssignmentService from "../../modules/journeys/services/smart-assignment.service.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -139,7 +140,7 @@ export function registerEventSubscribers(): void {
     }
   });
 
-  // Workflow Engine Listener for USER_CREATED event
+  // Workflow Engine & Smart Auto-Enrollment Listener for USER_CREATED event
   eventBus.subscribe("USER_CREATED", async (event) => {
     if (event.actorId) {
       await workflowEngine.processEvent(
@@ -147,6 +148,10 @@ export function registerEventSubscribers(): void {
         "user_created",
         event.actorId,
         event.payload
+      );
+      await smartAssignmentService.autoEnrollNewHire(
+        event.organizationId,
+        event.actorId
       );
     }
   });

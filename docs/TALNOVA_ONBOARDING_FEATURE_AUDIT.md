@@ -103,7 +103,7 @@ Talnova System Requirements
 | **AI-006** | AI Assistant | Hallucination Safeguards | `MISSING` | None | Confidence thresholding & fallback responses | P2 | AI-001 |
 | **AI-007** | AI Assistant | Chat History & Multi-Tenant ACL | `MISSING` | None | `ChatSession` Mongoose schema & security filters | P2 | AI-001 |
 | **JRN-001** | Journeys | Role & Department Journey Templates | `IMPLEMENTED` | [journey.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/journeys/models/journey.model.ts#L81-L87) | None | Core | None |
-| **JRN-002** | Journeys | Dynamic Auto-Assignment Engine | `MISSING` | None | Event listener for user creation to auto-assign journey | P0 | WF-001 |
+| **JRN-002** | Journeys | Dynamic Auto-Assignment Engine | `IMPLEMENTED` | [smart-assignment.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/journeys/services/smart-assignment.service.ts) | None | P0 | WF-001 |
 | **JRN-003** | Journeys | Curriculum Builder UI & API | `IMPLEMENTED` | [JourneyBuilder.tsx](file:///d:/talnova/talnova-onboarding/src/pages/JourneyBuilder.tsx#L1-L200) | None | Core | None |
 | **JRN-004** | Journeys | Interactive Content Blocks | `IMPLEMENTED` | [journey.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/journeys/models/journey.model.ts#L33-L46) | None | Core | None |
 | **JRN-005** | Journeys | Mandatory Rules & Quiz Gating | `IMPLEMENTED` | [CourseViewer.tsx](file:///d:/talnova/talnova-onboarding/src/pages/CourseViewer.tsx#L400-L500) | None | Core | None |

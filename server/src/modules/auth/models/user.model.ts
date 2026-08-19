@@ -24,8 +24,10 @@ export interface IUser extends Document {
   };
   employment: {
     employeeId?: string;
+    department?: string;
     departmentId?: mongoose.Types.ObjectId;
     teamId?: mongoose.Types.ObjectId;
+    jobTitle?: string;
     jobTitleId?: mongoose.Types.ObjectId;
     designation?: string;
     payrollCategory?: string;
