@@ -193,6 +193,11 @@ Talnova System Requirements
 | **AI-008** | AI Course Builder | Document & Policy Grounding Context | `IMPLEMENTED` | [ai-course-builder.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-course-builder.service.ts) | None | P1 | AI-006 |
 | **AI-009** | AI Course Builder | Human Review & Publishing Workflow | `IMPLEMENTED` | [ai-course-builder.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/services/ai-course-builder.service.ts) | None | P1 | AI-006 |
 | **AI-010** | AI Course Builder | Usage Limits & Admin Guardrails | `IMPLEMENTED` | [ai-assistant.routes.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/ai/routes/ai-assistant.routes.ts) | None | P0 | AI-006 |
+| **SSO-001** | Enterprise SSO | Provider Configuration & SAML/OIDC | `IMPLEMENTED` | [sso-config.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/models/sso-config.model.ts) | None | P1 | None |
+| **SSO-002** | Enterprise SSO | Domain Discovery & SSO Initiation | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
+| **SSO-003** | Enterprise SSO | Just-In-Time (JIT) User Provisioning | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
+| **SSO-004** | Enterprise SSO | Group-to-Role Mapping Rules | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
+| **SSO-005** | Enterprise SSO | Account Linking & Session Management | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
 | **MOB-001** | Mobile | Responsive Viewport Layout | `IMPLEMENTED` | [AppShell.tsx](file:///d:/talnova/talnova-onboarding/src/components/AppShell.tsx#L1-L100) | None | Core | None |
 | **MOB-002** | Mobile | Native App / PWA Manifest | `MISSING` | None | Web App Manifest & Service Worker / React Native | P2 | None |
 | **MOB-003** | Mobile | Offline Content Caching & Sync | `MISSING` | None | Workbox service worker offline storage | P2 | MOB-002 |

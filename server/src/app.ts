@@ -35,6 +35,7 @@ import { workflowRoutes } from "./modules/workflows/index.js";
 import { managerRoutes } from "./modules/manager/routes/manager.routes.js";
 import { documentRoutes } from "./modules/documents/routes/document.routes.js";
 import { milestoneRoutes } from "./modules/milestones/routes/milestone.routes.js";
+import { ssoRoutes } from "./modules/auth/routes/sso.routes.js";
 import { buddyRoutes } from "./modules/buddy/routes/buddy.routes.js";
 import { calendarRoutes } from "./modules/calendar/routes/calendar.routes.js";
 import { hrOperationsRoutes } from "./modules/hr/routes/hr-operations.routes.js";
@@ -70,6 +71,7 @@ export async function buildApp() {
 
   // Register routes
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
+  await app.register(ssoRoutes, { prefix: "/api/v1/auth/sso" });
   await app.register(organizationRoutes, { prefix: "/api/v1/organizations" });
   await app.register(employeeRoutes, { prefix: "/api/v1/employees" });
   await app.register(employeeRoutes, { prefix: "/api/v1/users" });

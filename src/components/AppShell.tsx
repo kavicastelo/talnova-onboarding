@@ -57,7 +57,8 @@ import {
   ShieldAlert,
   Trophy,
   Bot,
-  Wand2
+  Wand2,
+  KeyRound
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -105,6 +106,7 @@ export function AppShell() {
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
     { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
+    { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
     { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
     { title: 'Team Operations', url: '/manager', icon: UserCheck },
