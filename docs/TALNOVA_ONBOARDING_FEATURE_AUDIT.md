@@ -179,6 +179,10 @@ Talnova System Requirements
 | **LAN-003** | Analytics | Difficult Quiz Questions | `IMPLEMENTED` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts) | None | P2 | Analytics |
 | **LAN-004** | Analytics | Department Comparison | `IMPLEMENTED` | [analytics.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/analytics/services/analytics.service.ts#L150-L180) | None | Core | None |
 | **LAN-005** | Analytics | Engagement & Time Spent | `IMPLEMENTED` | [Analytics.tsx](file:///d:/talnova/talnova-onboarding/src/pages/Analytics.tsx#L1-L150) | None | Core | None |
+| **GAM-001** | Gamification | Points Engine & XP System | `IMPLEMENTED` | [gamification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/gamification/services/gamification.service.ts) | None | P2 | None |
+| **GAM-002** | Gamification | Badges & Micro-Credentials | `IMPLEMENTED` | [gamification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/gamification/services/gamification.service.ts) | None | P2 | GAM-001 |
+| **GAM-003** | Gamification | Learning Streaks & Activity Telemetry | `IMPLEMENTED` | [gamification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/gamification/services/gamification.service.ts) | None | P2 | GAM-001 |
+| **GAM-004** | Gamification | Organization Leaderboard Ranking | `IMPLEMENTED` | [gamification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/gamification/services/gamification.service.ts) | None | P2 | GAM-001 |
 | **MOB-001** | Mobile | Responsive Viewport Layout | `IMPLEMENTED` | [AppShell.tsx](file:///d:/talnova/talnova-onboarding/src/components/AppShell.tsx#L1-L100) | None | Core | None |
 | **MOB-002** | Mobile | Native App / PWA Manifest | `MISSING` | None | Web App Manifest & Service Worker / React Native | P2 | None |
 | **MOB-003** | Mobile | Offline Content Caching & Sync | `MISSING` | None | Workbox service worker offline storage | P2 | MOB-002 |
