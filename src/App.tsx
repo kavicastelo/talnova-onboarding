@@ -19,6 +19,7 @@ import { DocumentSigner } from './pages/DocumentSigner';
 import { Milestones } from './pages/Milestones';
 import { BuddyProgram } from './pages/BuddyProgram';
 import { CalendarIntegration } from './pages/CalendarIntegration';
+import { HROperations } from './pages/HROperations';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -79,6 +80,7 @@ export function App() {
               <Route path="milestones" element={<Milestones />} />
               <Route path="buddy" element={<BuddyProgram />} />
               <Route path="calendar" element={<CalendarIntegration />} />
+              <Route path="hr-ops" element={<HROperations />} />
               <Route
                 path="*"
                 element={
