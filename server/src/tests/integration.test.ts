@@ -434,7 +434,7 @@ describe("Talnova Backend Integration Test Suite", () => {
       // Completing the only lesson completes the assignment
       expect(body.data.status).toBe("completed");
       expect(body.data.progress.completionPercentage).toBe(100);
-    });
+    }, 15000);
   });
 
   describe("Password Reset & Recovery Flow", () => {

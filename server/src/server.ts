@@ -1,6 +1,8 @@
 import { buildApp } from "./app.js";
 import { appConfig } from "./config/index.js";
 import { connectDatabase, disconnectDatabase } from "./database/connection.js";
+import registerEventSubscribers from "./infrastructure/events/event-subscribers.js";
+import schedulerService from "./infrastructure/scheduler/scheduler.service.js";
 
 async function start() {
   const app = await buildApp();
@@ -9,7 +11,13 @@ async function start() {
     // 1. Connect to Database
     await connectDatabase(app.log);
 
-    // 2. Start Listening
+    // 2. Register Event Subscribers
+    registerEventSubscribers();
+
+    // 3. Start Background Scheduler Engine
+    schedulerService.start();
+
+    // 4. Start Listening
     await app.listen({
       port: appConfig.port,
       host: appConfig.host,
@@ -32,6 +40,8 @@ async function start() {
     }, 10000);
 
     try {
+      schedulerService.stop();
+
       await app.close();
       app.log.info("✅ Fastify server closed.");
 

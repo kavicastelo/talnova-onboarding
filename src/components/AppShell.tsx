@@ -56,7 +56,13 @@ import { useRole, Role } from '../context/RoleContext';
 import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useCurrentUser } from '../hooks/useAuth';
-import { useNotifications, useWorkspaceSettings } from '../hooks/useSettings';
+import { useWorkspaceSettings } from '../hooks/useSettings';
+import {
+  useNotifications,
+  useUnreadNotificationCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead
+} from '../hooks/useNotifications';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -167,6 +173,9 @@ export function AppShell() {
   useCommandPaletteHotkey(setPaletteOpen);
   const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const { data: notifications = [] } = useNotifications();
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
   const { data: settings } = useWorkspaceSettings();
 
   useEffect(() => {
@@ -488,37 +497,58 @@ export function AppShell() {
                       aria-label="Notifications">
 
                       <Bell className="h-5 w-5" />
-                      {notifications.length > 0 && (
-                        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
+                      {unreadCount > 0 && (
+                        <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
                       )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80">
                     <DropdownMenuLabel className="flex items-center justify-between">
-                      Notifications
-                      <Badge variant="secondary">{notifications.length} new</Badge>
+                      <span>Notifications</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{unreadCount} new</Badge>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={() => markAllReadMutation.mutate()}
+                            className="text-xs text-primary hover:underline font-normal">
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-muted-foreground">No new notifications</div>
+                      <div className="p-4 text-center text-xs text-muted-foreground">No notifications</div>
                     ) : (
-                    notifications.map((n) => (
-                      <DropdownMenuItem
-                        key={n.id}
-                        className="flex flex-col items-start gap-0.5 py-2">
-                        <span className="text-sm leading-snug">{n.title}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {n.subtitle}
-                        </span>
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="justify-center text-sm text-muted-foreground">
-                    View all
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.map((n) => (
+                          <DropdownMenuItem
+                            key={n.id}
+                            onClick={() => {
+                              if (!n.isRead) markReadMutation.mutate(n.id);
+                              if (n.deepLink) navigate(n.deepLink);
+                            }}
+                            className={`flex flex-col items-start gap-1 py-2 px-3 cursor-pointer ${
+                              !n.isRead ? 'bg-muted/50 font-medium' : 'opacity-70'
+                            }`}>
+                            <div className="flex w-full items-center justify-between">
+                              <span className="text-sm font-semibold leading-snug">{n.title}</span>
+                              {!n.isRead && (
+                                <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground line-clamp-2">
+                              {n.message}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/60">{n.createdAt}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </header>
