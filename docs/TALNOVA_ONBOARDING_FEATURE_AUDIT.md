@@ -198,6 +198,13 @@ Talnova System Requirements
 | **SSO-003** | Enterprise SSO | Just-In-Time (JIT) User Provisioning | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
 | **SSO-004** | Enterprise SSO | Group-to-Role Mapping Rules | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
 | **SSO-005** | Enterprise SSO | Account Linking & Session Management | `IMPLEMENTED` | [sso.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/auth/services/sso.service.ts) | None | P1 | SSO-001 |
+| **INT-001** | Integrations | Integration Connector Framework | `IMPLEMENTED` | [hris-integration.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/services/hris-integration.service.ts) | None | P1 | None |
+| **INT-002** | Integrations | Webhook Receiver Engine | `IMPLEMENTED` | [hris-integration.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/services/hris-integration.service.ts) | None | P1 | INT-001 |
+| **INT-003** | Integrations | Custom Field Mapping Engine | `IMPLEMENTED` | [hris-integration.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/services/hris-integration.service.ts) | None | P1 | INT-001 |
+| **INT-004** | Integrations | Data Conflict Reconciliation Engine | `IMPLEMENTED` | [hris-integration.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/services/hris-integration.service.ts) | None | P1 | INT-001 |
+| **INT-005** | Integrations | Sync Telemetry & DLQ Monitoring | `IMPLEMENTED` | [sync-log.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/models/sync-log.model.ts) | None | P1 | INT-001 |
+| **HRIS-001** | HRIS Sync | Automated Employee Lifecycle Sync | `IMPLEMENTED` | [hris-integration.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/integrations/services/hris-integration.service.ts) | None | P0 | INT-001 |
+| **HRIS-002** | HRIS Sync | Multi-HRIS Connector Admin Dashboard | `IMPLEMENTED` | [HRISIntegrations.tsx](file:///d:/talnova/talnova-onboarding/src/pages/HRISIntegrations.tsx) | None | P1 | HRIS-001 |
 | **MOB-001** | Mobile | Responsive Viewport Layout | `IMPLEMENTED` | [AppShell.tsx](file:///d:/talnova/talnova-onboarding/src/components/AppShell.tsx#L1-L100) | None | Core | None |
 | **MOB-002** | Mobile | Native App / PWA Manifest | `MISSING` | None | Web App Manifest & Service Worker / React Native | P2 | None |
 | **MOB-003** | Mobile | Offline Content Caching & Sync | `MISSING` | None | Workbox service worker offline storage | P2 | MOB-002 |

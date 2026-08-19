@@ -107,6 +107,7 @@ export function AppShell() {
     { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
     { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
+    { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
     { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
     { title: 'Team Operations', url: '/manager', icon: UserCheck },

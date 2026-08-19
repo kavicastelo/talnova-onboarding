@@ -24,6 +24,7 @@ import { Leaderboard } from './pages/Leaderboard';
 import { AIAssistant } from './pages/AIAssistant';
 import { AICourseBuilder } from './pages/AICourseBuilder';
 import { SSOSettings } from './pages/SSOSettings';
+import { HRISIntegrations } from './pages/HRISIntegrations';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -89,6 +90,7 @@ export function App() {
               <Route path="ai-assistant" element={<AIAssistant />} />
               <Route path="ai-course-builder" element={<AICourseBuilder />} />
               <Route path="settings/sso" element={<SSOSettings />} />
+              <Route path="settings/integrations" element={<HRISIntegrations />} />
               <Route
                 path="*"
                 element={
