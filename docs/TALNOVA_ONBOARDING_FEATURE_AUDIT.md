@@ -149,6 +149,11 @@ Talnova System Requirements
 | **BUD-003** | Buddy Support | Communication Links & Contact | `IMPLEMENTED` | [BuddyProgram.tsx](file:///d:/talnova/talnova-onboarding/src/pages/BuddyProgram.tsx) | None | P0 | BUD-001 |
 | **BUD-004** | Buddy Support | Buddy Onboarding Checklist | `IMPLEMENTED` | [BuddyProgram.tsx](file:///d:/talnova/talnova-onboarding/src/pages/BuddyProgram.tsx) | None | P0 | BUD-002 |
 | **BUD-005** | Buddy Support | 1-on-1 Check-In Meeting Logger | `IMPLEMENTED` | [buddy.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/buddy/services/buddy.service.ts) | None | P0 | BUD-002 |
+| **CAL-001** | Calendar | Calendar Connection & iCal Feed | `IMPLEMENTED` | [calendar-connection.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/calendar/models/calendar-connection.model.ts) | None | P0 | None |
+| **CAL-002** | Calendar | Meeting Scheduling & Auto-Event | `IMPLEMENTED` | [meeting-event.model.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/calendar/models/meeting-event.model.ts) | None | P0 | CAL-001 |
+| **CAL-003** | Calendar | Meeting Templates & Video Links | `IMPLEMENTED` | [CalendarIntegration.tsx](file:///d:/talnova/talnova-onboarding/src/pages/CalendarIntegration.tsx) | None | P0 | CAL-002 |
+| **CAL-004** | Calendar | Meeting Update & Cancellation | `IMPLEMENTED` | [calendar.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/calendar/services/calendar.service.ts) | None | P0 | CAL-002 |
+| **CAL-005** | Calendar | Timezone Handling & Export Feed | `IMPLEMENTED` | [calendar.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/calendar/services/calendar.service.ts) | None | P0 | CAL-001 |
 | **REM-001** | Reminders | Overdue Training Reminders | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-002** | Reminders | Compliance Due Alerts | `IMPLEMENTED` | [scheduler.service.ts](file:///d:/talnova/talnova-onboarding/server/src/infrastructure/scheduler/scheduler.service.ts) | None | P0 | REM-004 |
 | **REM-003** | Reminders | Multi-Channel Delivery | `IMPLEMENTED` | [notification.service.ts](file:///d:/talnova/talnova-onboarding/server/src/modules/notifications/services/notification.service.ts) | None | P0 | None |
