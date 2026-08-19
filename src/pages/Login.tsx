@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight, KeyRound } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useRole } from '../context/RoleContext';
 import { applyProfileLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { authService } from '../services/auth.service';
+import { ssoService } from '../services/sso.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../api/client';
@@ -141,6 +142,32 @@ export function Login() {
                 <ArrowRight className="h-4 w-4" />
               </>
             )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              if (!email) {
+                toast.error('Please enter your work email address first for SSO domain discovery');
+                return;
+              }
+              try {
+                const discovery = await ssoService.discoverDomain(email);
+                if (discovery.ssoEnabled) {
+                  const init = await ssoService.initiateSSO(email);
+                  toast.success(`Redirecting to ${discovery.provider?.toUpperCase()} Single Sign-On...`);
+                  window.location.href = init.authUrl;
+                } else {
+                  toast.info('No Enterprise SSO configuration detected for this email domain. Please use password login.');
+                }
+              } catch (err: any) {
+                toast.error('Failed to discover SSO domain');
+              }
+            }}
+            className="w-full border-slate-700 text-slate-200 hover:bg-slate-800"
+          >
+            <KeyRound className="h-4 w-4 mr-2" /> Sign in with Enterprise SSO
           </Button>
         </form>
 
