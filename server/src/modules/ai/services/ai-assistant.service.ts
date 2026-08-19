@@ -83,7 +83,7 @@ export class AIAssistantService {
     let aiContent = "";
 
     if (matchingArticles.length > 0) {
-      aiContent = `Based on your company's knowledge base article **"${matchingArticles[0].title}"**:\n\n${matchingArticles[0].summary || matchingArticles[0].content.slice(0, 200)}...\n\nFor more detailed step-by-step instructions, please reference the official article below.`;
+      aiContent = `Based on your company's knowledge base article **"${matchingArticles[0].title}"**:\n\n${matchingArticles[0].summary || matchingArticles[0].title}...\n\nFor more detailed step-by-step instructions, please reference the official article below.`;
     } else if (activeAssignments.length > 0) {
       aiContent = `You currently have **${activeAssignments.length} active onboarding journey(s)** assigned. Your progress is on track! Check your assigned tasks to complete pending modules.`;
     } else {

@@ -25,7 +25,7 @@ export interface ISyncLog extends Document {
   createdUsersCount: number;
   updatedUsersCount: number;
   errorCount: number;
-  errors: ISyncError[];
+  syncErrors: ISyncError[];
   dlqEvents: IDLQEvent[];
   durationMs: number;
   createdAt: Date;
@@ -63,7 +63,7 @@ const SyncLogSchema = new Schema<ISyncLog>(
     createdUsersCount: { type: Number, default: 0 },
     updatedUsersCount: { type: Number, default: 0 },
     errorCount: { type: Number, default: 0 },
-    errors: { type: [SyncErrorSchema], default: [] },
+    syncErrors: { type: [SyncErrorSchema], default: [] },
     dlqEvents: { type: [DLQEventSchema], default: [] },
     durationMs: { type: Number, default: 0 },
   },

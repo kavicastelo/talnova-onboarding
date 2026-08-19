@@ -234,14 +234,22 @@ export class HRISIntegrationService {
     // Log Sync History & Telemetry (INT-005)
     const syncLog = await SyncLog.create({
       organizationId: orgObjectId,
-      integrationId: intObjectId,
-      status: errorCount === 0 ? "success" : createdCount > 0 ? "partial" : "failed",
+      integrationId: integration._id,
+      status: errorCount === 0 ? "success" : recordsToSync.length > errorCount ? "partial" : "failed",
       processedCount: recordsToSync.length,
       createdUsersCount: createdCount,
       updatedUsersCount: updatedCount,
       errorCount,
-      errors,
-      dlqEvents,
+      syncErrors: errors,
+      dlqEvents: errors.map((err, idx) => ({
+        eventId: `dlq_${Date.now()}_${idx}`,
+        provider: integration.provider,
+        payload: recordsToSync[idx] || {},
+        errorReason: err.errorMessage,
+        retryCount: 0,
+        status: "pending",
+        timestamp: new Date(),
+      })),
       durationMs: Date.now() - startTime,
     });
 

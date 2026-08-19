@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Card,
   CardContent,
@@ -12,12 +11,9 @@ import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
 import {
   Trophy,
-  Zap,
   Flame,
   Award,
   Star,
-  ShieldCheck,
-  TrendingUp,
   Sparkles
 } from 'lucide-react';
 import {
@@ -34,7 +30,6 @@ export function Leaderboard() {
 
   const currentLevel = profile?.level || 1;
   const currentPoints = profile?.points || 0;
-  const nextLevelPoints = currentLevel * 100;
   const levelProgress = Math.min(100, Math.round(((currentPoints % 100) / 100) * 100));
 
   const handleTestAwardPoints = () => {
@@ -66,7 +61,6 @@ export function Leaderboard() {
   }
 
   const top3 = (leaderboard || []).slice(0, 3);
-  const remainingLeaderboard = (leaderboard || []).slice(3);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">

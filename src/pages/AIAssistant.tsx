@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription
+  CardTitle
 } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Badge } from '../components/Badge';
 import { Skeleton } from '../components/Skeleton';
 import {
   Bot,
@@ -21,9 +19,7 @@ import {
   BookOpen,
   ArrowRight,
   Plus,
-  MessageSquare,
-  HelpCircle,
-  ShieldCheck
+  MessageSquare
 } from 'lucide-react';
 import {
   useAIChat,

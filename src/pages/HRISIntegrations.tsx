@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -15,12 +15,7 @@ import {
   Plus,
   RefreshCw,
   Zap,
-  CheckCircle,
-  AlertTriangle,
-  Server,
   Activity,
-  Layers,
-  Trash2,
   List
 } from 'lucide-react';
 import {
@@ -80,7 +75,7 @@ export function HRISIntegrations() {
       onSuccess: (res) => {
         toast.success(`Connection verified! Response latency: ${res.latencyMs}ms`);
       },
-      onError: (err: any) => {
+      onError: () => {
         toast.error('Connection test failed');
       },
     });
@@ -93,7 +88,7 @@ export function HRISIntegrations() {
           `Sync complete! Created: ${res.syncLog.createdUsersCount}, Updated: ${res.syncLog.updatedUsersCount}`
         );
       },
-      onError: (err: any) => {
+      onError: () => {
         toast.error('Sync execution failed');
       },
     });
