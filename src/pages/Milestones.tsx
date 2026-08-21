@@ -33,9 +33,9 @@ import {
 import { toast } from 'sonner';
 
 export const Milestones: React.FC = () => {
-  const { role } = useRole();
-  const isAdmin = role === 'admin' || role === 'owner';
-  const isManager = role === 'manager' || isAdmin;
+  const { role, can } = useRole();
+  const isAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
+  const isManager = can('create_milestone') || can('assign_milestone');
 
   const [activeTab, setActiveTab] = useState<'my' | 'team' | 'templates'>(isManager ? 'team' : 'my');
 

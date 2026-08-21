@@ -20,8 +20,12 @@ import {
 } from '../hooks/useTasks';
 import { useEmployees } from '../hooks/useEmployees';
 import { TaskItem } from '../services/task.service';
+import { useRole } from '../context/RoleContext';
 
 export function Tasks() {
+  const { can } = useRole();
+  const canManageTasks = can('create_task_template') || can('assign_task');
+
   const [activeTab, setActiveTab] = useState<'my' | 'assigned' | 'overdue' | 'all'>('my');
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -171,13 +175,15 @@ export function Tasks() {
               Manage operational tasks, cross-person onboarding checklists, deadlines, and prerequisites.
             </p>
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none"
-          >
-            <Plus className="w-4 h-4" />
-            Create Task
-          </button>
+          {canManageTasks && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none"
+            >
+              <Plus className="w-4 h-4" />
+              Create Task
+            </button>
+          )}
         </div>
 
         {/* Filters & Navigation Tabs */}

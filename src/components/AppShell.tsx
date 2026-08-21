@@ -105,17 +105,36 @@ export function AppShell() {
   // Nav arrays computed inside component so they re-render on language change
   const adminNav: NavItem[] = [
     { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
-    { title: 'Office Map', url: '/office-map', icon: MapPin },
-    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
-    { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
-    { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
-    { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
-    { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
     { title: 'Team Operations', url: '/manager', icon: UserCheck },
+    { title: 'Employee Directory', url: '/directory', icon: Users },
+    { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
+    { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
+    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+    { title: 'Digital Documents', url: '/documents', icon: FileText },
+    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+    { title: 'Workflows & Rules', url: '/workflows', icon: Workflow },
+    { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+    { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
+    { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
+    { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
     { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
+    { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+    { title: 'Office Map', url: '/office-map', icon: MapPin },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
+    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: t('items.settings'), url: '/settings', icon: Settings },
+  ];
+
+  const managerNav: NavItem[] = [
+    { title: 'Team Operations', url: '/manager', icon: UserCheck },
+    { title: 'Employee Directory', url: '/directory', icon: Users },
+    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+    { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+    { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
+    { title: 'Office Map', url: '/office-map', icon: MapPin },
+    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
   ];
 
   const employeeNav: NavItem[] = [
@@ -130,6 +149,7 @@ export function AppShell() {
     { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
     { title: t('items.certificates'), url: '/certificates', icon: Award },
+    { title: 'Office Map', url: '/office-map', icon: MapPin },
   ];
 
   const superAdminNav: NavItem[] = [
@@ -258,7 +278,7 @@ export function AppShell() {
 
   const navItems = !hasToken
     ? [{ title: 'Knowledge Base', url: '/kb', icon: BookOpen }]
-    : role === 'super_admin' ? superAdminNav : role === 'admin' ? adminNav : employeeNav;
+    : role === 'super_admin' ? superAdminNav : role === 'admin' || role === 'owner' || role === 'hr_admin' ? adminNav : role === 'manager' ? managerNav : employeeNav;
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {
