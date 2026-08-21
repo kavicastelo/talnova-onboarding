@@ -35,8 +35,9 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 export function JourneysList() {
+  const { can } = useRole();
+  const canCreate = can('create_journey');
   const { data: journeys = [], isLoading, isError, error, refetch } = useJourneys();
-  const { role } = useRole();
   const navigate = useNavigate();
   const { t } = useTranslation('journeys');
 
@@ -103,15 +104,15 @@ export function JourneysList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            {role === 'admin' ? t('list.title') : 'My Onboarding Journeys'}
+            {canCreate ? t('list.title') : 'My Onboarding Journeys'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {role === 'admin' 
-              ? 'Manage and track employee onboarding paths.' 
+            {canCreate
+              ? 'Manage and track employee onboarding paths.'
               : 'Track and complete your assigned onboarding paths.'}
           </p>
         </div>
-        {role === 'admin' && (
+        {canCreate && (
           <Button asChild className="w-full sm:w-auto">
             <Link to="/journeys/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -127,14 +128,14 @@ export function JourneysList() {
             <TableRow>
               <TableHead>{t('list.columns.title')}</TableHead>
               <TableHead>{t('list.columns.status')}</TableHead>
-              {role === 'admin' ? (
+              {canCreate ? (
                 <>
                   <TableHead>{t('list.columns.enrolled')}</TableHead>
                   <TableHead>{t('list.columns.completion')}</TableHead>
                 </>
               ) : null}
               <TableHead>{t('list.columns.lastUpdated')}</TableHead>
-              {role === 'admin' && <TableHead className="w-[50px]"></TableHead>}
+              {canCreate && <TableHead className="w-[50px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -144,20 +145,20 @@ export function JourneysList() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                  {role === 'admin' ? (
+                  {canCreate ? (
                     <>
                       <TableCell><Skeleton className="h-5 w-10" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                     </>
                   ) : null}
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  {role === 'admin' && <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>}
+                  {canCreate && <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>}
                 </TableRow>
               ))
             ) : isError ? (
               // Error State
               <TableRow>
-                <TableCell colSpan={role === 'admin' ? 6 : 3} className="h-32 text-center">
+                <TableCell colSpan={canCreate ? 6 : 3} className="h-32 text-center">
                   <div className="flex flex-col items-center justify-center gap-2 text-destructive">
                     <AlertCircle className="h-8 w-8" />
                     <p className="font-semibold">Failed to load journeys</p>
@@ -171,18 +172,18 @@ export function JourneysList() {
             ) : journeys.length === 0 ? (
               // Empty State
               <TableRow>
-                <TableCell colSpan={role === 'admin' ? 6 : 3} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={canCreate ? 6 : 3} className="h-32 text-center text-muted-foreground">
                   <p className="font-medium">{t('list.empty')}</p>
                   <p className="text-xs">{t('list.createNew')}</p>
                 </TableCell>
               </TableRow>
-              ) : (
+            ) : (
               // Success State
               journeys.map((journey) => (
                 <TableRow key={journey.id}>
                   <TableCell className="font-medium">
                     <Link
-                      to={role === 'admin' ? `/journeys/${journey.id}` : `/course/${journey.id}`}
+                      to={canCreate ? `/journeys/${journey.id}` : `/course/${journey.id}`}
                       className="hover:underline">
                       {journey.title}
                     </Link>
@@ -195,14 +196,14 @@ export function JourneysList() {
                       {journey.status}
                     </Badge>
                   </TableCell>
-                  {role === 'admin' ? (
+                  {canCreate ? (
                     <>
                       <TableCell>{journey.enrolled}</TableCell>
                       <TableCell>{journey.completion}%</TableCell>
                     </>
                   ) : null}
                   <TableCell>{journey.lastUpdated}</TableCell>
-                  {role === 'admin' && (
+                  {canCreate && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

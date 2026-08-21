@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { JourneysList } from './pages/JourneysList';
 import { JourneyBuilder } from './pages/JourneyBuilder';
@@ -47,7 +48,8 @@ import './i18n';
 function DashboardRedirect() {
   const { role } = useRole();
   if (role === 'super_admin') return <SuperAdminDashboard />;
-  return role === 'admin' ? <AdminDashboard /> : <EmployeeDashboard />;
+  if (role === 'manager') return <ManagerDashboard />;
+  return role === 'admin' || role === 'owner' || role === 'hr_admin' ? <AdminDashboard /> : <EmployeeDashboard />;
 }
 
 export function App() {
@@ -65,39 +67,39 @@ export function App() {
 
             <Route path="/" element={<SidebarProvider><AppShell /></SidebarProvider>}>
               <Route index element={<DashboardRedirect />} />
-              <Route path="super-admin" element={<SuperAdminDashboard />} />
-              <Route path="super-admin/organizations" element={<SuperAdminOrganizations />} />
-              <Route path="super-admin/finance" element={<SuperAdminFinance />} />
+              <Route path="super-admin" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDashboard /></ProtectedRoute>} />
+              <Route path="super-admin/organizations" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganizations /></ProtectedRoute>} />
+              <Route path="super-admin/finance" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
               <Route path="journeys" element={<JourneysList />} />
               <Route path="journeys/:id" element={<JourneyBuilder />} />
-              <Route path="kiosks" element={<KioskDashboard />} />
+              <Route path="kiosks" element={<ProtectedRoute capability="manage_organization"><KioskDashboard /></ProtectedRoute>} />
               <Route path="directory" element={<EmployeeDirectory />} />
               <Route path="directory/:id" element={<EmployeeProfile />} />
               <Route path="employee" element={<EmployeeDashboard />} />
               <Route path="kb" element={<KnowledgeBase />} />
-              <Route path="analytics" element={<Analytics />} />
+              <Route path="analytics" element={<ProtectedRoute capability="view_analytics"><Analytics /></ProtectedRoute>} />
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />
               <Route path="tasks" element={<Tasks />} />
-              <Route path="workflows" element={<Workflows />} />
-              <Route path="manager" element={<ManagerDashboard />} />
+              <Route path="workflows" element={<ProtectedRoute capability="manage_workflows"><Workflows /></ProtectedRoute>} />
+              <Route path="manager" element={<ProtectedRoute capability="view_team_ops"><ManagerDashboard /></ProtectedRoute>} />
               <Route path="documents" element={<Documents />} />
               <Route path="documents/:id/sign" element={<DocumentSigner />} />
               <Route path="milestones" element={<Milestones />} />
               <Route path="buddy" element={<BuddyProgram />} />
               <Route path="calendar" element={<CalendarIntegration />} />
-              <Route path="hr-ops" element={<HROperations />} />
+              <Route path="hr-ops" element={<ProtectedRoute capability="view_hr_ops"><HROperations /></ProtectedRoute>} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="ai-assistant" element={<AIAssistant />} />
-              <Route path="ai-course-builder" element={<AICourseBuilder />} />
-              <Route path="settings/sso" element={<SSOSettings />} />
-              <Route path="settings/integrations" element={<HRISIntegrations />} />
+              <Route path="ai-course-builder" element={<ProtectedRoute capability="ai_course_builder"><AICourseBuilder /></ProtectedRoute>} />
+              <Route path="settings/sso" element={<ProtectedRoute capability="manage_sso"><SSOSettings /></ProtectedRoute>} />
+              <Route path="settings/integrations" element={<ProtectedRoute capability="manage_integrations"><HRISIntegrations /></ProtectedRoute>} />
               <Route path="office-map" element={<OfficeMap />} />
               <Route
                 path="*"
                 element={
                   <div className="p-6 text-center text-muted-foreground">
-                    Coming soon
+                    Page not found
                   </div>
                 }
               />
@@ -110,4 +112,4 @@ export function App() {
       </RoleProvider>
     </LocalizationProvider>
   );
-}
+}
