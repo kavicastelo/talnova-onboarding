@@ -29,6 +29,9 @@ describe("Kiosk API Layer Integration Tests (Phase 6)", () => {
     app = await buildApp();
     await connectDatabase(app.log);
 
+    // Clean up any stale test orgs first
+    await Organization.deleteMany({ slug: { $in: ["kiosk-org-a", "kiosk-org-b"] } });
+
     // Seed organizations
     const orgA = await Organization.create({
       name: "Kiosk Org A",
