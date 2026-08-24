@@ -30,6 +30,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const CalendarIntegration: React.FC = () => {
   const { role } = useRole();
@@ -51,6 +53,8 @@ export const CalendarIntegration: React.FC = () => {
   const { data: connection } = useCalendarConnection();
   const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useMeetingEvents();
   const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
+
+  const eventsPagination = usePagination({ data: events || [], initialPageSize: 10 });
 
   const createEventMutation = useCreateMeetingEvent();
   const cancelEventMutation = useCancelMeetingEvent();
@@ -179,71 +183,87 @@ export const CalendarIntegration: React.FC = () => {
           ) : (events || []).length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">No onboarding meetings scheduled.</div>
           ) : (
-            <div className="divide-y">
-              {events?.map((ev) => (
-                <div
-                  key={ev._id}
-                  className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-sm">{ev.title}</h4>
-                      <Badge
-                        variant="outline"
-                        className={
-                          ev.category === 'manager_1on1'
-                            ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-[10px]'
-                            : ev.category === 'buddy_coffee'
-                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]'
-                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]'
-                        }
-                      >
-                        {ev.category.replace('_', ' ').toUpperCase()}
-                      </Badge>
+            <div>
+              <div className="divide-y">
+                {eventsPagination.paginatedData.map((ev) => (
+                  <div
+                    key={ev._id}
+                    className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm">{ev.title}</h4>
+                        <Badge
+                          variant="outline"
+                          className={
+                            ev.category === 'manager_1on1'
+                              ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-[10px]'
+                              : ev.category === 'buddy_coffee'
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]'
+                              : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]'
+                          }
+                        >
+                          {ev.category.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-4 pt-1">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {new Date(ev.startTime).toLocaleDateString()} ({new Date(ev.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                        </span>
+                        {ev.locationUrl && (
+                          <a
+                            href={ev.locationUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 text-indigo-600 font-medium hover:underline"
+                          >
+                            <Video className="h-3.5 w-3.5" /> Join Video Call <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-4 pt-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {new Date(ev.startTime).toLocaleDateString()} ({new Date(ev.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
-                      </span>
-                      {ev.locationUrl && (
-                        <a
-                          href={ev.locationUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1 text-indigo-600 font-medium hover:underline"
+                    <div className="flex items-center gap-3">
+                      {ev.status === 'cancelled' ? (
+                        <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
+                          Cancelled
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
+                          Scheduled
+                        </Badge>
+                      )}
+
+                      {isManager && ev.status !== 'cancelled' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 text-xs"
+                          onClick={() => handleCancelMeeting(ev._id)}
                         >
-                          <Video className="h-3.5 w-3.5" /> Join Video Call <ExternalLink className="h-3 w-3" />
-                        </a>
+                          Cancel
+                        </Button>
                       )}
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="flex items-center gap-3">
-                    {ev.status === 'cancelled' ? (
-                      <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
-                        Cancelled
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
-                        Scheduled
-                      </Badge>
-                    )}
-
-                    {isManager && ev.status !== 'cancelled' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 text-xs"
-                        onClick={() => handleCancelMeeting(ev._id)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
+              <div className="p-3 border-t">
+                <SimplePagination
+                  currentPage={eventsPagination.page}
+                  totalPages={eventsPagination.totalPages}
+                  totalItems={eventsPagination.totalItems}
+                  startIndex={eventsPagination.startIndex}
+                  endIndex={eventsPagination.endIndex}
+                  pageSize={eventsPagination.pageSize}
+                  onPageChange={eventsPagination.setPage}
+                  onPageSizeChange={eventsPagination.setPageSize}
+                  itemLabel="events"
+                />
+              </div>
             </div>
           )}
         </CardContent>

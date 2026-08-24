@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
+import { SimplePagination } from '../components/SimplePagination';
 import { toast } from 'sonner';
 import { useSuperAdminOrganizations, useCreateOrganization, useToggleOrganizationStatus } from '../hooks/useSuperAdmin';
 
 export function SuperAdminOrganizations() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(10);
 
   // React Query Hooks
   const { data, isLoading, isError, refetch } = useSuperAdminOrganizations({
@@ -205,36 +206,22 @@ export function SuperAdminOrganizations() {
           </Card>
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-xs text-gray-400">
-                Showing page <span className="font-semibold text-white">{page}</span> of{' '}
-                <span className="font-semibold text-white">{totalPages}</span> (Total {total} orgs)
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="flex items-center gap-1 border-white/10 text-white disabled:opacity-50"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="flex items-center gap-1 border-white/10 text-white disabled:opacity-50"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="mt-4">
+            <SimplePagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={total}
+              startIndex={total > 0 ? (page - 1) * limit + 1 : 0}
+              endIndex={Math.min(page * limit, total)}
+              pageSize={limit}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1);
+              }}
+              itemLabel="organizations"
+            />
+          </div>
         </>
       )}
 

@@ -26,6 +26,8 @@ import {
   useIntegrationLogs
 } from '../hooks/useIntegrations';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function HRISIntegrations() {
   const { data: integrations, isLoading } = useIntegrations();
@@ -35,6 +37,9 @@ export function HRISIntegrations() {
 
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string | null>(null);
   const { data: syncLogs } = useIntegrationLogs(selectedIntegrationId || undefined);
+
+  const integrationsPagination = usePagination({ data: integrations || [], initialPageSize: 6 });
+  const logsPagination = usePagination({ data: syncLogs || [], initialPageSize: 5 });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [provider, setProvider] = useState<'bamboohr' | 'workday' | 'rippling' | 'personio' | 'custom_webhook'>('bamboohr');
@@ -122,73 +127,87 @@ export function HRISIntegrations() {
       </div>
 
       {/* Connectors Catalog / Active Integrations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(integrations || []).map((int) => (
-          <Card key={int._id} className="border shadow-sm flex flex-col justify-between">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-base font-semibold">{int.name}</CardTitle>
-                <Badge
-                  variant="outline"
-                  className={
-                    int.status === 'active'
-                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                      : 'bg-red-500/10 text-red-600 border-red-500/20'
-                  }
-                >
-                  {int.status.toUpperCase()}
-                </Badge>
-              </div>
-              <CardDescription className="text-xs">
-                Provider: <span className="font-semibold text-foreground">{int.provider.toUpperCase()}</span>
-                {int.subdomain && ` (${int.subdomain})`}
-              </CardDescription>
-            </CardHeader>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {integrationsPagination.paginatedData.map((int) => (
+            <Card key={int._id} className="border shadow-sm flex flex-col justify-between">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-base font-semibold">{int.name}</CardTitle>
+                  <Badge
+                    variant="outline"
+                    className={
+                      int.status === 'active'
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                        : 'bg-red-500/10 text-red-600 border-red-500/20'
+                    }
+                  >
+                    {int.status.toUpperCase()}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  Provider: <span className="font-semibold text-foreground">{int.provider.toUpperCase()}</span>
+                  {int.subdomain && ` (${int.subdomain})`}
+                </CardDescription>
+              </CardHeader>
 
-            <CardContent className="space-y-4 text-xs text-muted-foreground pt-0">
-              <div>
-                Conflict Policy:{' '}
-                <span className="font-semibold text-foreground">
-                  {int.conflictPolicy === 'hris_wins' ? 'HRIS Wins (Overwrite Local)' : 'Local Overrides First'}
-                </span>
-              </div>
-              <div>
-                Last Synced:{' '}
-                <span className="font-semibold text-foreground">
-                  {int.lastSyncedAt ? new Date(int.lastSyncedAt).toLocaleString() : 'Never Synced'}
-                </span>
-              </div>
+              <CardContent className="space-y-4 text-xs text-muted-foreground pt-0">
+                <div>
+                  Conflict Policy:{' '}
+                  <span className="font-semibold text-foreground">
+                    {int.conflictPolicy === 'hris_wins' ? 'HRIS Wins (Overwrite Local)' : 'Local Overrides First'}
+                  </span>
+                </div>
+                <div>
+                  Last Synced:{' '}
+                  <span className="font-semibold text-foreground">
+                    {int.lastSyncedAt ? new Date(int.lastSyncedAt).toLocaleString() : 'Never Synced'}
+                  </span>
+                </div>
 
-              <div className="pt-2 border-t flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs"
-                  onClick={() => handleTest(int._id)}
-                  disabled={testMutation.isPending}
-                >
-                  <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> Test API
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
-                  onClick={() => handleSync(int._id)}
-                  disabled={syncMutation.isPending}
-                >
-                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Sync Now
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-xs"
-                  onClick={() => setSelectedIntegrationId(int._id)}
-                >
-                  <List className="h-3.5 w-3.5 mr-1" /> View Logs
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                <div className="pt-2 border-t flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => handleTest(int._id)}
+                    disabled={testMutation.isPending}
+                  >
+                    <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> Test API
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                    onClick={() => handleSync(int._id)}
+                    disabled={syncMutation.isPending}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" /> Sync Now
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs"
+                    onClick={() => setSelectedIntegrationId(int._id)}
+                  >
+                    <List className="h-3.5 w-3.5 mr-1" /> View Logs
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <SimplePagination
+          currentPage={integrationsPagination.page}
+          totalPages={integrationsPagination.totalPages}
+          totalItems={integrationsPagination.totalItems}
+          startIndex={integrationsPagination.startIndex}
+          endIndex={integrationsPagination.endIndex}
+          pageSize={integrationsPagination.pageSize}
+          onPageChange={integrationsPagination.setPage}
+          onPageSizeChange={integrationsPagination.setPageSize}
+          itemLabel="integrations"
+        />
       </div>
 
       {/* Sync Health & Telemetry Logs */}
@@ -210,32 +229,46 @@ export function HRISIntegrations() {
             {(syncLogs || []).length === 0 ? (
               <div className="p-4 text-center text-xs text-muted-foreground">No sync history logs recorded yet.</div>
             ) : (
-              syncLogs?.map((log) => (
-                <div key={log._id} className="p-3 bg-muted/10 border rounded-lg text-xs space-y-2">
-                  <div className="flex justify-between items-center font-semibold">
-                    <span className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={
-                          log.status === 'success'
-                            ? 'bg-emerald-500/10 text-emerald-600'
-                            : 'bg-amber-500/10 text-amber-600'
-                        }
-                      >
-                        {log.status.toUpperCase()}
-                      </Badge>
-                      Processed {log.processedCount} records ({log.createdUsersCount} created, {log.updatedUsersCount} updated)
-                    </span>
-                    <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
-                  </div>
-
-                  {log.errorCount > 0 && (
-                    <div className="pt-2 text-red-600 font-medium border-t mt-1">
-                      ⚠️ Encountered {log.errorCount} error(s) logged to DLQ queue.
+              <div className="space-y-3">
+                {logsPagination.paginatedData.map((log) => (
+                  <div key={log._id} className="p-3 bg-muted/10 border rounded-lg text-xs space-y-2">
+                    <div className="flex justify-between items-center font-semibold">
+                      <span className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={
+                            log.status === 'success'
+                              ? 'bg-emerald-500/10 text-emerald-600'
+                              : 'bg-amber-500/10 text-amber-600'
+                          }
+                        >
+                          {log.status.toUpperCase()}
+                        </Badge>
+                        Processed {log.processedCount} records ({log.createdUsersCount} created, {log.updatedUsersCount} updated)
+                      </span>
+                      <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
                     </div>
-                  )}
-                </div>
-              ))
+
+                    {log.errorCount > 0 && (
+                      <div className="pt-2 text-red-600 font-medium border-t mt-1">
+                        ⚠️ Encountered {log.errorCount} error(s) logged to DLQ queue.
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <SimplePagination
+                  currentPage={logsPagination.page}
+                  totalPages={logsPagination.totalPages}
+                  totalItems={logsPagination.totalItems}
+                  startIndex={logsPagination.startIndex}
+                  endIndex={logsPagination.endIndex}
+                  pageSize={logsPagination.pageSize}
+                  onPageChange={logsPagination.setPage}
+                  onPageSizeChange={logsPagination.setPageSize}
+                  itemLabel="logs"
+                />
+              </div>
             )}
           </CardContent>
         </Card>

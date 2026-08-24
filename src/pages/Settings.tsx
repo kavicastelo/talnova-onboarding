@@ -21,6 +21,8 @@ import { AlertCircle, RefreshCw, X, Plus, Trash2 } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
 import { useTranslation } from 'react-i18next';
 import { uploadService } from '../services/upload.service';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function Settings() {
   const { data: settings, isLoading, isError, error, refetch } = useWorkspaceSettings();
@@ -41,6 +43,7 @@ export function Settings() {
   const [newDeptName, setNewDeptName] = useState('');
 
   const { data: departments = [], isLoading: deptsLoading } = useDepartments();
+  const deptPagination = usePagination({ data: departments, initialPageSize: 5 });
   const createDeptMut = useCreateDepartment();
   const deleteDeptMut = useDeleteDepartment();
 
@@ -444,21 +447,37 @@ export function Settings() {
                   ) : departments.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground italic">No custom departments added. Platform defaults will be used.</div>
                   ) : (
-                    <div className="divide-y">
-                      {departments.map((dept: any) => (
-                        <div key={dept._id} className="flex items-center justify-between p-3 text-sm">
-                          <span className="font-medium">{dept.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteDept(dept._id)}
-                            disabled={deleteDeptMut.isPending}
-                            className="text-destructive hover:bg-destructive/10 p-1 h-7 w-7"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                    <div>
+                      <div className="divide-y">
+                        {deptPagination.paginatedData.map((dept: any) => (
+                          <div key={dept._id} className="flex items-center justify-between p-3 text-sm">
+                            <span className="font-medium">{dept.name}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteDept(dept._id)}
+                              disabled={deleteDeptMut.isPending}
+                              className="text-destructive hover:bg-destructive/10 p-1 h-7 w-7"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="p-2 border-t">
+                        <SimplePagination
+                          currentPage={deptPagination.page}
+                          totalPages={deptPagination.totalPages}
+                          totalItems={deptPagination.totalItems}
+                          startIndex={deptPagination.startIndex}
+                          endIndex={deptPagination.endIndex}
+                          pageSize={deptPagination.pageSize}
+                          onPageChange={deptPagination.setPage}
+                          onPageSizeChange={deptPagination.setPageSize}
+                          itemLabel="departments"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

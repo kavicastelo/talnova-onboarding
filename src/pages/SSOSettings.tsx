@@ -22,6 +22,8 @@ import {
 import { useSSOConfig, useSaveSSOConfig } from '../hooks/useSSO';
 import { SSORoleMapping } from '../services/sso.service';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function SSOSettings() {
   const { data: config, isLoading } = useSSOConfig();
@@ -39,6 +41,8 @@ export function SSOSettings() {
   const [roleMappings, setRoleMappings] = useState<SSORoleMapping[]>([]);
   const [newGroupInput, setNewGroupInput] = useState('');
   const [newRoleInput, setNewRoleInput] = useState<'admin' | 'manager' | 'employee'>('employee');
+
+  const mappingsPagination = usePagination({ data: roleMappings, initialPageSize: 5 });
 
   useEffect(() => {
     if (config) {
@@ -246,24 +250,40 @@ export function SSOSettings() {
           </div>
 
           {/* Rules List Table */}
-          <div className="divide-y text-xs border rounded-md">
-            {roleMappings.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">No group mapping rules configured. Default role will be assigned.</div>
-            ) : (
-              roleMappings.map((m, idx) => (
-                <div key={idx} className="p-3 flex justify-between items-center">
-                  <div>
-                    <span className="font-semibold text-foreground">{m.idpGroup}</span>
-                    <span className="text-muted-foreground ml-2">maps to</span>
-                    <Badge variant="outline" className="ml-2 bg-indigo-500/10 text-indigo-600 border-indigo-500/20">
-                      {m.role.toUpperCase()}
-                    </Badge>
+          <div className="space-y-2">
+            <div className="divide-y text-xs border rounded-md">
+              {roleMappings.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">No group mapping rules configured. Default role will be assigned.</div>
+              ) : (
+                mappingsPagination.paginatedData.map((m, idx) => (
+                  <div key={idx} className="p-3 flex justify-between items-center">
+                    <div>
+                      <span className="font-semibold text-foreground">{m.idpGroup}</span>
+                      <span className="text-muted-foreground ml-2">maps to</span>
+                      <Badge variant="outline" className="ml-2 bg-indigo-500/10 text-indigo-600 border-indigo-500/20">
+                        {m.role.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleRemoveMapping(idx)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleRemoveMapping(idx)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))
+                ))
+              )}
+            </div>
+
+            {roleMappings.length > 0 && (
+              <SimplePagination
+                currentPage={mappingsPagination.page}
+                totalPages={mappingsPagination.totalPages}
+                totalItems={mappingsPagination.totalItems}
+                startIndex={mappingsPagination.startIndex}
+                endIndex={mappingsPagination.endIndex}
+                pageSize={mappingsPagination.pageSize}
+                onPageChange={mappingsPagination.setPage}
+                onPageSizeChange={mappingsPagination.setPageSize}
+                itemLabel="rules"
+              />
             )}
           </div>
         </CardContent>

@@ -15,6 +15,8 @@ import { useWorkspaceSettings } from '../hooks/useSettings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/Dialog';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function Certificates() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
@@ -53,6 +55,8 @@ export function Certificates() {
   const completedJourneys = employee?.assignedJourneys?.filter(
     j => j.status === 'Completed' && j.certificate?.issued
   ) || [];
+
+  const certsPagination = usePagination({ data: completedJourneys, initialPageSize: 6 });
 
   if (isError) {
     return (
@@ -96,53 +100,78 @@ export function Certificates() {
       </div>
 
       {completedJourneys.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {completedJourneys.map((journey) => (
-            <Card key={journey.id} className="relative overflow-hidden group hover:border-primary/50 transition-all shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full flex items-start justify-end p-4">
-                  <Award className="h-8 w-8 text-primary/40 group-hover:text-primary transition-colors" />
-                </div>
-                <CardHeader className="pb-3">
-                  <span className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
-                    <ShieldCheck className="h-4 w-4" /> Verified Credential
-                  </span>
-                  <CardTitle className="text-lg leading-snug group-hover:text-primary transition-colors">
-                    {journey.title}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-1 text-xs mt-1">
-                    <Calendar className="h-3.5 w-3.5" /> Completed {journey.assignedAt}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2 flex flex-col gap-1">
-                  <div className="text-xs text-muted-foreground">
-                    Recipient: <span className="font-semibold text-foreground">{employee?.name || user?.name || 'Jane Doe'}</span>
+        <div className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {certsPagination.paginatedData.map((journey) => (
+              <Card key={journey.id} className="relative overflow-hidden group hover:border-primary/50 transition-all shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full flex items-start justify-end p-4">
+                    <Award className="h-8 w-8 text-primary/40 group-hover:text-primary transition-colors" />
                   </div>
-                  {journey.certificate?.certificateId && (
-                    <div className="text-xs text-muted-foreground">
-                      ID: <span className="font-mono">{journey.certificate.certificateId.slice(-12)}</span>
+                  <CardHeader className="pb-3">
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <ShieldCheck className="h-4 w-4" /> Verified Credential
+                    </span>
+                    <CardTitle className="text-lg leading-snug group-hover:text-primary transition-colors">
+                      {journey.title}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-1 mt-1 text-xs">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Issued: {journey.certificate?.issuedAt ? new Date(journey.certificate.issuedAt).toLocaleDateString() : 'N/A'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="text-xs text-muted-foreground flex justify-between border-t pt-3">
+                      <span>Credential ID:</span>
+                      <span className="font-mono text-foreground font-medium">{journey.certificate?.certificateId || journey.id.slice(0, 8)}</span>
                     </div>
-                  )}
-                </CardContent>
-              </div>
-              <CardContent className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/20 flex flex-col gap-2 mt-auto">
-                <div className="flex gap-2">
-                  <Button variant="default" className="flex-1" size="sm" onClick={() => setSelectedCert(journey)}>
-                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> View
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleShareLinkedIn(journey.id)} title="Share on LinkedIn">
-                    <Linkedin className="h-3.5 w-3.5 text-[#0A66C2] fill-[#0A66C2]" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleCopyLink(journey.id)} title="Copy verification link">
-                    <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
+                  </CardContent>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+
+                <div className="p-6 pt-0 space-y-2">
+                  <Button
+                    onClick={() => setSelectedCert(journey)}
+                    className="w-full text-xs font-medium"
+                  >
+                    <ExternalLink className="mr-2 h-3.5 w-3.5" /> View & Download Certificate
+                  </Button>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-indigo-600 hover:text-indigo-700"
+                      onClick={() => handleShareLinkedIn(journey.id)}
+                    >
+                      <Linkedin className="mr-1.5 h-3.5 w-3.5" /> Share
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => handleCopyLink(journey.id)}
+                    >
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" /> Copy Link
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <SimplePagination
+            currentPage={certsPagination.page}
+            totalPages={certsPagination.totalPages}
+            totalItems={certsPagination.totalItems}
+            startIndex={certsPagination.startIndex}
+            endIndex={certsPagination.endIndex}
+            pageSize={certsPagination.pageSize}
+            onPageChange={certsPagination.setPage}
+            onPageSizeChange={certsPagination.setPageSize}
+            itemLabel="certificates"
+          />
         </div>
       ) : (
-        <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+        <Card className="flex flex-col items-center justify-center p-12 text-center my-8 border-dashed">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
             <Award className="h-8 w-8 text-muted-foreground" />
           </div>

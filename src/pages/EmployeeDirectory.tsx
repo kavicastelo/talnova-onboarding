@@ -12,7 +12,8 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { Plus, Search, AlertCircle, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { SimplePagination } from '../components/SimplePagination';
+import { Plus, Search, AlertCircle, RefreshCw, Upload, Download } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee, 
@@ -574,71 +575,21 @@ export function EmployeeDirectory() {
             </TableBody>
           </Table>
           {!isLoading && !isError && totalEmployees > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t bg-card text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <span>Showing <strong className="text-foreground">{totalEmployees === 0 ? 0 : (page - 1) * limit + 1}</strong> to <strong className="text-foreground">{Math.min(page * limit, totalEmployees)}</strong> of <strong className="text-foreground">{totalEmployees}</strong> employees</span>
-                <span className="hidden sm:inline">|</span>
-                <div className="flex items-center gap-1.5">
-                  <span>Per page:</span>
-                  <select
-                    value={limit}
-                    onChange={(e) => {
-                      setLimit(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="bg-background border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(1)}
-                  disabled={page <= 1}
-                  className="h-8 w-8 p-0"
-                  title="First Page"
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="h-8 px-2.5 flex items-center gap-1"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Previous
-                </Button>
-                <span className="px-2 font-medium text-foreground">
-                  Page {page} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="h-8 px-2.5 flex items-center gap-1"
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(totalPages)}
-                  disabled={page >= totalPages}
-                  className="h-8 w-8 p-0"
-                  title="Last Page"
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="p-4 border-t bg-card">
+              <SimplePagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalEmployees}
+                startIndex={totalEmployees === 0 ? 0 : (page - 1) * limit + 1}
+                endIndex={Math.min(page * limit, totalEmployees)}
+                pageSize={limit}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setLimit(newSize);
+                  setPage(1);
+                }}
+                itemLabel="employees"
+              />
             </div>
           )}
         </Card>
@@ -711,44 +662,21 @@ export function EmployeeDirectory() {
             ))}
 
             {!isLoading && !isError && totalEmployees > 0 && (
-              <div className="flex flex-col items-center justify-between gap-3 p-4 border rounded-lg bg-card text-xs text-muted-foreground">
-                <div className="flex items-center justify-between w-full">
-                  <span>Page <strong className="text-foreground">{page}</strong> of <strong className="text-foreground">{totalPages}</strong> ({totalEmployees} total)</span>
-                  <select
-                    value={limit}
-                    onChange={(e) => {
-                      setLimit(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="bg-background border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  >
-                    <option value={10}>10 / page</option>
-                    <option value={20}>20 / page</option>
-                    <option value={50}>50 / page</option>
-                    <option value={100}>100 / page</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-center gap-2 w-full pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className="flex-1 h-8"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className="flex-1 h-8"
-                  >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
+              <div className="p-4 border rounded-lg bg-card">
+                <SimplePagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={totalEmployees}
+                  startIndex={totalEmployees === 0 ? 0 : (page - 1) * limit + 1}
+                  endIndex={Math.min(page * limit, totalEmployees)}
+                  pageSize={limit}
+                  onPageChange={setPage}
+                  onPageSizeChange={(newSize) => {
+                    setLimit(newSize);
+                    setPage(1);
+                  }}
+                  itemLabel="employees"
+                />
               </div>
             )}
           </>

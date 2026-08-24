@@ -21,6 +21,8 @@ import {
 import { useEmployees } from '../hooks/useEmployees';
 import { TaskItem } from '../services/task.service';
 import { useRole } from '../context/RoleContext';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function Tasks() {
   const { can } = useRole();
@@ -75,6 +77,18 @@ export function Tasks() {
     }
     return true;
   });
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    totalPages,
+    paginatedData: paginatedTasks,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredTasks, initialPageSize: 10 });
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,104 +315,118 @@ export function Tasks() {
             <p className="text-slate-500 text-sm mt-1">There are no operational tasks matching your filter criteria.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
-            {filteredTasks.map((task) => {
-              const isCompleted = task.status === 'completed';
-              const isOverdue = task.status === 'overdue' || (task.dueDate && new Date(task.dueDate) < new Date() && !isCompleted);
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3">
+              {paginatedTasks.map((task) => {
+                const isCompleted = task.status === 'completed';
+                const isOverdue = task.status === 'overdue' || (task.dueDate && new Date(task.dueDate) < new Date() && !isCompleted);
 
-              return (
-                <div
-                  key={task._id}
-                  className={`bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 border transition-all hover:shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                    isOverdue
-                      ? 'border-red-200 dark:border-red-900/40 bg-red-50/10'
-                      : isCompleted
-                      ? 'border-emerald-200 dark:border-emerald-900/30 opacity-80'
-                      : 'border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Complete Checkbox Button */}
-                    <button
-                      onClick={() => handleToggleComplete(task)}
-                      className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                        isCompleted
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
-                          : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
-                      }`}
-                    >
-                      {isCompleted && <Check className="w-4 h-4 stroke-[3]" />}
-                    </button>
+                return (
+                  <div
+                    key={task._id}
+                    className={`bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 border transition-all hover:shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      isOverdue
+                        ? 'border-red-200 dark:border-red-900/40 bg-red-50/10'
+                        : isCompleted
+                        ? 'border-emerald-200 dark:border-emerald-900/30 opacity-80'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Complete Checkbox Button */}
+                      <button
+                        onClick={() => handleToggleComplete(task)}
+                        className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+                          isCompleted
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
+                        }`}
+                      >
+                        {isCompleted && <Check className="w-4 h-4 stroke-[3]" />}
+                      </button>
 
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          onClick={() => setSelectedTask(task)}
-                          className={`font-semibold cursor-pointer hover:text-indigo-600 transition-colors ${
-                            isCompleted ? 'line-through text-slate-400' : ''
-                          }`}
-                        >
-                          {task.title}
-                        </span>
-                        {getStageBadge(task.stage)}
-                        {getPriorityBadge(task.priority)}
-                        {isOverdue && (
-                          <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">
-                            Overdue
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            onClick={() => setSelectedTask(task)}
+                            className={`font-semibold cursor-pointer hover:text-indigo-600 transition-colors ${
+                              isCompleted ? 'line-through text-slate-400' : ''
+                            }`}
+                          >
+                            {task.title}
                           </span>
+                          {getStageBadge(task.stage)}
+                          {getPriorityBadge(task.priority)}
+                          {isOverdue && (
+                            <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+
+                        {task.description && (
+                          <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">
+                            {task.description}
+                          </p>
                         )}
-                      </div>
 
-                      {task.description && (
-                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">
-                          {task.description}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
-                        <span className="flex items-center gap-1">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          Assignee: {task.assignedToUserId?.profile?.firstName || 'User'}{' '}
-                          {task.assignedToUserId?.profile?.lastName || ''}
-                        </span>
-
-                        {task.employeeId && (
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
                           <span className="flex items-center gap-1">
-                            <Shield className="w-3.5 h-3.5 text-slate-400" />
-                            Target: {task.employeeId?.profile?.firstName}{' '}
-                            {task.employeeId?.profile?.lastName}
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            Assignee: {task.assignedToUserId?.profile?.firstName || 'User'}{' '}
+                            {task.assignedToUserId?.profile?.lastName || ''}
                           </span>
-                        )}
 
-                        {task.dueDate && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            Due: {new Date(task.dueDate).toLocaleDateString()}
-                          </span>
-                        )}
+                          {task.employeeId && (
+                            <span className="flex items-center gap-1">
+                              <Shield className="w-3.5 h-3.5 text-slate-400" />
+                              Target: {task.employeeId?.profile?.firstName}{' '}
+                              {task.employeeId?.profile?.lastName}
+                            </span>
+                          )}
+
+                          {task.dueDate && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              Due: {new Date(task.dueDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-3 sm:pt-0">
-                    <button
-                      onClick={() => setSelectedTask(task)}
-                      className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-all"
-                    >
-                      View Details
-                    </button>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-3 sm:pt-0">
+                      <button
+                        onClick={() => setSelectedTask(task)}
+                        className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-all"
+                      >
+                        View Details
+                      </button>
 
-                    <button
-                      onClick={() => deleteTaskMutation.mutate(task._id)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all"
-                      title="Delete Task"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <button
+                        onClick={() => deleteTaskMutation.mutate(task._id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all"
+                        title="Delete Task"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            <SimplePagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="tasks"
+            />
           </div>
         )}
       </div>

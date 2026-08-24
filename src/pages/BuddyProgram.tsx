@@ -34,6 +34,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const BuddyProgram: React.FC = () => {
   const { role } = useRole();
@@ -58,6 +60,9 @@ export const BuddyProgram: React.FC = () => {
   const { data: myBuddy, isLoading: buddyLoading, refetch: refetchBuddy } = useMyBuddy();
   const { data: mentees, isLoading: menteesLoading, refetch: refetchMentees } = useMyMentees();
   const { data: availableBuddies, isLoading: availableLoading, refetch: refetchAvailable } = useAvailableBuddies();
+
+  const menteesPagination = usePagination({ data: mentees || [], initialPageSize: 6 });
+  const buddiesPagination = usePagination({ data: availableBuddies || [], initialPageSize: 6 });
   const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
 
   const registerBuddyMutation = useRegisterBuddy();
@@ -332,90 +337,120 @@ export const BuddyProgram: React.FC = () => {
             ) : (mentees || []).length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">You do not have any active onboarding mentees assigned.</div>
             ) : (
-              <div className="divide-y">
-                {mentees?.map((m) => {
-                  const newHireName = m.newHireUserId?.profile
-                    ? `${m.newHireUserId.profile.firstName || ''} ${m.newHireUserId.profile.lastName || ''}`
-                    : 'New Hire';
+              <div>
+                <div className="divide-y">
+                  {menteesPagination.paginatedData.map((m) => {
+                    const newHireName = m.newHireUserId?.profile
+                      ? `${m.newHireUserId.profile.firstName || ''} ${m.newHireUserId.profile.lastName || ''}`
+                      : 'New Hire';
 
-                  const completedTasks = m.checklist?.filter((c) => c.completed).length || 0;
-                  const totalTasks = m.checklist?.length || 1;
+                    const completedTasks = m.checklist?.filter((c) => c.completed).length || 0;
+                    const totalTasks = m.checklist?.length || 1;
 
-                  return (
-                    <div key={m._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-sm">{newHireName}</h4>
-                          <Badge variant="outline" className="text-[10px]">
-                            {m.newHireUserId?.employment?.department || 'General'}
-                          </Badge>
+                    return (
+                      <div key={m._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-sm">{newHireName}</h4>
+                            <Badge variant="outline" className="text-[10px]">
+                              {m.newHireUserId?.employment?.department || 'General'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Checklist: {completedTasks} / {totalTasks} tasks completed | Paired on {new Date(m.assignedAt).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Checklist: {completedTasks} / {totalTasks} tasks completed | Paired on {new Date(m.assignedAt).toLocaleDateString()}
-                        </p>
-                      </div>
 
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
-                          onClick={() => {
-                            setSelectedAssignmentId(m._id);
-                            setIsCheckinModalOpen(true);
-                          }}
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 mr-1" /> Log 1-on-1 Check-In
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                            onClick={() => {
+                              setSelectedAssignmentId(m._id);
+                              setIsCheckinModalOpen(true);
+                            }}
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 mr-1" /> Log 1-on-1 Check-In
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                <div className="p-3 border-t">
+                  <SimplePagination
+                    currentPage={menteesPagination.page}
+                    totalPages={menteesPagination.totalPages}
+                    totalItems={menteesPagination.totalItems}
+                    startIndex={menteesPagination.startIndex}
+                    endIndex={menteesPagination.endIndex}
+                    pageSize={menteesPagination.pageSize}
+                    onPageChange={menteesPagination.setPage}
+                    onPageSizeChange={menteesPagination.setPageSize}
+                    itemLabel="mentees"
+                  />
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Tab 3: Available Buddies Directory */}
+      {/* Tab 3: Available Buddy Directory */}
       {activeTab === 'directory' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {availableLoading ? (
-            <div className="col-span-full p-8 text-center text-muted-foreground">Loading available buddies...</div>
-          ) : (availableBuddies || []).length === 0 ? (
-            <div className="col-span-full p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-              No eligible buddies registered. Click "Become a Buddy" to register your profile!
-            </div>
-          ) : (
-            availableBuddies?.map((b) => (
-              <Card key={b._id} className="hover:border-indigo-500/40 transition-all">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
-                      Available ({b.currentMenteeCount} / {b.maxMentees} Mentees)
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-base font-semibold mt-2">
-                    {b.userId?.profile?.firstName} {b.userId?.profile?.lastName}
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    {b.department || 'General'} | {b.jobTitle || 'Peer Buddy'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-xs text-muted-foreground space-y-3">
-                  {b.bio && <p className="line-clamp-2 italic">"{b.bio}"</p>}
-                  {b.skills?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {b.skills.map((s, idx) => (
-                        <Badge key={idx} variant="outline" className="text-[9px]">
-                          {s}
-                        </Badge>
-                      ))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {availableLoading ? (
+              <div className="col-span-full p-8 text-center text-muted-foreground">Loading available buddies...</div>
+            ) : (availableBuddies || []).length === 0 ? (
+              <div className="col-span-full p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                No eligible buddies registered. Click "Become a Buddy" to register your profile!
+              </div>
+            ) : (
+              buddiesPagination.paginatedData.map((b) => (
+                <Card key={b._id} className="hover:border-indigo-500/40 transition-all">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                        Available ({b.currentMenteeCount} / {b.maxMentees} Mentees)
+                      </Badge>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          )}
+                    <CardTitle className="text-base font-semibold mt-2">
+                      {b.userId?.profile?.firstName} {b.userId?.profile?.lastName}
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {b.department || 'General'} | {b.jobTitle || 'Peer Buddy'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-xs text-muted-foreground space-y-3">
+                    {b.bio && <p className="line-clamp-2 italic">"{b.bio}"</p>}
+                    {b.skills?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {b.skills.map((s, idx) => (
+                          <Badge key={idx} variant="outline" className="text-[9px]">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          <SimplePagination
+            currentPage={buddiesPagination.page}
+            totalPages={buddiesPagination.totalPages}
+            totalItems={buddiesPagination.totalItems}
+            startIndex={buddiesPagination.startIndex}
+            endIndex={buddiesPagination.endIndex}
+            pageSize={buddiesPagination.pageSize}
+            onPageChange={buddiesPagination.setPage}
+            onPageSizeChange={buddiesPagination.setPageSize}
+            itemLabel="buddies"
+          />
         </div>
       )}
 
