@@ -34,6 +34,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const ManagerDashboard: React.FC = () => {
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useManagerDashboard();
@@ -58,6 +60,8 @@ export const ManagerDashboard: React.FC = () => {
     const titleMatch = (emp.jobTitle || '').toLowerCase().includes(search.toLowerCase());
     return nameMatch || emailMatch || deptMatch || titleMatch;
   });
+
+  const teamPagination = usePagination({ data: filteredTeam, initialPageSize: 10 });
 
   const handleNudgeSubmit = () => {
     if (!selectedEmpId) return;
@@ -219,106 +223,120 @@ export const ManagerDashboard: React.FC = () => {
               No direct reports found. Assign employees to your manager account in HR Settings.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/30 text-xs uppercase font-medium text-muted-foreground border-b">
-                  <tr>
-                    <th className="px-6 py-3">Employee</th>
-                    <th className="px-6 py-3">Department & Role</th>
-                    <th className="px-6 py-3">Journey Progress</th>
-                    <th className="px-6 py-3">Checklist Tasks</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3 text-right">Manager Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredTeam.map((emp) => (
-                    <tr key={emp._id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-6 py-4 font-medium">
-                        <div>{emp.fullName}</div>
-                        <div className="text-xs text-muted-foreground font-normal">{emp.email}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-xs font-medium">{emp.jobTitle || 'Team Member'}</div>
-                        <div className="text-xs text-muted-foreground">{emp.department || 'General'}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3 w-40">
-                          <Progress value={emp.journeyStats.completionPercentage} className="h-2 flex-1" />
-                          <span className="text-xs font-semibold w-10 text-right">
-                            {emp.journeyStats.completionPercentage}%
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-1">
-                          {emp.journeyStats.completed} / {emp.journeyStats.totalAssigned} Journeys Done
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-xs font-medium">
-                          {emp.taskStats.completed} / {emp.taskStats.totalAssigned} Tasks Completed
-                        </div>
-                        {emp.taskStats.overdue > 0 && (
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] mt-1">
-                            {emp.taskStats.overdue} Overdue
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {emp.hasOverdueItems ? (
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                            Overdue Items
-                          </Badge>
-                        ) : emp.journeyStats.completionPercentage === 100 ? (
-                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                            Completed
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                            Onboarding
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="View Details"
-                          onClick={() => {
-                            setSelectedEmpId(emp._id);
-                            setIsDetailsDrawerOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          title="Send Nudge"
-                          className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                          onClick={() => {
-                            setSelectedEmpId(emp._id);
-                            setIsNudgeModalOpen(true);
-                          }}
-                        >
-                          <BellRing className="h-4 w-4 mr-1" /> Nudge
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          title="Sign Off Program"
-                          className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                          onClick={() => {
-                            setSelectedEmpId(emp._id);
-                            setIsSignOffModalOpen(true);
-                          }}
-                        >
-                          <Award className="h-4 w-4 mr-1" /> Sign Off
-                        </Button>
-                      </td>
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/30 text-xs uppercase font-medium text-muted-foreground border-b">
+                    <tr>
+                      <th className="px-6 py-3">Employee</th>
+                      <th className="px-6 py-3">Department & Role</th>
+                      <th className="px-6 py-3">Journey Progress</th>
+                      <th className="px-6 py-3">Checklist Tasks</th>
+                      <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3 text-right">Manager Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {teamPagination.paginatedData.map((emp) => (
+                      <tr key={emp._id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-6 py-4 font-medium">
+                          <div>{emp.fullName}</div>
+                          <div className="text-xs text-muted-foreground font-normal">{emp.email}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-medium">{emp.jobTitle || 'Team Member'}</div>
+                          <div className="text-xs text-muted-foreground">{emp.department || 'General'}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3 w-40">
+                            <Progress value={emp.journeyStats.completionPercentage} className="h-2 flex-1" />
+                            <span className="text-xs font-semibold w-10 text-right">
+                              {emp.journeyStats.completionPercentage}%
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            {emp.journeyStats.completed} / {emp.journeyStats.totalAssigned} Journeys Done
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-medium">
+                            {emp.taskStats.completed} / {emp.taskStats.totalAssigned} Tasks Completed
+                          </div>
+                          {emp.taskStats.overdue > 0 && (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] mt-1">
+                              {emp.taskStats.overdue} Overdue
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {emp.hasOverdueItems ? (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                              Overdue Items
+                            </Badge>
+                          ) : emp.journeyStats.completionPercentage === 100 ? (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              Completed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                              Onboarding
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="View Details"
+                            onClick={() => {
+                              setSelectedEmpId(emp._id);
+                              setIsDetailsDrawerOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Send Nudge"
+                            onClick={() => {
+                              setSelectedEmpId(emp._id);
+                              setIsNudgeModalOpen(true);
+                            }}
+                          >
+                            <BellRing className="h-4 w-4 text-amber-600" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Sign Off Onboarding"
+                            onClick={() => {
+                              setSelectedEmpId(emp._id);
+                              setIsSignOffModalOpen(true);
+                            }}
+                          >
+                            <UserCheck className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-3 border-t">
+                <SimplePagination
+                  currentPage={teamPagination.page}
+                  totalPages={teamPagination.totalPages}
+                  totalItems={teamPagination.totalItems}
+                  startIndex={teamPagination.startIndex}
+                  endIndex={teamPagination.endIndex}
+                  pageSize={teamPagination.pageSize}
+                  onPageChange={teamPagination.setPage}
+                  onPageSizeChange={teamPagination.setPageSize}
+                  itemLabel="reports"
+                />
+              </div>
             </div>
           )}
         </CardContent>

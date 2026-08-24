@@ -20,10 +20,14 @@ import { useDashboardSummary } from '../hooks/useDashboard';
 import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
 import { useTranslation } from 'react-i18next';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function AdminDashboard() {
   const { data: summary, isLoading, isError, error, refetch } = useDashboardSummary();
   const { t } = useTranslation('dashboard');
+
+  const activityPagination = usePagination({ data: summary?.recentActivity || [], initialPageSize: 5 });
 
   if (isLoading) {
     return (
@@ -211,25 +215,39 @@ export function AdminDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-8">
-              {summary.recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                    {activity.userInitials}
+            <div className="space-y-6">
+              <div className="space-y-6">
+                {activityPagination.paginatedData.map((activity) => (
+                  <div key={activity.id} className="flex items-center">
+                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                      {activity.userInitials}
+                    </div>
+                    <div className="ml-4 space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {activity.userName} {activity.actionDescription}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {activity.journeyTitle}
+                      </p>
+                    </div>
+                    <div className="ml-auto font-medium text-sm text-muted-foreground">
+                      {activity.timeAgo}
+                    </div>
                   </div>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {activity.userName} {activity.actionDescription}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.journeyTitle}
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium text-sm text-muted-foreground">
-                    {activity.timeAgo}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <SimplePagination
+                currentPage={activityPagination.page}
+                totalPages={activityPagination.totalPages}
+                totalItems={activityPagination.totalItems}
+                startIndex={activityPagination.startIndex}
+                endIndex={activityPagination.endIndex}
+                pageSize={activityPagination.pageSize}
+                onPageChange={activityPagination.setPage}
+                onPageSizeChange={activityPagination.setPageSize}
+                itemLabel="activities"
+              />
             </div>
           </CardContent>
         </Card>

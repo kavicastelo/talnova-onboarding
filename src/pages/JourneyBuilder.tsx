@@ -69,6 +69,8 @@ import {
 import { useEmployees } from '../hooks/useEmployees';
 import { useWorkspaceSettings } from '../hooks/useSettings';
 import { Skeleton } from '../components/Skeleton';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 import { toast } from 'sonner';
 import { CourseModule, Lesson } from '../types';
 import { Trash, X, Lock, Globe, FileSpreadsheet, Headphones, Image as ImageIcon, CheckSquare, BookOpen } from 'lucide-react';
@@ -84,6 +86,7 @@ export function JourneyBuilder() {
   const createJourney = useCreateJourney();
 
   const { data: assignments = [] } = useJourneyAssignments(isNew ? '' : (id || ''));
+  const assignmentsPagination = usePagination({ data: assignments, initialPageSize: 10 });
   const { data: employeesRes } = useEmployees({ limit: 10000 });
   const employees = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.employees || []);
   const { data: workspaceSettings } = useWorkspaceSettings();
@@ -1743,52 +1746,21 @@ export function JourneyBuilder() {
                     </div>
 
                     {/* Table Pagination Footer */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs text-muted-foreground">
-                      <div>
-                        Showing {totalEmpCount === 0 ? 0 : (currentEmpPage - 1) * empPageSize + 1} to{' '}
-                        {Math.min(currentEmpPage * empPageSize, totalEmpCount)} of {totalEmpCount} employees
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setEmpPage(1)}
-                          disabled={currentEmpPage <= 1}
-                        >
-                          <ChevronsLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setEmpPage((p) => Math.max(p - 1, 1))}
-                          disabled={currentEmpPage <= 1}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="px-2 font-medium">
-                          Page {currentEmpPage} of {totalEmpPages}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setEmpPage((p) => Math.min(p + 1, totalEmpPages))}
-                          disabled={currentEmpPage >= totalEmpPages}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setEmpPage(totalEmpPages)}
-                          disabled={currentEmpPage >= totalEmpPages}
-                        >
-                          <ChevronsRight className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <div className="pt-2">
+                      <SimplePagination
+                        currentPage={currentEmpPage}
+                        totalPages={totalEmpPages}
+                        totalItems={totalEmpCount}
+                        startIndex={totalEmpCount === 0 ? 0 : (currentEmpPage - 1) * empPageSize + 1}
+                        endIndex={Math.min(currentEmpPage * empPageSize, totalEmpCount)}
+                        pageSize={empPageSize}
+                        onPageChange={setEmpPage}
+                        onPageSizeChange={(newSize) => {
+                          setEmpPageSize(newSize);
+                          setEmpPage(1);
+                        }}
+                        itemLabel="employees"
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -1833,7 +1805,7 @@ export function JourneyBuilder() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
-                            {assignments.map((assign: any) => {
+                            {assignmentsPagination.paginatedData.map((assign: any) => {
                               const emp = assign.employeeId;
                               const name = emp?.profile ? `${emp.profile.firstName} ${emp.profile.lastName}` : 'Unknown';
                               const email = emp?.auth?.email || 'N/A';
@@ -1896,6 +1868,20 @@ export function JourneyBuilder() {
                             })}
                           </tbody>
                         </table>
+                      </div>
+
+                      <div className="p-3 border-t">
+                        <SimplePagination
+                          currentPage={assignmentsPagination.page}
+                          totalPages={assignmentsPagination.totalPages}
+                          totalItems={assignmentsPagination.totalItems}
+                          startIndex={assignmentsPagination.startIndex}
+                          endIndex={assignmentsPagination.endIndex}
+                          pageSize={assignmentsPagination.pageSize}
+                          onPageChange={assignmentsPagination.setPage}
+                          onPageSizeChange={assignmentsPagination.setPageSize}
+                          itemLabel="assignments"
+                        />
                       </div>
                     </CardContent>
                   </Card>

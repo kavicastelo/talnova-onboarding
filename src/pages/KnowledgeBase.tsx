@@ -47,6 +47,8 @@ import { useRole } from '../context/RoleContext';
 import { toast } from 'sonner';
 import { CATEGORY_MAP } from '../services/knowledgeBase.service';
 import { useTranslation } from 'react-i18next';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   'Company Policies': Shield,
@@ -77,6 +79,8 @@ export function KnowledgeBase() {
     category: selectedCategory,
     status: isAdmin ? undefined : 'published'
   });
+
+  const artPagination = usePagination({ data: articles || [], initialPageSize: 6 });
   const { data: quickLinks, isLoading: qlLoading, isError: qlError, refetch: refetchQls } = useQuickLinks();
 
   // Mutations
@@ -516,38 +520,52 @@ export function KnowledgeBase() {
                     {t('noArticles')}
                   </div>
                 ) : (
-                  articles.map((article: any) => (
-                    <Card
-                      key={article.id}
-                      onClick={() => handleOpenArticle(article)}
-                      className="hover:bg-muted/40 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
-                    >
-                      <CardContent className="p-5 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                            <FileText className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-foreground">{article.title}</h3>
-                              {isAdmin && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono capitalize ${article.publishingStatus === 'published' ? 'bg-green-500/10 text-green-500' :
-                                    article.publishingStatus === 'archived' ? 'bg-amber-500/10 text-amber-500' :
-                                      'bg-zinc-500/10 text-zinc-500'
-                                  }`}>
-                                  {article.publishingStatus}
-                                </span>
-                              )}
+                  <div className="space-y-3">
+                    {artPagination.paginatedData.map((article: any) => (
+                      <Card
+                        key={article.id}
+                        onClick={() => handleOpenArticle(article)}
+                        className="hover:bg-muted/40 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
+                      >
+                        <CardContent className="p-5 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                              <FileText className="h-5 w-5 text-primary" />
                             </div>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {article.category} • {article.readTime} • {article.views} views
-                            </p>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-foreground">{article.title}</h3>
+                                {isAdmin && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono capitalize ${article.publishingStatus === 'published' ? 'bg-green-500/10 text-green-500' :
+                                      article.publishingStatus === 'archived' ? 'bg-amber-500/10 text-amber-500' :
+                                        'bg-zinc-500/10 text-zinc-500'
+                                    }`}>
+                                    {article.publishingStatus}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-0.5">
+                                {article.category} • {article.readTime} • {article.views} views
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-1" />
-                      </CardContent>
-                    </Card>
-                  ))
+                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-1" />
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    <SimplePagination
+                      currentPage={artPagination.page}
+                      totalPages={artPagination.totalPages}
+                      totalItems={artPagination.totalItems}
+                      startIndex={artPagination.startIndex}
+                      endIndex={artPagination.endIndex}
+                      pageSize={artPagination.pageSize}
+                      onPageChange={artPagination.setPage}
+                      onPageSizeChange={artPagination.setPageSize}
+                      itemLabel="articles"
+                    />
+                  </div>
                 )}
               </div>
             </div>

@@ -21,6 +21,8 @@ import {
 import { useJourneys } from '../hooks/useJourneys';
 import { useEmployees } from '../hooks/useEmployees';
 import { WorkflowRuleItem, WorkflowAction, WorkflowCondition } from '../services/workflow.service';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function Workflows() {
   const [activeTab, setActiveTab] = useState<'rules' | 'logs'>('rules');
@@ -62,6 +64,9 @@ export function Workflows() {
     }
     return true;
   });
+
+  const rulesPagination = usePagination({ data: filteredRules, initialPageSize: 6 });
+  const logsPagination = usePagination({ data: logs, initialPageSize: 10 });
 
   const handleAddCondition = () => {
     setConditions((prev) => [...prev, { field: 'department', operator: 'equals', value: 'Engineering' }]);
@@ -247,89 +252,105 @@ export function Workflows() {
               <p className="text-slate-500 text-sm mt-1">Create automated workflow rules to auto-assign learning paths and operational tasks.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredRules.map((rule) => (
-                <div
-                  key={rule._id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        {getTriggerBadge(rule.triggerType)}
-                        <h3 className="text-lg font-bold mt-2">{rule.name}</h3>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={rule.isActive}
-                          onChange={(e) =>
-                            toggleWorkflowMutation.mutate({ id: rule._id, isActive: e.target.checked })
-                          }
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                      </label>
-                    </div>
-
-                    {rule.description && (
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{rule.description}</p>
-                    )}
-
-                    {/* Conditions Box */}
-                    {rule.conditions && rule.conditions.length > 0 && (
-                      <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl text-xs space-y-1">
-                        <span className="font-semibold text-slate-400 block uppercase tracking-wider">
-                          IF Conditions ({rule.conditions.length})
-                        </span>
-                        {rule.conditions.map((c, i) => (
-                          <div key={i} className="text-slate-600 dark:text-slate-300 font-mono">
-                            • {c.field} {c.operator} "{Array.isArray(c.value) ? c.value.join(', ') : c.value}"
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Actions List */}
-                    <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl text-xs space-y-1.5">
-                      <span className="font-semibold text-slate-400 block uppercase tracking-wider">
-                        THEN Actions Pipeline ({rule.actions.length})
-                      </span>
-                      {rule.actions.map((act, i) => (
-                        <div key={i} className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px]">
-                            {i + 1}
-                          </span>
-                          <span className="font-medium capitalize">{act.type.replace('_', ' ')}</span>
-                          {act.params.taskTitle && <span className="text-slate-500">- "{act.params.taskTitle}"</span>}
-                          {act.params.notificationTitle && <span className="text-slate-500">- "{act.params.notificationTitle}"</span>}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {rulesPagination.paginatedData.map((rule) => (
+                  <div
+                    key={rule._id}
+                    className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          {getTriggerBadge(rule.triggerType)}
+                          <h3 className="text-lg font-bold mt-2">{rule.name}</h3>
                         </div>
-                      ))}
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={rule.isActive}
+                            onChange={(e) =>
+                              toggleWorkflowMutation.mutate({ id: rule._id, isActive: e.target.checked })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                      </div>
+
+                      {rule.description && (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{rule.description}</p>
+                      )}
+
+                      {/* Conditions Box */}
+                      {rule.conditions && rule.conditions.length > 0 && (
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 text-xs space-y-1">
+                          <span className="font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                            Conditions:
+                          </span>
+                          {rule.conditions.map((c, i) => (
+                            <div key={i} className="text-slate-600 dark:text-slate-300 font-mono">
+                              IF <span className="font-semibold">{c.field}</span> {c.operator}{' '}
+                              <span className="text-indigo-600 dark:text-indigo-400">{c.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Actions Box */}
+                      {rule.actions && rule.actions.length > 0 && (
+                        <div className="bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl p-3 text-xs space-y-1 border border-indigo-100 dark:border-indigo-900/30">
+                          <span className="font-semibold text-indigo-500 uppercase tracking-wider block mb-1">
+                            Actions Triggered:
+                          </span>
+                          {rule.actions.map((act, i) => (
+                            <div key={i} className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                              <Zap className="w-3 h-3 text-indigo-500" />
+                              <span className="capitalize">{act.type.replace('_', ' ')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700/60">
+                      <span className="text-xs text-slate-400">
+                        Updated {new Date(rule.updatedAt).toLocaleDateString()}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setTestRunModalRule(rule)}
+                          className="px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded-lg transition-all flex items-center gap-1"
+                        >
+                          <Play className="w-3 h-3" />
+                          Test Run
+                        </button>
+
+                        <button
+                          onClick={() => deleteWorkflowMutation.mutate(rule._id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-all"
+                          title="Delete Rule"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Version v{rule.version}</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setTestRunModalRule(rule)}
-                        className="px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded-lg transition-all flex items-center gap-1"
-                      >
-                        <Play className="w-3 h-3" />
-                        Test Run
-                      </button>
-
-                      <button
-                        onClick={() => deleteWorkflowMutation.mutate(rule._id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-all"
-                        title="Delete Rule"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <SimplePagination
+                currentPage={rulesPagination.page}
+                totalPages={rulesPagination.totalPages}
+                totalItems={rulesPagination.totalItems}
+                startIndex={rulesPagination.startIndex}
+                endIndex={rulesPagination.endIndex}
+                pageSize={rulesPagination.pageSize}
+                onPageChange={rulesPagination.setPage}
+                onPageSizeChange={rulesPagination.setPageSize}
+                itemLabel="rules"
+              />
             </div>
           )
         ) : (
@@ -345,33 +366,49 @@ export function Workflows() {
                 <p>No workflow execution logs found.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-400 uppercase">
-                    <tr>
-                      <th className="p-4">Trigger Event</th>
-                      <th className="p-4">Workflow Rule</th>
-                      <th className="p-4">Target Employee</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4">Steps Executed</th>
-                      <th className="p-4">Executed At</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {logs.map((log) => (
-                      <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
-                        <td className="p-4 font-medium">{getTriggerBadge(log.triggerEvent)}</td>
-                        <td className="p-4 font-medium">{log.workflowRuleId?.name || 'Workflow Rule'}</td>
-                        <td className="p-4">
-                          {log.targetUserId?.profile?.firstName} {log.targetUserId?.profile?.lastName}
-                        </td>
-                        <td className="p-4">{getStatusBadge(log.status)}</td>
-                        <td className="p-4 text-xs font-mono">{log.stepResults?.length || 0} steps</td>
-                        <td className="p-4 text-xs text-slate-400">{new Date(log.executedAt).toLocaleString()}</td>
+              <div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-400 uppercase">
+                      <tr>
+                        <th className="p-4">Trigger Event</th>
+                        <th className="p-4">Workflow Rule</th>
+                        <th className="p-4">Target Employee</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4">Steps Executed</th>
+                        <th className="p-4">Executed At</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {logsPagination.paginatedData.map((log) => (
+                        <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                          <td className="p-4 font-medium">{getTriggerBadge(log.triggerEvent)}</td>
+                          <td className="p-4 font-medium">{log.workflowRuleId?.name || 'Workflow Rule'}</td>
+                          <td className="p-4">
+                            {log.targetUserId?.profile?.firstName} {log.targetUserId?.profile?.lastName}
+                          </td>
+                          <td className="p-4">{getStatusBadge(log.status)}</td>
+                          <td className="p-4 text-xs font-mono">{log.stepResults?.length || 0} steps</td>
+                          <td className="p-4 text-xs text-slate-400">{new Date(log.executedAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3 border-t">
+                  <SimplePagination
+                    currentPage={logsPagination.page}
+                    totalPages={logsPagination.totalPages}
+                    totalItems={logsPagination.totalItems}
+                    startIndex={logsPagination.startIndex}
+                    endIndex={logsPagination.endIndex}
+                    pageSize={logsPagination.pageSize}
+                    onPageChange={logsPagination.setPage}
+                    onPageSizeChange={logsPagination.setPageSize}
+                    itemLabel="logs"
+                  />
+                </div>
               </div>
             )}
           </div>

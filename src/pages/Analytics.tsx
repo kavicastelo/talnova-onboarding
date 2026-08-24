@@ -51,6 +51,8 @@ import {
 import { analyticsService } from '../services/analytics.service';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function Analytics() {
   const [range] = useState('30d');
@@ -65,6 +67,10 @@ export function Analytics() {
   const { data: timeStats } = useTimeToCompletion();
   const { data: bottlenecks } = useAnalyticsBottlenecks();
   const { data: scheduledReports, refetch: refetchReports } = useScheduledReports();
+
+  const bottlenecksPagination = usePagination({ data: bottlenecks?.moduleBottlenecks || [], initialPageSize: 5 });
+  const questionsPagination = usePagination({ data: bottlenecks?.difficultQuestions || [], initialPageSize: 5 });
+  const reportsPagination = usePagination({ data: scheduledReports || [], initialPageSize: 5 });
 
   const createReportMutation = useCreateScheduledReport();
   const deleteReportMutation = useDeleteScheduledReport();
@@ -260,28 +266,43 @@ export function Analytics() {
             {(bottlenecks?.moduleBottlenecks || []).length === 0 ? (
               <div className="p-6 text-center text-muted-foreground text-xs">No quiz bottleneck data recorded yet.</div>
             ) : (
-              <div className="divide-y text-xs">
-                {bottlenecks?.moduleBottlenecks.map((m) => (
-                  <div key={m.moduleId} className="p-3.5 flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold text-foreground">{m.title}</div>
-                      <div className="text-muted-foreground">{m.attempts} total quiz attempt(s)</div>
+              <div>
+                <div className="divide-y text-xs">
+                  {bottlenecksPagination.paginatedData.map((m) => (
+                    <div key={m.moduleId} className="p-3.5 flex justify-between items-center">
+                      <div>
+                        <div className="font-semibold text-foreground">{m.title}</div>
+                        <div className="text-muted-foreground">{m.attempts} total quiz attempt(s)</div>
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant="outline"
+                          className={
+                            m.passRate < 70
+                              ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                              : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                          }
+                        >
+                          {m.passRate}% Pass Rate
+                        </Badge>
+                        <div className="text-muted-foreground mt-0.5">Avg Score: {m.averageScore}%</div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <Badge
-                        variant="outline"
-                        className={
-                          m.passRate < 70
-                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                        }
-                      >
-                        {m.passRate}% Pass Rate
-                      </Badge>
-                      <div className="text-muted-foreground mt-0.5">Avg Score: {m.averageScore}%</div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="p-2 border-t">
+                  <SimplePagination
+                    currentPage={bottlenecksPagination.page}
+                    totalPages={bottlenecksPagination.totalPages}
+                    totalItems={bottlenecksPagination.totalItems}
+                    startIndex={bottlenecksPagination.startIndex}
+                    endIndex={bottlenecksPagination.endIndex}
+                    pageSize={bottlenecksPagination.pageSize}
+                    onPageChange={bottlenecksPagination.setPage}
+                    onPageSizeChange={bottlenecksPagination.setPageSize}
+                    itemLabel="modules"
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -300,18 +321,33 @@ export function Analytics() {
             {(bottlenecks?.difficultQuestions || []).length === 0 ? (
               <div className="p-6 text-center text-muted-foreground text-xs">No difficult question items recorded yet.</div>
             ) : (
-              <div className="divide-y text-xs">
-                {bottlenecks?.difficultQuestions.map((q) => (
-                  <div key={q.questionId} className="p-3.5 flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold text-foreground">{q.questionText}</div>
-                      <div className="text-muted-foreground">{q.attempts} total attempt(s)</div>
+              <div>
+                <div className="divide-y text-xs">
+                  {questionsPagination.paginatedData.map((q) => (
+                    <div key={q.questionId} className="p-3.5 flex justify-between items-center">
+                      <div>
+                        <div className="font-semibold text-foreground">{q.questionText}</div>
+                        <div className="text-muted-foreground">{q.attempts} total attempt(s)</div>
+                      </div>
+                      <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+                        {q.incorrectRate}% Incorrect
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                      {q.incorrectRate}% Incorrect
-                    </Badge>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="p-2 border-t">
+                  <SimplePagination
+                    currentPage={questionsPagination.page}
+                    totalPages={questionsPagination.totalPages}
+                    totalItems={questionsPagination.totalItems}
+                    startIndex={questionsPagination.startIndex}
+                    endIndex={questionsPagination.endIndex}
+                    pageSize={questionsPagination.pageSize}
+                    onPageChange={questionsPagination.setPage}
+                    onPageSizeChange={questionsPagination.setPageSize}
+                    itemLabel="questions"
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -370,7 +406,7 @@ export function Analytics() {
                 <div className="text-xs text-muted-foreground">No active scheduled reports.</div>
               ) : (
                 <div className="space-y-2">
-                  {scheduledReports?.map((r) => (
+                  {reportsPagination.paginatedData.map((r) => (
                     <div key={r._id} className="p-2.5 bg-muted/20 border rounded-md flex justify-between items-center text-xs">
                       <div>
                         <div className="font-semibold">{r.title}</div>
@@ -386,6 +422,17 @@ export function Analytics() {
                       </Button>
                     </div>
                   ))}
+                  <SimplePagination
+                    currentPage={reportsPagination.page}
+                    totalPages={reportsPagination.totalPages}
+                    totalItems={reportsPagination.totalItems}
+                    startIndex={reportsPagination.startIndex}
+                    endIndex={reportsPagination.endIndex}
+                    pageSize={reportsPagination.pageSize}
+                    onPageChange={reportsPagination.setPage}
+                    onPageSizeChange={reportsPagination.setPageSize}
+                    itemLabel="reports"
+                  />
                 </div>
               )}
             </div>

@@ -32,6 +32,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 import { kioskService } from '../features/kiosk/services/kiosk.service';
 import { KioskJourney } from '../types/kiosk/journey.types';
 import { KioskDevice } from '../types/kiosk/device.types';
@@ -45,6 +47,9 @@ export function KioskDashboard() {
   const [journeys, setJourneys] = useState<KioskJourney[]>([]);
   const [devices, setDevices] = useState<KioskDevice[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  const journeysPagination = usePagination({ data: journeys, initialPageSize: 6 });
+  const devicesPagination = usePagination({ data: devices, initialPageSize: 5 });
   
   // Builder integration
   const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
@@ -269,91 +274,105 @@ export function KioskDashboard() {
 
       {/* TAB 1: KIOSK JOURNEYS LIST */}
       {activeTab === 'journeys' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, idx) => (
-              <Card key={idx} className="p-6 space-y-4 animate-pulse">
-                <div className="h-5 w-2/3 bg-slate-200 rounded" />
-                <div className="h-4 w-1/2 bg-slate-100 rounded" />
-                <div className="pt-4 border-t flex justify-between">
-                  <div className="h-6 w-12 bg-slate-150 rounded" />
-                  <div className="h-6 w-20 bg-slate-150 rounded" />
-                </div>
-              </Card>
-            ))
-          ) : journeys.length === 0 ? (
-            <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
-              <Map className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-              <h3 className="font-semibold text-slate-700">No Kiosk Journeys</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Create a new visual multi-lingual onboarding layout to launch interactive kiosks for employees.
-              </p>
-              <Button variant="default" size="sm" onClick={() => setCreateModalOpen(true)} className="mt-4">
-                Create First Journey
-              </Button>
-            </div>
-          ) : (
-            journeys.map((journey) => (
-              <Card key={journey._id} className="p-6 flex flex-col justify-between hover:shadow-lg transition border border-slate-200/80">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-bold text-slate-800 truncate pr-2 text-base" title={journey.title}>
-                      {journey.title}
-                    </h3>
-                    <Badge variant={journey.publishing?.status === 'published' ? 'default' : 'secondary'} className="capitalize text-[10px]">
-                      {journey.publishing?.status || 'draft'}
-                    </Badge>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, idx) => (
+                <Card key={idx} className="p-6 space-y-4 animate-pulse">
+                  <div className="h-5 w-2/3 bg-slate-200 rounded" />
+                  <div className="h-4 w-1/2 bg-slate-100 rounded" />
+                  <div className="pt-4 border-t flex justify-between">
+                    <div className="h-6 w-12 bg-slate-150 rounded" />
+                    <div className="h-6 w-20 bg-slate-150 rounded" />
                   </div>
-                  <p className="text-xs text-slate-500 line-clamp-2 min-h-[2rem]">
-                    {journey.description || 'No description provided.'}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {journey.languages?.map((lang) => (
-                      <span key={lang} className="text-[10px] font-bold bg-slate-100 border text-slate-600 px-2 py-0.5 rounded uppercase">
-                        {lang}
+                </Card>
+              ))
+            ) : journeys.length === 0 ? (
+              <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+                <Map className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                <h3 className="font-semibold text-slate-700">No Kiosk Journeys</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  Create a new visual multi-lingual onboarding layout to launch interactive kiosks for employees.
+                </p>
+                <Button variant="default" size="sm" onClick={() => setCreateModalOpen(true)} className="mt-4">
+                  Create First Journey
+                </Button>
+              </div>
+            ) : (
+              journeysPagination.paginatedData.map((journey) => (
+                <Card key={journey._id} className="p-6 flex flex-col justify-between hover:shadow-lg transition border border-slate-200/80">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-bold text-slate-800 truncate pr-2 text-base" title={journey.title}>
+                        {journey.title}
+                      </h3>
+                      <Badge variant={journey.publishing?.status === 'published' ? 'default' : 'secondary'} className="capitalize text-[10px]">
+                        {journey.publishing?.status || 'draft'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-500 line-clamp-2 min-h-[2rem]">
+                      {journey.description || 'No description provided.'}
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {journey.languages?.map((lang) => (
+                        <span key={lang} className="text-[10px] font-bold bg-slate-100 border text-slate-600 px-2 py-0.5 rounded uppercase">
+                          {lang}
+                        </span>
+                      ))}
+                      <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                        {journey.steps?.length || 0} Steps
                       </span>
-                    ))}
-                    <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
-                      {journey.steps?.length || 0} Steps
-                    </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between">
-                  <div className="text-[10px] text-slate-400 flex items-center">
-                    <Clock className="w-3 h-3 mr-1" />
-                    <span>v{journey.publishing?.version || 1}</span>
+                  <div className="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-400 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      <span>v{journey.publishing?.version || 1}</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <button
+                        onClick={() => setEditingJourneyId(journey._id)}
+                        className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
+                        title="Edit Journey"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={`/kiosk/play/${journey._id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
+                        title="Launch Player Preview"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <button
+                        onClick={() => handleDeleteJourney(journey._id)}
+                        className="p-1.5 rounded hover:bg-slate-100 text-rose-500 hover:bg-rose-50/50 transition"
+                        title="Delete Journey"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-1.5">
-                    <button
-                      onClick={() => setEditingJourneyId(journey._id)}
-                      className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
-                      title="Edit Journey"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <a
-                      href={`/kiosk/play/${journey._id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
-                      title="Launch Player Preview"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <button
-                      onClick={() => handleDeleteJourney(journey._id)}
-                      className="p-1.5 rounded hover:bg-slate-100 text-rose-500 hover:bg-rose-50/50 transition"
-                      title="Delete Journey"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
+                </Card>
+              ))
+            )}
+          </div>
+
+          <SimplePagination
+            currentPage={journeysPagination.page}
+            totalPages={journeysPagination.totalPages}
+            totalItems={journeysPagination.totalItems}
+            startIndex={journeysPagination.startIndex}
+            endIndex={journeysPagination.endIndex}
+            pageSize={journeysPagination.pageSize}
+            onPageChange={journeysPagination.setPage}
+            onPageSizeChange={journeysPagination.setPageSize}
+            itemLabel="journeys"
+          />
         </div>
       )}
 
@@ -413,117 +432,133 @@ export function KioskDashboard() {
                 <p className="text-xs text-slate-400 mt-0.5">Device registration starts on physical hardware using pairing pins.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {devices.map((device) => {
-                  const linkedJourney = journeys.find(j => j._id === device.currentJourneyId);
-                  const isOnline = device.status === 'online';
-                  
-                  return (
-                    <div key={device._id} className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-slate-50/50 transition">
-                      
-                      {/* Name & Placement Details */}
-                      <div className="space-y-1.5 max-w-sm">
-                        <div className="flex items-center space-x-2">
-                          <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-md shadow-emerald-400/50' : 'bg-slate-300'}`} />
-                          <h4 className="font-bold text-slate-800 text-sm">{device.name}</h4>
-                          <Badge variant={isOnline ? 'default' : 'secondary'} className="text-[9px] py-0">
-                            {device.status}
-                          </Badge>
+              <div>
+                <div className="divide-y divide-slate-100">
+                  {devicesPagination.paginatedData.map((device) => {
+                    const linkedJourney = journeys.find(j => j._id === device.currentJourneyId);
+                    const isOnline = device.status === 'online';
+                    
+                    return (
+                      <div key={device._id} className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-slate-50/50 transition">
+                        
+                        {/* Name & Placement Details */}
+                        <div className="space-y-1.5 max-w-sm">
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-md shadow-emerald-400/50' : 'bg-slate-300'}`} />
+                            <h4 className="font-bold text-slate-800 text-sm">{device.name}</h4>
+                            <Badge variant={isOnline ? 'default' : 'secondary'} className="text-[9px] py-0">
+                              {device.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-500 flex items-center">
+                            <span className="font-semibold text-slate-600 mr-1.5">{device.location}</span>
+                            <span className="text-slate-300">|</span>
+                            <span className="font-mono text-[10px] ml-1.5 text-slate-400 truncate max-w-[120px]" title={device.deviceId}>
+                              ID: {device.deviceId}
+                            </span>
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-500 flex items-center">
-                          <span className="font-semibold text-slate-600 mr-1.5">{device.location}</span>
-                          <span className="text-slate-300">|</span>
-                          <span className="font-mono text-[10px] ml-1.5 text-slate-400 truncate max-w-[120px]" title={device.deviceId}>
-                            ID: {device.deviceId}
-                          </span>
-                        </p>
-                      </div>
 
-                      {/* Linked Content Journey */}
-                      <div className="flex flex-col space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Journey</span>
+                        {/* Linked Content Journey */}
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Journey</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-semibold text-slate-700">
+                              {linkedJourney ? linkedJourney.title : <span className="text-slate-400 italic">No journey paired</span>}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setSelectedDevice(device);
+                                setPairJourneyId(device.currentJourneyId || 'unpair');
+                                setPairModalOpen(true);
+                              }}
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition"
+                            >
+                              Link...
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Telemetry metrics dashboard */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
+                          <div className="flex items-center space-x-2">
+                            <Battery className="w-4 h-4 text-slate-500" />
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">Battery</span>
+                              <span className="text-xs font-semibold text-slate-700">
+                                {device.telemetry?.batteryLevel !== undefined ? `${Math.round(device.telemetry.batteryLevel * 100)}%` : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <HardDrive className="w-4 h-4 text-slate-500" />
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">Free Space</span>
+                              <span className="text-xs font-semibold text-slate-700">
+                                {device.telemetry?.storageFreeBytes !== undefined 
+                                  ? `${(device.telemetry.storageFreeBytes / 1024 / 1024 / 1024).toFixed(1)} GB` 
+                                  : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Wifi className="w-4 h-4 text-slate-500" />
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">Latency</span>
+                              <span className="text-xs font-semibold text-slate-700">
+                                {device.telemetry?.networkLatencyMs !== undefined ? `${device.telemetry.networkLatencyMs}ms` : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Cpu className="w-4 h-4 text-slate-500" />
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">App version</span>
+                              <span className="text-xs font-mono font-semibold text-slate-700">
+                                {device.telemetry?.appVersion || 'v1.0.0'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dispatch panel admin command actions */}
                         <div className="flex items-center space-x-2">
-                          <span className="text-xs font-semibold text-slate-700">
-                            {linkedJourney ? linkedJourney.title : <span className="text-slate-400 italic">No journey paired</span>}
-                          </span>
                           <button
-                            onClick={() => {
-                              setSelectedDevice(device);
-                              setPairJourneyId(device.currentJourneyId || 'unpair');
-                              setPairModalOpen(true);
-                            }}
-                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition"
+                            onClick={() => handleDispatchCommand(device._id, 'refresh_cache')}
+                            className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
+                            title="Refresh cached local content"
                           >
-                            Link...
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Sync Cache</span>
+                          </button>
+                          <button
+                            onClick={() => handleDispatchCommand(device._id, 'restart_app')}
+                            className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
+                            title="Restart physical screen app wrapper"
+                          >
+                            <Zap className="w-3 h-3 text-amber-500" />
+                            <span>Restart</span>
                           </button>
                         </div>
-                      </div>
 
-                      {/* Telemetry metrics dashboard */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
-                        <div className="flex items-center space-x-2">
-                          <Battery className="w-4 h-4 text-slate-500" />
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-450 uppercase font-bold">Battery</span>
-                            <span className="text-xs font-semibold text-slate-700">
-                              {device.telemetry?.batteryLevel !== undefined ? `${Math.round(device.telemetry.batteryLevel * 100)}%` : 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <HardDrive className="w-4 h-4 text-slate-500" />
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-450 uppercase font-bold">Free Space</span>
-                            <span className="text-xs font-semibold text-slate-700">
-                              {device.telemetry?.storageFreeBytes !== undefined 
-                                ? `${(device.telemetry.storageFreeBytes / 1024 / 1024 / 1024).toFixed(1)} GB` 
-                                : 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Wifi className="w-4 h-4 text-slate-500" />
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-450 uppercase font-bold">Latency</span>
-                            <span className="text-xs font-semibold text-slate-700">
-                              {device.telemetry?.networkLatencyMs !== undefined ? `${device.telemetry.networkLatencyMs}ms` : 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Cpu className="w-4 h-4 text-slate-500" />
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-450 uppercase font-bold">App version</span>
-                            <span className="text-xs font-mono font-semibold text-slate-700">
-                              {device.telemetry?.appVersion || 'v1.0.0'}
-                            </span>
-                          </div>
-                        </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {/* Dispatch panel admin command actions */}
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleDispatchCommand(device._id, 'refresh_cache')}
-                          className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
-                          title="Refresh cached local content"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>Sync Cache</span>
-                        </button>
-                        <button
-                          onClick={() => handleDispatchCommand(device._id, 'restart_app')}
-                          className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
-                          title="Restart physical screen app wrapper"
-                        >
-                          <Zap className="w-3 h-3 text-amber-500" />
-                          <span>Restart</span>
-                        </button>
-                      </div>
-
-                    </div>
-                  );
-                })}
+                <div className="p-3 border-t">
+                  <SimplePagination
+                    currentPage={devicesPagination.page}
+                    totalPages={devicesPagination.totalPages}
+                    totalItems={devicesPagination.totalItems}
+                    startIndex={devicesPagination.startIndex}
+                    endIndex={devicesPagination.endIndex}
+                    pageSize={devicesPagination.pageSize}
+                    onPageChange={devicesPagination.setPage}
+                    onPageSizeChange={devicesPagination.setPageSize}
+                    itemLabel="terminals"
+                  />
+                </div>
               </div>
             )}
           </Card>

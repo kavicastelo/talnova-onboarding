@@ -9,7 +9,6 @@ import {
   Calendar,
   Send,
   FileSpreadsheet,
-  Search,
   UserX,
   FileText
 } from 'lucide-react';
@@ -35,6 +34,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const HROperations: React.FC = () => {
   const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
@@ -71,6 +72,10 @@ export const HROperations: React.FC = () => {
       e.email.toLowerCase().includes(search.toLowerCase()) ||
       (e.department || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const empPagination = usePagination({ data: filteredEmployees, initialPageSize: 10 });
+  const excPagination = usePagination({ data: exceptions || [], initialPageSize: 5 });
+  const compPagination = usePagination({ data: complianceReport || [], initialPageSize: 10 });
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -262,180 +267,221 @@ export const HROperations: React.FC = () => {
           ) : (exceptions || []).length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">✅ No onboarding exceptions flagged. All compliance tasks are on track!</div>
           ) : (
-            <div className="divide-y">
-              {exceptions?.map((exc) => (
-                <div
-                  key={exc.employee._id}
-                  className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
-                >
-                  <div className="space-y-1">
+            <div>
+              <div className="divide-y">
+                {excPagination.paginatedData.map((exc) => (
+                  <div
+                    key={exc.employee._id}
+                    className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm">{exc.employee.name}</h4>
+                        <span className="text-xs text-muted-foreground">({exc.employee.department} • {exc.employee.email})</span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            exc.riskLevel === 'critical'
+                              ? 'bg-red-500/10 text-red-600 border-red-500/20 text-[10px]'
+                              : exc.riskLevel === 'high'
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]'
+                              : 'bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]'
+                          }
+                        >
+                          {exc.riskLevel.toUpperCase()} RISK
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {exc.issues.map((issue, idx) => (
+                          <span key={idx} className="text-xs text-red-600 font-medium bg-red-500/10 px-2 py-0.5 rounded">
+                            ⚠️ {issue}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-sm">{exc.employee.name}</h4>
-                      <span className="text-xs text-muted-foreground">({exc.employee.department} • {exc.employee.email})</span>
-                      <Badge
+                      <Button
                         variant="outline"
-                        className={
-                          exc.riskLevel === 'critical'
-                            ? 'bg-red-500/10 text-red-600 border-red-500/20 text-[10px]'
-                            : exc.riskLevel === 'high'
-                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]'
-                            : 'bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]'
-                        }
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          setActiveEmpUser({ id: exc.employee._id, name: exc.employee.name });
+                          setIsExtendModalOpen(true);
+                        }}
                       >
-                        {exc.riskLevel.toUpperCase()} RISK
-                      </Badge>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {exc.issues.map((issue, idx) => (
-                        <span key={idx} className="text-xs text-red-600 font-medium bg-red-500/10 px-2 py-0.5 rounded">
-                          ⚠️ {issue}
-                        </span>
-                      ))}
+                        <Calendar className="h-3.5 w-3.5 mr-1" /> Extend Due Date
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs text-amber-600 hover:text-amber-700"
+                        onClick={() => {
+                          setActiveEmpUser({ id: exc.employee._id, name: exc.employee.name });
+                          setIsPauseModalOpen(true);
+                        }}
+                      >
+                        <Pause className="h-3.5 w-3.5 mr-1" /> Pause
+                      </Button>
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => {
-                        setActiveEmpUser({ id: exc.employee._id, name: exc.employee.name });
-                        setIsExtendModalOpen(true);
-                      }}
-                    >
-                      <Calendar className="h-3.5 w-3.5 mr-1" /> Extend Due Date
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs text-amber-600 hover:text-amber-700"
-                      onClick={() => {
-                        setActiveEmpUser({ id: exc.employee._id, name: exc.employee.name });
-                        setIsPauseModalOpen(true);
-                      }}
-                    >
-                      <Pause className="h-3.5 w-3.5 mr-1" /> Pause
-                    </Button>
-                  </div>
-                </div>
-              ))}
+              <div className="p-3 border-t">
+                <SimplePagination
+                  currentPage={excPagination.page}
+                  totalPages={excPagination.totalPages}
+                  totalItems={excPagination.totalItems}
+                  startIndex={excPagination.startIndex}
+                  endIndex={excPagination.endIndex}
+                  pageSize={excPagination.pageSize}
+                  onPageChange={excPagination.setPage}
+                  onPageSizeChange={excPagination.setPageSize}
+                  itemLabel="exceptions"
+                />
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Employee Lifecycle Operations Roster */}
+      {/* Employee Lifecycle Operations Directory */}
       <Card>
-        <CardHeader className="pb-3 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <CardTitle className="text-base font-semibold">Employee Lifecycle Operations Roster</CardTitle>
-            <CardDescription>Manage active, paused, or completed employee onboarding states.</CardDescription>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search employee..."
-              className="pl-8 text-xs"
-              value={search}
-              onChange={(e: any) => setSearch(e.target.value)}
-            />
+        <CardHeader className="pb-3 border-b">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-600" />
+                Employee Onboarding Lifecycle Directory
+              </CardTitle>
+              <CardDescription>Manage active onboarding progress, pause states, and lifecycle timeline extensions.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Input
+                placeholder="Search employees..."
+                value={search}
+                onChange={(e: any) => setSearch(e.target.value)}
+                className="h-9 w-full sm:w-64"
+              />
+              {selectedEmpIds.length > 0 && (
+                <Button size="sm" onClick={() => setIsBulkModalOpen(true)}>
+                  Bulk Actions ({selectedEmpIds.length})
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {employeesLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading employee roster...</div>
+            <div className="p-8 text-center text-muted-foreground">Loading employee directory...</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/40 text-xs text-muted-foreground border-b uppercase">
-                  <tr>
-                    <th className="p-3 w-10">
-                      <input
-                        type="checkbox"
-                        className="rounded"
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        checked={selectedEmpIds.length === filteredEmployees.length && filteredEmployees.length > 0}
-                      />
-                    </th>
-                    <th className="p-3 font-semibold">Employee</th>
-                    <th className="p-3 font-semibold">Department</th>
-                    <th className="p-3 font-semibold">Onboarding State</th>
-                    <th className="p-3 font-semibold text-right">Lifecycle Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredEmployees.map((emp: any) => (
-                    <tr key={emp.id} className="hover:bg-muted/10 transition-colors">
-                      <td className="p-3">
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/40 text-xs text-muted-foreground border-b uppercase">
+                    <tr>
+                      <th className="p-3 w-10">
                         <input
                           type="checkbox"
                           className="rounded"
-                          checked={selectedEmpIds.includes(emp.id)}
-                          onChange={() => handleToggleSelect(emp.id)}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          checked={selectedEmpIds.length === filteredEmployees.length && filteredEmployees.length > 0}
                         />
-                      </td>
-                      <td className="p-3">
-                        <div className="font-semibold text-foreground">{emp.name}</div>
-                        <div className="text-xs text-muted-foreground">{emp.email}</div>
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground">{emp.department || 'General'}</td>
-                      <td className="p-3">
-                        <Badge
-                          variant="outline"
-                          className={
-                            emp.onboardingState === 'paused'
-                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs'
-                              : emp.onboardingState === 'completed'
-                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs'
-                              : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-xs'
-                          }
-                        >
-                          {(emp.onboardingState || 'active').toUpperCase()}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          {emp.onboardingState === 'paused' ? (
+                      </th>
+                      <th className="p-3 font-semibold">Employee</th>
+                      <th className="p-3 font-semibold">Department</th>
+                      <th className="p-3 font-semibold">Onboarding State</th>
+                      <th className="p-3 font-semibold text-right">Lifecycle Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {empPagination.paginatedData.map((emp: any) => (
+                      <tr key={emp.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            className="rounded"
+                            checked={selectedEmpIds.includes(emp.id)}
+                            onChange={() => handleToggleSelect(emp.id)}
+                          />
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-foreground">{emp.name}</div>
+                          <div className="text-xs text-muted-foreground">{emp.email}</div>
+                        </td>
+                        <td className="p-3 text-xs text-muted-foreground">{emp.department || 'General'}</td>
+                        <td className="p-3">
+                          <Badge
+                            variant="outline"
+                            className={
+                              emp.onboardingState === 'paused'
+                                ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs'
+                                : emp.onboardingState === 'completed'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs'
+                                : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-xs'
+                            }
+                          >
+                            {(emp.onboardingState || 'active').toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            {emp.onboardingState === 'paused' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-emerald-600"
+                                onClick={() => handleResumeOnboarding(emp)}
+                              >
+                                <Play className="h-3 w-3 mr-1" /> Resume
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-amber-600"
+                                onClick={() => {
+                                  setActiveEmpUser(emp);
+                                  setIsPauseModalOpen(true);
+                                }}
+                              >
+                                <Pause className="h-3 w-3 mr-1" /> Pause
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-xs text-emerald-600"
-                              onClick={() => handleResumeOnboarding(emp)}
-                            >
-                              <Play className="h-3 w-3 mr-1" /> Resume
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs text-amber-600"
+                              className="text-xs"
                               onClick={() => {
                                 setActiveEmpUser(emp);
-                                setIsPauseModalOpen(true);
+                                setIsExtendModalOpen(true);
                               }}
                             >
-                              <Pause className="h-3 w-3 mr-1" /> Pause
+                              <Calendar className="h-3 w-3 mr-1" /> Extend
                             </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => {
-                              setActiveEmpUser(emp);
-                              setIsExtendModalOpen(true);
-                            }}
-                          >
-                            <Calendar className="h-3 w-3 mr-1" /> Extend
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-3 border-t">
+                <SimplePagination
+                  currentPage={empPagination.page}
+                  totalPages={empPagination.totalPages}
+                  totalItems={empPagination.totalItems}
+                  startIndex={empPagination.startIndex}
+                  endIndex={empPagination.endIndex}
+                  pageSize={empPagination.pageSize}
+                  onPageChange={empPagination.setPage}
+                  onPageSizeChange={empPagination.setPageSize}
+                  itemLabel="employees"
+                />
+              </div>
             </div>
           )}
         </CardContent>
@@ -580,7 +626,7 @@ export const HROperations: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {(complianceReport || []).map((row) => (
+                {compPagination.paginatedData.map((row) => (
                   <tr key={row.employeeId}>
                     <td className="p-2 font-medium">{row.name} ({row.email})</td>
                     <td className="p-2 text-muted-foreground">{row.department}</td>
@@ -590,6 +636,19 @@ export const HROperations: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            <div className="pt-2 border-t">
+              <SimplePagination
+                currentPage={compPagination.page}
+                totalPages={compPagination.totalPages}
+                totalItems={compPagination.totalItems}
+                startIndex={compPagination.startIndex}
+                endIndex={compPagination.endIndex}
+                pageSize={compPagination.pageSize}
+                onPageChange={compPagination.setPage}
+                onPageSizeChange={compPagination.setPageSize}
+                itemLabel="records"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>

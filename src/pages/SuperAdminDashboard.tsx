@@ -1,6 +1,8 @@
 import { Building2, Users, ShieldCheck, Activity, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 import { useSuperAdminTelemetry, useSuperAdminActivityLogs } from '../hooks/useSuperAdmin';
 import {
   AreaChart,
@@ -23,11 +25,13 @@ export function SuperAdminDashboard() {
   } = useSuperAdminTelemetry();
 
   const { 
-    data: logs, 
+    data: systemLogs = [], 
     isLoading: logsLoading, 
-    isError: logsError, 
+    isError: logsError,
     refetch: refetchLogs 
   } = useSuperAdminActivityLogs();
+
+  const logsPagination = usePagination({ data: systemLogs, initialPageSize: 5 });
 
   const isLoading = telemetryLoading || logsLoading;
   const isError = telemetryError || logsError;
@@ -96,7 +100,6 @@ export function SuperAdminDashboard() {
 
   const stats = telemetry?.stats;
   const growthData = telemetry?.growthData || [];
-  const systemLogs = logs || [];
 
   return (
     <div className="space-y-6 text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
@@ -201,7 +204,7 @@ export function SuperAdminDashboard() {
             <h3 className="text-lg font-semibold text-white">Cross-Tenant Activity</h3>
           </div>
           <div className="space-y-4">
-            {systemLogs.map((log) => (
+            {logsPagination.paginatedData.map((log) => (
               <div key={log.id} className="flex items-start gap-3 border-b border-white/5 pb-3.5 last:border-0 last:pb-0">
                 <div className={`mt-0.5 rounded-full p-1.5 ${
                   log.type === 'finance' ? 'bg-amber-500/10 text-amber-400' :
@@ -224,6 +227,18 @@ export function SuperAdminDashboard() {
                 No activity logs available.
               </div>
             )}
+
+            <SimplePagination
+              currentPage={logsPagination.page}
+              totalPages={logsPagination.totalPages}
+              totalItems={logsPagination.totalItems}
+              startIndex={logsPagination.startIndex}
+              endIndex={logsPagination.endIndex}
+              pageSize={logsPagination.pageSize}
+              onPageChange={logsPagination.setPage}
+              onPageSizeChange={logsPagination.setPageSize}
+              itemLabel="logs"
+            />
           </div>
         </Card>
       </div>

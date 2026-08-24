@@ -22,11 +22,15 @@ import {
   useAwardPoints
 } from '../hooks/useGamification';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function Leaderboard() {
   const { data: profile, isLoading: isProfileLoading } = useGamificationProfile();
   const { data: leaderboard, isLoading: isLeaderboardLoading } = useLeaderboard();
   const awardPointsMutation = useAwardPoints();
+
+  const leaderboardPagination = usePagination({ data: leaderboard || [], initialPageSize: 10 });
 
   const currentLevel = profile?.level || 1;
   const currentPoints = profile?.points || 0;
@@ -201,7 +205,7 @@ export function Leaderboard() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {(leaderboard || []).map((row) => (
+                {leaderboardPagination.paginatedData.map((row) => (
                   <tr key={row.userId} className="hover:bg-muted/20">
                     <td className="py-3 px-3 font-bold text-muted-foreground">#{row.rank}</td>
                     <td className="py-3 px-3">
@@ -222,6 +226,20 @@ export function Leaderboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="pt-3 border-t">
+            <SimplePagination
+              currentPage={leaderboardPagination.page}
+              totalPages={leaderboardPagination.totalPages}
+              totalItems={leaderboardPagination.totalItems}
+              startIndex={leaderboardPagination.startIndex}
+              endIndex={leaderboardPagination.endIndex}
+              pageSize={leaderboardPagination.pageSize}
+              onPageChange={leaderboardPagination.setPage}
+              onPageSizeChange={leaderboardPagination.setPageSize}
+              itemLabel="learners"
+            />
           </div>
         </CardContent>
       </Card>

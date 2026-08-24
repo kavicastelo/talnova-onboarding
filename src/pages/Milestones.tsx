@@ -7,8 +7,7 @@ import {
   UserCheck,
   Star,
   Plus,
-  Building2,
-  FileCheck
+  Building2
 } from 'lucide-react';
 import {
   useMyMilestones,
@@ -31,6 +30,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const Milestones: React.FC = () => {
   const { role, can } = useRole();
@@ -57,6 +58,10 @@ export const Milestones: React.FC = () => {
   const { data: myMilestones, isLoading: myLoading, refetch: refetchMy } = useMyMilestones();
   const { data: teamMilestones, isLoading: teamLoading, refetch: refetchTeam } = useTeamMilestones();
   const { data: templates, isLoading: templatesLoading } = useMilestoneTemplates();
+
+  const myPagination = usePagination({ data: myMilestones || [], initialPageSize: 6 });
+  const teamPagination = usePagination({ data: teamMilestones || [], initialPageSize: 6 });
+  const templatesPagination = usePagination({ data: templates || [], initialPageSize: 6 });
 
   const submitSelfCheckinMutation = useSubmitSelfCheckin();
   const submitManagerReviewMutation = useSubmitManagerReview();
@@ -230,104 +235,119 @@ export const Milestones: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {myMilestones?.map((m) => {
-                const completedGoalsCount = m.goalsProgress?.filter((g) => g.completed).length || 0;
-                const totalGoalsCount = m.goalsProgress?.length || 1;
-                const progressPct = Math.round((completedGoalsCount / totalGoalsCount) * 100);
+              <div className="space-y-6">
+                {myPagination.paginatedData.map((m) => {
+                  const completedGoalsCount = m.goalsProgress?.filter((g) => g.completed).length || 0;
+                  const totalGoalsCount = m.goalsProgress?.length || 1;
+                  const progressPct = Math.round((completedGoalsCount / totalGoalsCount) * 100);
 
-                return (
-                  <Card key={m._id} className="hover:border-indigo-500/40 transition-all">
-                    <CardHeader className="pb-3 border-b">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <div className="flex items-center gap-3">
-                          <Badge className="bg-indigo-600 text-white font-bold px-3 py-1 text-sm">
-                            Day {m.targetDay}
-                          </Badge>
+                  return (
+                    <Card key={m._id} className="hover:border-indigo-500/40 transition-all">
+                      <CardHeader className="pb-3 border-b">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                          <div className="flex items-center gap-3">
+                            <Badge className="bg-indigo-600 text-white font-bold px-3 py-1 text-sm">
+                              Day {m.targetDay}
+                            </Badge>
+                            <div>
+                              <CardTitle className="text-base font-semibold">{m.milestoneTitle}</CardTitle>
+                              <CardDescription className="text-xs">
+                                Target Due Date: {new Date(m.dueDate).toLocaleDateString()}
+                              </CardDescription>
+                            </div>
+                          </div>
+
                           <div>
-                            <CardTitle className="text-base font-semibold">{m.milestoneTitle}</CardTitle>
-                            <CardDescription className="text-xs">
-                              Target Due Date: {new Date(m.dueDate).toLocaleDateString()}
-                            </CardDescription>
+                            {m.status === 'completed' && (
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Milestone Completed & Approved
+                              </Badge>
+                            )}
+                            {m.status === 'in_review' && (
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                <Clock className="h-3.5 w-3.5 mr-1" /> Pending Manager Review
+                              </Badge>
+                            )}
+                            {m.status === 'pending' && (
+                              <Badge variant="outline" className="bg-slate-500/10 text-slate-600 border-slate-500/20">
+                                In Progress
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="p-6 space-y-6">
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>Milestone Goals Progress</span>
+                            <span>
+                              {completedGoalsCount} of {totalGoalsCount} Goals ({progressPct}%)
+                            </span>
+                          </div>
+                          <Progress value={progressPct} className="h-2" />
+                        </div>
+
+                        {/* Goals List */}
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Key Objectives & Goals</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {m.goalsProgress?.map((g, idx) => (
+                              <div key={idx} className="p-2.5 border rounded-md text-xs flex items-center justify-between bg-card">
+                                <span>{g.goalTitle}</span>
+                                {g.completed ? (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                                ) : (
+                                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
 
-                        <div>
-                          {m.status === 'completed' && (
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Milestone Completed & Approved
-                            </Badge>
-                          )}
-                          {m.status === 'in_review' && (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                              <Clock className="h-3.5 w-3.5 mr-1" /> Pending Manager Review
-                            </Badge>
-                          )}
-                          {m.status === 'pending' && (
-                            <Badge variant="outline" className="bg-slate-500/10 text-slate-600 border-slate-500/20">
-                              In Progress
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
+                        {/* Manager Feedback section if completed */}
+                        {m.managerReview && m.managerReview.feedback && (
+                          <div className="p-4 border rounded-lg bg-indigo-50/20 text-xs space-y-1">
+                            <span className="font-semibold text-indigo-700 flex items-center gap-1">
+                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Manager Feedback (Rating: {m.managerReview.performanceRating || 5}/5):
+                            </span>
+                            <p className="text-slate-700 italic">"{m.managerReview.feedback}"</p>
+                          </div>
+                        )}
 
-                    <CardContent className="p-6 space-y-6">
-                      {/* Progress Bar */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-semibold">
-                          <span>Milestone Goals Progress</span>
-                          <span>
-                            {completedGoalsCount} of {totalGoalsCount} Goals ({progressPct}%)
-                          </span>
-                        </div>
-                        <Progress value={progressPct} className="h-2" />
-                      </div>
+                        {/* Action Button */}
+                        {m.status === 'pending' && (
+                          <div className="pt-2 flex justify-end">
+                            <Button
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                              onClick={() => {
+                                setSelectedMilestone(m);
+                                setCompletedGoals(m.goalsProgress?.filter((g) => g.completed).map((g) => g.goalTitle) || []);
+                                setIsSelfCheckinOpen(true);
+                              }}
+                            >
+                              Submit Self Check-In
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
 
-                      {/* Goals List */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase">Key Objectives & Goals</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {m.goalsProgress?.map((g, idx) => (
-                            <div key={idx} className="p-2.5 border rounded-md text-xs flex items-center justify-between bg-card">
-                              <span>{g.goalTitle}</span>
-                              {g.completed ? (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                              ) : (
-                                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Manager Feedback section if completed */}
-                      {m.managerReview && m.managerReview.feedback && (
-                        <div className="p-4 border rounded-lg bg-indigo-50/20 text-xs space-y-1">
-                          <span className="font-semibold text-indigo-700 flex items-center gap-1">
-                            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Manager Feedback (Rating: {m.managerReview.performanceRating || 5}/5):
-                          </span>
-                          <p className="text-slate-700 italic">"{m.managerReview.feedback}"</p>
-                        </div>
-                      )}
-
-                      {/* Action Button */}
-                      {m.status === 'pending' && (
-                        <div className="flex justify-end pt-2">
-                          <Button
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
-                            onClick={() => {
-                              setSelectedMilestone(m);
-                              setIsSelfCheckinOpen(true);
-                            }}
-                          >
-                            <FileCheck className="h-4 w-4 mr-1.5" /> Complete Self Check-In
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              <SimplePagination
+                currentPage={myPagination.page}
+                totalPages={myPagination.totalPages}
+                totalItems={myPagination.totalItems}
+                startIndex={myPagination.startIndex}
+                endIndex={myPagination.endIndex}
+                pageSize={myPagination.pageSize}
+                onPageChange={myPagination.setPage}
+                onPageSizeChange={myPagination.setPageSize}
+                itemLabel="milestones"
+              />
             </div>
           )}
         </div>
@@ -346,51 +366,67 @@ export const Milestones: React.FC = () => {
             ) : (teamMilestones || []).length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">No direct report milestones requiring review.</div>
             ) : (
-              <div className="divide-y">
-                {teamMilestones?.map((m) => {
-                  const empName = m.employeeId?.profile
-                    ? `${m.employeeId.profile.firstName || ''} ${m.employeeId.profile.lastName || ''}`
-                    : 'Employee';
+              <div>
+                <div className="divide-y">
+                  {teamPagination.paginatedData.map((m) => {
+                    const empName = m.employeeId?.profile
+                      ? `${m.employeeId.profile.firstName || ''} ${m.employeeId.profile.lastName || ''}`
+                      : 'Employee';
 
-                  return (
-                    <div key={m._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-sm">{empName}</h4>
-                          <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
-                            Day {m.targetDay}
-                          </Badge>
+                    return (
+                      <div key={m._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-sm">{empName}</h4>
+                            <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                              Day {m.targetDay}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {m.milestoneTitle} | Target Due: {new Date(m.dueDate).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {m.milestoneTitle} | Target Due: {new Date(m.dueDate).toLocaleDateString()}
-                        </p>
-                      </div>
 
-                      <div className="flex items-center gap-3">
-                        {m.status === 'completed' ? (
-                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                            Approved (Rating: {m.managerReview?.performanceRating || 5}/5)
-                          </Badge>
-                        ) : m.status === 'in_review' ? (
-                          <Button
-                            size="sm"
-                            className="bg-amber-600 hover:bg-amber-700 text-white text-xs"
-                            onClick={() => {
-                              setSelectedMilestone(m);
-                              setIsManagerReviewOpen(true);
-                            }}
-                          >
-                            Review & Approve Check-In
-                          </Button>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Self Check-in Pending
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {m.status === 'completed' ? (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              Approved (Rating: {m.managerReview?.performanceRating || 5}/5)
+                            </Badge>
+                          ) : m.status === 'in_review' ? (
+                            <Button
+                              size="sm"
+                              className="bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                              onClick={() => {
+                                setSelectedMilestone(m);
+                                setIsManagerReviewOpen(true);
+                              }}
+                            >
+                              Review & Approve Check-In
+                            </Button>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Self Check-in Pending
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                <div className="p-3 border-t">
+                  <SimplePagination
+                    currentPage={teamPagination.page}
+                    totalPages={teamPagination.totalPages}
+                    totalItems={teamPagination.totalItems}
+                    startIndex={teamPagination.startIndex}
+                    endIndex={teamPagination.endIndex}
+                    pageSize={teamPagination.pageSize}
+                    onPageChange={teamPagination.setPage}
+                    onPageSizeChange={teamPagination.setPageSize}
+                    itemLabel="milestones"
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -399,23 +435,37 @@ export const Milestones: React.FC = () => {
 
       {/* Tab 3: Milestone Templates (Admin View) */}
       {activeTab === 'templates' && isAdmin && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {templatesLoading ? (
-            <div className="col-span-full p-8 text-center text-muted-foreground">Loading templates...</div>
-          ) : (
-            templates?.map((t) => (
-              <Card key={t._id}>
-                <CardHeader>
-                  <Badge className="w-fit bg-indigo-600 text-white text-[10px]">Day {t.targetDay}</Badge>
-                  <CardTitle className="text-base font-semibold mt-2">{t.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-xs text-muted-foreground space-y-2">
-                  <div>Goals Count: {t.goals?.length || 0}</div>
-                  <div>Questions Count: {t.checkinQuestions?.length || 0}</div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {templatesLoading ? (
+              <div className="col-span-full p-8 text-center text-muted-foreground">Loading templates...</div>
+            ) : (
+              templatesPagination.paginatedData.map((t) => (
+                <Card key={t._id}>
+                  <CardHeader>
+                    <Badge className="w-fit bg-indigo-600 text-white text-[10px]">Day {t.targetDay}</Badge>
+                    <CardTitle className="text-base font-semibold mt-2">{t.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-xs text-muted-foreground space-y-2">
+                    <div>Goals Count: {t.goals?.length || 0}</div>
+                    <div>Questions Count: {t.checkinQuestions?.length || 0}</div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          <SimplePagination
+            currentPage={templatesPagination.page}
+            totalPages={templatesPagination.totalPages}
+            totalItems={templatesPagination.totalItems}
+            startIndex={templatesPagination.startIndex}
+            endIndex={templatesPagination.endIndex}
+            pageSize={templatesPagination.pageSize}
+            onPageChange={templatesPagination.setPage}
+            onPageSizeChange={templatesPagination.setPageSize}
+            itemLabel="templates"
+          />
         </div>
       )}
 

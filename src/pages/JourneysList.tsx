@@ -33,6 +33,8 @@ import {
 } from '../components/Dialog';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function JourneysList() {
   const { can } = useRole();
@@ -40,6 +42,18 @@ export function JourneysList() {
   const { data: journeys = [], isLoading, isError, error, refetch } = useJourneys();
   const navigate = useNavigate();
   const { t } = useTranslation('journeys');
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    totalPages,
+    paginatedData: paginatedJourneys,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: journeys, initialPageSize: 10 });
 
   const [modals, setModals] = useState<{
     type: 'duplicate' | 'archive' | null;
@@ -179,7 +193,7 @@ export function JourneysList() {
               </TableRow>
             ) : (
               // Success State
-              journeys.map((journey) => (
+              paginatedJourneys.map((journey) => (
                 <TableRow key={journey.id}>
                   <TableCell className="font-medium">
                     <Link
@@ -230,6 +244,22 @@ export function JourneysList() {
             )}
           </TableBody>
         </Table>
+
+        {!isLoading && !isError && totalItems > 0 && (
+          <div className="px-4 border-t">
+            <SimplePagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="journeys"
+            />
+          </div>
+        )}
       </Card>
 
       {/* Custom Dialogs */}

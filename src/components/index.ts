@@ -30,6 +30,7 @@ export * from './Label';
 export * from './Menubar';
 export * from './NavigationMenu';
 export * from './Pagination';
+export * from './SimplePagination';
 export * from './Popover';
 export * from './Progress';
 export * from './RadioGroup';

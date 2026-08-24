@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Plus, FileText, CheckCircle, Clock, AlertCircle, Download, FileSpreadsheet, RefreshCw, ChevronLeft, ChevronRight, Ban } from 'lucide-react';
+import { Search, Plus, FileText, CheckCircle, Clock, AlertCircle, Download, FileSpreadsheet, RefreshCw, Ban } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
+import { SimplePagination } from '../components/SimplePagination';
 import { toast } from 'sonner';
 import { useSuperAdminInvoices, useCreateInvoice } from '../hooks/useSuperAdmin';
 import { superAdminService } from '../services/superAdmin.service';
@@ -10,7 +11,7 @@ import { superAdminService } from '../services/superAdmin.service';
 export function SuperAdminFinance() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(10);
 
   // React Query Hooks
   const { data, isLoading, isError, refetch } = useSuperAdminInvoices({
@@ -239,36 +240,22 @@ export function SuperAdminFinance() {
           </Card>
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-xs text-gray-400">
-                Showing page <span className="font-semibold text-white">{page}</span> of{' '}
-                <span className="font-semibold text-white">{totalPages}</span> (Total {total} invoices)
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="flex items-center gap-1 border-white/10 text-white disabled:opacity-50"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="flex items-center gap-1 border-white/10 text-white disabled:opacity-50"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="mt-4">
+            <SimplePagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={total}
+              startIndex={total > 0 ? (page - 1) * limit + 1 : 0}
+              endIndex={Math.min(page * limit, total)}
+              pageSize={limit}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1);
+              }}
+              itemLabel="invoices"
+            />
+          </div>
         </>
       )}
 

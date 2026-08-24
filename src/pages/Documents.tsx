@@ -5,7 +5,6 @@ import {
   Plus,
   Send,
   CheckCircle2,
-  Clock,
   Building2,
   ArrowRight
 } from 'lucide-react';
@@ -30,6 +29,8 @@ import {
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const Documents: React.FC = () => {
   const navigate = useNavigate();
@@ -58,6 +59,9 @@ export const Documents: React.FC = () => {
   const assignDocumentMutation = useAssignDocument();
 
   const employees = employeesData?.employees || [];
+
+  const templatesPagination = usePagination({ data: templates || [], initialPageSize: 6 });
+  const inboxPagination = usePagination({ data: inbox || [], initialPageSize: 10 });
 
   const handleCreateTemplate = () => {
     if (!newTitle.trim() || !newContent.trim()) {
@@ -164,7 +168,7 @@ export const Documents: React.FC = () => {
 
       {/* Tab 1: Document Templates (Admin View) */}
       {activeTab === 'templates' && isAdmin && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templatesLoading ? (
               <div className="col-span-full p-8 text-center text-muted-foreground">Loading templates...</div>
@@ -173,7 +177,7 @@ export const Documents: React.FC = () => {
                 No document templates created yet. Click "Create Template" to add an NDA or Code of Conduct.
               </div>
             ) : (
-              templates?.map((t) => (
+              templatesPagination.paginatedData.map((t) => (
                 <Card key={t._id} className="hover:border-indigo-500/50 transition-all flex flex-col justify-between">
                   <CardHeader>
                     <div className="flex justify-between items-start gap-2">
@@ -210,6 +214,18 @@ export const Documents: React.FC = () => {
               ))
             )}
           </div>
+
+          <SimplePagination
+            currentPage={templatesPagination.page}
+            totalPages={templatesPagination.totalPages}
+            totalItems={templatesPagination.totalItems}
+            startIndex={templatesPagination.startIndex}
+            endIndex={templatesPagination.endIndex}
+            pageSize={templatesPagination.pageSize}
+            onPageChange={templatesPagination.setPage}
+            onPageSizeChange={templatesPagination.setPageSize}
+            itemLabel="templates"
+          />
         </div>
       )}
 
@@ -228,46 +244,58 @@ export const Documents: React.FC = () => {
                 No documents assigned to your inbox. All clear!
               </div>
             ) : (
-              <div className="divide-y">
-                {inbox?.map((doc) => (
-                  <div
-                    key={doc._id}
-                    className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm">{doc.templateTitle}</h4>
-                        <Badge variant="outline" className="text-[10px]">
-                          v{doc.templateVersion}
-                        </Badge>
+              <div>
+                <div className="divide-y">
+                  {inboxPagination.paginatedData.map((doc) => (
+                    <div
+                      key={doc._id}
+                      className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-sm">{doc.templateTitle}</h4>
+                          <Badge variant="outline" className="text-[10px]">
+                            v{doc.templateVersion}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Assigned on {new Date(doc.assignedAt).toLocaleDateString()}{' '}
+                          {doc.dueDate ? `| Due by ${new Date(doc.dueDate).toLocaleDateString()}` : ''}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Assigned on {new Date(doc.assignedAt).toLocaleDateString()}{' '}
-                        {doc.dueDate ? `| Due by ${new Date(doc.dueDate).toLocaleDateString()}` : ''}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                      {doc.status === 'signed' ? (
-                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Signed
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" /> Pending Signature
-                        </Badge>
-                      )}
-
-                      <Button
-                        size="sm"
-                        className={doc.status === 'signed' ? 'variant-outline text-xs' : 'bg-indigo-600 text-white hover:bg-indigo-700 text-xs'}
-                        onClick={() => navigate(`/documents/${doc._id}/sign`)}
-                      >
-                        {doc.status === 'signed' ? 'View Document' : 'Sign Now'} <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                      </Button>
+                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                        {doc.status === 'signed' ? (
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Signed
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                            onClick={() => navigate(`/documents/sign/${doc._id}`)}
+                          >
+                            Sign Document <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+
+                <div className="p-3 border-t">
+                  <SimplePagination
+                    currentPage={inboxPagination.page}
+                    totalPages={inboxPagination.totalPages}
+                    totalItems={inboxPagination.totalItems}
+                    startIndex={inboxPagination.startIndex}
+                    endIndex={inboxPagination.endIndex}
+                    pageSize={inboxPagination.pageSize}
+                    onPageChange={inboxPagination.setPage}
+                    onPageSizeChange={inboxPagination.setPageSize}
+                    itemLabel="documents"
+                  />
+                </div>
               </div>
             )}
           </CardContent>

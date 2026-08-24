@@ -16,6 +16,8 @@ import { useEmployee } from '../hooks/useEmployees';
 import { useJourneys, useAssignJourney } from '../hooks/useJourneys';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { SimplePagination } from '../components/SimplePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export function EmployeeDashboard() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
@@ -45,6 +47,9 @@ export function EmployeeDashboard() {
   const availablePublicJourneys = publicJourneys.filter((pj: any) => {
     return !employee?.assignedJourneys?.some((aj: any) => aj.journeyId === pj.id);
   });
+
+  const assignedPagination = usePagination({ data: employee?.assignedJourneys || [], initialPageSize: 6 });
+  const publicPagination = usePagination({ data: availablePublicJourneys, initialPageSize: 6 });
 
   const isLoading = userLoading || employeeLoading;
 
@@ -187,51 +192,65 @@ export function EmployeeDashboard() {
         </Card>
       </div>
 
-      <div>
+      <div className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight mb-4">
           {t('employee.assignedJourneys')}
         </h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
-            <div className="col-span-full py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
-              {t('employee.noJourneys')}
+        {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
+          <div className="col-span-full py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+            {t('employee.noJourneys')}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {assignedPagination.paginatedData.map((j) => (
+                <Card key={j.id}>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {j.title}
+                    </CardTitle>
+                    <CardDescription>
+                      {j.status === 'Completed' ? t('employee.completedJourneys') : t('employee.inProgress')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                      <Clock className="h-4 w-4" />
+                      <span>Assigned {j.assignedAt}</span>
+                    </div>
+                    <Button variant={j.status === 'Completed' ? 'outline' : 'default'} className="w-full" asChild>
+                      <Link to={`/course/${j.id}`}>
+                        {j.status === 'Completed' ? 'Review Course' : 'Start Course'}
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          ) : (
-            employee.assignedJourneys.map((j) => (
-              <Card key={j.id}>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {j.title}
-                  </CardTitle>
-                  <CardDescription>
-                    {j.status === 'Completed' ? t('employee.completedJourneys') : t('employee.inProgress')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Clock className="h-4 w-4" />
-                    <span>Assigned {j.assignedAt}</span>
-                  </div>
-                  <Button variant={j.status === 'Completed' ? 'outline' : 'default'} className="w-full" asChild>
-                    <Link to={`/course/${j.id}`}>
-                      {j.status === 'Completed' ? 'Review Course' : 'Start Course'}
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+
+            <SimplePagination
+              currentPage={assignedPagination.page}
+              totalPages={assignedPagination.totalPages}
+              totalItems={assignedPagination.totalItems}
+              startIndex={assignedPagination.startIndex}
+              endIndex={assignedPagination.endIndex}
+              pageSize={assignedPagination.pageSize}
+              onPageChange={assignedPagination.setPage}
+              onPageSizeChange={assignedPagination.setPageSize}
+              itemLabel="journeys"
+            />
+          </div>
+        )}
       </div>
 
       {availablePublicJourneys.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-8 space-y-4">
           <h2 className="text-xl font-semibold tracking-tight mb-4 flex items-center gap-2">
             Explore Public Journeys
             <span className="text-xs font-normal text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/10">Self-Enroll</span>
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {availablePublicJourneys.map((j: any) => (
+            {publicPagination.paginatedData.map((j: any) => (
               <Card key={j.id} className="hover:shadow-md transition-all flex flex-col justify-between">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center justify-between gap-2">
@@ -258,6 +277,18 @@ export function EmployeeDashboard() {
               </Card>
             ))}
           </div>
+
+          <SimplePagination
+            currentPage={publicPagination.page}
+            totalPages={publicPagination.totalPages}
+            totalItems={publicPagination.totalItems}
+            startIndex={publicPagination.startIndex}
+            endIndex={publicPagination.endIndex}
+            pageSize={publicPagination.pageSize}
+            onPageChange={publicPagination.setPage}
+            onPageSizeChange={publicPagination.setPageSize}
+            itemLabel="journeys"
+          />
         </div>
       )}
     </div>
