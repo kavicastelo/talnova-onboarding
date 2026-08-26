@@ -29,7 +29,6 @@ import {
 } from '../components/Select';
 import {
   ChevronLeft,
-  ChevronRight,
   GripVertical,
   Plus,
   Users,
@@ -54,8 +53,6 @@ import {
   ExternalLink,
   Search,
   UserCheck,
-  ChevronsLeft,
-  ChevronsRight,
   Square
 } from 'lucide-react';
 import {
