@@ -54,7 +54,7 @@ Based on empirical evidence across V1 and V2 documentation, 10 distinct user rol
 
 ```mermaid
 graph TD
-    SA[Super Administrator] -->|Platform Scoped| Org[Organization Workspace]
+    SA[Super Administrator] --> Org[Organization Workspace]
     Org --> HRAdmin[HR Administrator / Operations]
     Org --> SysAdmin[Workflow & System Admin]
     Org --> HRBP[HR Business Partner]
@@ -65,7 +65,7 @@ graph TD
     Manager --> Employee[Employee / Peer]
     Manager --> NewHire[New Employee / New Hire]
     
-    Kiosk[Kiosk / Field Worker] -.->|Public / Shared PIN| Org
+    Kiosk[Kiosk / Field Worker] -.-> Org
 ```
 
 ---
@@ -255,13 +255,13 @@ Reconstructed from repository evidence, the complete lifecycle of an employee wi
 
 ```mermaid
 graph TD
-    A[Trigger: Invitation / Account Created] --> B[Stage 1: Authentication & Welcome Dashboard]
-    B --> C[Stage 2: Legal & Compliance Document E-Signing]
-    C --> D[Stage 3: Day 1 Orientation & Task Execution]
-    D --> E[Stage 4: Role-Based Curriculum & Quiz Assessment]
-    E --> F[Stage 5: Buddy Check-in & Calendar 1-on-1]
-    F --> G[Stage 6: 30-60-90 Day Milestone Completion]
-    G --> H[Outcome: Certificate Issued & Full Onboarding Complete]
+    A["Trigger: Invitation / Account Created"] --> B["Stage 1: Authentication & Dashboard"]
+    B --> C["Stage 2: Legal & Compliance E-Signing"]
+    C --> D["Stage 3: Day 1 Orientation & Tasks"]
+    D --> E["Stage 4: Curriculum & Quiz Assessment"]
+    E --> F["Stage 5: Buddy Check-in & 1-on-1"]
+    F --> G["Stage 6: 30-60-90 Day Milestones"]
+    G --> H["Outcome: Full Onboarding Complete"]
 ```
 
 ---
@@ -344,11 +344,11 @@ graph TD
 
 ```mermaid
 graph TD
-    M1[Trigger: New Direct Report Assigned] --> M2[Stage 1: Pre-boarding Workspace Preparation]
-    M2 --> M3[Stage 2: Progress Monitoring & Risk Identification]
-    M3 --> M4[Stage 3: Task Unblocking & Re-assignment]
-    M4 --> M5[Stage 4: 30-60-90 Milestone Review & Rating]
-    M5 --> M6[Outcome: Direct Report Fully Onboarded & Validated]
+    M1["Trigger: New Direct Report Assigned"] --> M2["Stage 1: Pre-boarding Workspace Preparation"]
+    M2 --> M3["Stage 2: Progress Monitoring & Risk Identification"]
+    M3 --> M4["Stage 3: Task Unblocking & Re-assignment"]
+    M4 --> M5["Stage 4: 30-60-90 Milestone Review & Rating"]
+    M5 --> M6["Outcome: Direct Report Fully Onboarded & Validated"]
 ```
 
 ##### STAGE 1: Pre-boarding Workspace Preparation (`/manager`)
