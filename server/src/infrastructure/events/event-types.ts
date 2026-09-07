@@ -22,7 +22,9 @@ export type EventType =
   | "CHECKIN_DUE"
   | "CHECKIN_COMPLETED"
   | "MEETING_CREATED"
-  | "MEETING_UPDATED";
+  | "MEETING_UPDATED"
+  | "ONBOARDING_CASE_CREATED"
+  | "ONBOARDING_CASE_STATE_CHANGED";
 
 export interface EventEnvelope<T = any> {
   eventId: string;

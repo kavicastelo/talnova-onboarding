@@ -4,6 +4,7 @@ import Journey from "../../modules/journeys/models/journey.model.js";
 import Task from "../../modules/tasks/models/task.model.js";
 import eventBus from "../events/event-bus.js";
 import queueService from "../queue/queue.service.js";
+import outboxPublisherService from "../../modules/onboarding/services/outbox-publisher.service.js";
 
 export class SchedulerService {
   private static instance: SchedulerService;
@@ -36,6 +37,9 @@ export class SchedulerService {
 
     queueService.registerWorker("scan_overdue_tasks", async () => {
       await this.scanOverdueTasks();
+    });
+    queueService.registerWorker("publish_onboarding_outbox", async () => {
+      await outboxPublisherService.publishPending();
     });
 
     this.timer = setInterval(async () => {
@@ -92,6 +96,12 @@ export class SchedulerService {
         }
       );
     }
+
+    // The publisher is global because it selects pending events across tenants.
+    await queueService.enqueue("publish_onboarding_outbox", {}, {
+      organizationId: "system",
+      idempotencyKey: `publish_onboarding_outbox_${new Date().toISOString().substring(0, 16)}`,
+    });
   }
 
   public async scanOverdueTasks(): Promise<number> {
