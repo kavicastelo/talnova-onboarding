@@ -21,6 +21,8 @@ To preserve requirement integrity, open items are recorded with their explicit c
 |  - UQ-03: HRIS Employee Termination & E-Signature Audit Retention                  |
 |  - UQ-04: Multi-Tenant SSO IdP Metadata Auto-Provisioning Priority                 |
 |  - UQ-05: AI Course Builder Parsing Fallback Limits                                |
+|  - UQ-06: Simultaneous Workflow Rule Conflict Precedence                           |
+|  - UQ-07: Mid-Journey Template Version Update Migration Behavior                  |
 +------------------------------------------------------------------------------------+
 ```
 
@@ -70,3 +72,21 @@ To preserve requirement integrity, open items are recorded with their explicit c
 * **Conflict Statement:** When parsing legacy PDF/DOCX policy documents into LMS courses, corrupted or image-only scanned PDFs may yield zero extractable text. It is underspecified whether the system should invoke an OCR fallback pipeline or return an explicit user error prompt.
 * **Impact:** Affects AI Course Creator file upload pipeline.
 * **Status:** `UNRESOLVED` — Awaiting Product decision on OCR dependency requirements.
+
+---
+
+### UQ-06: Simultaneous Workflow Rule Conflict Precedence
+* **Category:** Workflow Automation Engine
+* **Source Conflict:** V2 Phase 03 Workflow Rule Specs
+* **Conflict Statement:** If two active workflow rules have identical `priorityIndex` values and both match an incoming `ON_USER_CREATED` event with contradictory actions (e.g., Rule A assigns Journey Template 1, Rule B assigns Journey Template 2), it is underspecified whether the engine evaluates alphabetical rule name order, creation timestamp, or raises a conflict exception.
+* **Impact:** Affects Workflow Engine rule resolution logic.
+* **Status:** `UNRESOLVED` — Awaiting Product Owner decision on deterministic conflict resolution.
+
+---
+
+### UQ-07: Mid-Journey Template Version Update Migration Behavior
+* **Category:** Journey Management & Versioning
+* **Source Conflict:** V1 Journey Builder vs V2 Dynamic Journey Assignment
+* **Conflict Statement:** When an HR Administrator publishes a new version of a Journey Template (`v1.0` -> `v2.0`), it is underspecified whether active `JourneyInstance` records currently in `IN_PROGRESS` state should migrate to `v2.0` dynamically or remain locked to their instantiated `v1.0` step snapshot.
+* **Impact:** Affects Journey Engine template migration policy.
+* **Status:** `UNRESOLVED` — Awaiting Product decision on version migration scope.
