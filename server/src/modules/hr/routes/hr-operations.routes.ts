@@ -17,6 +17,7 @@ export async function hrOperationsRoutes(app: FastifyInstance) {
 
     authApp.get("/dashboard", controller.getDashboardMetrics as any);
     authApp.get("/exceptions", controller.getExceptionQueue as any);
+    authApp.post("/handover/:userId/complete", controller.completeHandover as any);
     authApp.put(
       "/lifecycle/:userId/state",
       { schema: { body: updateLifecycleStateSchema } },

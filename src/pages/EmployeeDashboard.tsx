@@ -9,11 +9,15 @@ import {
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { PlayCircle, Clock, Award, AlertCircle, RefreshCw } from 'lucide-react';
+import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
 import { useJourneys, useAssignJourney } from '../hooks/useJourneys';
+import { useTasks } from '../hooks/useTasks';
+import { useEmployeeDocumentInbox } from '../hooks/useDocuments';
+import { useMyBuddy } from '../hooks/useBuddy';
+import { useMyMilestones } from '../hooks/useMilestones';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { SimplePagination } from '../components/SimplePagination';
@@ -26,7 +30,14 @@ export function EmployeeDashboard() {
   const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('me');
 
   const { data: publicJourneys = [] } = useJourneys();
+  const { data: tasksData } = useTasks();
+  const { data: docInbox = [] } = useEmployeeDocumentInbox();
+  const { data: buddyAssignment } = useMyBuddy();
+  const { data: milestones = [] } = useMyMilestones();
   const assignJourneyMut = useAssignJourney();
+
+  const openTasksCount = (tasksData?.tasks || []).filter((t: any) => t.status !== 'completed').length;
+  const pendingDocsCount = docInbox.filter((d: any) => d.status === 'pending').length;
 
   const handleEnroll = (journeyId: string) => {
     if (!employee) return;
@@ -191,6 +202,58 @@ export function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Unified Onboarding Journey Container Overview */}
+      <Card className="border-indigo-500/20 bg-indigo-500/5 dark:bg-indigo-950/20">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-indigo-600" />
+            Unified Onboarding Container Overview
+          </CardTitle>
+          <CardDescription>
+            Your complete onboarding path combining Learning Modules, Operational Tasks, Compliance E-Signatures, Buddy Mentorship, and 30/60/90-Day Milestones.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <Link to="/tasks" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Tasks & IT Setup</span>
+                <CheckSquare className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="text-xl font-bold">{openTasksCount} Pending</p>
+              <p className="text-xs text-muted-foreground mt-1">Operational checklists</p>
+            </Link>
+
+            <Link to="/documents" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">E-Signatures</span>
+                <FileText className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="text-xl font-bold">{pendingDocsCount} Unsigned</p>
+              <p className="text-xs text-muted-foreground mt-1">Compliance documents</p>
+            </Link>
+
+            <Link to="/buddy" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Onboarding Buddy</span>
+                <Users className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="text-xl font-bold">{buddyAssignment?.buddyUserId ? 'Paired' : 'Auto-Assign'}</p>
+              <p className="text-xs text-muted-foreground mt-1">Peer mentor support</p>
+            </Link>
+
+            <Link to="/milestones" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">30/60/90 Milestones</span>
+                <Flag className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="text-xl font-bold">{milestones.length > 0 ? `${milestones.length} Plans` : 'Active'}</p>
+              <p className="text-xs text-muted-foreground mt-1">Performance checkpoints</p>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight mb-4">

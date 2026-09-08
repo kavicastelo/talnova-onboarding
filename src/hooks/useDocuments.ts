@@ -57,6 +57,8 @@ export function useSignDocument() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['documentAssignment', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['employeeDocumentInbox'] });
+      queryClient.invalidateQueries({ queryKey: ['employee'] });
+      queryClient.invalidateQueries({ queryKey: ['assignments'] });
     },
   });
 }

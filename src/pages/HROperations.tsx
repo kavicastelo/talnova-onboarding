@@ -46,10 +46,11 @@ export const HROperations: React.FC = () => {
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
 
   const [activeEmpUser, setActiveEmpUser] = useState<any>(null);
   const [pauseReason, setPauseReason] = useState('');
-  const [extensionDays, setExtensionDays] = useState(7);
+  const [extensionDays, setExtensionDays] = useState('7');
 
   // Bulk Action State
   const [bulkAction, setBulkAction] = useState<'assign_journey' | 'request_document' | 'send_reminder'>('send_reminder');
@@ -142,6 +143,27 @@ export const HROperations: React.FC = () => {
           refetchEmployees();
           refetchExceptions();
         },
+      }
+    );
+  };
+
+  const handleCompleteHandover = () => {
+    if (!activeEmpUser) return;
+    updateLifecycleMutation.mutate(
+      {
+        userId: activeEmpUser.id,
+        state: 'active',
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Handover sign-off completed! ${activeEmpUser.name} is now ACTIVE.`);
+          setIsHandoverModalOpen(false);
+          refetchEmployees();
+          refetchExceptions();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to complete handover');
+        }
       }
     );
   };
@@ -450,17 +472,28 @@ export const HROperations: React.FC = () => {
                                 <Pause className="h-3 w-3 mr-1" /> Pause
                               </Button>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => {
-                                setActiveEmpUser(emp);
-                                setIsExtendModalOpen(true);
-                              }}
-                            >
-                              <Calendar className="h-3 w-3 mr-1" /> Extend
-                            </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  setActiveEmpUser(emp);
+                                  setIsExtendModalOpen(true);
+                                }}
+                              >
+                                <Calendar className="h-3 w-3 mr-1" /> Extend
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-emerald-600 border-emerald-500/20 hover:bg-emerald-50"
+                                onClick={() => {
+                                  setActiveEmpUser(emp);
+                                  setIsHandoverModalOpen(true);
+                                }}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Handover
+                              </Button>
                           </div>
                         </td>
                       </tr>
@@ -653,6 +686,59 @@ export const HROperations: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Handover & Completion Verification */}
+      <Dialog open={isHandoverModalOpen} onOpenChange={setIsHandoverModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-600">
+              <CheckCircle2 className="h-5 w-5" />
+              Unified Onboarding Handover & Sign-Off
+            </DialogTitle>
+            <DialogDescription>
+              Verify mandatory onboarding compliance requirements for {activeEmpUser?.name} before transitioning lifecycle state to ACTIVE.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 bg-muted/40 rounded-xl space-y-2 border">
+              <div className="flex justify-between items-center font-medium text-foreground">
+                <span>Learning Modules & Quizzes</span>
+                <span className="text-emerald-600 font-bold">Passed</span>
+              </div>
+              <div className="flex justify-between items-center font-medium text-foreground">
+                <span>IT & Equipment Setup Tasks</span>
+                <span className="text-emerald-600 font-bold">Completed</span>
+              </div>
+              <div className="flex justify-between items-center font-medium text-foreground">
+                <span>Compliance E-Signatures (NDA/Policy)</span>
+                <span className="text-emerald-600 font-bold">Signed</span>
+              </div>
+              <div className="flex justify-between items-center font-medium text-foreground">
+                <span>Onboarding Buddy Support Check-ins</span>
+                <span className="text-emerald-600 font-bold">Active</span>
+              </div>
+            </div>
+
+            <p className="text-muted-foreground text-[11px]">
+              Confirming handover sign-off will issue the completion record, notify department management, and officially activate the employee account.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHandoverModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleCompleteHandover}
+              disabled={updateLifecycleMutation.isPending}
+            >
+              {updateLifecycleMutation.isPending ? 'Processing Handover...' : 'Confirm Handover & Activate'}
             </Button>
           </DialogFooter>
         </DialogContent>

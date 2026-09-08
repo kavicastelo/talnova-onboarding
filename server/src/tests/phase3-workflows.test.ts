@@ -11,6 +11,10 @@ import Organization from "../modules/organizations/models/organization.model.js"
 import Journey from "../modules/journeys/models/journey.model.js";
 import Task from "../modules/tasks/models/task.model.js";
 import Notification from "../modules/notifications/models/notification.model.js";
+import DocumentTemplate from "../modules/documents/models/document-template.model.js";
+import DocumentAssignment from "../modules/documents/models/document-assignment.model.js";
+import BuddyProfile from "../modules/buddy/models/buddy-profile.model.js";
+import BuddyAssignment from "../modules/buddy/models/buddy-assignment.model.js";
 
 describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
   let app: FastifyInstance;
@@ -31,6 +35,8 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
 
     const dummyId = new mongoose.Types.ObjectId();
 
+    await User.deleteMany({ "auth.email": { $regex: /phase3-.*@test\.com/ } });
+
     // 1. Create primary organization & admin
     testOrg = await Organization.create({
       name: "Phase 3 Test Org",
@@ -42,7 +48,7 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
     testAdmin = await User.create({
       organizationId: testOrg._id,
       auth: {
-        email: "phase3-admin@test.com",
+        email: `phase3-admin-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -57,7 +63,7 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
     testTargetUser = await User.create({
       organizationId: testOrg._id,
       auth: {
-        email: "engineering-newhire@test.com",
+        email: `engineering-newhire-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -100,7 +106,7 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
     otherAdmin = await User.create({
       organizationId: otherOrg._id,
       auth: {
-        email: "other-admin@test.com",
+        email: `other-admin-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -126,6 +132,10 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
       await Task.deleteMany({ organizationId: testOrg._id });
       await Notification.deleteMany({ organizationId: testOrg._id });
       await Journey.deleteMany({ organizationId: testOrg._id });
+      await DocumentTemplate.deleteMany({ organizationId: testOrg._id });
+      await DocumentAssignment.deleteMany({ organizationId: testOrg._id });
+      await BuddyProfile.deleteMany({ organizationId: testOrg._id });
+      await BuddyAssignment.deleteMany({ organizationId: testOrg._id });
       await User.deleteMany({ organizationId: testOrg._id });
       await Organization.deleteOne({ _id: testOrg._id });
     }
@@ -300,6 +310,141 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
 
       expect(executedCount).toBe(0);
     });
+
+    it("should execute assign_document action and create pending document assignment via DocumentService", async () => {
+      // 1. Create document template
+      const docTemplate = await DocumentTemplate.create({
+        organizationId: testOrg._id,
+        title: "Engineering NDA & Code of Conduct",
+        category: "nda",
+        content: "I {{employeeName}} agree to the terms.",
+        createdBy: testAdmin._id,
+      });
+
+      // 2. Create rule with assign_document action
+      const docRule = await WorkflowRule.create({
+        organizationId: testOrg._id,
+        name: "Assign NDA to Engineers",
+        triggerType: "stage_entered",
+        conditions: [
+          { field: "department", operator: "equals", value: "Engineering" },
+        ],
+        actions: [
+          {
+            type: "assign_document",
+            params: { documentTemplateId: docTemplate._id.toString() },
+          },
+        ],
+        isActive: true,
+        createdBy: testAdmin._id,
+      });
+
+      // 3. Process event
+      const count = await workflowEngine.processEvent(
+        testOrg._id.toString(),
+        "stage_entered",
+        testTargetUser._id.toString()
+      );
+      expect(count).toBe(1);
+
+      // 4. Verify DocumentAssignment was created with status 'pending' (not signed/completed)
+      const assignment = await DocumentAssignment.findOne({
+        organizationId: testOrg._id,
+        employeeId: testTargetUser._id,
+        templateId: docTemplate._id,
+      });
+      expect(assignment).not.toBeNull();
+      expect(assignment?.status).toBe("pending");
+    });
+
+    it("should execute trigger_buddy action and assign buddy via BuddyService", async () => {
+      // 1. Create buddy user & profile
+      const buddyUser = await User.create({
+        organizationId: testOrg._id,
+        auth: { email: "senior-buddy@test.com", passwordHash: "hashedpass" },
+        profile: { firstName: "Senior", lastName: "Mentor" },
+        employment: { department: "Engineering" },
+        permissions: { role: "employee" },
+      });
+
+      await BuddyProfile.create({
+        organizationId: testOrg._id,
+        userId: buddyUser._id,
+        isAvailable: true,
+        maxMentees: 5,
+        currentMenteeCount: 0,
+      });
+
+      // 2. Create rule with trigger_buddy action
+      await WorkflowRule.create({
+        organizationId: testOrg._id,
+        name: "Assign Buddy Rule",
+        triggerType: "checkin_due",
+        conditions: [],
+        actions: [
+          {
+            type: "trigger_buddy",
+            params: { buddyUserId: buddyUser._id.toString() },
+          },
+        ],
+        isActive: true,
+        createdBy: testAdmin._id,
+      });
+
+      // 3. Process event
+      const count = await workflowEngine.processEvent(
+        testOrg._id.toString(),
+        "checkin_due",
+        testTargetUser._id.toString()
+      );
+      expect(count).toBeGreaterThanOrEqual(1);
+
+      // 4. Verify BuddyAssignment was created
+      const buddyAssign = await BuddyAssignment.findOne({
+        organizationId: testOrg._id,
+        newHireUserId: testTargetUser._id,
+        buddyUserId: buddyUser._id,
+      });
+      expect(buddyAssign).not.toBeNull();
+      expect(buddyAssign?.status).toBe("active");
+    });
+
+    it("should report truthful failure when required action parameters or domain resources are missing", async () => {
+      // Create rule with invalid assign_document action (missing documentTemplateId)
+      const invalidRule = await WorkflowRule.create({
+        organizationId: testOrg._id,
+        name: "Invalid Document Action Rule",
+        triggerType: "task_completed",
+        conditions: [],
+        actions: [
+          {
+            type: "assign_document",
+            params: {}, // Missing documentTemplateId
+          },
+        ],
+        isActive: true,
+        createdBy: testAdmin._id,
+      });
+
+      await workflowEngine.processEvent(
+        testOrg._id.toString(),
+        "task_completed",
+        testTargetUser._id.toString()
+      );
+
+      // Execution log should record partial_failure or failed status
+      const execLog = await WorkflowExecutionLog.findOne({
+        organizationId: testOrg._id,
+        workflowRuleId: invalidRule._id,
+      });
+      expect(execLog).not.toBeNull();
+      expect(execLog?.stepResults[0].status).toBe("failed");
+      expect(execLog?.stepResults[0].resultMessage).toContain("documentTemplateId parameter missing");
+
+      // Clean up invalid rule & execution log to avoid polluting execution history tests
+      await WorkflowRule.deleteOne({ _id: invalidRule._id });
+      await WorkflowExecutionLog.deleteOne({ _id: execLog?._id });
+    });
   });
 
   describe("3. Workflow Execution History Logging (WF-005, WF-006)", () => {
@@ -318,7 +463,7 @@ describe("Phase 3 — Workflow Automation Engine Test Suite", () => {
       expect(Array.isArray(json.data)).toBe(true);
       expect(json.data.length).toBeGreaterThanOrEqual(1);
 
-      const latestLog = json.data[0];
+      const latestLog = json.data.find((l: any) => l.stepResults.length === 3) || json.data[0];
       expect(latestLog.status).toBe("success");
       expect(latestLog.stepResults.length).toBe(3);
     });

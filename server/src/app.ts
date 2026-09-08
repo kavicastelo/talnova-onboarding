@@ -43,8 +43,10 @@ import { calendarRoutes } from "./modules/calendar/routes/calendar.routes.js";
 import { hrOperationsRoutes } from "./modules/hr/routes/hr-operations.routes.js";
 import { gamificationRoutes } from "./modules/gamification/routes/gamification.routes.js";
 import { aiAssistantRoutes } from "./modules/ai/routes/ai-assistant.routes.js";
+import { registerAssignmentSubscribers } from "./modules/assignments/subscribers/assignment.subscriber.js";
 
 export async function buildApp() {
+  registerAssignmentSubscribers();
   const app = Fastify({
     logger: loggerConfig,
     disableRequestLogging: true, // We will use custom request/response lifecycle logging

@@ -7,6 +7,7 @@ import Organization from "../../organizations/models/organization.model.js";
 import NotificationService from "../../notifications/services/notification.service.js";
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
 import AppError from "../../../common/errors/app-error.js";
+import eventBus from "../../../infrastructure/events/event-bus.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -280,6 +281,24 @@ export class DocumentService {
     });
 
     await assignment.save();
+
+    // Publish DOCUMENT_SIGNED event
+    try {
+      await eventBus.publish({
+        eventName: "DOCUMENT_SIGNED",
+        organizationId: orgId,
+        actorId: employeeId,
+        entityId: assignment._id as any,
+        payload: {
+          assignmentId: assignment._id.toString(),
+          templateId: assignment.templateId.toString(),
+          templateTitle: assignment.templateTitle,
+          employeeId: employeeId.toString(),
+        },
+      });
+    } catch (e) {
+      console.error("Failed to publish DOCUMENT_SIGNED event:", e);
+    }
 
     // Send confirmation notification
     await notificationService.createNotification({

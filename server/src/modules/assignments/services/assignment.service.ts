@@ -484,52 +484,117 @@ export class EmployeeAssignmentService {
     return { passed, score, attempt };
   }
 
-  private async checkOverallCompletion(assignment: any, journey: any) {
-    const allModulesCompleted = assignment.modules.every((m: any) => m.completed);
-    if (allModulesCompleted) {
-      if (assignment.status !== "completed") {
+  public async checkOverallCompletion(assignment: any, journey: any) {
+    const allModulesCompleted = !assignment.modules || assignment.modules.length === 0 || assignment.modules.every((m: any) => m.completed);
+    
+    // Check mandatory tasks, e-signatures, and milestones for this employee
+    let pendingTasksCount = 0;
+    let unsignedDocsCount = 0;
+    let pendingMilestonesCount = 0;
+
+    try {
+      const TaskModel = mongoose.model("Task");
+      pendingTasksCount = await TaskModel.countDocuments({
+        organizationId: assignment.organizationId,
+        employeeId: assignment.employeeId,
+        status: { $ne: "completed" },
+        isDeleted: false,
+      });
+
+      const DocAssignmentModel = mongoose.model("DocumentAssignment");
+      unsignedDocsCount = await DocAssignmentModel.countDocuments({
+        organizationId: assignment.organizationId,
+        employeeId: assignment.employeeId,
+        status: { $ne: "signed" },
+        isDeleted: false,
+      });
+
+      const MilestoneModel = mongoose.model("EmployeeMilestone");
+      pendingMilestonesCount = await MilestoneModel.countDocuments({
+        organizationId: assignment.organizationId,
+        employeeId: assignment.employeeId,
+        status: { $ne: "completed" },
+        isDeleted: false,
+      });
+    } catch (err) {
+      console.error("Error evaluating cross-capability mandatory completion:", err);
+    }
+
+    const isFullyCompleted = allModulesCompleted && pendingTasksCount === 0 && unsignedDocsCount === 0 && pendingMilestonesCount === 0;
+
+    if (isFullyCompleted) {
+      const wasAlreadyCompleted = assignment.status === "completed";
+
+      if (!wasAlreadyCompleted) {
         assignment.status = "completed";
         assignment.completedAt = new Date();
-      }
 
-      if (journey.certificate?.enabled && !assignment.certificate?.issued) {
-        assignment.certificate = {
-          issued: true,
-          issuedAt: new Date(),
-          certificateId: new mongoose.Types.ObjectId(), // Generate certificate ID reference
-        };
-      }
-
-      // Update journey completions analytics
-      await Journey.updateOne(
-        { _id: journey._id },
-        {
-          $inc: { "analytics.totalCompletions": 1 },
+        if (journey.certificate?.enabled && !assignment.certificate?.issued) {
+          assignment.certificate = {
+            issued: true,
+            issuedAt: new Date(),
+            certificateId: new mongoose.Types.ObjectId(), // Generate certificate ID reference
+          };
         }
-      );
 
-      // Publish completion event
-      try {
-        const employee = await mongoose.model("User").findById(assignment.employeeId);
-        const employeeName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
-        
-        await eventBus.publish({
-          eventName: "JOURNEY_COMPLETED",
-          organizationId: assignment.organizationId,
-          actorId: assignment.employeeId,
-          entityId: assignment._id,
-          payload: {
-            journeyId: journey._id.toString(),
-            assignmentId: assignment._id.toString(),
-            journeyTitle: journey.title,
-            employeeName,
-            managerUserId: employee?.employment?.managerId,
-          },
-        });
-      } catch (e) {
-        console.error("Failed to publish completion event:", e);
+        // Update journey completions analytics
+        await Journey.updateOne(
+          { _id: journey._id },
+          {
+            $inc: { "analytics.totalCompletions": 1 },
+          }
+        );
+
+        // Publish completion event (exactly once)
+        try {
+          const employee = await mongoose.model("User").findById(assignment.employeeId);
+          const employeeName = employee ? `${employee.profile.firstName} ${employee.profile.lastName}` : "Employee";
+          
+          await eventBus.publish({
+            eventName: "JOURNEY_COMPLETED",
+            organizationId: assignment.organizationId,
+            actorId: assignment.employeeId,
+            entityId: assignment._id,
+            payload: {
+              journeyId: journey._id.toString(),
+              assignmentId: assignment._id.toString(),
+              journeyTitle: journey.title,
+              employeeName,
+              managerUserId: employee?.employment?.managerId,
+            },
+          });
+        } catch (e) {
+          console.error("Failed to publish completion event:", e);
+        }
       }
     }
+  }
+
+  async evaluateEmployeeAssignments(
+    orgId: string | mongoose.Types.ObjectId,
+    employeeId: string | mongoose.Types.ObjectId
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+    const empObjectId = new mongoose.Types.ObjectId(employeeId);
+
+    const result = await this.repository.find(
+      {
+        organizationId: orgObjectId,
+        employeeId: empObjectId,
+        status: { $in: ["assigned", "in_progress", "overdue"] } as any,
+      },
+      { page: 1, limit: 50 }
+    );
+
+    for (const assignment of result.assignments) {
+      const journey = await Journey.findOne({ _id: assignment.journey.journeyId, isDeleted: false });
+      if (journey) {
+        await this.checkOverallCompletion(assignment, journey);
+        await (assignment as any).save();
+      }
+    }
+
+    await this.updateUserStatistics(empObjectId);
   }
 
   async listAssignments(filter: AssignmentFilter, pagination: PaginationOptions) {

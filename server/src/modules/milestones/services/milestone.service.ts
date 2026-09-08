@@ -5,6 +5,7 @@ import User from "../../auth/models/user.model.js";
 import NotificationService from "../../notifications/services/notification.service.js";
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
 import AppError from "../../../common/errors/app-error.js";
+import eventBus from "../../../infrastructure/events/event-bus.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
 
@@ -242,6 +243,25 @@ export class MilestoneService {
 
     if (payload.approvalStatus === "approved") {
       milestone.status = "completed";
+
+      // Publish MILESTONE_COMPLETED event
+      try {
+        await eventBus.publish({
+          eventName: "MILESTONE_COMPLETED",
+          organizationId: orgId,
+          actorId: managerUserId,
+          entityId: milestone._id as any,
+          payload: {
+            milestoneId: milestone._id.toString(),
+            templateId: milestone.templateId.toString(),
+            milestoneTitle: milestone.milestoneTitle,
+            employeeId: milestone.employeeId.toString(),
+            targetDay: milestone.targetDay,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to publish MILESTONE_COMPLETED event:", e);
+      }
     }
 
     await milestone.save();

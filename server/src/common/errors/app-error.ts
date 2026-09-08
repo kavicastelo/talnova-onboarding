@@ -3,7 +3,7 @@ export class AppError extends Error {
     public readonly statusCode: number,
     public readonly code: string,
     message: string,
-    public readonly details?: Array<{ field: string; message: string }>
+    public readonly details?: Array<{ field: string; message: string }> | Record<string, any> | any
   ) {
     super(message);
     // Restore prototype chain
@@ -13,3 +13,4 @@ export class AppError extends Error {
 }
 
 export default AppError;
+

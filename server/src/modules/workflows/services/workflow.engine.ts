@@ -9,6 +9,8 @@ import TaskService from "../../tasks/services/task.service.js";
 import TaskRepository from "../../tasks/repositories/task.repository.js";
 import NotificationService from "../../notifications/services/notification.service.js";
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
+import documentService from "../../documents/services/document.service.js";
+import buddyService from "../../buddy/services/buddy.service.js";
 
 const assignmentService = new EmployeeAssignmentService(new AssignmentRepository());
 const taskService = new TaskService(new TaskRepository());
@@ -170,84 +172,195 @@ export class WorkflowEngine {
         if (!action.params.journeyId) {
           return { status: "failed", message: "journeyId parameter missing for assign_journey action" };
         }
-        const journey = await Journey.findOne({
-          _id: action.params.journeyId,
-          organizationId,
-          isDeleted: false,
-        });
-        if (!journey) {
-          return { status: "failed", message: `Journey ${action.params.journeyId} not found` };
-        }
-
-        const assignment = await assignmentService.assignJourney(
-          organizationId,
-          targetUser._id,
-          action.params.journeyId,
-          authorIdStr,
-          {
-            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Default 14 days
+        try {
+          const journey = await Journey.findOne({
+            _id: action.params.journeyId,
+            organizationId,
+            isDeleted: false,
+          });
+          if (!journey) {
+            return { status: "failed", message: `Journey ${action.params.journeyId} not found` };
           }
-        );
-        return {
-          status: "success",
-          message: `Assigned journey "${journey.title}" to ${targetUser.profile?.firstName}`,
-          output: assignment,
-        };
+
+          const assignment = await assignmentService.assignJourney(
+            organizationId,
+            targetUser._id,
+            action.params.journeyId,
+            authorIdStr,
+            {
+              dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Default 14 days
+            }
+          );
+          return {
+            status: "success",
+            message: `Assigned journey "${journey.title}" to ${targetUser.profile?.firstName}`,
+            output: assignment,
+          };
+        } catch (err: any) {
+          return {
+            status: "failed",
+            message: `Assign journey action failed: ${err.message}`,
+          };
+        }
       }
 
       case "create_task": {
         if (!action.params.taskTitle) {
           return { status: "failed", message: "taskTitle parameter missing for create_task action" };
         }
+        try {
+          let assigneeUserId = targetUser._id.toString();
+          if (action.params.taskAssigneeRole === "manager" && targetUser.employment?.managerUserId) {
+            assigneeUserId = targetUser.employment.managerUserId.toString();
+          } else if (action.params.taskAssigneeRole === "hr" || action.params.taskAssigneeRole === "it") {
+            assigneeUserId = authorIdStr;
+          }
 
-        let assigneeUserId = targetUser._id.toString();
-        if (action.params.taskAssigneeRole === "manager" && targetUser.employment?.managerUserId) {
-          assigneeUserId = targetUser.employment.managerUserId.toString();
-        } else if (action.params.taskAssigneeRole === "hr" || action.params.taskAssigneeRole === "it") {
-          assigneeUserId = authorIdStr;
+          const newTask = await taskService.createTask(organizationId, authorIdStr, {
+            title: action.params.taskTitle,
+            description: action.params.taskDescription || `Automated workflow task for ${targetUser.profile?.firstName}`,
+            assignedToUserId: assigneeUserId,
+            employeeId: targetUser._id.toString(),
+            category: action.params.taskCategory || "general",
+            stage: action.params.taskStage || "day_1",
+            priority: action.params.taskPriority || "normal",
+            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Default 3 days
+          });
+
+          return {
+            status: "success",
+            message: `Created task "${action.params.taskTitle}" assigned to user`,
+            output: newTask,
+          };
+        } catch (err: any) {
+          return {
+            status: "failed",
+            message: `Create task action failed: ${err.message}`,
+          };
         }
-
-        const newTask = await taskService.createTask(organizationId, authorIdStr, {
-          title: action.params.taskTitle,
-          description: action.params.taskDescription || `Automated workflow task for ${targetUser.profile?.firstName}`,
-          assignedToUserId: assigneeUserId,
-          employeeId: targetUser._id.toString(),
-          category: action.params.taskCategory || "general",
-          stage: action.params.taskStage || "day_1",
-          priority: action.params.taskPriority || "normal",
-          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Default 3 days
-        });
-
-        return {
-          status: "success",
-          message: `Created task "${action.params.taskTitle}" assigned to user`,
-          output: newTask,
-        };
       }
 
       case "send_notification": {
-        const title = action.params.notificationTitle || "Workflow Notification";
-        const message =
-          action.params.notificationMessage || `Hello ${targetUser.profile?.firstName}, you have an update.`;
+        try {
+          const title = action.params.notificationTitle || "Workflow Notification";
+          const message =
+            action.params.notificationMessage || `Hello ${targetUser.profile?.firstName}, you have an update.`;
 
-        const notification = await notificationService.createNotification({
-          organizationId: organizationId as any,
-          recipientUserId: targetUser._id as any,
-          type: "announcement",
-          channel: action.params.notificationChannel || "in_app",
-          title,
-          message,
-          priority: "medium",
-        });
+          const notification = await notificationService.createNotification({
+            organizationId: organizationId as any,
+            recipientUserId: targetUser._id as any,
+            type: "announcement",
+            channel: action.params.notificationChannel || "in_app",
+            title,
+            message,
+            priority: "medium",
+          });
 
-        return { status: "success", message: `Sent notification: "${title}"`, output: notification };
+          return { status: "success", message: `Sent notification: "${title}"`, output: notification };
+        } catch (err: any) {
+          return {
+            status: "failed",
+            message: `Send notification action failed: ${err.message}`,
+          };
+        }
+      }
+
+      case "assign_document": {
+        if (!action.params.documentTemplateId) {
+          return { status: "failed", message: "documentTemplateId parameter missing for assign_document action" };
+        }
+        try {
+          const assignment = await documentService.assignDocument(
+            organizationId,
+            action.params.documentTemplateId,
+            targetUser._id,
+            authorUserId
+          );
+          return {
+            status: "success",
+            message: `Assigned document template to ${targetUser.profile?.firstName}`,
+            output: assignment,
+          };
+        } catch (err: any) {
+          return {
+            status: "failed",
+            message: `Document assignment failed: ${err.message}`,
+          };
+        }
       }
 
       case "trigger_buddy": {
-        return {
-          status: "success",
-          message: `Triggered buddy pairing notification for ${targetUser.profile?.firstName}`,
-        };
+        try {
+          if (action.params.buddyUserId) {
+            const assignment = await buddyService.assignBuddy(
+              organizationId,
+              targetUser._id,
+              action.params.buddyUserId,
+              authorUserId
+            );
+            return {
+              status: "success",
+              message: `Assigned buddy for ${targetUser.profile?.firstName}`,
+              output: assignment,
+            };
+          } else {
+            const assigned = await buddyService.autoAssignBuddyToNewHire(
+              organizationId,
+              targetUser._id
+            );
+            if (!assigned) {
+              return {
+                status: "failed",
+                message: `Buddy assignment failed: No available buddies found in organization`,
+              };
+            }
+            return {
+              status: "success",
+              message: `Auto-assigned buddy for ${targetUser.profile?.firstName}`,
+            };
+          }
+        } catch (err: any) {
+          return {
+            status: "failed",
+            message: `Buddy assignment failed: ${err.message}`,
+          };
+        }
+      }
+
+      case "trigger_webhook": {
+        if (!action.params.webhookUrl) {
+          return { status: "failed", message: "webhookUrl parameter missing for trigger_webhook action" };
+        }
+        try {
+          const res = await fetch(action.params.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event: "workflow_webhook_triggered",
+              organizationId: organizationId.toString(),
+              targetUserId: targetUser._id.toString(),
+              eventPayload,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+          if (!res.ok) {
+            return {
+              status: "failed",
+              message: `Webhook dispatch to ${action.params.webhookUrl} failed with HTTP status ${res.status}`,
+              output: { statusCode: res.status },
+            };
+          }
+          return {
+            status: "success",
+            message: `Triggered webhook to ${action.params.webhookUrl} with status ${res.status}`,
+            output: { statusCode: res.status },
+          };
+        } catch (err: any) {
+          return {
+            status: "failed",
+            message: `Webhook dispatch failed: ${err.message}`,
+          };
+        }
       }
 
       case "delay": {
