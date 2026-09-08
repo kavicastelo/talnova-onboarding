@@ -26,6 +26,25 @@ export class HROperationsController {
     });
   };
 
+  completeHandover = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const result = await this.hrService.completeHandover(
+      user.organizationId,
+      params.userId,
+      user.userId,
+      body.reason
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: result.message,
+      data: result.user,
+    });
+  };
+
   updateLifecycleState = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;

@@ -7,7 +7,7 @@ export interface IWorkflowCondition {
 }
 
 export interface IWorkflowAction {
-  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "delay";
+  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "assign_document" | "trigger_webhook" | "delay";
   params: {
     journeyId?: string;
     taskTitle?: string;
@@ -19,6 +19,9 @@ export interface IWorkflowAction {
     notificationTitle?: string;
     notificationMessage?: string;
     notificationChannel?: "in_app" | "email";
+    documentTemplateId?: string;
+    buddyUserId?: string;
+    webhookUrl?: string;
     delayMinutes?: number;
   };
 }
@@ -60,7 +63,7 @@ const WorkflowActionSchema = new Schema<IWorkflowAction>(
   {
     type: {
       type: String,
-      enum: ["assign_journey", "create_task", "send_notification", "trigger_buddy", "delay"],
+      enum: ["assign_journey", "create_task", "send_notification", "trigger_buddy", "assign_document", "trigger_webhook", "delay"],
       required: true,
     },
     params: {
@@ -90,6 +93,9 @@ const WorkflowActionSchema = new Schema<IWorkflowAction>(
       notificationTitle: { type: String },
       notificationMessage: { type: String },
       notificationChannel: { type: String, enum: ["in_app", "email"], default: "in_app" },
+      documentTemplateId: { type: String },
+      buddyUserId: { type: String },
+      webhookUrl: { type: String },
       delayMinutes: { type: Number, default: 0 },
     },
   },

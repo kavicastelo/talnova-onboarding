@@ -182,6 +182,11 @@ export class HROperationsService {
     reason?: string,
     extensionDays?: number
   ) {
+    if (state === "active" || state === "completed") {
+      const res = await this.completeHandover(orgId, targetUserId, targetUserId, reason);
+      return res.user;
+    }
+
     const orgObjectId = new mongoose.Types.ObjectId(orgId);
     const userObjectId = new mongoose.Types.ObjectId(targetUserId);
 
@@ -242,6 +247,146 @@ export class HROperationsService {
     });
 
     return user;
+  }
+
+  /**
+   * Authoritative Handover Sign-Off & Lifecycle Activation
+   */
+  async completeHandover(
+    orgId: string | mongoose.Types.ObjectId,
+    targetUserId: string | mongoose.Types.ObjectId,
+    actorUserId: string | mongoose.Types.ObjectId,
+    reason?: string
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+    const userObjectId = new mongoose.Types.ObjectId(targetUserId);
+
+    const user = await User.findOne({
+      _id: userObjectId,
+      organizationId: orgObjectId,
+      isDeleted: false,
+    });
+
+    if (!user) {
+      throw new AppError(404, "NOT_FOUND", "Employee not found");
+    }
+
+    // Idempotency check: if employee is already active, return success without duplicate side-effects
+    if (user.employment?.status === "active" || user.employment?.onboardingState === "completed") {
+      return {
+        user,
+        alreadyActive: true,
+        message: "Employee is already active. Handover sign-off previously completed.",
+      };
+    }
+
+    // 1. Evaluate mandatory LMS modules
+    const activeAssignments = await EmployeeAssignment.find({
+      organizationId: orgObjectId,
+      employeeId: userObjectId,
+      isDeleted: false,
+    });
+
+    const incompleteModules: string[] = [];
+    for (const assignment of activeAssignments) {
+      if (assignment.status !== "completed") {
+        for (const mod of assignment.modules || []) {
+          if (!mod.completed) {
+            incompleteModules.push(`${assignment.journey.title}: ${mod.title}`);
+          }
+        }
+      }
+    }
+
+    // 2. Evaluate mandatory tasks
+    const incompleteTasks = await Task.find({
+      organizationId: orgObjectId,
+      employeeId: userObjectId,
+      status: { $ne: "completed" },
+      isDeleted: false,
+    }).select("title stage category");
+
+    // 3. Evaluate mandatory compliance documents
+    const unsignedDocuments = await DocumentAssignment.find({
+      organizationId: orgObjectId,
+      employeeId: userObjectId,
+      status: { $ne: "signed" },
+      isDeleted: false,
+    }).select("templateTitle status");
+
+    // 4. Evaluate mandatory milestones
+    const incompleteMilestones = await EmployeeMilestone.find({
+      organizationId: orgObjectId,
+      employeeId: userObjectId,
+      status: { $ne: "completed" },
+      isDeleted: false,
+    }).select("milestoneTitle status targetDay");
+
+    const hasIncompleteModules = incompleteModules.length > 0;
+    const hasIncompleteTasks = incompleteTasks.length > 0;
+    const hasUnsignedDocs = unsignedDocuments.length > 0;
+    const hasIncompleteMilestones = incompleteMilestones.length > 0;
+
+    if (hasIncompleteModules || hasIncompleteTasks || hasUnsignedDocs || hasIncompleteMilestones) {
+      throw new AppError(
+        400,
+        "UNIFIED_ONBOARDING_INCOMPLETE",
+        `Handover rejected. Mandatory onboarding requirements remain incomplete for ${user.profile?.firstName || "Employee"} ${user.profile?.lastName || ""}.`.trim(),
+        {
+          incompleteModules,
+          incompleteTasks: incompleteTasks.map((t) => t.title),
+          unsignedDocuments: unsignedDocuments.map((d) => d.templateTitle),
+          incompleteMilestones: incompleteMilestones.map((m) => m.milestoneTitle),
+        }
+      );
+    }
+
+    // Update employment status to ACTIVE
+    if (!user.employment) {
+      user.employment = {} as any;
+    }
+    user.employment.status = "active";
+    user.employment.onboardingState = "completed";
+    user.employment.onboardingStateReason = reason || "HR Operations Handover Sign-Off Completed";
+    await user.save();
+
+    // Create Audit Log
+    try {
+      const AuditLog = mongoose.model("AuditLog");
+      await AuditLog.create({
+        organizationId: orgObjectId,
+        actorUserId: new mongoose.Types.ObjectId(actorUserId),
+        actorType: "user",
+        eventCategory: "user",
+        eventType: "employee.handover_completed",
+        resourceType: "user",
+        resourceId: userObjectId,
+        action: "update",
+        description: `completed HR handover for ${user.profile?.firstName} ${user.profile?.lastName}`,
+        metadata: {
+          targetUserId: targetUserId.toString(),
+          reason,
+        },
+        severity: "info",
+      });
+    } catch (err) {
+      console.error("Failed to log handover audit log:", err);
+    }
+
+    await notificationService.createNotification({
+      organizationId: orgId,
+      recipientUserId: targetUserId,
+      type: "system",
+      title: "Onboarding Completed & Account Activated!",
+      message: "Congratulations! Your onboarding handover sign-off has been verified and your profile status is now ACTIVE.",
+      priority: "high",
+    });
+
+    return {
+      user,
+      alreadyActive: false,
+      message: "Handover completed successfully and employee activated.",
+    };
   }
 
   /**

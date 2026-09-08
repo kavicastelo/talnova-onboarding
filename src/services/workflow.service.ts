@@ -7,7 +7,7 @@ export interface WorkflowCondition {
 }
 
 export interface WorkflowAction {
-  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "delay";
+  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "assign_document" | "trigger_webhook" | "delay";
   params: {
     journeyId?: string;
     taskTitle?: string;
@@ -19,6 +19,9 @@ export interface WorkflowAction {
     notificationTitle?: string;
     notificationMessage?: string;
     notificationChannel?: "in_app" | "email";
+    documentTemplateId?: string;
+    buddyUserId?: string;
+    webhookUrl?: string;
     delayMinutes?: number;
   };
 }

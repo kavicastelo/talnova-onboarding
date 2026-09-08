@@ -7,8 +7,16 @@ import Journey from "../modules/journeys/models/journey.model.js";
 import EmployeeAssignment from "../modules/assignments/models/assignment.model.js";
 import User from "../modules/auth/models/user.model.js";
 import Organization from "../modules/organizations/models/organization.model.js";
+import Task from "../modules/tasks/models/task.model.js";
+import DocumentAssignment from "../modules/documents/models/document-assignment.model.js";
+import DocumentTemplate from "../modules/documents/models/document-template.model.js";
+import TaskService from "../modules/tasks/services/task.service.js";
+import TaskRepository from "../modules/tasks/repositories/task.repository.js";
+import documentService from "../modules/documents/services/document.service.js";
 import smartAssignmentService from "../modules/journeys/services/smart-assignment.service.js";
 import eventBus from "../infrastructure/events/event-bus.js";
+
+const taskService = new TaskService(new TaskRepository());
 
 describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
   let app: FastifyInstance;
@@ -29,6 +37,8 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
     await connectDatabase(app.log);
     await app.ready();
 
+    await User.deleteMany({ "auth.email": { $regex: /.*phase4.*@test\.com|.*eng.*@test\.com|.*hr@test\.com/ } });
+
     const dummyId = new mongoose.Types.ObjectId();
 
     // 1. Create primary organization & admin
@@ -42,7 +52,7 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
     testAdmin = await User.create({
       organizationId: testOrg._id,
       auth: {
-        email: "phase4-admin@test.com",
+        email: `phase4-admin-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -58,7 +68,7 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
     engineeringUser1 = await User.create({
       organizationId: testOrg._id,
       auth: {
-        email: "eng1@test.com",
+        email: `eng1-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -78,7 +88,7 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
     engineeringUser2 = await User.create({
       organizationId: testOrg._id,
       auth: {
-        email: "eng2@test.com",
+        email: `eng2-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -99,7 +109,7 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
     hrUser = await User.create({
       organizationId: testOrg._id,
       auth: {
-        email: "hr@test.com",
+        email: `hr-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -149,7 +159,7 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
     otherAdmin = await User.create({
       organizationId: otherOrg._id,
       auth: {
-        email: "other-phase4@test.com",
+        email: `other-phase4-${Date.now()}@test.com`,
         passwordHash: "hashedpassword123",
       },
       profile: {
@@ -321,6 +331,144 @@ describe("Phase 4 — Journey Automation & Smart Assignment Test Suite", () => {
       });
 
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe("5. Authoritative Unified Completion & HR Handover Enforcement", () => {
+    let handoverEmp: any;
+    let handoverDocTemplate: any;
+    let handoverTask: any;
+
+    beforeAll(async () => {
+      // Create fresh onboarding employee
+      handoverEmp = await User.create({
+        organizationId: testOrg._id,
+        auth: {
+          email: `handover-employee-${Date.now()}@test.com`,
+          passwordHash: "hashedpassword123",
+        },
+        profile: {
+          firstName: "Ethan",
+          lastName: "NewHire",
+        },
+        employment: {
+          department: "Engineering",
+          status: "onboarding",
+          onboardingState: "active",
+        },
+        permissions: {
+          role: "employee",
+        },
+      });
+
+      // Create pending task for employee
+      handoverTask = await taskService.createTask(
+        testOrg._id,
+        testAdmin._id,
+        {
+          employeeId: handoverEmp._id.toString(),
+          assignedToUserId: testAdmin._id.toString(),
+          title: "Complete Laptop & Security Setup",
+          category: "it_setup",
+          stage: "day_1",
+        }
+      );
+
+      // Create document template & assign document to employee
+      handoverDocTemplate = await documentService.createTemplate(
+        testOrg._id,
+        testAdmin._id,
+        {
+          title: "Employee NDA Agreement",
+          content: "I agree to terms {{employeeName}}.",
+          category: "nda",
+        }
+      );
+
+      await documentService.assignDocument(
+        testOrg._id,
+        handoverDocTemplate._id,
+        handoverEmp._id,
+        testAdmin._id
+      );
+    });
+
+    it("should reject HR Handover with HTTP 400 when mandatory onboarding items remain incomplete", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/hr/handover/${handoverEmp._id}/complete`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          reason: "Attempting handover with incomplete requirements",
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const json = response.json();
+      expect(json.success).toBe(false);
+      expect(json.error.code).toBe("UNIFIED_ONBOARDING_INCOMPLETE");
+
+      // Verify employee status remains onboarding
+      const empDb = await User.findById(handoverEmp._id);
+      expect(empDb?.employment?.status).toBe("onboarding");
+    });
+
+    it("should process task completion and document signing, then allow HR Handover to succeed", async () => {
+      // 1. Complete pending task
+      await taskService.updateTaskStatus(
+        handoverTask._id,
+        testOrg._id,
+        testAdmin._id,
+        "completed",
+        "IT setup completed"
+      );
+
+      // 2. Sign pending document
+      const docInbox = await documentService.getEmployeeDocumentInbox(testOrg._id, handoverEmp._id);
+      expect(docInbox.length).toBeGreaterThan(0);
+      const docAssignment = docInbox[0];
+
+      await documentService.signDocument(
+        testOrg._id,
+        docAssignment._id,
+        handoverEmp._id,
+        {
+          type: "type",
+          signerName: "Ethan NewHire",
+        }
+      );
+
+      // 3. Attempt HR Handover now that all items are completed
+      const handoverRes = await app.inject({
+        method: "POST",
+        url: `/api/v1/hr/handover/${handoverEmp._id}/complete`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          reason: "All mandatory onboarding completed",
+        },
+      });
+
+      expect(handoverRes.statusCode).toBe(200);
+      const json = handoverRes.json();
+      expect(json.success).toBe(true);
+      expect(json.data.employment.status).toBe("active");
+
+      // 4. Test Handover Idempotency (second call returns success without error)
+      const repeatRes = await app.inject({
+        method: "POST",
+        url: `/api/v1/hr/handover/${handoverEmp._id}/complete`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(repeatRes.statusCode).toBe(200);
+      const repeatJson = repeatRes.json();
+      expect(repeatJson.success).toBe(true);
     });
   });
 });

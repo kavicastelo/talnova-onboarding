@@ -45,6 +45,8 @@ export function useUpdateTaskStatus() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: TASK_KEYS.all });
       queryClient.invalidateQueries({ queryKey: TASK_KEYS.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: ['employee'] });
+      queryClient.invalidateQueries({ queryKey: ['assignments'] });
     },
   });
 }

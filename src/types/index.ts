@@ -52,7 +52,7 @@ export interface JourneyAssignment {
 // -------------------------
 // Employee & Team Types
 // -------------------------
-export type EmployeeStatus = 'Active' | 'Onboarding' | 'Inactive';
+export type EmployeeStatus = 'Active' | 'Onboarding' | 'Invited' | 'Offboarding' | 'Archived' | 'Inactive';
 
 export interface AssignedJourneyOverview {
   id: string;

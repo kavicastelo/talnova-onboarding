@@ -6,6 +6,7 @@ import { User } from "../../auth/models/user.model.js";
 import crypto from "crypto";
 import { EmailService } from "../../../shared/email/email.service.js";
 import { Organization } from "../../organizations/models/organization.model.js";
+import eventBus from "../../../infrastructure/events/event-bus.js";
 
 export class EmployeeService {
   constructor(private readonly employeeRepository: EmployeeRepository) { }
@@ -164,6 +165,23 @@ export class EmployeeService {
     // Send invitation email using EmailService
     const emailService = new EmailService();
     await emailService.sendInvitationEmail(email, rawToken, orgName);
+
+    // Publish USER_CREATED event to trigger workflows, auto-enrollment, documents, milestones, buddy, calendar
+    await eventBus.publish({
+      eventName: "USER_CREATED",
+      organizationId: orgId,
+      actorId: createdUser._id,
+      entityId: createdUser._id,
+      payload: {
+        userId: createdUser._id.toString(),
+        email: createdUser.auth.email,
+        role: createdUser.permissions.role,
+        department: invitationData.departmentId || createdUser.employment?.department,
+        firstName: createdUser.profile.firstName,
+        lastName: createdUser.profile.lastName,
+        invitedBy: invitedBy.toString(),
+      },
+    });
 
     return createdUser;
   }

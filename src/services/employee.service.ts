@@ -10,7 +10,17 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
     lastName: user.profile?.lastName || '',
     role: user.permissions?.role || 'employee',
     department: deptName,
-    status: user.employment?.status === 'active' ? 'Active' : (user.employment?.status === 'onboarding' ? 'Onboarding' : 'Inactive'),
+    status: user.employment?.status === 'active' 
+      ? 'Active' 
+      : user.employment?.status === 'onboarding' 
+      ? 'Onboarding' 
+      : user.employment?.status === 'invited' 
+      ? 'Invited' 
+      : user.employment?.status === 'offboarding' 
+      ? 'Offboarding' 
+      : user.employment?.status === 'archived' 
+      ? 'Archived' 
+      : 'Inactive',
     progress: user.statistics?.completionRate || 0,
     email: user.auth?.email || '',
     location: user.profile?.location || '',

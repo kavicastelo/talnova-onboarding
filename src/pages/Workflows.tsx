@@ -20,6 +20,7 @@ import {
 } from '../hooks/useWorkflows';
 import { useJourneys } from '../hooks/useJourneys';
 import { useEmployees } from '../hooks/useEmployees';
+import { useDocumentTemplates } from '../hooks/useDocuments';
 import { WorkflowRuleItem, WorkflowAction, WorkflowCondition } from '../services/workflow.service';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
@@ -48,6 +49,7 @@ export function Workflows() {
   const { data: logsData, isLoading: isLoadingLogs } = useWorkflowExecutions();
   const { data: journeys = [] } = useJourneys();
   const { data: employeesData } = useEmployees({ limit: 100 });
+  const { data: documentTemplates = [] } = useDocumentTemplates();
 
   const createWorkflowMutation = useCreateWorkflow();
   const toggleWorkflowMutation = useToggleWorkflow();
@@ -566,6 +568,9 @@ export function Workflows() {
                       <option value="assign_journey">Assign Onboarding Journey</option>
                       <option value="create_task">Create Operational Task</option>
                       <option value="send_notification">Send Multi-Channel Notification</option>
+                      <option value="assign_document">Assign E-Signature Document Template</option>
+                      <option value="trigger_buddy">Trigger Buddy Pairing</option>
+                      <option value="trigger_webhook">Trigger Outbound Webhook</option>
                     </select>
 
                     {act.type === 'assign_journey' && (
@@ -573,7 +578,7 @@ export function Workflows() {
                         value={act.params.journeyId || ''}
                         onChange={(e) => {
                           const updated = [...actions];
-                          updated[idx].params.journeyId = e.target.value;
+                          updated[idx].params = { ...updated[idx].params, journeyId: e.target.value };
                           setActions(updated);
                         }}
                         className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
@@ -587,6 +592,58 @@ export function Workflows() {
                       </select>
                     )}
 
+                    {act.type === 'assign_document' && (
+                      <select
+                        value={act.params.documentTemplateId || ''}
+                        onChange={(e) => {
+                          const updated = [...actions];
+                          updated[idx].params = { ...updated[idx].params, documentTemplateId: e.target.value };
+                          setActions(updated);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                      >
+                        <option value="">Select Document Template</option>
+                        {documentTemplates.map((dt: any) => (
+                          <option key={dt._id} value={dt._id}>
+                            {dt.title} ({dt.category})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {act.type === 'trigger_buddy' && (
+                      <select
+                        value={act.params.buddyUserId || ''}
+                        onChange={(e) => {
+                          const updated = [...actions];
+                          updated[idx].params = { ...updated[idx].params, buddyUserId: e.target.value };
+                          setActions(updated);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                      >
+                        <option value="">Auto-Select Available Buddy in Organization</option>
+                        {employees.map((emp: any) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.name} ({emp.department})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {act.type === 'trigger_webhook' && (
+                      <input
+                        type="url"
+                        placeholder="Webhook Target URL (e.g. https://api.hris.com/v1/webhook)"
+                        value={act.params.webhookUrl || ''}
+                        onChange={(e) => {
+                          const updated = [...actions];
+                          updated[idx].params = { ...updated[idx].params, webhookUrl: e.target.value };
+                          setActions(updated);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                      />
+                    )}
+
                     {act.type === 'create_task' && (
                       <input
                         type="text"
@@ -594,7 +651,7 @@ export function Workflows() {
                         value={act.params.taskTitle || ''}
                         onChange={(e) => {
                           const updated = [...actions];
-                          updated[idx].params.taskTitle = e.target.value;
+                          updated[idx].params = { ...updated[idx].params, taskTitle: e.target.value };
                           setActions(updated);
                         }}
                         className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
