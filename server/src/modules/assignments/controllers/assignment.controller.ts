@@ -249,6 +249,35 @@ export class EmployeeAssignmentController {
     });
   };
 
+  updateProgress = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    if (body.moduleId && body.lessonId) {
+      const assignment = await this.service.completeLesson(
+        params.id,
+        user.organizationId,
+        body.moduleId,
+        body.lessonId,
+        body.timeSpentSeconds || 0,
+        body.completedBlockIds || []
+      );
+      return reply.status(200).send({
+        success: true,
+        message: "Assignment progress updated successfully",
+        data: assignment,
+      });
+    }
+
+    const assignment = await this.service.getAssignment(params.id, user.organizationId);
+    return reply.status(200).send({
+      success: true,
+      message: "Assignment progress acknowledged",
+      data: assignment,
+    });
+  };
+
   submitQuiz = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;

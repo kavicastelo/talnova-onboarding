@@ -182,7 +182,7 @@ export class HROperationsService {
     reason?: string,
     extensionDays?: number
   ) {
-    if (state === "active" || state === "completed") {
+    if (state === "completed") {
       const res = await this.completeHandover(orgId, targetUserId, targetUserId, reason);
       return res.user;
     }

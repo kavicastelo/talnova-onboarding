@@ -8,19 +8,19 @@ export const assignJourneySchema = z.object({
 });
 
 export const completeLessonSchema = z.object({
-  moduleId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid module ID format"),
-  lessonId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid lesson ID format"),
+  moduleId: z.string().min(1, "Invalid module ID format"),
+  lessonId: z.string().min(1, "Invalid lesson ID format"),
   timeSpentSeconds: z.number().min(0, "Time spent cannot be negative"),
-  completedBlockIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional().default([]),
+  completedBlockIds: z.array(z.string().min(1)).optional().default([]),
 });
 
 export const submitQuizSchema = z.object({
-  moduleId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid module ID format"),
-  lessonId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid lesson ID format"),
+  moduleId: z.string().min(1, "Invalid module ID format"),
+  lessonId: z.string().min(1, "Invalid lesson ID format"),
   answers: z.array(
     z.object({
-      questionId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid question ID format"),
-      selectedOptions: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid option ID format")),
+      questionId: z.string().min(1, "Question ID is required"),
+      selectedOptions: z.array(z.string().min(1, "Option ID cannot be empty")),
     })
   ),
 });

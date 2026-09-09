@@ -191,7 +191,6 @@ const OrganizationSchema = new Schema<IOrganization>(
 );
 
 // Indexes
-OrganizationSchema.index({ slug: 1 }, { unique: true });
 OrganizationSchema.index({ name: 1 });
 OrganizationSchema.index({ isDeleted: 1 });
 

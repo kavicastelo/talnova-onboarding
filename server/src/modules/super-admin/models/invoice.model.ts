@@ -32,7 +32,6 @@ const InvoiceSchema = new Schema<IInvoice>(
 );
 
 InvoiceSchema.index({ organizationId: 1, isDeleted: 1 });
-InvoiceSchema.index({ invoiceNo: 1 }, { unique: true });
 
 export const Invoice = mongoose.model<IInvoice>("Invoice", InvoiceSchema);
 export default Invoice;

@@ -5,6 +5,7 @@ import { NotificationService } from "../../notifications/services/notification.s
 import { NotificationRepository } from "../../notifications/repositories/notification.repository.js";
 import AppError from "../../../common/errors/app-error.js";
 import mongoose from "mongoose";
+import DocumentAssignment from "../../documents/models/document-assignment.model.js";
 
 import eventBus from "../../../infrastructure/events/event-bus.js";
 
@@ -236,6 +237,22 @@ export class EmployeeAssignmentService {
     completedBlockIds: string[]
   ) {
     const assignment = await this.getAssignment(id, orgId);
+
+    // Verify mandatory compliance documents if assigned
+    const pendingComplianceDocs = await DocumentAssignment.countDocuments({
+      organizationId: orgId,
+      employeeId: assignment.employeeId,
+      status: { $ne: "signed" },
+      isDeleted: false,
+    });
+    if (pendingComplianceDocs > 0) {
+      throw new AppError(
+        403,
+        "COMPLIANCE_PREREQUISITE_REQUIRED",
+        "Mandatory compliance documents must be reviewed and signed before completing learning modules."
+      );
+    }
+
     if (assignment.status === "assigned") {
       assignment.status = "in_progress";
     }
@@ -351,6 +368,22 @@ export class EmployeeAssignmentService {
     submittedAnswers: Array<{ questionId: string; selectedOptions: string[] }>
   ) {
     const assignment = await this.getAssignment(id, orgId);
+
+    // Verify mandatory compliance documents if assigned
+    const pendingComplianceDocs = await DocumentAssignment.countDocuments({
+      organizationId: orgId,
+      employeeId: assignment.employeeId,
+      status: { $ne: "signed" },
+      isDeleted: false,
+    });
+    if (pendingComplianceDocs > 0) {
+      throw new AppError(
+        403,
+        "COMPLIANCE_PREREQUISITE_REQUIRED",
+        "Mandatory compliance documents must be reviewed and signed before completing learning quizzes."
+      );
+    }
+
     if (assignment.status === "assigned") {
       assignment.status = "in_progress";
     }

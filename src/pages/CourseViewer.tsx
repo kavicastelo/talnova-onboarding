@@ -18,6 +18,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ScrollArea } from '../components/ScrollArea';
 import { Separator } from '../components/Separator';
 import { useCourse, useUpdateLessonCompletion, useSubmitQuiz } from '../hooks/useCourses';
+import { useEmployeeDocumentInbox } from '../hooks/useDocuments';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
 import { apiClient } from '../api/client';
@@ -132,6 +133,8 @@ export function CourseViewer() {
   const { data: course, isLoading, isError, error, refetch } = useCourse(id || '');
   const updateLessonCompletion = useUpdateLessonCompletion();
   const submitQuiz = useSubmitQuiz();
+  const { data: docInbox = [] } = useEmployeeDocumentInbox();
+  const pendingDocs = docInbox.filter((d: any) => d.status === 'pending');
 
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({});
@@ -178,6 +181,10 @@ export function CourseViewer() {
   };
 
   const toggleCompletion = () => {
+    if (pendingDocs.length > 0) {
+      toast.warning('Mandatory compliance documents must be signed before completing lessons.');
+      return;
+    }
     if (course && selectedLesson) {
       updateLessonCompletion.mutate({
         courseId: course.id,
@@ -188,6 +195,9 @@ export function CourseViewer() {
   };
 
   const autoMarkCompleted = () => {
+    if (pendingDocs.length > 0) {
+      return;
+    }
     if (course && selectedLesson && !selectedLesson.isCompleted && !updateLessonCompletion.isPending) {
       updateLessonCompletion.mutate(
         {
@@ -254,6 +264,11 @@ export function CourseViewer() {
 
     if (!moduleId) {
       toast.error('Module context not found.');
+      return;
+    }
+
+    if (pendingDocs.length > 0) {
+      toast.warning('Mandatory compliance documents must be signed before submitting quizzes.');
       return;
     }
 
@@ -616,6 +631,21 @@ export function CourseViewer() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 bg-[#0B0F19]">
+        {pendingDocs.length > 0 && (
+          <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-amber-300 text-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+              <span>
+                <strong>Compliance Prerequisite Active:</strong> You have {pendingDocs.length} unsigned compliance agreement(s) required by enterprise policy before completing lessons.
+              </span>
+            </div>
+            <Button size="sm" variant="outline" asChild className="border-amber-500/40 text-amber-200 hover:bg-amber-500/20 text-xs h-7 shrink-0">
+              <Link to={`/documents/${pendingDocs[0].id || pendingDocs[0]._id}/sign`}>
+                Sign Required Document
+              </Link>
+            </Button>
+          </div>
+        )}
         {selectedLesson ? (
           <>
             <header className="h-14 border-b border-white/10 flex items-center justify-between px-4 sm:px-6 bg-white/[0.01]">

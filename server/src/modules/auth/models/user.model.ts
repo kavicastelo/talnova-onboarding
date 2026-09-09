@@ -166,7 +166,6 @@ UserSchema.pre<IUser>("validate", function (next) {
 });
 
 // Configure Indexes
-UserSchema.index({ "auth.email": 1 }, { unique: true });
 UserSchema.index({ organizationId: 1 });
 UserSchema.index({ "employment.departmentId": 1 });
 UserSchema.index({ "employment.teamId": 1 });
@@ -180,5 +179,18 @@ UserSchema.index({ organizationId: 1, isDeleted: 1 });
 UserSchema.index({ organizationId: 1, "auth.email": 1 });
 UserSchema.index({ organizationId: 1, "permissions.role": 1 });
 
+/**
+ * CANONICAL PERSISTENCE MODEL:
+ * 'User' (MongoDB collection: 'users') is the single authoritative source of truth
+ * for all human accounts, employee profiles, and system identities in Talnova Onboarding.
+ * 
+ * To avoid data model duplication, DO NOT create a separate 'Employee' Mongoose collection.
+ * All employee-specific fields (employment, departmentId, hireDate, status) are natively 
+ * embedded within this canonical schema.
+ */
 export const User = mongoose.model<IUser>("User", UserSchema);
+
+// Architectural alias to prevent regression or duplicate collection creation
+export const EmployeeModel = User;
+
 export default User;

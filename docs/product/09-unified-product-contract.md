@@ -50,7 +50,10 @@ The platform enforces strict role-based access control (RBAC) and tenant data is
 ## 3. Canonical Domain Entities & Relationships
 
 * **`Organization`**: Multi-tenant workspace entity. All user data, journeys, courses, rules, and tasks belong exclusively to one tenant (`organizationId`).
-* **`User`**: Account entity representing employees, managers, admins, buddies, and IT operators.
+* **`User` / `Employee` (Canonical Entity)**: Unified identity aggregate representing employees, managers, admins, buddies, and IT operators.
+  * **Canonical MongoDB Collection:** `users` (Single authoritative source of truth).
+  * **Canonical API Surface:** `/api/v1/employees/*` (Consolidated from legacy `/api/v1/users` alias).
+  * **Deprecated Collection:** `employee` / `employees` (Decommissioned; zero duplicate collections).
 * **`JourneyTemplate`**: Reusable blueprint defining ordered journey steps and targeting criteria.
 * **`JourneyInstance`**: Active onboarding roadmap assigned to an employee, tracking overall progress and step completion states.
 * **`JourneyStep`**: Container within a journey specifying prerequisite dependencies and holding embedded tasks, courses, documents, or milestones.

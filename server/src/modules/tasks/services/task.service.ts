@@ -118,11 +118,27 @@ export class TaskService {
     orgId: string | mongoose.Types.ObjectId,
     userId: string | mongoose.Types.ObjectId,
     newStatus: "pending" | "in_progress" | "completed" | "overdue" | "cancelled",
-    note?: string
+    note?: string,
+    userRole?: string
   ) {
     const task = await this.repository.findById(id, orgId);
     if (!task) {
       throw new AppError(404, "NOT_FOUND", "Task not found");
+    }
+
+    // Role-based task ownership enforcement:
+    // Regular employees may only update tasks explicitly assigned to them or where they are the employee subject
+    if (userRole === "employee") {
+      const isAssigned =
+        (task.assignedToUserId && task.assignedToUserId.toString() === userId.toString()) ||
+        (task.employeeId && task.employeeId.toString() === userId.toString());
+      if (!isAssigned) {
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Unauthorized. Employees may only update tasks assigned to them."
+        );
+      }
     }
 
     // Check prerequisite tasks if completing
