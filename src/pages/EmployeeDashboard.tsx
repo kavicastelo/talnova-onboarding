@@ -64,6 +64,15 @@ export function EmployeeDashboard() {
   const assignedPagination = usePagination({ data: employee?.assignedJourneys || [], initialPageSize: 6 });
   const publicPagination = usePagination({ data: availablePublicJourneys, initialPageSize: 6 });
 
+  // Persistence key for employee onboarding handover confirmation
+  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?._id || 'default'}`;
+  const [isHandoverAcknowledged, setIsHandoverAcknowledged] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(handoverStorageKey) === 'true' || employee?.status === 'Active';
+    }
+    return employee?.status === 'Active';
+  });
+
   const isLoading = userLoading || employeeLoading;
 
   if (isLoading) {
@@ -129,15 +138,6 @@ export function EmployeeDashboard() {
   const activeJourney = assignedJourneys.find(j => j.status === 'In Progress') || assignedJourneys[0];
   const hasAssignedJourneys = assignedJourneys.length > 0;
   const allJourneysCompleted = hasAssignedJourneys && assignedJourneys.every(j => j.status === 'Completed');
-
-  // Persistence key for employee onboarding handover confirmation
-  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?._id || 'default'}`;
-  const [isHandoverAcknowledged, setIsHandoverAcknowledged] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(handoverStorageKey) === 'true' || employee?.status === 'Active';
-    }
-    return employee?.status === 'Active';
-  });
 
   // State flags
   const isUnassignedNewUser = assignedJourneys.length === 0 && docInbox.length === 0 && (tasksData?.tasks || []).length === 0;

@@ -39,8 +39,11 @@ import {
   SelectValue
 } from '../components/Select';
 import { toast } from 'sonner';
+import { useRole } from '../context/RoleContext';
 
 export function EmployeeDirectory() {
+  const { can } = useRole();
+  const canManage = can('manage_employees');
   const [search, setSearch] = useState('');
   
   // Filtering States
@@ -255,7 +258,8 @@ export function EmployeeDirectory() {
             Manage employees and track their progress.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {canManage && (
+          <div className="flex flex-wrap items-center gap-2">
           {/* Bulk Import Trigger */}
           <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
             <DialogTrigger asChild>
@@ -410,6 +414,7 @@ export function EmployeeDirectory() {
             </DialogContent>
           </Dialog>
         </div>
+        )}
       </div>
 
       {/* Directory Filters Bar */}

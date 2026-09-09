@@ -22,7 +22,7 @@ export class TaskController {
     if (query.isOverdue === "true") filter.isOverdue = true;
 
     // Default to tasks assigned to current user if "assignedToMe" flag is passed
-    if (query.assignedToMe === "true") {
+    if (query.assignedToMe === "true" || query.assignedToMe === true || query.assignedToMe === "1") {
       filter.assignedToUserId = user.userId;
     }
 

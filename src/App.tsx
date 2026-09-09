@@ -85,6 +85,7 @@ export function App() {
               <Route path="manager" element={<ProtectedRoute capability="view_team_ops"><ManagerDashboard /></ProtectedRoute>} />
               <Route path="documents" element={<Documents />} />
               <Route path="documents/:id/sign" element={<DocumentSigner />} />
+              <Route path="documents/sign/:id" element={<DocumentSigner />} />
               <Route path="milestones" element={<Milestones />} />
               <Route path="buddy" element={<BuddyProgram />} />
               <Route path="calendar" element={<CalendarIntegration />} />
