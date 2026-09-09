@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -9,7 +10,7 @@ import {
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen } from 'lucide-react';
+import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
@@ -30,14 +31,15 @@ export function EmployeeDashboard() {
   const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('me');
 
   const { data: publicJourneys = [] } = useJourneys();
-  const { data: tasksData } = useTasks();
+  const { data: tasksData } = useTasks({ assignedToMe: true });
   const { data: docInbox = [] } = useEmployeeDocumentInbox();
   const { data: buddyAssignment } = useMyBuddy();
   const { data: milestones = [] } = useMyMilestones();
   const assignJourneyMut = useAssignJourney();
 
-  const openTasksCount = (tasksData?.tasks || []).filter((t: any) => t.status !== 'completed').length;
-  const pendingDocsCount = docInbox.filter((d: any) => d.status === 'pending').length;
+  const openTasksCount = (tasksData?.tasks || []).filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length;
+  const pendingDocs = docInbox.filter((d: any) => d.status === 'pending');
+  const pendingDocsCount = pendingDocs.length;
 
   const handleEnroll = (journeyId: string) => {
     if (!employee) return;
@@ -122,116 +124,344 @@ export function EmployeeDashboard() {
     );
   }
 
-  // Active journey is typically the first assigned journey in progress
-  const activeJourney = employee.assignedJourneys?.find(j => j.status === 'In Progress') || employee.assignedJourneys?.[0];
+  // Active journey details
+  const assignedJourneys = employee.assignedJourneys || [];
+  const activeJourney = assignedJourneys.find(j => j.status === 'In Progress') || assignedJourneys[0];
+  const hasAssignedJourneys = assignedJourneys.length > 0;
+  const allJourneysCompleted = hasAssignedJourneys && assignedJourneys.every(j => j.status === 'Completed');
 
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {t('employee.title')}, {user?.name || 'Jane'}!
-        </h1>
-        <p className="text-muted-foreground">
-          {t('employee.progress')}
-        </p>
-      </div>
+  // Persistence key for employee onboarding handover confirmation
+  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?._id || 'default'}`;
+  const [isHandoverAcknowledged, setIsHandoverAcknowledged] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(handoverStorageKey) === 'true' || employee?.status === 'Active';
+    }
+    return employee?.status === 'Active';
+  });
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {activeJourney ? (
-          <Card className="md:col-span-2 bg-primary text-primary-foreground">
-            <CardHeader>
-              <CardTitle>{t('employee.continuelearning')}</CardTitle>
-              <CardDescription className="text-primary-foreground/80">
-                You are {activeJourney.progress}% through {activeJourney.title}
-              </CardDescription>
+  // State flags
+  const isUnassignedNewUser = assignedJourneys.length === 0 && docInbox.length === 0 && (tasksData?.tasks || []).length === 0;
+  const isCoreRequirementsMet = pendingDocsCount === 0 && openTasksCount === 0 && (hasAssignedJourneys ? allJourneysCompleted : false);
+  const isOnboardingFullyCompleted = !isUnassignedNewUser && isCoreRequirementsMet && (isHandoverAcknowledged || employee.status === 'Active');
+
+  // Lifecycle Stage Resolution:
+  // Stage 0: Unassigned New Hire (Onboarding setup by HR/Admin in progress)
+  // Stage 1: Compliance E-Signatures (Blocking prerequisite for LMS progression)
+  // Stage 2: Operational / IT Checklists (Hardware & Workspace tasks)
+  // Stage 3: LMS Learning Modules (Assigned role & compliance courses)
+  // Stage 4: Peer Mentorship & 30-Day Check-in Handover
+  // Stage 5: Active Employee Workspace (Unlocked post-handover portal)
+  let currentStageIndex = 1;
+  let activeStageTitle = 'Compliance & E-Signatures';
+  let activeStageDescription = 'Review and sign required legal & policy documents before proceeding.';
+  let activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0].id || pendingDocs[0]._id}/sign` : '/documents';
+  let activeStageActionText = 'Sign Pending Documents';
+
+  if (isUnassignedNewUser) {
+    currentStageIndex = 0;
+    activeStageTitle = 'Onboarding Package Setup in Progress';
+    activeStageDescription = 'Your customized onboarding curriculum, compliance paperwork, and IT checklists are being assembled by HR & IT.';
+    activeStageActionPath = '/directory';
+    activeStageActionText = 'Explore Team Directory';
+  } else if (pendingDocsCount > 0) {
+    currentStageIndex = 1;
+    activeStageTitle = 'Stage 1: Compliance E-Signatures (Prerequisite)';
+    activeStageDescription = 'Review and sign required legal & policy documents before proceeding with your training modules.';
+    activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0].id || pendingDocs[0]._id}/sign` : '/documents';
+    activeStageActionText = 'Sign Pending Documents';
+  } else if (openTasksCount > 0) {
+    currentStageIndex = 2;
+    activeStageTitle = 'Stage 2: Operational & IT Setup Checklists';
+    activeStageDescription = 'Complete your assigned IT provisioning and workplace checklist tasks.';
+    activeStageActionPath = '/tasks';
+    activeStageActionText = 'View Operational Tasks';
+  } else if (hasAssignedJourneys && !allJourneysCompleted) {
+    currentStageIndex = 3;
+    activeStageTitle = `Stage 3: LMS Module: ${activeJourney?.title || 'Learning Curriculum'}`;
+    activeStageDescription = `Complete learning modules and knowledge checks (${activeJourney?.progress || 0}% completed).`;
+    activeStageActionPath = activeJourney ? `/course/${activeJourney.id}` : '/journeys';
+    activeStageActionText = 'Continue LMS Module';
+  } else {
+    currentStageIndex = 4;
+    activeStageTitle = 'Stage 4: Peer Mentorship & 30-Day Check-in Handover';
+    activeStageDescription = 'All training and operational setup tasks are complete! Review your 30-day goals with your buddy to finalize onboarding handover.';
+    activeStageActionPath = '/milestones';
+    activeStageActionText = 'Review Milestones & Buddy';
+  }
+
+  // Calculate Overall Progress Score (0 to 100)
+  let overallProgressPercent = 0;
+  if (isUnassignedNewUser) {
+    overallProgressPercent = 0;
+  } else if (isOnboardingFullyCompleted) {
+    overallProgressPercent = 100;
+  } else if (isCoreRequirementsMet && !isOnboardingFullyCompleted) {
+    overallProgressPercent = 90; // Stage 4: awaiting final handover acknowledgment
+  } else {
+    const docProgress = docInbox.length > 0 ? ((docInbox.length - pendingDocsCount) / docInbox.length) * 100 : 100;
+    const totalTasks = (tasksData?.tasks || []).length;
+    const taskProgress = totalTasks > 0 ? (((totalTasks - openTasksCount) / totalTasks) * 100) : 100;
+    const courseProgress = hasAssignedJourneys
+      ? Math.round(assignedJourneys.reduce((sum, j) => sum + (j.progress || 0), 0) / assignedJourneys.length)
+      : 0;
+    overallProgressPercent = Math.min(85, Math.round((docProgress * 0.30) + (taskProgress * 0.30) + (courseProgress * 0.40)));
+  }
+
+  // --- RENDERING OPTION 1: COMPLETED EMPLOYEE ACTIVE WORKSPACE ---
+  if (isOnboardingFullyCompleted) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                Active Employee • Onboarding Completed
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Welcome Back, {user?.name || employee.fullName}!
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Your onboarding journey is 100% complete. Access your active workspace, knowledge base, and team tools below.
+            </p>
+          </div>
+          <Button variant="outline" asChild className="shrink-0">
+            <Link to="/certificates">
+              <Award className="mr-2 h-4 w-4 text-emerald-600" />
+              View Certificates ({employee.certificatesCount || 1})
+            </Link>
+          </Button>
+        </div>
+
+        {/* Active Employee Quick Stats & Operational Hub */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-indigo-500/20">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase font-semibold">Learning Modules</CardDescription>
+              <CardTitle className="text-2xl font-bold text-indigo-600">{assignedJourneys.length} Completed</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Current Module: Progressing</span>
-                  <span>{activeJourney.progress}%</span>
-                </div>
-                <Progress value={activeJourney.progress} className="h-2 bg-primary-foreground/20" />
-              </div>
-              <Button variant="secondary" asChild>
-                <Link to={`/course/${activeJourney.id}`}>
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                  {t('employee.continuelearning')}
-                </Link>
-              </Button>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">100% course fulfillment</p>
             </CardContent>
           </Card>
-        ) : (
-          <Card className="md:col-span-2">
+
+          <Card className="bg-gradient-to-br from-emerald-500/10 via-background to-background border-emerald-500/20">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase font-semibold">Compliance State</CardDescription>
+              <CardTitle className="text-2xl font-bold text-emerald-600">Verified</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">All NDAs & policies signed</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-500/10 via-background to-background border-blue-500/20">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase font-semibold">Onboarding Buddy</CardDescription>
+              <CardTitle className="text-2xl font-bold text-blue-600">
+                {buddyAssignment?.buddyUserId ? 'Connected' : 'Assigned'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Peer mentorship active</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-500/10 via-background to-background border-amber-500/20">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase font-semibold">Performance Milestones</CardDescription>
+              <CardTitle className="text-2xl font-bold text-amber-600">
+                {milestones.length > 0 ? `${milestones.length} Active` : 'Day 30+'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Ongoing check-in reviews</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Operational Portals Quick Access Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card className="hover:border-indigo-500 transition-all cursor-pointer">
             <CardHeader>
-              <CardTitle>{t('employee.startJourney')}</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-indigo-600" />
+                Knowledge Base & RAG AI
+              </CardTitle>
               <CardDescription>
-                {t('employee.noJourneys')}
+                Search company SOPs, policy articles, and ask AI questions in real-time.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Please check back later or contact your workspace administrator.</p>
+              <Button variant="secondary" className="w-full" asChild>
+                <Link to="/kb">Open Knowledge Base</Link>
+              </Button>
             </CardContent>
           </Card>
-        )}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Stats</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                <Award className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{employee.certificatesCount || 0} Certificates</p>
-                <p className="text-xs text-muted-foreground">
-                  Earned this year
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                <Clock className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{employee.progress > 0 ? '14 Hours' : '0 Hours'}</p>
-                <p className="text-xs text-muted-foreground">Learning time</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
+          <Card className="hover:border-indigo-500 transition-all cursor-pointer">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-600" />
+                Team Directory & Office Map
+              </CardTitle>
+              <CardDescription>
+                Find colleagues, view department structures, and navigate office seating.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="secondary" className="w-full" asChild>
+                <Link to="/directory">View Team Directory</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:border-indigo-500 transition-all cursor-pointer">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Flag className="h-5 w-5 text-indigo-600" />
+                30/60/90 Day Milestones
+              </CardTitle>
+              <CardDescription>
+                Review your active 30-day, 60-day, and 90-day progress check-ins with your manager.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="secondary" className="w-full" asChild>
+                <Link to="/milestones">Open Milestones</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDERING OPTION 2: GUIDED ONBOARDING JOURNEY ROADMAP (NEW HIRE & IN-PROGRESS) ---
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+            Guided Onboarding Roadmap • {isUnassignedNewUser ? 'Awaiting Assignments' : `Stage ${currentStageIndex} of 4 Active`}
+          </span>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Welcome to Northwind, {user?.name || 'Jane'}!
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Follow your step-by-step onboarding roadmap below to complete your setup, compliance, learning modules, and team integration.
+        </p>
       </div>
 
-      {/* Unified Onboarding Journey Container Overview */}
-      <Card className="border-indigo-500/20 bg-indigo-500/5 dark:bg-indigo-950/20">
+      {/* Hero Lifecycle Orchestrator Card */}
+      <Card className="border-indigo-500/30 bg-gradient-to-r from-indigo-900/10 via-background to-background dark:from-indigo-950/40">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+              <BookOpen className="h-5 w-5" />
+              Active Onboarding Stage: {isUnassignedNewUser ? 'Curriculum Setup' : `Step ${currentStageIndex}`}
+            </CardTitle>
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              {overallProgressPercent}% Total Roadmap Complete
+            </span>
+          </div>
+          <Progress value={overallProgressPercent} className="h-2 mt-2 bg-indigo-500/10" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 bg-white dark:bg-slate-900 border rounded-xl space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold">{activeStageTitle}</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">{activeStageDescription}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0">
+                  <Link to={activeStageActionPath}>
+                    <PlayCircle className="mr-2 h-4 w-4" />
+                    {activeStageActionText}
+                  </Link>
+                </Button>
+                {currentStageIndex === 4 && (
+                  <Button
+                    onClick={() => {
+                      localStorage.setItem(handoverStorageKey, 'true');
+                      setIsHandoverAcknowledged(true);
+                      toast.success('Congratulations! You have completed all onboarding stages and transitioned to the Active Employee Workspace.');
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Complete Handover & Unlock Workspace
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 4-Step Visual Stepper Bar */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2">
+            <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 1 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
+              <div className="flex items-center gap-1.5 mb-1 font-bold">
+                <FileText className="h-4 w-4 text-indigo-600" />
+                <span>1. E-Signatures</span>
+              </div>
+              <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 ? '✓ Completed' : `${pendingDocsCount} Unsigned`}</p>
+            </div>
+
+            <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 2 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
+              <div className="flex items-center gap-1.5 mb-1 font-bold">
+                <CheckSquare className="h-4 w-4 text-indigo-600" />
+                <span>2. IT & Setup Tasks</span>
+              </div>
+              <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 && openTasksCount === 0 ? '✓ Completed' : `${openTasksCount} Pending`}</p>
+            </div>
+
+            <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 3 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
+              <div className="flex items-center gap-1.5 mb-1 font-bold">
+                <PlayCircle className="h-4 w-4 text-indigo-600" />
+                <span>3. LMS Modules</span>
+              </div>
+              <p className="text-muted-foreground">{hasAssignedJourneys ? (allJourneysCompleted ? '✓ Completed' : `${activeJourney?.progress || 0}% Done`) : '0 Assigned'}</p>
+            </div>
+
+            <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 4 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
+              <div className="flex items-center gap-1.5 mb-1 font-bold">
+                <Users className="h-4 w-4 text-indigo-600" />
+                <span>4. Buddy & Milestones</span>
+              </div>
+              <p className="text-muted-foreground">{isOnboardingFullyCompleted ? '✓ Handover Done' : (currentStageIndex === 4 ? 'Ready for Handover' : 'Upcoming')}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Operational Onboarding Container Overview Cards */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-indigo-600" />
-            Unified Onboarding Container Overview
-          </CardTitle>
+          <CardTitle className="text-lg">Onboarding Sub-Systems Overview</CardTitle>
           <CardDescription>
-            Your complete onboarding path combining Learning Modules, Operational Tasks, Compliance E-Signatures, Buddy Mentorship, and 30/60/90-Day Milestones.
+            Quick status breakdown across your compliance, operational task queue, buddy pairing, and milestones.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <Link to="/documents" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Compliance Docs</span>
+                <FileText className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="text-xl font-bold">{pendingDocsCount} Unsigned</p>
+              <p className="text-xs text-muted-foreground mt-1">E-signature requirements</p>
+            </Link>
+
             <Link to="/tasks" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-muted-foreground uppercase">Tasks & IT Setup</span>
                 <CheckSquare className="h-4 w-4 text-indigo-600" />
               </div>
-              <p className="text-xl font-bold">{openTasksCount} Pending</p>
+              <p className="text-xl font-bold">{openTasksCount} Open</p>
               <p className="text-xs text-muted-foreground mt-1">Operational checklists</p>
-            </Link>
-
-            <Link to="/documents" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">E-Signatures</span>
-                <FileText className="h-4 w-4 text-indigo-600" />
-              </div>
-              <p className="text-xl font-bold">{pendingDocsCount} Unsigned</p>
-              <p className="text-xs text-muted-foreground mt-1">Compliance documents</p>
             </Link>
 
             <Link to="/buddy" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
@@ -248,18 +478,19 @@ export function EmployeeDashboard() {
                 <span className="text-xs font-semibold text-muted-foreground uppercase">30/60/90 Milestones</span>
                 <Flag className="h-4 w-4 text-indigo-600" />
               </div>
-              <p className="text-xl font-bold">{milestones.length > 0 ? `${milestones.length} Plans` : 'Active'}</p>
+              <p className="text-xl font-bold">{milestones.length > 0 ? `${milestones.length} Active` : 'Schedule'}</p>
               <p className="text-xs text-muted-foreground mt-1">Performance checkpoints</p>
             </Link>
           </div>
         </CardContent>
       </Card>
 
+      {/* Assigned Journeys & Modules */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight mb-4">
           {t('employee.assignedJourneys')}
         </h2>
-        {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
+        {!assignedJourneys || assignedJourneys.length === 0 ? (
           <div className="col-span-full py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
             {t('employee.noJourneys')}
           </div>
@@ -356,4 +587,4 @@ export function EmployeeDashboard() {
       )}
     </div>
   );
-}
+}

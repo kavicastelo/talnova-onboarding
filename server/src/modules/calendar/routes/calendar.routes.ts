@@ -14,6 +14,7 @@ export async function calendarRoutes(app: FastifyInstance) {
 
   // Unauthenticated Public iCal (.ics) Feed Route (Token protected)
   app.get("/feed/:token", controller.getICalFeed as any);
+  app.get("/feed/:token.ics", controller.getICalFeed as any);
 
   // Authenticated Routes
   app.register(async (authApp) => {

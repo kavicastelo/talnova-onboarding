@@ -63,6 +63,9 @@ export async function assignmentRoutes(app: FastifyInstance) {
     controller.completeLesson as any
   );
 
+  // POST /api/v1/assignments/:id/progress (PWA progress sync alias)
+  app.post("/:id/progress", controller.updateProgress as any);
+
   // POST /api/v1/assignments/:id/submit-quiz
   app.post(
     "/:id/submit-quiz",

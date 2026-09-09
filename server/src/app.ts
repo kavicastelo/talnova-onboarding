@@ -49,7 +49,7 @@ export async function buildApp() {
   registerAssignmentSubscribers();
   const app = Fastify({
     logger: loggerConfig,
-    disableRequestLogging: true, // We will use custom request/response lifecycle logging
+    disableRequestLogging: true, // Custom request/response lifecycle logging in logging.middleware.ts
     bodyLimit: 50 * 1024 * 1024, // 50MB body limit for bulk operations
   });
 
@@ -80,7 +80,6 @@ export async function buildApp() {
   await app.register(officeLocationRoutes, { prefix: "/api/v1/locations" });
   await app.register(organizationRoutes, { prefix: "/api/v1/organizations" });
   await app.register(employeeRoutes, { prefix: "/api/v1/employees" });
-  await app.register(employeeRoutes, { prefix: "/api/v1/users" });
   await app.register(journeyRoutes, { prefix: "/api/v1/journeys" });
   await app.register(assignmentRoutes, { prefix: "/api/v1/assignments" });
   await app.register(knowledgeBaseRoutes, { prefix: "/api/v1/knowledge-base" });

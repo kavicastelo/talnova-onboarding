@@ -7,7 +7,7 @@ const workflowConditionSchema = z.object({
 });
 
 const workflowActionSchema = z.object({
-  type: z.enum(["assign_journey", "create_task", "send_notification", "trigger_buddy", "delay"]),
+  type: z.enum(["assign_journey", "create_task", "send_notification", "trigger_buddy", "assign_document", "trigger_webhook", "delay"]),
   params: z.object({
     journeyId: z.string().optional(),
     taskTitle: z.string().optional(),
@@ -19,6 +19,9 @@ const workflowActionSchema = z.object({
     notificationTitle: z.string().optional(),
     notificationMessage: z.string().optional(),
     notificationChannel: z.enum(["in_app", "email"]).optional(),
+    documentTemplateId: z.string().optional(),
+    buddyUserId: z.string().optional(),
+    webhookUrl: z.string().optional(),
     delayMinutes: z.number().optional(),
   }),
 });

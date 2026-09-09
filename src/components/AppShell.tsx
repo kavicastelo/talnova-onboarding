@@ -138,17 +138,17 @@ export function AppShell() {
   ];
 
   const employeeNav: NavItem[] = [
-    { title: t('items.home'), url: '/employee', icon: LayoutDashboard },
-    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
-    { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+    { title: 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard },
     { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
-    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
     { title: 'Digital Documents', url: '/documents', icon: FileText },
-    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
     { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
     { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
     { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
+    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
     { title: t('items.certificates'), url: '/certificates', icon: Award },
+    { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
     { title: 'Office Map', url: '/office-map', icon: MapPin },
   ];
 

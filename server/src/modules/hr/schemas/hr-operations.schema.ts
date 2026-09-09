@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const updateLifecycleStateSchema = z.object({
-  state: z.enum(["active", "paused", "completed", "archived"]),
+  state: z.enum(["invited", "active", "onboarding", "paused", "completed", "archived", "offboarding", "inactive"]),
   reason: z.string().optional(),
   extensionDays: z.number().min(0).optional(),
 });

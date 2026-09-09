@@ -83,12 +83,34 @@ export class TaskController {
       user.organizationId,
       user.userId,
       body.status,
-      body.note
+      body.note,
+      user.role
     );
 
     return reply.status(200).send({
       success: true,
       message: "Task status updated successfully",
+      data: task,
+    });
+  };
+
+  completeTask = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const task = await this.service.updateTaskStatus(
+      params.id,
+      user.organizationId,
+      user.userId,
+      "completed",
+      body.note,
+      user.role
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Task marked as completed successfully",
       data: task,
     });
   };

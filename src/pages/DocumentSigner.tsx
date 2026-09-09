@@ -55,9 +55,12 @@ export const DocumentSigner: React.FC = () => {
       { id, payload },
       {
         onSuccess: (res) => {
-          toast.success(res.signatureData?.sha256Hash ? 'E-Signature verified & recorded!' : 'Document signed!');
+          toast.success(res.signatureData?.sha256Hash ? 'E-Signature verified & recorded! Returning to Onboarding Roadmap...' : 'Document signed!');
           setIsSignModalOpen(false);
           refetch();
+          setTimeout(() => {
+            navigate('/employee');
+          }, 1200);
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || 'Failed to apply e-signature');

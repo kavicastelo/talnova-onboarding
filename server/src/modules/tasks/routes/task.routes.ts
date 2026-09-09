@@ -30,6 +30,9 @@ export async function taskRoutes(app: FastifyInstance) {
   // PATCH /api/v1/tasks/:id/status
   app.patch("/:id/status", { schema: { body: updateTaskStatusSchema } }, controller.updateStatus as any);
 
+  // POST /api/v1/tasks/:id/complete (PWA offline sync alias)
+  app.post("/:id/complete", controller.completeTask as any);
+
   // POST /api/v1/tasks/:id/comments
   app.post("/:id/comments", { schema: { body: addTaskCommentSchema } }, controller.addComment as any);
 

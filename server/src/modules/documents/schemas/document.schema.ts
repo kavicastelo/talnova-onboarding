@@ -21,7 +21,7 @@ export const updateTemplateSchema = createTemplateSchema.partial();
 export const assignDocumentSchema = z.object({
   templateId: z.string().min(1, "Template ID is required"),
   employeeId: z.string().min(1, "Employee ID is required"),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().or(z.string().date()).optional(),
 });
 
 export const signDocumentSchema = z.object({
