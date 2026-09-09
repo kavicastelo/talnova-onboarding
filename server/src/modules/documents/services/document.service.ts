@@ -314,6 +314,18 @@ export class DocumentService {
   }
 
   /**
+   * Get audit signatures for a template
+   */
+  async getTemplateSignatures(orgId: string | mongoose.Types.ObjectId, templateId: string | mongoose.Types.ObjectId) {
+    return DocumentAssignment.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      templateId: new mongoose.Types.ObjectId(templateId),
+      status: "signed",
+      isDeleted: false,
+    }).sort({ signedAt: -1 });
+  }
+
+  /**
    * Auto-assign document templates to new hires on USER_CREATED event
    */
   async autoAssignDocumentsToNewHire(

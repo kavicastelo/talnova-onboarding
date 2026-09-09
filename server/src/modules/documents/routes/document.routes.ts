@@ -26,8 +26,25 @@ export async function documentRoutes(app: FastifyInstance) {
     controller.createTemplate as any
   );
 
+  // Alias POST /api/v1/documents -> createTemplate
+  app.post(
+    "/",
+    {
+      preHandler: [requireRole(["owner", "admin"])],
+      schema: { body: createTemplateSchema },
+    },
+    controller.createTemplate as any
+  );
+
   app.get(
     "/templates",
+    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    controller.listTemplates as any
+  );
+
+  // Alias GET /api/v1/documents -> listTemplates
+  app.get(
+    "/",
     { preHandler: [requireRole(["owner", "admin", "manager"])] },
     controller.listTemplates as any
   );
@@ -41,10 +58,33 @@ export async function documentRoutes(app: FastifyInstance) {
     controller.updateTemplate as any
   );
 
+  // Alias PATCH /api/v1/documents/:id -> updateTemplate
+  app.patch(
+    "/:id",
+    {
+      preHandler: [requireRole(["owner", "admin"])],
+      schema: { body: updateTemplateSchema },
+    },
+    controller.updateTemplate as any
+  );
+
   app.delete(
     "/templates/:id",
     { preHandler: [requireRole(["owner", "admin"])] },
     controller.deleteTemplate as any
+  );
+
+  // Template Audit Trail Signatures (Admin / Owner / Manager)
+  app.get(
+    "/templates/:id/signatures",
+    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    controller.getTemplateSignatures as any
+  );
+
+  app.get(
+    "/:id/signatures",
+    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    controller.getTemplateSignatures as any
   );
 
   // Assignment Routes (Admin / Owner)

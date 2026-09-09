@@ -24,6 +24,7 @@ export const addTaskCommentSchema = z.object({
 
 export const getTasksQuerySchema = z.object({
   assignedToUserId: z.string().optional(),
+  assignedToMe: z.union([z.string(), z.boolean()]).optional(),
   employeeId: z.string().optional(),
   createdBy: z.string().optional(),
   status: z.string().optional(),

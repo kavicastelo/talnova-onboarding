@@ -137,4 +137,17 @@ export class DocumentController {
       data: assignment,
     });
   };
+
+  getTemplateSignatures = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const signatures = await this.documentService.getTemplateSignatures(user.organizationId, params.id);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Template signatures retrieved successfully",
+      data: signatures,
+    });
+  };
 }

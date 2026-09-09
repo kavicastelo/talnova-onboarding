@@ -273,7 +273,7 @@ export const Documents: React.FC = () => {
                           <Button
                             size="sm"
                             className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
-                            onClick={() => navigate(`/documents/sign/${doc._id}`)}
+                            onClick={() => navigate(`/documents/${doc._id}/sign`)}
                           >
                             Sign Document <ArrowRight className="h-3.5 w-3.5 ml-1" />
                           </Button>
