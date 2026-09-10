@@ -61,22 +61,26 @@ export const updateEmployeeSchema = z.object({
   hireDate: z.string().optional(),
 });
 
-export const importEmployeesSchema = z.object({
-  users: z.array(
-    z.object({
-      email: z.string().email("Invalid email address"),
-      firstName: z.string().min(1, "First name is required"),
-      lastName: z.string().min(1, "Last name is required"),
-      departmentId: z.string().optional().nullable(),
-      role: z.enum(["owner", "admin", "manager", "employee"]).optional().nullable(),
-      employeeId: z.string().optional().nullable(),
-      designation: z.string().optional().nullable(),
-      payrollCategory: z.string().optional().nullable(),
-      employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]).optional().nullable(),
-      hireDate: z.string().optional().nullable(),
-      phone: z.string().optional().nullable(),
-      location: z.string().optional().nullable(),
-      timezone: z.string().optional().nullable(),
-    })
-  ),
+export const importEmployeeRowSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  fullName: z.string().optional().nullable(),
+  department: z.string().optional().nullable(),
+  departmentId: z.string().optional().nullable(),
+  jobTitle: z.string().optional().nullable(),
+  role: z.enum(["owner", "admin", "manager", "employee"]).optional().nullable(),
+  employeeId: z.string().optional().nullable(),
+  designation: z.string().optional().nullable(),
+  payrollCategory: z.string().optional().nullable(),
+  employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]).optional().nullable(),
+  hireDate: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  timezone: z.string().optional().nullable(),
 });
+
+export const importEmployeesSchema = z.object({
+  users: z.array(importEmployeeRowSchema).min(1, "At least one employee must be provided"),
+});
+

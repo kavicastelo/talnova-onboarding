@@ -67,11 +67,16 @@ export class BuddyService {
     orgId: string | mongoose.Types.ObjectId,
     newHireUserId: string | mongoose.Types.ObjectId,
     buddyUserId: string | mongoose.Types.ObjectId,
-    assignedByUserId: string | mongoose.Types.ObjectId
+    assignedByUserId: string | mongoose.Types.ObjectId,
+    templateName?: string
   ) {
     const orgObjectId = new mongoose.Types.ObjectId(orgId);
     const newHireObjectId = new mongoose.Types.ObjectId(newHireUserId);
     const buddyObjectId = new mongoose.Types.ObjectId(buddyUserId);
+
+    if (newHireObjectId.toString() === buddyObjectId.toString()) {
+      throw new AppError(400, "CANNOT_PAIR_SELF", "Cannot pair an employee with themselves as buddy");
+    }
 
     const newHire = await User.findOne({ _id: newHireObjectId, organizationId: orgObjectId, isDeleted: false });
     if (!newHire) {
@@ -83,8 +88,24 @@ export class BuddyService {
       throw new AppError(404, "NOT_FOUND", "Buddy user not found");
     }
 
-    // Default Buddy Checklist
-    const defaultChecklist = [
+    // Re-assign previous active buddy assignment if exists (Alternative path: Buddy re-assignment)
+    const existing = await BuddyAssignment.findOne({
+      organizationId: orgObjectId,
+      newHireUserId: newHireObjectId,
+      status: "active",
+      isDeleted: false,
+    });
+    if (existing) {
+      existing.status = "reassigned";
+      await existing.save();
+      await BuddyProfile.findOneAndUpdate(
+        { organizationId: orgObjectId, userId: existing.buddyUserId },
+        { $inc: { currentMenteeCount: -1 } }
+      );
+    }
+
+    // Seed Buddy Checklist Template
+    let checklist = [
       { title: "Conduct virtual welcome coffee & intro", stage: "day_1", completed: false },
       { title: "Help with IT tools & Slack channel setup", stage: "day_1", completed: false },
       { title: "Introduce new hire to team members", stage: "week_1", completed: false },
@@ -92,13 +113,28 @@ export class BuddyService {
       { title: "Conduct Day 30 peer support review", stage: "month_1", completed: false },
     ];
 
+    if (templateName === "Technical Deep Dive & Tooling") {
+      checklist = [
+        { title: "Review dev environment & repo permissions", stage: "day_1", completed: false },
+        { title: "Walkthrough CI/CD and deployment pipelines", stage: "day_1", completed: false },
+        { title: "Pair-program on first starter issue", stage: "week_1", completed: false },
+        { title: "Architecture & systems overview", stage: "week_1", completed: false },
+      ];
+    } else if (templateName === "Leadership & Executive Fast Track") {
+      checklist = [
+        { title: "Executive team intro & organizational strategy sync", stage: "day_1", completed: false },
+        { title: "Review department OKRs & KPI scorecards", stage: "week_1", completed: false },
+        { title: "Cross-functional stakeholder introductions", stage: "week_1", completed: false },
+      ];
+    }
+
     const assignment = await BuddyAssignment.create({
       organizationId: orgObjectId,
       buddyUserId: buddyObjectId,
       newHireUserId: newHireObjectId,
       assignedBy: new mongoose.Types.ObjectId(assignedByUserId),
       status: "active",
-      checklist: defaultChecklist,
+      checklist,
       communicationLinks: {
         email: buddy.auth?.email,
       },
@@ -159,6 +195,19 @@ export class BuddyService {
       buddyUserId: new mongoose.Types.ObjectId(buddyUserId),
       isDeleted: false,
     })
+      .populate("newHireUserId", "profile auth employment")
+      .sort({ assignedAt: -1 });
+  }
+
+  /**
+   * List all organization buddy assignments
+   */
+  async listOrganizationAssignments(orgId: string | mongoose.Types.ObjectId) {
+    return BuddyAssignment.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    })
+      .populate("buddyUserId", "profile auth employment")
       .populate("newHireUserId", "profile auth employment")
       .sort({ assignedAt: -1 });
   }

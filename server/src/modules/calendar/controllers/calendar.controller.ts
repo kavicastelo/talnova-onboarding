@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CalendarService } from "../services/calendar.service.js";
+import { AppError } from "../../../common/errors/app-error.js";
 
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
@@ -45,9 +46,25 @@ export class CalendarController {
       .send(icsContent);
   };
 
+  exportEventICal = async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const eventId = params.id ? params.id.replace(".ics", "") : "";
+
+    const icsContent = await this.calendarService.generateSingleEventICal(eventId);
+
+    return reply
+      .header("Content-Type", "text/calendar; charset=utf-8")
+      .header("Content-Disposition", `attachment; filename="event-${eventId}.ics"`)
+      .send(icsContent);
+  };
+
   createMeetingEvent = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const body = request.body as any;
+
+    if (user.role === "employee" && body.organizerUserId && body.organizerUserId !== user.userId) {
+      throw new AppError(403, "FORBIDDEN", "Employees cannot schedule meetings on behalf of other managers");
+    }
 
     const event = await this.calendarService.createMeetingEvent(user.organizationId, user.userId, body);
 

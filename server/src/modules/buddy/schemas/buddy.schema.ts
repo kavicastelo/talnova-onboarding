@@ -7,10 +7,18 @@ export const registerBuddySchema = z.object({
   bio: z.string().optional(),
 });
 
-export const assignBuddySchema = z.object({
-  newHireUserId: z.string().min(1, "New hire user ID is required"),
-  buddyUserId: z.string().min(1, "Buddy user ID is required"),
-});
+export const assignBuddySchema = z
+  .object({
+    newHireUserId: z.string().optional(),
+    employeeId: z.string().optional(),
+    buddyUserId: z.string().optional(),
+    buddyId: z.string().optional(),
+    templateName: z.string().optional(),
+    checklistTemplate: z.string().optional(),
+  })
+  .refine((data) => (data.newHireUserId || data.employeeId) && (data.buddyUserId || data.buddyId), {
+    message: "Both mentee/employee and buddy user IDs are required",
+  });
 
 export const updateChecklistSchema = z.object({
   taskId: z.string().min(1, "Task ID is required"),

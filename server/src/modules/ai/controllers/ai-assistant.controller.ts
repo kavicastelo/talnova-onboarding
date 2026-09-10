@@ -89,7 +89,7 @@ export class AIAssistantController {
     const user = request.user as any;
     const body = request.body as any;
 
-    if (!body.prompt || typeof body.prompt !== "string") {
+    if (!body?.prompt || typeof body.prompt !== "string" || !body.prompt.trim()) {
       return reply.status(400).send({
         success: false,
         message: "Prompt is required for course generation",
@@ -101,10 +101,12 @@ export class AIAssistantController {
       user.userId,
       body.prompt,
       body.targetRole,
-      body.department
+      body.department,
+      body.level || body.difficulty || "Intermediate",
+      Number(body.moduleCount || body.modulesCount || body.modules || 3)
     );
 
-    return reply.status(201).send({
+    return reply.status(200).send({
       success: true,
       message: "AI course draft generated successfully",
       data: draft,

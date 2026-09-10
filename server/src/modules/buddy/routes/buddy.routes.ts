@@ -24,6 +24,7 @@ export async function buddyRoutes(app: FastifyInstance) {
   );
 
   app.get("/available", controller.listAvailableBuddies as any);
+  app.get("/assignments", controller.listOrganizationAssignments as any);
 
   // Assignment (Admin / Owner / Manager)
   app.post(

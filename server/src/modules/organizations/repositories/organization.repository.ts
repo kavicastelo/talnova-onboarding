@@ -45,6 +45,14 @@ export class OrganizationRepository {
     );
   }
 
+  async deleteDepartment(orgId: string | mongoose.Types.ObjectId, deptId: string | mongoose.Types.ObjectId): Promise<IOrganization | null> {
+    return Organization.findOneAndUpdate(
+      { _id: orgId, isDeleted: false },
+      { $pull: { departments: { _id: deptId } } },
+      { new: true }
+    );
+  }
+
   // Team sub-document operations
   async addTeam(orgId: string | mongoose.Types.ObjectId, team: Partial<ITeam>): Promise<IOrganization | null> {
     return Organization.findOneAndUpdate(

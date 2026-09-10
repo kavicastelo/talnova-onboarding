@@ -82,6 +82,7 @@ export async function buildApp() {
   await app.register(organizationRoutes, { prefix: "/api/v1/organizations" });
   await app.register(employeeRoutes, { prefix: "/api/v1/employees" });
   await app.register(journeyRoutes, { prefix: "/api/v1/journeys" });
+  await app.register(journeyRoutes, { prefix: "/api/v1/courses" });
   await app.register(assignmentRoutes, { prefix: "/api/v1/assignments" });
   await app.register(knowledgeBaseRoutes, { prefix: "/api/v1/knowledge-base" });
   await app.register(uploadRoutes, { prefix: "/api/v1/uploads" });

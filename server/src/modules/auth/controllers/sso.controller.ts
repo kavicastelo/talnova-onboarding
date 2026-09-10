@@ -29,16 +29,17 @@ export class SSOController {
   };
 
   discoverDomain = async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
+    const body = (request.body || {}) as any;
+    const emailOrDomain = body.domain || body.email;
 
-    if (!body.email || typeof body.email !== "string") {
+    if (!emailOrDomain || typeof emailOrDomain !== "string") {
       return reply.status(400).send({
         success: false,
-        message: "Email address is required for domain discovery",
+        message: "Email address or domain is required for domain discovery",
       });
     }
 
-    const discovery = await this.ssoService.discoverDomainSSO(body.email);
+    const discovery = await this.ssoService.discoverDomainSSO(emailOrDomain);
 
     return reply.status(200).send({
       success: true,
@@ -48,16 +49,17 @@ export class SSOController {
   };
 
   initiateSSO = async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
+    const body = (request.body || {}) as any;
+    const emailOrDomain = body.email || body.domain;
 
-    if (!body.email || typeof body.email !== "string") {
+    if (!emailOrDomain || typeof emailOrDomain !== "string") {
       return reply.status(400).send({
         success: false,
-        message: "Email address is required to initiate SSO",
+        message: "Email address or domain is required to initiate SSO",
       });
     }
 
-    const result = await this.ssoService.initiateSSOLogin(body.email);
+    const result = await this.ssoService.initiateSSOLogin(emailOrDomain);
 
     return reply.status(200).send({
       success: true,

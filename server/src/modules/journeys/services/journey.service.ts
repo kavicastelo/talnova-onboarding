@@ -29,7 +29,7 @@ export class JourneyService {
 
   async createJourney(
     orgId: string | mongoose.Types.ObjectId,
-    journeyData: { title: string; description: string; category?: string; tags?: string[] },
+    journeyData: { title: string; description: string; category?: string; tags?: string[]; modules?: any[]; status?: string },
     userId: string | mongoose.Types.ObjectId
   ) {
     const slug = this.slugify(journeyData.title) + "-" + Math.random().toString(36).substring(2, 6);
@@ -39,12 +39,12 @@ export class JourneyService {
       title: journeyData.title,
       slug,
       description: journeyData.description,
-      category: journeyData.category,
+      category: journeyData.category || "General",
       tags: journeyData.tags || [],
       audience: {},
-      modules: [],
+      modules: journeyData.modules || [],
       certificate: { enabled: false },
-      publishing: { status: "draft" as const, version: 1 },
+      publishing: { status: (journeyData.status || "published") as any, version: 1 },
       analytics: {
         totalAssignments: 0,
         totalCompletions: 0,

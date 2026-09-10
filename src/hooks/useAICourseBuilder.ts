@@ -19,9 +19,32 @@ export function useCourseDraftById(id?: string) {
 export function useGenerateCourse() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { prompt: string; targetRole?: string; department?: string }) =>
-      aiCourseService.generateDraft(data.prompt, data.targetRole, data.department),
+    mutationFn: (data: {
+      prompt: string;
+      targetRole?: string;
+      department?: string;
+      level?: string;
+      moduleCount?: number;
+    }) =>
+      aiCourseService.generateDraft(
+        data.prompt,
+        data.targetRole,
+        data.department,
+        data.level,
+        data.moduleCount
+      ),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aiCourseDrafts'] });
+    },
+  });
+}
+
+export function useSaveCourseToLMS() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (courseData: any) => aiCourseService.saveCourseToLMS(courseData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
       queryClient.invalidateQueries({ queryKey: ['aiCourseDrafts'] });
     },
   });

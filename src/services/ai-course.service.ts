@@ -39,12 +39,25 @@ export interface AICourseDraftData {
 }
 
 export const aiCourseService = {
-  generateDraft: async (prompt: string, targetRole?: string, department?: string): Promise<AICourseDraftData> => {
-    const response = await apiClient.post<ApiResponse<AICourseDraftData>>('/ai/course-builder/generate', {
+  generateDraft: async (
+    prompt: string,
+    targetRole?: string,
+    department?: string,
+    level?: string,
+    moduleCount?: number
+  ): Promise<AICourseDraftData> => {
+    const response = await apiClient.post<ApiResponse<AICourseDraftData>>('/ai/generate-course', {
       prompt,
       targetRole,
       department,
+      level: level || 'Intermediate',
+      moduleCount: moduleCount || 3,
     });
+    return response.data.data;
+  },
+
+  saveCourseToLMS: async (courseData: any): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/courses', courseData);
     return response.data.data;
   },
 

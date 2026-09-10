@@ -12,7 +12,9 @@ export class AICourseBuilderService {
     userId: string | mongoose.Types.ObjectId,
     prompt: string,
     targetRole = "Software Engineer",
-    department = "Engineering"
+    department = "Engineering",
+    level = "Intermediate",
+    moduleCount = 3
   ) {
     const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
     const userObjectId = new mongoose.Types.ObjectId(userId.toString());
@@ -24,66 +26,260 @@ export class AICourseBuilderService {
       isDeleted: { $ne: true },
     }).limit(2);
 
-    const module1Id = new mongoose.Types.ObjectId().toString();
-    const module2Id = new mongoose.Types.ObjectId().toString();
+    const isDataPrivacy = /privacy|gdpr|data security/i.test(prompt);
+    const isHarassment = /harassment|equal opportunity|workplace conduct/i.test(prompt);
+
+    let modules: any[] = [];
+
+    if (isDataPrivacy) {
+      modules = [
+        {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: "Introduction to Data Privacy",
+          description: "Fundamental principles of GDPR, data protection regulations, and institutional compliance standards.",
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: "Understanding GDPR & Privacy Rights",
+              content: "Overview of data controller responsibilities, lawful processing, and fundamental individual rights under modern data privacy legislation.",
+              durationMinutes: 15,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "What is the core principle of GDPR data minimization?",
+                  options: [
+                    "Collect only necessary data for specified purposes",
+                    "Retain all user data indefinitely",
+                    "Share data across all vendors without consent",
+                    "Encrypt data only during transmission"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "GDPR Article 5(1)(c) mandates that personal data must be adequate, relevant and limited to what is necessary.",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: "Identifying PII & Security Practices",
+          description: "Classification of Personally Identifiable Information (PII) and secure handling protocols.",
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: "PII Classification and Storage Security",
+              content: "Guidelines for recognizing direct and indirect identifiers, anonymization techniques, and encryption standards across enterprise workflows.",
+              durationMinutes: 20,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "Which of the following is considered Personally Identifiable Information (PII)?",
+                  options: [
+                    "Social Security Number or National ID",
+                    "Operating system version",
+                    "Generic department name",
+                    "Anonymized aggregate statistic"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "National identification numbers uniquely identify individuals and represent sensitive PII.",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: "Quiz Assessment",
+          description: "Comprehensive compliance evaluation and scenario assessment.",
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: "Data Privacy Compliance Assessment",
+              content: "Complete the compliance assessment questions below to certify your knowledge of enterprise privacy protocols and reporting obligations.",
+              durationMinutes: 20,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "Within what timeframe must a personal data breach be reported to the supervisory authority?",
+                  options: [
+                    "Within 72 hours",
+                    "Within 30 days",
+                    "Within 14 days",
+                    "Only upon customer request"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "GDPR Article 33 requires notification of a personal data breach without undue delay and, where feasible, not later than 72 hours.",
+                },
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "Who is responsible for ensuring compliance with enterprise data privacy policies?",
+                  options: [
+                    "All employees and contractors handling company data",
+                    "External audit firms only",
+                    "IT department interns only",
+                    "No designated entity"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Every employee and contractor handling corporate information assets shares responsibility for adhering to data privacy standards.",
+                },
+              ],
+            },
+          ],
+        },
+      ];
+    } else if (isHarassment) {
+      modules = [
+        {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: "Module 1: Introduction to Workplace Harassment & Equal Opportunity",
+          description: "Institutional commitments to inclusive, respectful, and discrimination-free workplaces.",
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: "Equal Opportunity & Dignity at Work",
+              content: "Understanding protected characteristics, legal protections against discrimination, and employer obligations.",
+              durationMinutes: 15,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "Which behavior violates company equal opportunity policy?",
+                  options: [
+                    "Unfavorable treatment based on protected characteristics",
+                    "Providing constructive project feedback",
+                    "Offering flexible working arrangements",
+                    "Conducting fair annual reviews"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Any adverse action taken due to protected characteristics constitutes unlawful discrimination.",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: "Module 2: Identifying Prohibited Conduct & Reporting Procedures",
+          description: "Recognizing subtle and overt workplace misconduct and navigating confidential reporting channels.",
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: "Reporting Channels and Anti-Retaliation Protections",
+              content: "Detailed walkthrough of HR confidential reporting, anonymous ombudsman avenues, and zero-tolerance anti-retaliation policies.",
+              durationMinutes: 20,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "What protection is guaranteed to individuals reporting harassment in good faith?",
+                  options: [
+                    "Protection against retaliation and victimisation",
+                    "Mandatory public announcement",
+                    "Demotion to avoid conflict",
+                    "None"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Whistleblowers and reporting parties are legally protected against any retaliatory employment actions.",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: "Module 3: Quiz Assessment",
+          description: "Scenario evaluation and comprehensive understanding test.",
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: "Policy Understanding & Scenario Assessment",
+              content: "Answer the following scenario-based compliance questions to demonstrate comprehension.",
+              durationMinutes: 20,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "How should an employee respond if they witness harassment?",
+                  options: [
+                    "Report the incident through confidential HR channels or support the targeted individual",
+                    "Ignore the situation if not personally involved",
+                    "Share the event on public social media",
+                    "Wait for annual reviews"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Active bystander intervention and reporting ensure a secure workplace for all.",
+                },
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: "Who can access confidential harassment reporting records?",
+                  options: [
+                    "Authorized HR investigators and compliance officers only",
+                    "All company staff",
+                    "External media outlets",
+                    "Any department manager"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Confidentiality is strictly maintained to protect all parties involved in the investigation.",
+                },
+              ],
+            },
+          ],
+        },
+      ];
+    } else {
+      // Default dynamic generation for moduleCount modules
+      modules = Array.from({ length: Math.max(2, Math.min(moduleCount, 5)) }).map((_, idx) => {
+        const mNum = idx + 1;
+        const isLast = mNum === moduleCount;
+        return {
+          moduleId: new mongoose.Types.ObjectId().toString(),
+          title: isLast ? `Module ${mNum}: Quiz Assessment` : `Module ${mNum}: Orientation & Core Fundamentals`,
+          description: `Comprehensive module covering key objectives and standards for ${targetRole}.`,
+          lessons: [
+            {
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: isLast ? `Module ${mNum} Evaluation` : `Lesson ${mNum}.1: Standards & Practice`,
+              content: `Key instructional guidance synthesized for ${prompt}. Level: ${level}.`,
+              durationMinutes: 15,
+              quizQuestions: [
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: `Key competency checkpoint for ${prompt} (Module ${mNum}):`,
+                  options: [
+                    "Adhere strictly to corporate compliance protocols",
+                    "Bypass security gates for speed",
+                    "Share credentials across team members",
+                    "Ignore periodic updates"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Adherence to established compliance protocols is required for institutional security.",
+                },
+                {
+                  questionId: new mongoose.Types.ObjectId().toString(),
+                  questionText: `What is the verification requirement for Module ${mNum}?`,
+                  options: [
+                    "Complete all lessons and achieve passing grade on assessment",
+                    "Skip to end without review",
+                    "Only read lesson titles",
+                    "Optional completion"
+                  ],
+                  correctOptionIndex: 0,
+                  explanation: "Course certification requires completing content and passing the assessment.",
+                },
+              ],
+            },
+          ],
+        };
+      });
+    }
 
     const draft = await AICourseDraft.create({
       organizationId: orgObjectId,
-      title: `${prompt.trim()} — ${targetRole} Onboarding`,
-      description: `AI-generated onboarding curriculum tailored for ${targetRole} in ${department}. Grounded in ${groundedArticles.length} company policy articles.`,
+      title: `${prompt.trim()}`,
+      description: `AI-synthesized ${level} course curriculum for ${targetRole} (${department}). Grounded in ${groundedArticles.length} corporate policy documents.`,
       targetRole,
       department,
       status: "draft",
       version: 1,
       createdBy: userObjectId,
-      modules: [
-        {
-          moduleId: module1Id,
-          title: `Module 1: Orientation & Core Fundamentals`,
-          description: `Introduction to core policies and architecture overview for ${targetRole}.`,
-          lessons: [
-            {
-              lessonId: new mongoose.Types.ObjectId().toString(),
-              title: "Company Policies & Code of Conduct",
-              content: `Welcome to the team! In this lesson you will learn about company policies, security guidelines, and day-to-day operations. Grounded context: ${
-                groundedArticles[0]?.title || "Company Security Guidelines"
-              }.`,
-              durationMinutes: 15,
-              quizQuestions: [
-                {
-                  questionId: new mongoose.Types.ObjectId().toString(),
-                  questionText: "What is the mandatory timeline to complete security compliance training?",
-                  options: ["Within 14 days", "Within 30 days", "Within 60 days", "Optional"],
-                  correctOptionIndex: 0,
-                  explanation: "Company policy requires completion within 14 days of hiring.",
-                },
-              ],
-            },
-          ],
-        },
-        {
-          moduleId: module2Id,
-          title: `Module 2: Technical Deep Dive & Workflows`,
-          description: `Practical walkthrough of tools, repositories, and workflow execution.`,
-          lessons: [
-            {
-              lessonId: new mongoose.Types.ObjectId().toString(),
-              title: "Development Setup & Security Checklist",
-              content: "Setup local development environment, SSH keys, multi-factor authentication, and code review protocols.",
-              durationMinutes: 20,
-              quizQuestions: [
-                {
-                  questionId: new mongoose.Types.ObjectId().toString(),
-                  questionText: "Which authentication standard is required for code commits?",
-                  options: ["Multi-Factor Authentication & Signed Commits", "Password only", "API Key only", "None"],
-                  correctOptionIndex: 0,
-                  explanation: "Signed commits with MFA are strictly required for security compliance.",
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      modules,
     });
 
     return draft;

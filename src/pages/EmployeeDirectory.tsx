@@ -13,7 +13,7 @@ import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
 import { SimplePagination } from '../components/SimplePagination';
-import { Plus, Search, AlertCircle, RefreshCw, Upload, Download } from 'lucide-react';
+import { Plus, Search, AlertCircle, RefreshCw, Upload, Download, CheckCircle2, Check } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee, 
@@ -80,6 +80,7 @@ export function EmployeeDirectory() {
   // Import Modal States
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [parsedEmployees, setParsedEmployees] = useState<any[]>([]);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   const defaultDepts = ["Engineering", "Product", "Design", "Marketing", "Operations"];
   const displayDepartments = activeDepartments.length > 0
@@ -122,10 +123,11 @@ export function EmployeeDirectory() {
   };
 
   const downloadSampleCSV = () => {
-    const headers = 'email,firstName,lastName,departmentId,role,employeeId,designation,payrollCategory,employmentType,hireDate,phone,location,timezone\n';
-    const sampleRow1 = 'jane.doe@example.com,Jane,Doe,,employee,EMP001,Software Engineer,Standard,full_time,2026-07-01,+1234567890,New York,America/New_York\n';
-    const sampleRow2 = 'john.smith@example.com,John,Smith,,admin,EMP002,Project Manager,Executive,full_time,2026-07-01,+1987654321,London,Europe/London\n';
-    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + sampleRow1 + sampleRow2);
+    const headers = 'fullName,email,department,jobTitle,employmentType,hireDate\n';
+    const sampleRow1 = 'Alice Walker,alice_csv@test.com,Engineering,Frontend Dev,full_time,2026-10-01\n';
+    const sampleRow2 = 'Bob Martinez,bob_csv@test.com,Marketing,Content Specialist,full_time,2026-10-01\n';
+    const sampleRow3 = 'Charlie Kim,charlie_csv@test.com,Sales,Account Exec,full_time,2026-10-01\n';
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + sampleRow1 + sampleRow2 + sampleRow3);
     const link = document.createElement('a');
     link.setAttribute('href', csvContent);
     link.setAttribute('download', 'talnova_employee_import_template.csv');
@@ -135,85 +137,149 @@ export function EmployeeDirectory() {
     toast.success('Sample CSV template downloaded successfully.');
   };
 
+  function parseCSVContent(text: string): string[][] {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i + 1];
+
+      if (c === '"') {
+        if (inQuotes && next === '"') {
+          currentField += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if ((c === '\r' || c === '\n') && !inQuotes) {
+        if (c === '\r' && next === '\n') {
+          i++;
+        }
+        currentRow.push(currentField.trim());
+        currentField = '';
+        if (currentRow.some((f) => f.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+      } else {
+        currentField += c;
+      }
+    }
+
+    if (currentField.length > 0 || currentRow.length > 0) {
+      currentRow.push(currentField.trim());
+      if (currentRow.some((f) => f.length > 0)) {
+        rows.push(currentRow);
+      }
+    }
+
+    return rows;
+  }
+
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setCsvError(null);
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
       if (!text) return;
 
-      const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
-      if (lines.length < 2) {
+      const rows = parseCSVContent(text);
+      if (rows.length < 2) {
+        setCsvError('CSV file is empty or missing data rows.');
         toast.error('CSV file is empty or missing data rows.');
+        setParsedEmployees([]);
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
-      const emailIdx = headers.indexOf('email');
-      const firstIdx = headers.indexOf('firstname');
-      const lastIdx = headers.indexOf('lastname');
-      const deptIdx = headers.indexOf('departmentid');
-      const roleIdx = headers.indexOf('role');
-      const empIdIdx = headers.indexOf('employeeid');
-      const desIdx = headers.indexOf('designation');
-      const payIdx = headers.indexOf('payrollcategory');
-      const typeIdx = headers.indexOf('employmenttype');
-      const hireIdx = headers.indexOf('hiredate');
-      const phoneIdx = headers.indexOf('phone');
-      const locIdx = headers.indexOf('location');
-      const tzIdx = headers.indexOf('timezone');
+      const headers = rows[0].map((h) => h.trim().toLowerCase().replace(/[\s_-]+/g, ''));
 
-      if (emailIdx === -1 || firstIdx === -1 || lastIdx === -1) {
-        toast.error('CSV must contain "email", "firstName", and "lastName" columns.');
+      const emailIdx = headers.findIndex((h) => h === 'email' || h === 'emailaddress');
+      const fullNameIdx = headers.findIndex((h) => h === 'fullname' || h === 'name');
+      const firstIdx = headers.findIndex((h) => h === 'firstname' || h === 'first');
+      const lastIdx = headers.findIndex((h) => h === 'lastname' || h === 'last');
+      const deptIdx = headers.findIndex((h) => h === 'department' || h === 'departmentid' || h === 'dept');
+      const jobIdx = headers.findIndex((h) => h === 'jobtitle' || h === 'designation' || h === 'title');
+      const empTypeIdx = headers.findIndex((h) => h === 'employmenttype' || h === 'type');
+      const hireIdx = headers.findIndex((h) => h === 'hiredate' || h === 'startdate' || h === 'dateofjoin');
+      const roleIdx = headers.findIndex((h) => h === 'role' || h === 'systemrole');
+
+      // Negative check: Missing email header
+      if (emailIdx === -1) {
+        const errorMsg = "CSV missing required column: 'email'";
+        setCsvError(errorMsg);
+        toast.error(errorMsg);
+        setParsedEmployees([]);
+        return;
+      }
+
+      // Check required name header
+      if (fullNameIdx === -1 && (firstIdx === -1 || lastIdx === -1)) {
+        const errorMsg = "CSV missing required column: 'fullName' (or 'firstName' and 'lastName')";
+        setCsvError(errorMsg);
+        toast.error(errorMsg);
+        setParsedEmployees([]);
         return;
       }
 
       const parsedList: any[] = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].split(',').map(val => val.trim());
-        if (row.length < 3) continue;
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.length === 0 || row.every((val) => !val)) continue;
 
-        const email = row[emailIdx];
-        const firstName = row[firstIdx];
-        const lastName = row[lastIdx];
-        const departmentId = deptIdx !== -1 ? row[deptIdx] : undefined;
-        const role = roleIdx !== -1 ? row[roleIdx] : 'employee';
-        const employeeId = empIdIdx !== -1 ? row[empIdIdx] : undefined;
-        const designation = desIdx !== -1 ? row[desIdx] : undefined;
-        const payrollCategory = payIdx !== -1 ? row[payIdx] : undefined;
-        const employmentType = typeIdx !== -1 ? row[typeIdx] : undefined;
-        const hireDate = hireIdx !== -1 ? row[hireIdx] : undefined;
-        const phone = phoneIdx !== -1 ? row[phoneIdx] : undefined;
-        const location = locIdx !== -1 ? row[locIdx] : undefined;
-        const timezone = tzIdx !== -1 ? row[tzIdx] : undefined;
+        const email = (row[emailIdx] || '').trim();
+        let firstName = firstIdx !== -1 ? (row[firstIdx] || '').trim() : '';
+        let lastName = lastIdx !== -1 ? (row[lastIdx] || '').trim() : '';
+        const fullName = fullNameIdx !== -1 ? (row[fullNameIdx] || '').trim() : '';
 
-        if (email && firstName && lastName) {
+        if (!firstName && fullName) {
+          const parts = fullName.split(/\s+/);
+          firstName = parts[0] || '';
+          lastName = parts.slice(1).join(' ') || '';
+        }
+
+        const department = deptIdx !== -1 ? (row[deptIdx] || '').trim() : undefined;
+        const jobTitle = jobIdx !== -1 ? (row[jobIdx] || '').trim() : undefined;
+        const employmentType = empTypeIdx !== -1 ? (row[empTypeIdx] || '').trim() : 'full_time';
+        const hireDate = hireIdx !== -1 ? (row[hireIdx] || '').trim() : undefined;
+        const role = roleIdx !== -1 && ['owner', 'admin', 'manager', 'employee'].includes(row[roleIdx]?.trim().toLowerCase())
+          ? row[roleIdx]?.trim().toLowerCase()
+          : 'employee';
+
+        if (email && (fullName || firstName)) {
           parsedList.push({
             email,
-            firstName,
-            lastName,
-            departmentId: departmentId || undefined,
-            role: role || 'employee',
-            employeeId: employeeId || undefined,
-            designation: designation || undefined,
-            payrollCategory: payrollCategory || undefined,
-            employmentType: employmentType || undefined,
-            hireDate: hireDate || undefined,
-            phone: phone || undefined,
-            location: location || undefined,
-            timezone: timezone || undefined
+            firstName: firstName || 'Employee',
+            lastName: lastName || '',
+            fullName: fullName || `${firstName} ${lastName}`.trim(),
+            department,
+            departmentId: department,
+            jobTitle,
+            designation: jobTitle,
+            employmentType: employmentType || 'full_time',
+            hireDate,
+            role,
+            isValid: true,
           });
         }
       }
 
       if (parsedList.length === 0) {
-        toast.error('No valid rows could be parsed from the CSV.');
+        setCsvError('No valid employee rows could be parsed from the CSV.');
+        toast.error('No valid employee rows could be parsed from the CSV.');
+        setParsedEmployees([]);
       } else {
         setParsedEmployees(parsedList);
+        setCsvError(null);
         toast.success(`Successfully parsed ${parsedList.length} employees.`);
       }
     };
@@ -231,9 +297,11 @@ export function EmployeeDirectory() {
       for (let i = 0; i < parsedEmployees.length; i += CHUNK_SIZE) {
         const chunk = parsedEmployees.slice(i, i + CHUNK_SIZE);
         const res = await importEmployeesMutation.mutateAsync(chunk);
-        totalSuccess += res.successCount || 0;
+        totalSuccess += res.imported ?? res.successCount ?? 0;
         if (res.failures && res.failures.length > 0) {
           allFailures.push(...res.failures);
+        } else if (res.errors && res.errors.length > 0) {
+          allFailures.push(...res.errors);
         }
       }
 
@@ -243,6 +311,7 @@ export function EmployeeDirectory() {
       }
       setImportDialogOpen(false);
       setParsedEmployees([]);
+      setCsvError(null);
       refetch();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to import employees.');
@@ -261,13 +330,13 @@ export function EmployeeDirectory() {
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
           {/* Bulk Import Trigger */}
-          <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+          <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) setCsvError(null); }}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button variant="outline" className="flex items-center gap-2" data-testid="bulk-import-trigger">
                 <Upload className="h-4 w-4" /> Bulk Import
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[540px] max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>Bulk Import Employees</DialogTitle>
                 <DialogDescription>
@@ -282,27 +351,23 @@ export function EmployeeDirectory() {
                   </Button>
                 </div>
                 <div className="bg-muted/30 border border-muted/50 rounded-md p-3 text-xs space-y-2">
-                  <span className="font-semibold text-foreground block">Field Value Guidelines:</span>
-                  <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                    <li>
-                      <strong className="text-foreground">role:</strong> <code className="bg-muted px-1 rounded">owner</code>, <code className="bg-muted px-1 rounded">admin</code>, <code className="bg-muted px-1 rounded">manager</code>, or <code className="bg-muted px-1 rounded">employee</code> (default)
-                    </li>
-                    <li>
-                      <strong className="text-foreground">employmentType:</strong> <code className="bg-muted px-1 rounded">full_time</code> (default), <code className="bg-muted px-1 rounded">part_time</code>, <code className="bg-muted px-1 rounded">contractor</code>, or <code className="bg-muted px-1 rounded">intern</code>
-                    </li>
-                  </ul>
+                  <span className="font-semibold text-foreground block">Accepted Headers:</span>
+                  <p className="text-muted-foreground font-mono text-[11px]">
+                    fullName, email, department, jobTitle, employmentType, hireDate
+                  </p>
                 </div>
 
                 <div className="p-6 border-2 border-dashed border-muted rounded-lg text-center space-y-2">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground opacity-50" />
                   <p className="text-sm font-medium">Click to select CSV file</p>
-                  <p className="text-xs text-muted-foreground">CSV header: email, firstName, lastName, departmentId (opt), role (opt), employeeId (opt), designation (opt), payrollCategory (opt), employmentType (opt), hireDate (opt), phone (opt), location (opt), timezone (opt)</p>
+                  <p className="text-xs text-muted-foreground">Accepts .csv files formatted with standard column headers.</p>
                   <Input 
                     type="file" 
                     accept=".csv" 
                     onChange={handleCSVUpload}
                     className="hidden" 
                     id="csv-file-input"
+                    data-testid="csv-file-input"
                   />
                   <Button variant="secondary" size="sm" asChild className="mt-2">
                     <label htmlFor="csv-file-input" className="cursor-pointer">
@@ -311,24 +376,43 @@ export function EmployeeDirectory() {
                   </Button>
                 </div>
 
+                {/* Error Banner for Malformed CSV / Missing Headers */}
+                {csvError && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md text-destructive text-xs font-medium flex items-center gap-2" data-testid="csv-header-error">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{csvError}</span>
+                  </div>
+                )}
+
+                {/* Preview Table with Green Checkmarks */}
                 {parsedEmployees.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-sm font-semibold flex justify-between">
-                      <span>Parsed {parsedEmployees.length} employees:</span>
-                      <Button variant="ghost" size="sm" onClick={() => setParsedEmployees([])} className="h-6 px-1.5 text-xs text-destructive">
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span data-testid="parsed-count-label">{parsedEmployees.length} valid rows ready to import</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => { setParsedEmployees([]); setCsvError(null); }} className="h-6 px-1.5 text-xs text-destructive">
                         Clear
                       </Button>
                     </div>
-                    <div className="max-h-[180px] overflow-y-auto border rounded-md divide-y text-xs">
+                    <div className="max-h-[220px] overflow-y-auto border rounded-md divide-y text-xs" data-testid="preview-rows-container">
                       {parsedEmployees.map((pe, idx) => (
-                        <div key={idx} className="p-2 flex justify-between items-center gap-2 hover:bg-muted/50">
-                          <div className="truncate">
-                            <span className="font-medium text-foreground">{pe.firstName} {pe.lastName}</span>
-                            <span className="text-muted-foreground block truncate">{pe.email}</span>
+                        <div key={idx} className="p-2.5 flex justify-between items-center gap-2 hover:bg-muted/50" data-testid={`preview-row-${idx}`}>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" data-testid={`row-valid-check-${idx}`} />
+                            <div className="truncate">
+                              <span className="font-medium text-foreground block truncate">{pe.fullName || `${pe.firstName} ${pe.lastName}`}</span>
+                              <span className="text-muted-foreground block truncate text-[11px]">{pe.email}</span>
+                            </div>
                           </div>
-                          <div className="shrink-0 flex items-center gap-1.5">
-                            <span className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase text-[10px]">
-                              {pe.role || 'employee'}
+                          <div className="shrink-0 flex items-center gap-1.5 text-right">
+                            <div className="text-[11px] text-muted-foreground hidden sm:block">
+                              {pe.department && <span className="mr-1">{pe.department} •</span>}
+                              <span>{pe.jobTitle || pe.designation || 'Staff'}</span>
+                            </div>
+                            <span className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase text-[10px] font-medium">
+                              {pe.employmentType || 'full_time'}
                             </span>
                           </div>
                         </div>
@@ -339,15 +423,17 @@ export function EmployeeDirectory() {
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+                <Button variant="outline" onClick={() => { setImportDialogOpen(false); setCsvError(null); }}>
                   Cancel
                 </Button>
                 <Button 
+                  id="confirm-import-btn"
+                  data-testid="confirm-import-btn"
                   onClick={handleBulkImportSubmit} 
-                  disabled={parsedEmployees.length === 0 || importEmployeesMutation.isPending}
+                  disabled={parsedEmployees.length === 0 || !!csvError || importEmployeesMutation.isPending}
                 >
                   {importEmployeesMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                  Import Users
+                  Confirm Import
                 </Button>
               </DialogFooter>
             </DialogContent>

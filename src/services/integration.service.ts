@@ -65,6 +65,20 @@ export const integrationService = {
     return response.data.data;
   },
 
+  connectProvider: async (provider: string, data: { subdomain?: string; apiKey?: string; name?: string }): Promise<HRISIntegrationData> => {
+    const response = await apiClient.post<ApiResponse<HRISIntegrationData>>(`/integrations/${provider}/connect`, data);
+    return response.data.data;
+  },
+
+  syncProvider: async (provider: string): Promise<{ status: string; syncId: string; syncLog?: SyncLogData }> => {
+    const response = await apiClient.post<any>(`/integrations/${provider}/sync`);
+    return response.data;
+  },
+
+  disconnectProvider: async (provider: string): Promise<void> => {
+    await apiClient.post(`/integrations/${provider}/disconnect`);
+  },
+
   getSyncLogs: async (id: string): Promise<SyncLogData[]> => {
     const response = await apiClient.get<ApiResponse<SyncLogData[]>>(`/integrations/${id}/logs`);
     return response.data.data || [];

@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import mongoose from "mongoose";
 import { HRISIntegrationService } from "../services/hris-integration.service.js";
 
 export class HRISIntegrationController {
@@ -25,6 +26,39 @@ export class HRISIntegrationController {
       success: true,
       message: "HRIS integration created successfully",
       data: integration,
+    });
+  };
+
+  connectProvider = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const integration = await this.service.connectProvider(
+      user.organizationId,
+      user.userId,
+      params.provider,
+      body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: `${params.provider} connected successfully`,
+      data: integration,
+    });
+  };
+
+
+
+  disconnectProvider = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    await this.service.disconnectProvider(user.organizationId, params.provider);
+
+    return reply.status(200).send({
+      success: true,
+      message: `${params.provider} disconnected successfully`,
     });
   };
 
@@ -71,13 +105,25 @@ export class HRISIntegrationController {
     const user = request.user as any;
     const params = request.params as any;
     const body = request.body as any;
+    const identifier = params.idOrProvider || params.id || params.provider;
 
-    const result = await this.service.triggerSync(user.organizationId, params.id, body?.records);
+    const isObjectId = mongoose.Types.ObjectId.isValid(identifier) && identifier.length === 24;
+
+    const result = isObjectId
+      ? await this.service.triggerSync(user.organizationId, identifier, body?.records)
+      : await this.service.syncProvider(user.organizationId, identifier, body?.records);
 
     return reply.status(200).send({
       success: true,
-      message: "HRIS employee lifecycle sync triggered successfully",
-      data: result,
+      status: "queued",
+      syncId: result.syncLog._id.toString(),
+      message: "HRIS employee lifecycle sync queued successfully",
+      data: {
+        status: "queued",
+        syncId: result.syncLog._id.toString(),
+        syncLog: result.syncLog,
+        integration: result.integration,
+      },
     });
   };
 

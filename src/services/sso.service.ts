@@ -9,7 +9,7 @@ export interface SSORoleMapping {
 export interface SSOConfigData {
   _id?: string;
   organizationId: string;
-  provider: 'okta' | 'azure_ad' | 'google_workspace' | 'custom_saml' | 'custom_oidc';
+  provider: 'okta' | 'azure_ad' | 'google_workspace' | 'custom_saml' | 'custom_oidc' | 'saml2';
   domains: string[];
   issuerUrl?: string;
   clientId?: string;
@@ -24,8 +24,10 @@ export interface SSOConfigData {
 
 export interface SSODiscoveryResult {
   ssoEnabled: boolean;
+  enabled?: boolean;
   provider?: string;
   ssoUrl?: string;
+  entryPoint?: string;
   enforceSSO?: boolean;
   organizationId?: string;
 }
@@ -41,13 +43,21 @@ export const ssoService = {
     return response.data.data;
   },
 
-  discoverDomain: async (email: string): Promise<SSODiscoveryResult> => {
-    const response = await apiClient.post<ApiResponse<SSODiscoveryResult>>('/auth/sso/discover', { email });
+  discoverDomain: async (emailOrDomain: string): Promise<SSODiscoveryResult> => {
+    const domain = emailOrDomain.includes('@') ? emailOrDomain.split('@')[1] : emailOrDomain;
+    const response = await apiClient.post<ApiResponse<SSODiscoveryResult>>('/auth/sso/discover', {
+      domain,
+      email: emailOrDomain,
+    });
     return response.data.data;
   },
 
-  initiateSSO: async (email: string): Promise<{ authUrl: string; provider: string }> => {
-    const response = await apiClient.post<ApiResponse<{ authUrl: string; provider: string }>>('/auth/sso/initiate', { email });
+  initiateSSO: async (emailOrDomain: string): Promise<{ authUrl: string; redirectUrl?: string; entryPoint?: string; provider: string; state?: string }> => {
+    const domain = emailOrDomain.includes('@') ? emailOrDomain.split('@')[1] : emailOrDomain;
+    const response = await apiClient.post<ApiResponse<{ authUrl: string; redirectUrl?: string; entryPoint?: string; provider: string; state?: string }>>('/auth/sso/initiate', {
+      domain,
+      email: emailOrDomain,
+    });
     return response.data.data;
   },
 };

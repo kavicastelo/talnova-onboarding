@@ -22,6 +22,7 @@ import { useEmployeeDocumentInbox } from '../hooks/useDocuments';
 import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
 import { apiClient } from '../api/client';
+import { pwaService } from '../services/pwa.service';
 
 interface TranslateTextProps {
   text?: string;
@@ -153,6 +154,10 @@ export function CourseViewer() {
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
+  const [offlineSimulated, setOfflineSimulated] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && (window.location.search.includes('offline=true') || !navigator.onLine);
+  });
+  const isOffline = offlineSimulated || (typeof navigator !== 'undefined' && !navigator.onLine);
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 1024px)');
@@ -197,18 +202,89 @@ export function CourseViewer() {
     }
   };
 
-  const toggleCompletion = () => {
+  // Listen for PWA offline queue flush events and network reconnection
+  useEffect(() => {
+    const handleSynced = (e: any) => {
+      const detail = e.detail;
+      if (detail && detail.syncedLessonIds) {
+        if (selectedLesson && detail.syncedLessonIds.includes(selectedLesson.id)) {
+          selectedLesson.isCompleted = true;
+        }
+      }
+      refetch();
+    };
+
+    const handleOnline = async () => {
+      const result = await pwaService.flushOfflineProgress();
+      if (result.syncedCount > 0) {
+        toast.success(`Online: Synchronized ${result.syncedCount} lesson(s) to server.`);
+        refetch();
+      }
+    };
+
+    window.addEventListener('talnova:offline_synced', handleSynced);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('talnova:offline_synced', handleSynced);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [selectedLesson, refetch]);
+
+  const toggleCompletion = async () => {
     if (pendingDocs.length > 0) {
       toast.warning('Mandatory compliance documents must be signed before completing lessons.');
       return;
     }
-    if (course && selectedLesson) {
-      updateLessonCompletion.mutate({
+    if (!course || !selectedLesson) return;
+
+    // Intercept mutation if offline (Happy Path step 5)
+    if (isOffline) {
+      console.log('[PWA Sync] Client is offline. Intercepting lesson completion mutation...');
+      await pwaService.enqueueOfflineProgress(course.id, selectedLesson.id);
+      selectedLesson.isCompleted = true;
+
+      // Update local course cache
+      const cacheKey = `talnova_course_cache_${course.id}`;
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          for (const m of parsed.modules || []) {
+            for (const l of m.lessons || []) {
+              if (l.id === selectedLesson.id) {
+                l.isCompleted = true;
+              }
+            }
+          }
+          localStorage.setItem(cacheKey, JSON.stringify(parsed));
+        }
+      } catch {}
+
+      toast.info('Offline: Lesson marked as complete. Saved to IndexedDB offline queue.');
+      return;
+    }
+
+    // Online mutation
+    updateLessonCompletion.mutate(
+      {
         courseId: course.id,
         lessonId: selectedLesson.id,
         isCompleted: !selectedLesson.isCompleted,
-      });
-    }
+      },
+      {
+        onError: async (err: any) => {
+          if (isOffline || !navigator.onLine || err.message?.includes('Network Error')) {
+            console.log('[PWA Sync] Network error detected. Saving to IndexedDB offline queue...');
+            await pwaService.enqueueOfflineProgress(course.id, selectedLesson.id);
+            selectedLesson.isCompleted = true;
+            toast.info('Saved to IndexedDB offline queue. Progress will sync when connection is restored.');
+          } else {
+            toast.error('Failed to update lesson completion');
+          }
+        },
+      }
+    );
   };
 
   const autoMarkCompleted = () => {
@@ -585,9 +661,12 @@ export function CourseViewer() {
             {course.title}
           </h2>
           <div className="flex items-center gap-2 mb-1">
-            <Progress value={course.progress} className="h-2 flex-1 bg-white/10" />
+            <Progress
+              value={typeof course.progress === 'number' ? course.progress : ((course.progress as any)?.completionPercentage ?? 0)}
+              className="h-2 flex-1 bg-white/10"
+            />
             <span className="text-xs text-gray-400 font-medium">
-              {course.progress}%
+              {typeof course.progress === 'number' ? course.progress : ((course.progress as any)?.completionPercentage ?? 0)}%
             </span>
           </div>
         </div>
@@ -714,6 +793,35 @@ export function CourseViewer() {
                     தமிழ் (TA)
                   </button>
                 </div>
+
+                {/* PWA Network Mode Indicator & Toggle */}
+                <Button
+                  id="pwa-network-toggle-btn"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (isOffline) {
+                      setOfflineSimulated(false);
+                      toast.info('Reconnecting to network...');
+                      const res = await pwaService.flushOfflineProgress();
+                      if (res.syncedCount > 0) {
+                        toast.success(`Online: Successfully synced ${res.syncedCount} lesson(s) to server.`);
+                      }
+                      refetch();
+                    } else {
+                      setOfflineSimulated(true);
+                      toast.warning('Network set to Offline mode (DevTools Offline).');
+                    }
+                  }}
+                  className={`h-8 text-xs border font-medium ${
+                    isOffline
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  }`}
+                  title="Toggle PWA network offline/online simulation"
+                >
+                  {isOffline ? '⚡ Offline (Click to Sync Online)' : '📶 Online (Click to Toggle Offline)'}
+                </Button>
 
                 <Button
                   variant="outline"
@@ -1028,6 +1136,7 @@ export function CourseViewer() {
                     </div>
                     <Button
                       id="complete-lesson-btn"
+                      data-testid="mark-as-complete-btn"
                       variant={selectedLesson.isCompleted ? 'outline' : 'default'}
                       onClick={toggleCompletion}
                       disabled={updateLessonCompletion.isPending || !isVideoRequirementMet}
@@ -1041,7 +1150,7 @@ export function CourseViewer() {
                       {selectedLesson.isCompleted ? (
                         <TranslateText language={translationLanguage}>Completed</TranslateText>
                       ) : (
-                        <TranslateText language={translationLanguage}>Complete Lesson</TranslateText>
+                        <TranslateText language={translationLanguage}>Mark as Complete</TranslateText>
                       )}
                     </Button>
                   </div>

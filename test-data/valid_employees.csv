@@ -1,0 +1,4 @@
+fullName,email,department,jobTitle,employmentType,hireDate
+Alice Walker,alice_csv@test.com,Engineering,Frontend Dev,full_time,2026-10-01
+Bob Martinez,bob_csv@test.com,Marketing,Content Specialist,full_time,2026-10-01
+Charlie Kim,charlie_csv@test.com,Sales,Account Exec,full_time,2026-10-01

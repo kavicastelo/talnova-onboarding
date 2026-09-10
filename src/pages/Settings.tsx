@@ -16,15 +16,21 @@ import {
   useNotificationPreferences,
   useUpdateNotificationPreferences
 } from '../hooks/useNotifications';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertCircle, RefreshCw, X, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
 import { useTranslation } from 'react-i18next';
 import { uploadService } from '../services/upload.service';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { useRole } from '../context/RoleContext';
 
 export function Settings() {
+  const navigate = useNavigate();
+  const { role } = useRole();
+  const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
+
   const { data: settings, isLoading, isError, error, refetch } = useWorkspaceSettings();
   const { data: userNotificationPrefs } = useNotificationPreferences();
   const updateSettings = useUpdateWorkspaceSettings();
@@ -37,10 +43,13 @@ export function Settings() {
   const [orgName, setOrgName] = useState('');
   const [supportEmail, setSupportEmail] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#000000');
+  const [colorError, setColorError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
+  const [newDeptCode, setNewDeptCode] = useState('');
+  const [showAddDeptModal, setShowAddDeptModal] = useState(false);
 
   const { data: departments = [], isLoading: deptsLoading } = useDepartments();
   const deptPagination = usePagination({ data: departments, initialPageSize: 5 });
@@ -109,19 +118,28 @@ export function Settings() {
     setCategories(categories.filter(c => c !== catToRemove));
   };
 
-  const handleAddDept = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = newDeptName.trim();
-    if (!trimmed) return;
-    createDeptMut.mutate({ name: trimmed }, {
-      onSuccess: () => {
-        setNewDeptName('');
-        toast.success('Department created successfully!');
-      },
-      onError: (err: any) => {
-        toast.error(err?.message || 'Failed to create department.');
+  const handleAddDept = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmedName = newDeptName.trim();
+    const trimmedCode = newDeptCode.trim().toUpperCase();
+    if (!trimmedName) {
+      toast.error('Department name is required.');
+      return;
+    }
+    createDeptMut.mutate(
+      { name: trimmedName, code: trimmedCode || undefined },
+      {
+        onSuccess: () => {
+          setNewDeptName('');
+          setNewDeptCode('');
+          setShowAddDeptModal(false);
+          toast.success('Department created successfully!');
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to create department.');
+        },
       }
-    });
+    );
   };
 
   const handleDeleteDept = (id: string) => {
@@ -130,8 +148,8 @@ export function Settings() {
         toast.success('Department deleted successfully!');
       },
       onError: (err: any) => {
-        toast.error(err?.message || 'Failed to delete department.');
-      }
+        toast.error(err?.response?.data?.message || err?.message || 'Failed to delete department.');
+      },
     });
   };
 
@@ -150,14 +168,21 @@ export function Settings() {
   };
 
   const handleSaveBranding = () => {
+    const trimmedColor = primaryColor.trim();
+    if (!/^#[0-9A-F]{6}$/i.test(trimmedColor)) {
+      setColorError('Invalid hex color format. Must be a 6-digit hex code (e.g. #1d4ed8)');
+      toast.error('Invalid hex color format (e.g. #1d4ed8)');
+      return;
+    }
+    setColorError(null);
     updateSettings.mutate(
-      { primaryColor },
+      { primaryColor: trimmedColor },
       {
         onSuccess: () => {
           toast.success('Branding updated successfully!');
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to update branding.');
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to update branding.');
         },
       }
     );
@@ -335,8 +360,91 @@ export function Settings() {
     );
   }
 
+  if (!isOrgAdmin) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto" data-testid="employee-settings-view">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Personal Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your personal notification preferences and account settings.
+          </p>
+        </div>
+
+        <Tabs defaultValue="notifications" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="notifications" data-testid="tab-personal-notifications">
+              {t('sections.notifications')}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('sections.notifications')}</CardTitle>
+                <CardDescription>
+                  Choose how and when you want to receive onboarding assignment and progress updates.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-sm">New Assignment Alerts</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Receive email alerts when new onboarding journeys or lessons are assigned to you.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNewAssignmentEmails(!newAssignmentEmails)}
+                      className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${
+                        newAssignmentEmails ? 'bg-indigo-600' : 'bg-white/10'
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
+                          newAssignmentEmails ? 'right-0.5 translate-x-0' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-sm">Deadline Reminders</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Receive reminder alerts before course due dates and milestone targets.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeadlineReminders(!deadlineReminders)}
+                      className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${
+                        deadlineReminders ? 'bg-indigo-600' : 'bg-white/10'
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
+                          deadlineReminders ? 'right-0.5 translate-x-0' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+                <Button onClick={handleSaveNotifications} disabled={updateSettings.isPending}>
+                  {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  {t('workspace.saveChanges')}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto" data-testid="admin-settings-view">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         <p className="text-muted-foreground">
@@ -346,20 +454,21 @@ export function Settings() {
 
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="general">{t('sections.workspace')}</TabsTrigger>
-          <TabsTrigger value="branding">{t('sections.branding')}</TabsTrigger>
-          <TabsTrigger value="roles">{t('sections.security')}</TabsTrigger>
-          <TabsTrigger value="notifications">{t('sections.notifications')}</TabsTrigger>
-          <TabsTrigger value="certificates">Certificates</TabsTrigger>
+          <TabsTrigger value="general" data-testid="tab-general">{t('sections.workspace')}</TabsTrigger>
+          <TabsTrigger value="branding" data-testid="tab-branding">{t('sections.branding')}</TabsTrigger>
+          <TabsTrigger value="departments" data-testid="tab-departments">Departments</TabsTrigger>
+          <TabsTrigger value="roles" data-testid="tab-security">{t('sections.security')}</TabsTrigger>
+          <TabsTrigger value="notifications" data-testid="tab-notifications">{t('sections.notifications')}</TabsTrigger>
+          <TabsTrigger value="certificates" data-testid="tab-certificates">Certificates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
           <Card>
             <CardHeader>
-                <CardTitle>{t('sections.workspace')}</CardTitle>
-                <CardDescription>
-                  {t('workspace.orgName')}
-                </CardDescription>
+              <CardTitle>{t('sections.workspace')}</CardTitle>
+              <CardDescription>
+                {t('workspace.orgName')}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -431,82 +540,14 @@ export function Settings() {
               </Button>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Departments</CardTitle>
-              <CardDescription>
-                Manage the department names used when inviting new employees.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="rounded-md border max-w-md">
-                  {deptsLoading ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">Loading departments...</div>
-                  ) : departments.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground italic">No custom departments added. Platform defaults will be used.</div>
-                  ) : (
-                    <div>
-                      <div className="divide-y">
-                        {deptPagination.paginatedData.map((dept: any) => (
-                          <div key={dept._id} className="flex items-center justify-between p-3 text-sm">
-                            <span className="font-medium">{dept.name}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteDept(dept._id)}
-                              disabled={deleteDeptMut.isPending}
-                              className="text-destructive hover:bg-destructive/10 p-1 h-7 w-7"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="p-2 border-t">
-                        <SimplePagination
-                          currentPage={deptPagination.page}
-                          totalPages={deptPagination.totalPages}
-                          totalItems={deptPagination.totalItems}
-                          startIndex={deptPagination.startIndex}
-                          endIndex={deptPagination.endIndex}
-                          pageSize={deptPagination.pageSize}
-                          onPageChange={deptPagination.setPage}
-                          onPageSizeChange={deptPagination.setPageSize}
-                          itemLabel="departments"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <form onSubmit={handleAddDept} className="flex gap-2 max-w-md">
-                  <Input
-                    value={newDeptName}
-                    onChange={(e: any) => setNewDeptName(e.target.value)}
-                    placeholder="e.g. Human Resources"
-                  />
-                  <Button type="submit" variant="outline" disabled={createDeptMut.isPending}>
-                    {createDeptMut.isPending ? (
-                      <RefreshCw className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="mr-1 h-4 w-4" />
-                    )}
-                    Add Department
-                  </Button>
-                </form>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
-        <TabsContent value="branding">
+        <TabsContent value="branding" data-testid="branding-tab-content">
           <Card>
             <CardHeader>
-                <CardTitle>{t('sections.branding')}</CardTitle>
+              <CardTitle>{t('sections.branding')}</CardTitle>
               <CardDescription>
-                Customize the look and feel of your workspace.
+                Customize your organization logo and primary brand color across the employee experience.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -554,15 +595,212 @@ export function Settings() {
                 <div>
                   <label className="text-sm font-medium block mb-2">{t('workspace.primaryColor')}</label>
                   <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full border" style={{ backgroundColor: primaryColor }} />
-                    <Input value={primaryColor} onChange={(e: any) => setPrimaryColor(e.target.value)} className="w-32" />
+                    <div
+                      className="w-9 h-9 rounded-full border shadow-xs shrink-0 transition-colors"
+                      style={{ backgroundColor: /^#[0-9A-F]{6}$/i.test(primaryColor) ? primaryColor : '#000000' }}
+                      data-testid="color-preview-circle"
+                    />
+                    <div className="space-y-1">
+                      <Input
+                        data-testid="primary-color-input"
+                        value={primaryColor}
+                        onChange={(e: any) => {
+                          setPrimaryColor(e.target.value);
+                          if (colorError && /^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                            setColorError(null);
+                          }
+                        }}
+                        placeholder="#1d4ed8"
+                        className={`w-36 font-mono ${colorError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      />
+                    </div>
                   </div>
+                  {colorError && (
+                    <p className="text-xs text-destructive mt-1.5 font-medium" data-testid="color-error-message">
+                      {colorError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Used for primary buttons, active highlights, and navigation branding. Format: #RRGGBB
+                  </p>
                 </div>
               </div>
-              <Button onClick={handleSaveBranding} disabled={updateSettings.isPending}>
+              <Button
+                data-testid="save-branding-btn"
+                onClick={handleSaveBranding}
+                disabled={updateSettings.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
                 {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                {t('workspace.saveChanges')}
+                Save Branding
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="departments" data-testid="departments-tab-content">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Departments</CardTitle>
+                <CardDescription>
+                  Configure your organization's departmental taxonomy, department codes, and employee assignments.
+                </CardDescription>
+              </div>
+              <Button
+                data-testid="add-department-btn"
+                onClick={() => setShowAddDeptModal(true)}
+                size="sm"
+                className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                <Plus className="h-4 w-4" /> Add Department
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {showAddDeptModal && (
+                <div className="p-4 border rounded-lg bg-muted/20 space-y-4 mb-4" data-testid="add-dept-form">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-semibold text-sm text-foreground">New Department</h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddDeptModal(false)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Department Name
+                      </label>
+                      <Input
+                        data-testid="dept-name-input"
+                        value={newDeptName}
+                        onChange={(e: any) => setNewDeptName(e.target.value)}
+                        placeholder="e.g. Customer Success"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Department Code
+                      </label>
+                      <Input
+                        data-testid="dept-code-input"
+                        value={newDeptCode}
+                        onChange={(e: any) => setNewDeptCode(e.target.value.toUpperCase())}
+                        placeholder="e.g. CS"
+                        maxLength={10}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAddDeptModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      data-testid="save-department-btn"
+                      size="sm"
+                      onClick={handleAddDept}
+                      disabled={createDeptMut.isPending || !newDeptName.trim()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      {createDeptMut.isPending ? (
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      Save Department
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-md border overflow-hidden" data-testid="departments-table">
+                {deptsLoading ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    Loading departments...
+                  </div>
+                ) : departments.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground italic">
+                    No departments configured yet. Click "Add Department" to create one.
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3">Department Name</th>
+                        <th className="text-left px-4 py-3">Code</th>
+                        <th className="text-left px-4 py-3">Status</th>
+                        <th className="text-right px-4 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {deptPagination.paginatedData.map((dept: any) => (
+                        <tr
+                          key={dept._id}
+                          data-testid={`dept-row-${dept.code || dept.name.replace(/\s+/g, '_')}`}
+                          className="hover:bg-muted/10 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-medium text-foreground">
+                            {dept.name}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className="font-mono text-xs bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
+                              data-testid={`dept-code-badge-${dept.code || dept.name}`}
+                            >
+                              {dept.code || dept.name.substring(0, 3).toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            >
+                              Active
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              data-testid={`delete-dept-${dept._id}`}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteDept(dept._id)}
+                              disabled={deleteDeptMut.isPending}
+                              className="text-destructive hover:bg-destructive/10 p-1 h-8 w-8"
+                              title="Delete Department"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {departments.length > 5 && (
+                <div className="pt-2">
+                  <SimplePagination
+                    currentPage={deptPagination.page}
+                    totalPages={deptPagination.totalPages}
+                    totalItems={deptPagination.totalItems}
+                    startIndex={deptPagination.startIndex}
+                    endIndex={deptPagination.endIndex}
+                    pageSize={deptPagination.pageSize}
+                    onPageChange={deptPagination.setPage}
+                    onPageSizeChange={deptPagination.setPageSize}
+                    itemLabel="departments"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -637,6 +875,28 @@ export function Settings() {
               <Button onClick={handleSaveSecurity} disabled={updateSettings.isPending}>
                 {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                 {t('workspace.saveChanges')}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-indigo-100 dark:border-indigo-950/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <KeyRound className="h-5 w-5 text-indigo-600" />
+                Enterprise Single Sign-On (SSO & SAML 2.0)
+              </CardTitle>
+              <CardDescription>
+                Configure enterprise SAML 2.0 / OIDC identity providers, domain discovery, X.509 signing certificates, and toggle mandatory SSO enforcement.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button
+                variant="outline"
+                className="border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium"
+                onClick={() => navigate('/settings/sso')}
+                data-testid="btn-configure-sso"
+              >
+                Configure SSO Settings <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </CardContent>
           </Card>
