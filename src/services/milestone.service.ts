@@ -21,24 +21,32 @@ export interface EmployeeMilestone {
   templateId: string;
   employeeId: any;
   milestoneTitle: string;
+  milestoneCode?: string;
   targetDay: 30 | 60 | 90 | 180;
   dueDate: string;
-  status: 'pending' | 'in_review' | 'completed' | 'overdue';
+  status: 'pending' | 'in_review' | 'pending_manager_review' | 'completed' | 'approved' | 'revision_requested' | 'overdue';
   goalsProgress: Array<{
     goalTitle: string;
     completed: boolean;
     completedAt?: string;
   }>;
+  employeeRating?: number;
+  comments?: string;
+  managerRating?: number;
+  managerFeedback?: string;
+  evaluatedAt?: string;
   employeeSelfCheck?: {
     completedAt?: string;
     responses: Array<{ questionId: string; question: string; answer: string }>;
     confidenceRating?: number;
+    employeeRating?: number;
     comments?: string;
+    reflectionNotes?: string;
   };
   managerReview?: {
     reviewedBy?: string;
     reviewedAt?: string;
-    approvalStatus: 'pending' | 'approved' | 'needs_action';
+    approvalStatus: 'pending' | 'approved' | 'needs_action' | 'revision_requested';
     performanceRating?: number;
     feedback?: string;
   };
@@ -88,10 +96,25 @@ export const milestoneService = {
     return response.data.data;
   },
 
+  evaluateMilestone: async (
+    id: string,
+    payload: {
+      status?: 'approved' | 'revision_requested' | 'needs_action';
+      approvalStatus?: 'approved' | 'revision_requested' | 'needs_action';
+      managerRating?: number;
+      performanceRating?: number;
+      managerFeedback?: string;
+      feedback?: string;
+    }
+  ): Promise<EmployeeMilestone> => {
+    const response = await apiClient.post<ApiResponse<EmployeeMilestone>>(`/milestones/${id}/evaluate`, payload);
+    return response.data.data;
+  },
+
   submitManagerReview: async (
     id: string,
     payload: {
-      approvalStatus: 'approved' | 'needs_action';
+      approvalStatus: 'approved' | 'needs_action' | 'revision_requested';
       performanceRating?: number;
       feedback?: string;
     }

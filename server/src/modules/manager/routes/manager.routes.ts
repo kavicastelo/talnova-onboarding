@@ -15,6 +15,9 @@ export async function managerRoutes(app: FastifyInstance) {
   // GET /api/v1/manager/dashboard
   app.get("/dashboard", controller.getManagerDashboard as any);
 
+  // GET /api/v1/manager/team-overview
+  app.get("/team-overview", controller.getTeamOverview as any);
+
   // GET /api/v1/manager/team
   app.get("/team", controller.getTeamDirectReports as any);
 

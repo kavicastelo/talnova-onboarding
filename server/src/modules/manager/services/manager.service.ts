@@ -64,7 +64,11 @@ export class ManagerService {
 
     // If user is a manager (not admin/owner), strictly enforce direct-report filter
     if (role === "manager") {
-      query["employment.managerId"] = new mongoose.Types.ObjectId(managerUserId);
+      const mgrObjId = new mongoose.Types.ObjectId(managerUserId);
+      query["$or"] = [
+        { "employment.managerId": mgrObjId },
+        { "employment.managerUserId": mgrObjId },
+      ];
     }
 
     return query;
@@ -268,7 +272,10 @@ export class ManagerService {
 
     // Security check: If role is manager, enforce that target employee is their direct report
     if (role === "manager") {
-      const isDirectReport = employee.employment?.managerId?.toString() === managerUserId.toString();
+      const mgrIdStr = managerUserId.toString();
+      const isDirectReport =
+        employee.employment?.managerId?.toString() === mgrIdStr ||
+        (employee.employment as any)?.managerUserId?.toString() === mgrIdStr;
       if (!isDirectReport) {
         throw new AppError(403, "FORBIDDEN", "You can only access details for your direct reports");
       }

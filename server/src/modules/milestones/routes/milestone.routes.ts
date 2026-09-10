@@ -56,6 +56,20 @@ export async function milestoneRoutes(app: FastifyInstance) {
     controller.getTeamMilestones as any
   );
 
+  app.get(
+    "/team",
+    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    controller.getTeamMilestones as any
+  );
+
+  app.post(
+    "/:id/evaluate",
+    {
+      preHandler: [requireRole(["owner", "admin", "manager"])],
+    },
+    controller.evaluateMilestone as any
+  );
+
   app.post(
     "/:id/manager-review",
     {

@@ -53,7 +53,15 @@ export const selfCheckinSchema = z.object({
 });
 
 export const managerReviewSchema = z.object({
-  approvalStatus: z.enum(["approved", "needs_action"]),
-  performanceRating: z.number().min(1).max(5).optional(),
+  approvalStatus: z.enum(["approved", "needs_action", "revision_requested", "completed"]).optional(),
+  status: z.enum(["approved", "needs_action", "revision_requested", "completed"]).optional(),
+  performanceRating: z.number().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5").optional(),
+  managerRating: z.number().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5").optional(),
+  rating: z.number().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5").optional(),
   feedback: z.string().optional(),
+  managerFeedback: z.string().optional(),
+  notes: z.string().optional(),
 });
+
+export const evaluateMilestoneSchema = managerReviewSchema;
+

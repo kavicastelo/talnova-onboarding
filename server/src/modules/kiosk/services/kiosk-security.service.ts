@@ -31,9 +31,18 @@ export class KioskSecurityService {
       return false;
     }
 
-    // 2. Generate expected signature and compare
-    const expectedSig = this.generateSignature(journeyId, orgId, exp, secret);
-    return crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expectedSig, "hex"));
+    // 2. Generate expected signature and compare safely
+    try {
+      const expectedSig = this.generateSignature(journeyId, orgId, exp, secret);
+      const sigBuf = Buffer.from(sig, "hex");
+      const expBuf = Buffer.from(expectedSig, "hex");
+      if (sigBuf.length !== expBuf.length || sigBuf.length === 0) {
+        return false;
+      }
+      return crypto.timingSafeEqual(sigBuf, expBuf);
+    } catch {
+      return false;
+    }
   }
 
   /**

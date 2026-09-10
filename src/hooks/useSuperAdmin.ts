@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { superAdminService } from '../services/superAdmin.service';
 
+export function useSuperAdminStats() {
+  return useQuery({
+    queryKey: ['superAdminStats'],
+    queryFn: superAdminService.getStats,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useSuperAdminTelemetry() {
   return useQuery({
     queryKey: ['superAdminTelemetry'],
@@ -31,6 +39,19 @@ export function useCreateOrganization() {
     mutationFn: superAdminService.createOrganization,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+    },
+  });
+}
+
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      superAdminService.updateOrganization(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminTelemetry'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminStats'] });
     },
   });
 }

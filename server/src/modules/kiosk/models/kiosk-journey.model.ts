@@ -6,6 +6,7 @@ import { KioskJourney } from "../types/journey.types.js";
  */
 export interface IKioskJourney extends Omit<KioskJourney, "_id" | "organizationId" | "createdBy" | "updatedBy" | "createdAt" | "updatedAt">, Document {
   organizationId: mongoose.Types.ObjectId;
+  journeyCode?: string;
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -53,7 +54,8 @@ const KioskInteractionSchema = new Schema(
     holdDurationMs: { type: Number },
     hotspots: { type: [KioskHotspotSchema], default: [] },
     correctStepId: { type: String },
-    incorrectStepId: { type: String }
+    incorrectStepId: { type: String },
+    ppeItems: { type: [String], default: [] }
   },
   { _id: false }
 );
@@ -109,6 +111,7 @@ const KioskPublishingSettingsSchema = new Schema(
 const KioskJourneySchema = new Schema<IKioskJourney>(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
+    journeyCode: { type: String, trim: true },
     title: { type: String, required: true, trim: true },
     description: { type: String },
     languages: { type: [String], required: true },
@@ -129,9 +132,11 @@ const KioskJourneySchema = new Schema<IKioskJourney>(
 KioskJourneySchema.index({ organizationId: 1 });
 KioskJourneySchema.index({ "publishing.status": 1 });
 KioskJourneySchema.index({ createdBy: 1 });
+KioskJourneySchema.index({ journeyCode: 1 });
 
 // Compound indexes
 KioskJourneySchema.index({ organizationId: 1, isDeleted: 1 });
+KioskJourneySchema.index({ organizationId: 1, journeyCode: 1 });
 KioskJourneySchema.index({ organizationId: 1, "publishing.status": 1 });
 KioskJourneySchema.index({ organizationId: 1, createdAt: -1 });
 

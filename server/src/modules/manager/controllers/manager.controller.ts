@@ -19,6 +19,34 @@ export class ManagerController {
     });
   };
 
+  getTeamOverview = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const [metrics, team] = await Promise.all([
+      this.managerService.getManagerDashboard(
+        user.organizationId,
+        user.userId,
+        user.role
+      ),
+      this.managerService.getTeamDirectReports(
+        user.organizationId,
+        user.userId,
+        user.role
+      ),
+    ]);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Team overview retrieved successfully",
+      data: {
+        metrics,
+        team,
+        totalDirectReports: metrics.totalDirectReports,
+        averageProgress: metrics.overallCompletionRate,
+        overdueCount: metrics.overdueItemsCount,
+      },
+    });
+  };
+
   getTeamDirectReports = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const data = await this.managerService.getTeamDirectReports(

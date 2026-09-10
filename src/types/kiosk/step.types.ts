@@ -19,6 +19,7 @@ export interface KioskInteraction {
   readonly hotspots?: readonly KioskHotspot[]; // For "hotspot" interaction
   readonly correctStepId?: StepId; // Router target step for successful path/Yes
   readonly incorrectStepId?: StepId; // Router target step for alternate path/No
+  readonly ppeItems?: readonly string[]; // For "ppe_checklist" interaction
 }
 
 export interface KioskStep {

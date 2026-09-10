@@ -20,12 +20,16 @@ export interface TaskItem {
     profile?: { firstName: string; lastName: string };
     auth?: { email: string };
   };
+  taskCode?: string;
   title: string;
   description?: string;
   category: "it_setup" | "hr_paperwork" | "equipment" | "training" | "general";
   stage: "preboarding" | "day_1" | "week_1" | "month_1" | "custom";
   priority: "low" | "normal" | "high" | "critical";
-  status: "pending" | "in_progress" | "completed" | "overdue" | "cancelled";
+  status: "pending" | "in_progress" | "completed" | "verified" | "overdue" | "cancelled";
+  requiresVerification?: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
   dueDate?: string;
   relativeOffsetDays?: number;
   prerequisiteTaskIds?: Array<{
@@ -59,11 +63,13 @@ export interface TaskItem {
 export interface CreateTaskPayload {
   assignedToUserId: string;
   employeeId?: string;
+  taskCode?: string;
   title: string;
   description?: string;
   category?: "it_setup" | "hr_paperwork" | "equipment" | "training" | "general";
   stage?: "preboarding" | "day_1" | "week_1" | "month_1" | "custom";
   priority?: "low" | "normal" | "high" | "critical";
+  requiresVerification?: boolean;
   dueDate?: string;
   relativeOffsetDays?: number;
   prerequisiteTaskIds?: string[];
@@ -71,6 +77,8 @@ export interface CreateTaskPayload {
 
 export interface TaskListQuery {
   assignedToMe?: boolean;
+  directReportsOnly?: boolean;
+  directReports?: boolean;
   assignedToUserId?: string;
   employeeId?: string;
   status?: string;
@@ -89,6 +97,7 @@ export class FrontendTaskService {
     const query = new URLSearchParams();
     if (params) {
       if (params.assignedToMe) query.append("assignedToMe", "true");
+      if (params.directReportsOnly || params.directReports) query.append("directReportsOnly", "true");
       if (params.assignedToUserId) query.append("assignedToUserId", params.assignedToUserId);
       if (params.employeeId) query.append("employeeId", params.employeeId);
       if (params.status) query.append("status", params.status);

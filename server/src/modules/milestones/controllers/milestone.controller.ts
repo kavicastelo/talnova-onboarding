@@ -100,12 +100,21 @@ export class MilestoneController {
     });
   };
 
-  submitManagerReview = async (request: FastifyRequest, reply: FastifyReply) => {
+  evaluateMilestone = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;
-    const body = request.body as any;
+    const body = (request.body as any) || {};
 
-    const milestone = await this.milestoneService.submitManagerReview(
+    const rating = body.managerRating ?? body.performanceRating ?? body.rating;
+    if (rating !== undefined && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+      return reply.status(400).send({
+        success: false,
+        message: "Rating must be between 1 and 5",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
+
+    const milestone = await this.milestoneService.evaluateMilestone(
       user.organizationId,
       params.id,
       user.userId,
@@ -115,8 +124,12 @@ export class MilestoneController {
 
     return reply.status(200).send({
       success: true,
-      message: "Manager milestone review submitted successfully",
+      message: "Milestone evaluation submitted successfully",
       data: milestone,
     });
+  };
+
+  submitManagerReview = async (request: FastifyRequest, reply: FastifyReply) => {
+    return this.evaluateMilestone(request, reply);
   };
 }

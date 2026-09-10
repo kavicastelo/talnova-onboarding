@@ -15,6 +15,13 @@ export function useTeamDirectReports() {
   });
 }
 
+export function useTeamOverview() {
+  return useQuery({
+    queryKey: ['teamOverview'],
+    queryFn: () => managerService.getTeamOverview(),
+  });
+}
+
 export function useDirectReportDetails(employeeId: string | null) {
   return useQuery({
     queryKey: ['directReportDetails', employeeId],

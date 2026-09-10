@@ -84,6 +84,11 @@ export const managerService = {
     return response.data.data;
   },
 
+  getTeamOverview: async (): Promise<{ metrics: ManagerDashboardMetrics; team: DirectReportSummary[] }> => {
+    const response = await apiClient.get<ApiResponse<{ metrics: ManagerDashboardMetrics; team: DirectReportSummary[] }>>('/manager/team-overview');
+    return response.data.data;
+  },
+
   getTeam: async (): Promise<DirectReportSummary[]> => {
     const response = await apiClient.get<ApiResponse<DirectReportSummary[]>>('/manager/team');
     return response.data.data || [];
