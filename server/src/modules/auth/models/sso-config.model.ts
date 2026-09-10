@@ -7,7 +7,7 @@ export interface ISSORoleMapping {
 
 export interface ISSOConfig extends Document {
   organizationId: mongoose.Types.ObjectId;
-  provider: "okta" | "azure_ad" | "google_workspace" | "custom_saml" | "custom_oidc";
+  provider: "okta" | "azure_ad" | "google_workspace" | "custom_saml" | "custom_oidc" | "saml2";
   domains: string[];
   issuerUrl?: string;
   clientId?: string;
@@ -36,7 +36,7 @@ const SSOConfigSchema = new Schema<ISSOConfig>(
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization", unique: true },
     provider: {
       type: String,
-      enum: ["okta", "azure_ad", "google_workspace", "custom_saml", "custom_oidc"],
+      enum: ["okta", "azure_ad", "google_workspace", "custom_saml", "custom_oidc", "saml2"],
       default: "okta",
     },
     domains: { type: [String], default: [] },

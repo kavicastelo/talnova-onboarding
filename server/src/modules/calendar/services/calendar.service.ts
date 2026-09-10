@@ -126,10 +126,15 @@ export class CalendarService {
       timezone?: string;
       locationUrl?: string;
       reminderMinutesBefore?: number;
+      notes?: string;
     }
   ) {
     const orgObjectId = new mongoose.Types.ObjectId(orgId);
     const organizerObjectId = new mongoose.Types.ObjectId(organizerUserId);
+
+    if (new Date(data.endTime) <= new Date(data.startTime)) {
+      throw new AppError(400, "VALIDATION_ERROR", "End time must be after start time");
+    }
 
     const attendeeObjectIds = data.attendeeUserIds.map((id) => new mongoose.Types.ObjectId(id));
     if (!attendeeObjectIds.some((id) => id.toString() === organizerObjectId.toString())) {
@@ -152,6 +157,7 @@ export class CalendarService {
       status: "scheduled",
       reminderMinutesBefore: data.reminderMinutesBefore || 15,
       iCalUid,
+      notes: data.notes,
     });
 
     // Notify attendees
@@ -169,6 +175,45 @@ export class CalendarService {
     }
 
     return event;
+  }
+
+  /**
+   * Generate Single Event iCal (.ics)
+   */
+  async generateSingleEventICal(eventId: string | mongoose.Types.ObjectId): Promise<string> {
+    const event = await MeetingEvent.findOne({
+      _id: new mongoose.Types.ObjectId(eventId),
+      isDeleted: false,
+    });
+
+    if (!event) {
+      throw new AppError(404, "NOT_FOUND", "Meeting event not found");
+    }
+
+    const formatICalDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    };
+
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Talnova Onboarding//Calendar Integration//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:REQUEST",
+      "BEGIN:VEVENT",
+      `UID:${event.iCalUid}`,
+      `DTSTAMP:${formatICalDate(new Date())}`,
+      `DTSTART:${formatICalDate(event.startTime)}`,
+      `DTEND:${formatICalDate(event.endTime)}`,
+      `SUMMARY:${event.title}`,
+      `DESCRIPTION:${(event.description || event.notes || "Onboarding meeting").replace(/\n/g, "\\n")}`,
+      event.locationUrl ? `URL:${event.locationUrl}` : "",
+      `STATUS:${event.status === "cancelled" ? "CANCELLED" : "CONFIRMED"}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].filter(Boolean);
+
+    return icsContent.join("\r\n");
   }
 
   /**
@@ -205,10 +250,15 @@ export class CalendarService {
 
     if (data.title) event.title = data.title;
     if (data.description !== undefined) event.description = data.description;
+    if (data.notes !== undefined) event.notes = data.notes;
     if (data.startTime) event.startTime = new Date(data.startTime);
     if (data.endTime) event.endTime = new Date(data.endTime);
     if (data.locationUrl !== undefined) event.locationUrl = data.locationUrl;
     if (data.status) event.status = data.status;
+
+    if (event.endTime <= event.startTime) {
+      throw new AppError(400, "VALIDATION_ERROR", "End time must be after start time");
+    }
 
     await event.save();
     return event;

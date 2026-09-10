@@ -167,9 +167,16 @@ export const employeeService = {
     await apiClient.patch('/employees/me/password', passwords);
   },
 
-  importEmployees: async (users: Array<{ email: string; firstName: string; lastName: string; departmentId?: string; role?: string }>): Promise<{ successCount: number; failures: Array<{ email: string; reason: string }> }> => {
-    const response = await apiClient.post<ApiResponse<any>>('/employees/import', { users });
-    return response.data.data;
+  importEmployees: async (users: Array<any>): Promise<{ successCount: number; failures: Array<{ email: string; reason: string }>; imported?: number; skipped?: number; errors?: any[] }> => {
+    const response = await apiClient.post<any>('/employees/import', { users });
+    const data = response.data?.data || response.data || {};
+    return {
+      successCount: data.successCount ?? response.data?.imported ?? 0,
+      failures: data.failures ?? response.data?.errors ?? [],
+      imported: response.data?.imported ?? data.imported ?? data.successCount ?? 0,
+      skipped: response.data?.skipped ?? data.skipped ?? (data.failures ? data.failures.length : 0),
+      errors: response.data?.errors ?? data.failures ?? [],
+    };
   }
 };
 

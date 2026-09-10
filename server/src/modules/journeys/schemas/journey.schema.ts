@@ -49,11 +49,16 @@ const LessonSchema = z.object({
   contentBlocks: z.array(ContentBlockSchema).default([]),
   attachments: z.array(AttachmentSchema).default([]),
   quiz: QuizSchema.optional(),
-  completionRules: z.object({
-    requireContentCompletion: z.boolean().default(true),
-    requireQuizCompletion: z.boolean().default(false),
-    minimumQuizScore: z.number().min(0).max(100).optional(),
-  }),
+  completionRules: z
+    .object({
+      requireContentCompletion: z.boolean().default(true),
+      requireQuizCompletion: z.boolean().default(false),
+      minimumQuizScore: z.number().min(0).max(100).optional(),
+    })
+    .default({
+      requireContentCompletion: true,
+      requireQuizCompletion: false,
+    }),
 });
 
 const ModuleSchema = z.object({
@@ -78,6 +83,7 @@ export const createJourneySchema = z.object({
       isPublic: z.boolean().optional(),
     })
     .optional(),
+  modules: z.array(ModuleSchema).optional(),
   certificate: z
     .object({
       enabled: z.boolean(),

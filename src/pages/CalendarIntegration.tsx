@@ -7,14 +7,20 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Globe
+  Globe,
+  FileText,
+  Download,
+  AlertCircle,
+  MessageSquare
 } from 'lucide-react';
 import {
   useCalendarConnection,
   useMeetingEvents,
   useCreateMeetingEvent,
+  usePatchMeetingEvent,
   useCancelMeetingEvent
 } from '../hooks/useCalendar';
+import calendarService, { MeetingEvent } from '../services/calendar.service';
 import { useRole } from '../context/RoleContext';
 import { useEmployees } from '../hooks/useEmployees';
 import { Button } from '../components/Button';
@@ -35,10 +41,13 @@ import { usePagination } from '../hooks/usePagination';
 
 export const CalendarIntegration: React.FC = () => {
   const { role } = useRole();
-  const isManager = role === 'manager' || role === 'admin' || role === 'owner';
+  const isManager = role === 'manager' || role === 'admin' || role === 'owner' || role === 'hr_admin' || role === 'super_admin';
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [selectedEventForNotes, setSelectedEventForNotes] = useState<MeetingEvent | null>(null);
+  const [notesText, setNotesText] = useState('');
   const [copied, setCopied] = useState(false);
 
   // Form State
@@ -49,6 +58,8 @@ export const CalendarIntegration: React.FC = () => {
   const [endTime, setEndTime] = useState('10:30');
   const [locationUrl, setLocationUrl] = useState('https://meet.google.com/talnova-onboarding');
   const [selectedAttendeeId, setSelectedAttendeeId] = useState('');
+  const [agenda, setAgenda] = useState('');
+  const [validationError, setValidationError] = useState('');
 
   const { data: connection } = useCalendarConnection();
   const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useMeetingEvents();
@@ -57,42 +68,130 @@ export const CalendarIntegration: React.FC = () => {
   const eventsPagination = usePagination({ data: events || [], initialPageSize: 10 });
 
   const createEventMutation = useCreateMeetingEvent();
+  const patchEventMutation = usePatchMeetingEvent();
   const cancelEventMutation = useCancelMeetingEvent();
 
   const employees = employeesData?.employees || [];
   const icalFeedUrl = `${window.location.origin}/api/v1/calendar/feed/${connection?.icalToken || 'token'}.ics`;
 
   const handleScheduleMeeting = () => {
+    setValidationError('');
+
     if (!title.trim() || !startDate || !selectedAttendeeId) {
-      toast.error('Please complete all required fields.');
+      const err = 'Please complete all required fields.';
+      setValidationError(err);
+      toast.error(err);
       return;
     }
 
     const startISO = new Date(`${startDate}T${startTime}:00`).toISOString();
     const endISO = new Date(`${startDate}T${endTime}:00`).toISOString();
 
+    if (new Date(endISO) <= new Date(startISO)) {
+      const err = 'End time must be after start time';
+      setValidationError(err);
+      toast.error(err);
+      return;
+    }
+
     createEventMutation.mutate(
       {
-        title,
+        title: title.trim(),
+        description: agenda.trim() || undefined,
         category,
         attendeeUserIds: [selectedAttendeeId],
         startTime: startISO,
         endTime: endISO,
-        locationUrl,
+        locationUrl: locationUrl.trim() || undefined,
       },
       {
         onSuccess: () => {
           toast.success('Meeting scheduled successfully!');
           setIsScheduleModalOpen(false);
           setTitle('');
+          setAgenda('');
           setSelectedAttendeeId('');
+          setValidationError('');
           refetchEvents();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to schedule meeting');
+          const errMsg = err?.response?.data?.message || err?.message || 'Failed to schedule meeting';
+          setValidationError(errMsg);
+          toast.error(errMsg);
         }
       }
     );
+  };
+
+  const handleOpenNotes = (event: MeetingEvent) => {
+    setSelectedEventForNotes(event);
+    setNotesText(event.notes || '');
+    setIsNotesModalOpen(true);
+  };
+
+  const handleSaveNotes = () => {
+    if (!selectedEventForNotes) return;
+
+    patchEventMutation.mutate(
+      {
+        id: selectedEventForNotes._id,
+        data: { notes: notesText.trim() },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Discussion notes saved successfully.');
+          setIsNotesModalOpen(false);
+          setSelectedEventForNotes(null);
+          setNotesText('');
+          refetchEvents();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to save notes');
+        },
+      }
+    );
+  };
+
+  const handleDownloadEventICal = async (event: MeetingEvent) => {
+    try {
+      let icsData = '';
+      try {
+        icsData = await calendarService.exportEventICal(event._id);
+      } catch {
+        // Fallback client generation if endpoint unreachable
+        const formatDate = (d: string) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        icsData = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//Talnova Onboarding//Calendar Integration//EN',
+          'CALSCALE:GREGORIAN',
+          'METHOD:REQUEST',
+          'BEGIN:VEVENT',
+          `UID:${event.iCalUid || event._id}`,
+          `DTSTART:${formatDate(event.startTime)}`,
+          `DTEND:${formatDate(event.endTime)}`,
+          `SUMMARY:${event.title}`,
+          `DESCRIPTION:${(event.description || event.notes || 'Onboarding meeting').replace(/\n/g, '\\n')}`,
+          event.locationUrl ? `URL:${event.locationUrl}` : '',
+          'STATUS:CONFIRMED',
+          'END:VEVENT',
+          'END:VCALENDAR',
+        ].filter(Boolean).join('\r\n');
+      }
+
+      const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${event.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.ics`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Downloaded calendar invitation (.ics)');
+    } catch {
+      toast.error('Failed to export calendar invitation');
+    }
   };
 
   const handleCancelMeeting = (eventId: string) => {
@@ -132,15 +231,20 @@ export const CalendarIntegration: React.FC = () => {
           <Button
             variant="outline"
             onClick={() => setIsSyncModalOpen(true)}
+            data-testid="ical-sync-btn"
           >
             <Globe className="h-4 w-4 mr-2" /> iCal Subscription Sync
           </Button>
           {isManager && (
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => setIsScheduleModalOpen(true)}
+              onClick={() => {
+                setValidationError('');
+                setIsScheduleModalOpen(true);
+              }}
+              data-testid="schedule-checkin-btn"
             >
-              <Plus className="h-4 w-4 mr-2" /> Schedule Meeting
+              <Plus className="h-4 w-4 mr-2" /> Schedule Check-in
             </Button>
           )}
         </div>
@@ -188,11 +292,14 @@ export const CalendarIntegration: React.FC = () => {
                 {eventsPagination.paginatedData.map((ev) => (
                   <div
                     key={ev._id}
-                    className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
+                    data-testid="meeting-event-card"
+                    className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-muted/10 transition-colors"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm">{ev.title}</h4>
+                    <div className="space-y-2 max-w-2xl">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 data-testid="event-title" className="font-semibold text-sm text-foreground">
+                          {ev.title}
+                        </h4>
                         <Badge
                           variant="outline"
                           className={
@@ -205,9 +312,33 @@ export const CalendarIntegration: React.FC = () => {
                         >
                           {ev.category.replace('_', ' ').toUpperCase()}
                         </Badge>
+                        {ev.status === 'cancelled' ? (
+                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
+                            Cancelled
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
+                            Scheduled
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-4 pt-1">
+                      {ev.description && (
+                        <p data-testid="event-agenda" className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-border/50">
+                          <span className="font-semibold text-foreground">Agenda:</span> {ev.description}
+                        </p>
+                      )}
+
+                      {ev.notes && (
+                        <div data-testid="event-notes" className="text-xs text-indigo-900 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/30 p-2.5 rounded-md border border-indigo-200 dark:border-indigo-800/50 flex items-start gap-2">
+                          <MessageSquare className="h-3.5 w-3.5 text-indigo-600 mt-0.5 shrink-0" />
+                          <div>
+                            <span className="font-semibold">Discussion Notes:</span> {ev.notes}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-4 pt-0.5">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
                           {new Date(ev.startTime).toLocaleDateString()} ({new Date(ev.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
@@ -225,15 +356,27 @@ export const CalendarIntegration: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {ev.status === 'cancelled' ? (
-                        <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
-                          Cancelled
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
-                          Scheduled
-                        </Badge>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => handleDownloadEventICal(ev)}
+                        data-testid="download-ics-btn"
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1" /> Download .ics
+                      </Button>
+
+                      {isManager && ev.status !== 'cancelled' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs bg-indigo-50/50 hover:bg-indigo-50 text-indigo-700 dark:text-indigo-300 border-indigo-200"
+                          onClick={() => handleOpenNotes(ev)}
+                          data-testid="add-notes-btn"
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-1" /> {ev.notes ? 'Edit Notes' : 'Add Notes'}
+                        </Button>
                       )}
 
                       {isManager && ev.status !== 'cancelled' && (
@@ -273,14 +416,25 @@ export const CalendarIntegration: React.FC = () => {
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Schedule Onboarding Meeting</DialogTitle>
-            <DialogDescription>Create a meeting event with calendar sync and video link.</DialogDescription>
+            <DialogTitle>Schedule 1-on-1 Onboarding Check-in</DialogTitle>
+            <DialogDescription>Create a meeting event with direct reports, agenda, and calendar sync.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {validationError && (
+              <div
+                data-testid="schedule-validation-error"
+                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{validationError}</span>
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Meeting Title</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Meeting Title *</label>
               <Input
-                placeholder="e.g. Day 7 Manager 1-on-1 Sync"
+                data-testid="meeting-title-input"
+                placeholder="e.g. Week 1 Check-in & Feedback"
                 value={title}
                 onChange={(e: any) => setTitle(e.target.value)}
               />
@@ -290,6 +444,7 @@ export const CalendarIntegration: React.FC = () => {
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Category</label>
                 <select
+                  data-testid="meeting-category-select"
                   className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                   value={category}
                   onChange={(e: any) => setCategory(e.target.value)}
@@ -303,13 +458,14 @@ export const CalendarIntegration: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Participant</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Direct Report *</label>
                 <select
+                  data-testid="attendee-select"
                   className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                   value={selectedAttendeeId}
                   onChange={(e) => setSelectedAttendeeId(e.target.value)}
                 >
-                  <option value="">-- Select Employee --</option>
+                  <option value="">-- Select Direct Report --</option>
                   {employees.map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.email})
@@ -321,22 +477,50 @@ export const CalendarIntegration: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Date</label>
-                <Input type="date" value={startDate} onChange={(e: any) => setStartDate(e.target.value)} />
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Date *</label>
+                <Input
+                  data-testid="meeting-date-input"
+                  type="date"
+                  value={startDate}
+                  onChange={(e: any) => setStartDate(e.target.value)}
+                />
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Start Time</label>
-                <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} />
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Start Time *</label>
+                <Input
+                  data-testid="start-time-input"
+                  type="time"
+                  value={startTime}
+                  onChange={(e: any) => setStartTime(e.target.value)}
+                />
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">End Time</label>
-                <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} />
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">End Time *</label>
+                <Input
+                  data-testid="end-time-input"
+                  type="time"
+                  value={endTime}
+                  onChange={(e: any) => setEndTime(e.target.value)}
+                />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Discussion Agenda</label>
+              <textarea
+                data-testid="meeting-agenda-input"
+                rows={3}
+                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="Review dev environment setup, team channels, and questions."
+                value={agenda}
+                onChange={(e) => setAgenda(e.target.value)}
+              />
             </div>
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Video Call Location Link</label>
               <Input
+                data-testid="meeting-location-input"
                 placeholder="https://meet.google.com/abc-defg-hij"
                 value={locationUrl}
                 onChange={(e: any) => setLocationUrl(e.target.value)}
@@ -347,8 +531,49 @@ export const CalendarIntegration: React.FC = () => {
             <Button variant="outline" onClick={() => setIsScheduleModalOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleScheduleMeeting}>
-              Schedule Meeting
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleScheduleMeeting}
+              data-testid="confirm-schedule-btn"
+            >
+              Confirm & Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Discussion Notes */}
+      <Dialog open={isNotesModalOpen} onOpenChange={setIsNotesModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Document Discussion Notes</DialogTitle>
+            <DialogDescription>
+              Record check-in observations, blockers, and agreed next steps for {selectedEventForNotes?.title}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">1-on-1 Discussion Notes</label>
+              <textarea
+                data-testid="notes-textarea"
+                rows={4}
+                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="Ramp on track. Discussed sprint goals."
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNotesModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleSaveNotes}
+              data-testid="save-notes-btn"
+            >
+              Save Notes
             </Button>
           </DialogFooter>
         </DialogContent>

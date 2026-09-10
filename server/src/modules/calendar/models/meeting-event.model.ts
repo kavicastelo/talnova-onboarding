@@ -15,6 +15,7 @@ export interface IMeetingEvent extends Document {
   reminderMinutesBefore: number;
   externalEventId?: string;
   iCalUid: string;
+  notes?: string;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +45,7 @@ const MeetingEventSchema = new Schema<IMeetingEvent>(
     reminderMinutesBefore: { type: Number, default: 15 },
     externalEventId: { type: String },
     iCalUid: { type: String, required: true, unique: true },
+    notes: { type: String },
     isDeleted: { type: Boolean, default: false },
   },
   {
@@ -55,4 +57,5 @@ MeetingEventSchema.index({ organizationId: 1, startTime: 1 });
 MeetingEventSchema.index({ organizationId: 1, attendeeUserIds: 1 });
 
 export const MeetingEvent = mongoose.model<IMeetingEvent>("MeetingEvent", MeetingEventSchema);
+export const CalendarEvent = MeetingEvent;
 export default MeetingEvent;

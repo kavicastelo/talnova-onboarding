@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { analyticsService } from '../services/analytics.service';
 
+export function useAnalyticsOverview(params?: { department?: string; range?: string }) {
+  return useQuery({
+    queryKey: ['analyticsOverview', params?.department, params?.range],
+    queryFn: () => analyticsService.getOverview(params),
+  });
+}
+
 export function useAnalytics(range = '30d') {
   return useQuery({
     queryKey: ['analytics', range],

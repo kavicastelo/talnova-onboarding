@@ -71,5 +71,12 @@ const HRISIntegrationSchema = new Schema<IHRISIntegration>(
 
 HRISIntegrationSchema.index({ organizationId: 1, provider: 1 });
 
-export const HRISIntegration = mongoose.model<IHRISIntegration>("HRISIntegration", HRISIntegrationSchema);
+export const HRISIntegration =
+  (mongoose.models.HRISIntegration as mongoose.Model<IHRISIntegration>) ||
+  mongoose.model<IHRISIntegration>("HRISIntegration", HRISIntegrationSchema, "hrisintegrations");
+
+export const Integration =
+  (mongoose.models.Integration as mongoose.Model<IHRISIntegration>) ||
+  mongoose.model<IHRISIntegration>("Integration", HRISIntegrationSchema, "hrisintegrations");
+
 export default HRISIntegration;

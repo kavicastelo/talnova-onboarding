@@ -55,10 +55,12 @@ export const buddyService = {
     return response.data.data || [];
   },
 
-  assignBuddy: async (newHireUserId: string, buddyUserId: string): Promise<BuddyAssignment> => {
+  assignBuddy: async (newHireUserId: string, buddyUserId: string, checklistTemplate?: string): Promise<BuddyAssignment> => {
     const response = await apiClient.post<ApiResponse<BuddyAssignment>>('/buddy/assign', {
       newHireUserId,
       buddyUserId,
+      templateName: checklistTemplate,
+      checklistTemplate,
     });
     return response.data.data;
   },
@@ -70,6 +72,11 @@ export const buddyService = {
 
   getBuddyMentees: async (): Promise<BuddyAssignment[]> => {
     const response = await apiClient.get<ApiResponse<BuddyAssignment[]>>('/buddy/my-mentees');
+    return response.data.data || [];
+  },
+
+  listAssignments: async (): Promise<BuddyAssignment[]> => {
+    const response = await apiClient.get<ApiResponse<BuddyAssignment[]>>('/buddy/assignments');
     return response.data.data || [];
   },
 

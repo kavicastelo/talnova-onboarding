@@ -34,7 +34,43 @@ export interface ScheduledReportItem {
   createdAt: string;
 }
 
+export interface FunnelStage {
+  stage: string;
+  count: number;
+  percentage: number;
+  dropOff: number;
+}
+
+export interface ProductivityPoint {
+  day: string;
+  productivity: number;
+}
+
+export interface AnalyticsOverview {
+  activeOnboarding: number;
+  avgCompletionDays: number;
+  retentionRate: number;
+  completionRate: number;
+  funnelStages: FunnelStage[];
+  productivityCurve: ProductivityPoint[];
+  department?: string | null;
+  range?: string;
+}
+
 export const analyticsService = {
+  getOverview: async (params?: { department?: string; range?: string }): Promise<AnalyticsOverview> => {
+    const query = new URLSearchParams();
+    if (params?.department && params.department !== 'All' && params.department !== 'all') {
+      query.append('department', params.department);
+    }
+    if (params?.range) {
+      query.append('range', params.range);
+    }
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const response = await apiClient.get<ApiResponse<AnalyticsOverview>>(`/analytics/overview${qs}`);
+    return response.data.data;
+  },
+
   getAnalytics: async (range = '30d'): Promise<AnalyticsSummary> => {
     const response = await apiClient.get<ApiResponse<AnalyticsSummary>>(`/analytics/summary?range=${range}`);
     return response.data.data;

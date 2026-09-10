@@ -111,7 +111,7 @@ export const settingsService = {
     return response.data.data || [];
   },
 
-  createDepartment: async (deptData: { name: string; description?: string }): Promise<any> => {
+  createDepartment: async (deptData: { name: string; code?: string; description?: string; color?: string }): Promise<any> => {
     const response = await apiClient.post<ApiResponse<any>>('/organizations/departments', deptData);
     return response.data.data;
   },

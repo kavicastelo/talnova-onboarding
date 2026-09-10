@@ -28,21 +28,45 @@ export class BuddyController {
     });
   };
 
+  listOrganizationAssignments = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const assignments = await this.buddyService.listOrganizationAssignments(user.organizationId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Organization buddy assignments retrieved successfully",
+      data: assignments,
+    });
+  };
+
   assignBuddy = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const body = request.body as any;
 
+    const newHireUserId = body.newHireUserId || body.employeeId;
+    const buddyUserId = body.buddyUserId || body.buddyId;
+    const templateName = body.templateName || body.checklistTemplate;
+
     const assignment = await this.buddyService.assignBuddy(
       user.organizationId,
-      body.newHireUserId,
-      body.buddyUserId,
-      user.userId
+      newHireUserId,
+      buddyUserId,
+      user.userId,
+      templateName
     );
+
+    const assignmentObj = assignment.toObject ? assignment.toObject() : assignment;
 
     return reply.status(201).send({
       success: true,
       message: "Buddy assigned to new hire successfully",
       data: assignment,
+      assignment: {
+        ...assignmentObj,
+        buddyId: assignment.buddyUserId,
+        employeeId: assignment.newHireUserId,
+        status: assignment.status,
+      },
     });
   };
 

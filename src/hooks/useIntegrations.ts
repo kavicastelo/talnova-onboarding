@@ -43,3 +43,35 @@ export function useIntegrationLogs(id?: string) {
     enabled: !!id,
   });
 }
+
+export function useConnectProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ provider, data }: { provider: string; data: { subdomain?: string; apiKey?: string; name?: string } }) =>
+      integrationService.connectProvider(provider, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
+  });
+}
+
+export function useSyncProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (provider: string) => integrationService.syncProvider(provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+}
+
+export function useDisconnectProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (provider: string) => integrationService.disconnectProvider(provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
+  });
+}

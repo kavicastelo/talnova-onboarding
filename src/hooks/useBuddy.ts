@@ -22,6 +22,13 @@ export function useMyMentees() {
   });
 }
 
+export function useBuddyAssignments() {
+  return useQuery({
+    queryKey: ['buddyAssignments'],
+    queryFn: () => buddyService.listAssignments(),
+  });
+}
+
 export function useRegisterBuddy() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -35,12 +42,20 @@ export function useRegisterBuddy() {
 export function useAssignBuddy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ newHireUserId, buddyUserId }: { newHireUserId: string; buddyUserId: string }) =>
-      buddyService.assignBuddy(newHireUserId, buddyUserId),
+    mutationFn: ({
+      newHireUserId,
+      buddyUserId,
+      checklistTemplate,
+    }: {
+      newHireUserId: string;
+      buddyUserId: string;
+      checklistTemplate?: string;
+    }) => buddyService.assignBuddy(newHireUserId, buddyUserId, checklistTemplate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myBuddy'] });
       queryClient.invalidateQueries({ queryKey: ['myMentees'] });
       queryClient.invalidateQueries({ queryKey: ['availableBuddies'] });
+      queryClient.invalidateQueries({ queryKey: ['buddyAssignments'] });
     },
   });
 }

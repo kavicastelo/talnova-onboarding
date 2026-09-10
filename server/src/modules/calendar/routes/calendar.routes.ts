@@ -15,6 +15,7 @@ export async function calendarRoutes(app: FastifyInstance) {
   // Unauthenticated Public iCal (.ics) Feed Route (Token protected)
   app.get("/feed/:token", controller.getICalFeed as any);
   app.get("/feed/:token.ics", controller.getICalFeed as any);
+  app.get("/events/:id/export.ics", controller.exportEventICal as any);
 
   // Authenticated Routes
   app.register(async (authApp) => {
@@ -25,7 +26,9 @@ export async function calendarRoutes(app: FastifyInstance) {
 
     authApp.post("/events", { schema: { body: createMeetingEventSchema } }, controller.createMeetingEvent as any);
     authApp.get("/events", controller.listMeetingEvents as any);
+    authApp.get("/events/:id/export", controller.exportEventICal as any);
     authApp.put("/events/:id", { schema: { body: updateMeetingEventSchema } }, controller.updateMeetingEvent as any);
+    authApp.patch("/events/:id", { schema: { body: updateMeetingEventSchema } }, controller.updateMeetingEvent as any);
     authApp.delete("/events/:id", controller.cancelMeetingEvent as any);
   });
 }

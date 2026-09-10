@@ -56,6 +56,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Navigation Fallback for SPA (e.g. /course/assign-pwa-01)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match('/index.html') || caches.match('/');
+        })
+    );
+    return;
+  }
+
   // Cache-First strategy for static UI assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -68,6 +86,9 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
         }
         return networkResponse;
+      }).catch(() => {
+        // If an asset fails offline, try fallback
+        return caches.match('/index.html');
       });
     })
   );

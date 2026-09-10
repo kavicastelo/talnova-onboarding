@@ -50,6 +50,95 @@ export class HRISIntegrationService {
   }
 
   /**
+   * Connect or update Provider (e.g. BambooHR)
+   */
+  async connectProvider(
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    provider: string,
+    data: any
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const userObjectId = new mongoose.Types.ObjectId(userId.toString());
+
+    if (!data.apiKey || !data.apiKey.trim()) {
+      throw new AppError(400, "BAD_REQUEST", `API Key is required to connect to ${provider}`);
+    }
+
+    let integration = await HRISIntegration.findOne({
+      organizationId: orgObjectId,
+      provider: provider.toLowerCase() as any,
+    });
+
+    if (!integration) {
+      integration = new HRISIntegration({
+        organizationId: orgObjectId,
+        provider: provider.toLowerCase() as any,
+        name: data.name || `${provider.charAt(0).toUpperCase() + provider.slice(1)} Connector`,
+        status: "active",
+        createdBy: userObjectId,
+        fieldMappings: [
+          { externalField: "work_email", internalField: "email" },
+          { externalField: "first_name", internalField: "firstName" },
+          { externalField: "last_name", internalField: "lastName" },
+          { externalField: "department", internalField: "department" },
+          { externalField: "job_title", internalField: "jobTitle" },
+        ],
+        conflictPolicy: "hris_wins",
+        autoProvisionJourneys: true,
+      });
+    } else {
+      integration.status = "active";
+    }
+
+    integration.apiKey = data.apiKey.trim();
+    if (data.subdomain) integration.subdomain = data.subdomain.trim();
+    if (data.apiSecret) integration.apiSecret = data.apiSecret.trim();
+    if (!integration.webhookSecret) {
+      integration.webhookSecret = crypto.randomBytes(16).toString("hex");
+    }
+
+    await integration.save();
+    return integration;
+  }
+
+  /**
+   * Disconnect Provider
+   */
+  async disconnectProvider(orgId: string | mongoose.Types.ObjectId, provider: string) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const integration = await HRISIntegration.findOne({
+      organizationId: orgObjectId,
+      provider: provider.toLowerCase() as any,
+    });
+
+    if (integration) {
+      integration.status = "disabled";
+      await integration.save();
+    }
+
+    return integration;
+  }
+
+  /**
+   * Sync by Provider name
+   */
+  async syncProvider(orgId: string | mongoose.Types.ObjectId, provider: string, records?: any[]) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const integration = await HRISIntegration.findOne({
+      organizationId: orgObjectId,
+      provider: provider.toLowerCase() as any,
+      status: "active",
+    });
+
+    if (!integration) {
+      throw new AppError(404, "NOT_FOUND", `Active integration connector for ${provider} not found`);
+    }
+
+    return this.triggerSync(orgObjectId, integration._id.toString(), records);
+  }
+
+  /**
    * Update Integration Connector
    */
   async updateIntegration(

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight, KeyRound, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useRole } from '../context/RoleContext';
 import { applyProfileLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { authService } from '../services/auth.service';
-import { ssoService } from '../services/sso.service';
+import { ssoService, SSODiscoveryResult } from '../services/sso.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../api/client';
@@ -19,6 +19,61 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Enterprise SSO State (UJ-AUTH-005)
+  const [ssoDiscovery, setSsoDiscovery] = useState<SSODiscoveryResult | null>(null);
+  const [discoveringSSO, setDiscoveringSSO] = useState(false);
+  const [ssoInitiating, setSsoInitiating] = useState(false);
+
+  // Automatic Domain Discovery on email change
+  useEffect(() => {
+    const trimmed = email.trim();
+    if (!trimmed.includes('@') || !trimmed.split('@')[1]?.includes('.')) {
+      setSsoDiscovery(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setDiscoveringSSO(true);
+      try {
+        const result = await ssoService.discoverDomain(trimmed);
+        if (result && (result.ssoEnabled || result.enabled)) {
+          setSsoDiscovery(result);
+        } else {
+          setSsoDiscovery(null);
+        }
+      } catch {
+        setSsoDiscovery(null);
+      } finally {
+        setDiscoveringSSO(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [email]);
+
+  const handleSSOInitiate = async () => {
+    if (!email) {
+      toast.error('Please enter your work email address first');
+      return;
+    }
+    setSsoInitiating(true);
+    try {
+      const init = await ssoService.initiateSSO(email);
+      const providerName = (ssoDiscovery?.provider || 'Enterprise').toUpperCase();
+      toast.success(`Redirecting to ${providerName} Single Sign-On...`);
+      if (init.authUrl) {
+        // In real browser or test flow, redirect or navigate
+        setTimeout(() => {
+          window.location.href = init.authUrl;
+        }, 300);
+      }
+    } catch (err: any) {
+      toast.error(getErrorMessage(err) || 'Failed to initiate SSO login');
+    } finally {
+      setSsoInitiating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,14 +140,20 @@ export function Login() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4 rounded-md">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                {t('login.emailLabel')}
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  {t('login.emailLabel')}
+                </label>
+                {discoveringSSO && (
+                  <span className="text-[11px] text-indigo-400 animate-pulse">Checking SSO...</span>
+                )}
+              </div>
               <div className="relative mt-1">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
                   <Mail className="h-4 w-4" />
                 </span>
                 <input
+                  id="login-email-input"
                   type="email"
                   required
                   value={email}
@@ -103,78 +164,103 @@ export function Login() {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  {t('login.passwordLabel')}
-                </label>
-                <Link to="/forgot-password" className="text-xs font-medium text-indigo-400 hover:text-indigo-300">
-                  {t('login.forgotPassword')}
-                </Link>
-              </div>
-              <div className="relative mt-1">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                  <Lock className="h-4 w-4" />
-                </span>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t('login.passwordPlaceholder')}
-                  className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                />
-                <button
+            {/* SSO Discovery Banner (UJ-AUTH-005 Happy Path step 5) */}
+            {ssoDiscovery && (ssoDiscovery.ssoEnabled || ssoDiscovery.enabled) && (
+              <div
+                id="sso-discovery-banner"
+                className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4 backdrop-blur-sm space-y-3 transition-all duration-300"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-indigo-500/20 p-2 text-indigo-400 mt-0.5">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                      Single Sign-On Available
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    </h4>
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      Click to sign in with your enterprise identity provider
+                    </p>
+                  </div>
+                </div>
+                <Button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300"
+                  id="sso-sign-in-button"
+                  disabled={ssoInitiating}
+                  onClick={handleSSOInitiate}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 py-2.5 font-medium shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                  {ssoInitiating ? (
+                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      <KeyRound className="h-4 w-4" />
+                      Sign in with SSO
+                    </>
+                  )}
+                </Button>
+                {ssoDiscovery.enforceSSO && (
+                  <p className="text-[11px] text-amber-300/90 text-center font-medium">
+                    Corporate policy enforces mandatory SSO authentication for this domain.
+                  </p>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Standard Password Entry (Always visible when SSO is optional or not discovered) */}
+            {(!ssoDiscovery || !ssoDiscovery.enforceSSO) && (
+              <div id="standard-password-section">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {t('login.passwordLabel')}
+                  </label>
+                  <Link to="/forgot-password" className="text-xs font-medium text-indigo-400 hover:text-indigo-300">
+                    {t('login.forgotPassword')}
+                  </Link>
+                </div>
+                <div className="relative mt-1">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                    <Lock className="h-4 w-4" />
+                  </span>
+                  <input
+                    id="login-password-input"
+                    type={showPassword ? 'text' : 'password'}
+                    required={!ssoDiscovery?.enforceSSO}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={t('login.passwordPlaceholder')}
+                    className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 py-2.5 text-white hover:from-indigo-600 hover:to-indigo-700"
-          >
-            {loading ? (
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            ) : (
-              <>
-                {t('login.signIn')}
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={async () => {
-              if (!email) {
-                toast.error('Please enter your work email address first for SSO domain discovery');
-                return;
-              }
-              try {
-                const discovery = await ssoService.discoverDomain(email);
-                if (discovery.ssoEnabled) {
-                  const init = await ssoService.initiateSSO(email);
-                  toast.success(`Redirecting to ${discovery.provider?.toUpperCase()} Single Sign-On...`);
-                  window.location.href = init.authUrl;
-                } else {
-                  toast.info('No Enterprise SSO configuration detected for this email domain. Please use password login.');
-                }
-              } catch (err: any) {
-                toast.error('Failed to discover SSO domain');
-              }
-            }}
-            className="w-full border-slate-700 text-slate-200 hover:bg-slate-800"
-          >
-            <KeyRound className="h-4 w-4 mr-2" /> Sign in with Enterprise SSO
-          </Button>
+          {(!ssoDiscovery || !ssoDiscovery.enforceSSO) && (
+            <Button
+              id="standard-login-submit"
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 py-2.5 text-white hover:from-indigo-600 hover:to-indigo-700"
+            >
+              {loading ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <>
+                  {t('login.signIn')}
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
         </form>
 
         <div className="flex items-center justify-between">

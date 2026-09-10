@@ -4,6 +4,20 @@ import { AnalyticsService } from "../services/analytics.service.js";
 export class AnalyticsController {
   constructor(private readonly service: AnalyticsService) {}
 
+  getOverview = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+
+    const overview = await this.service.getOverview(user.organizationId, query);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Analytics overview retrieved successfully",
+      data: overview,
+      ...overview,
+    });
+  };
+
   getSummary = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const summary = await this.service.getSummary(user.organizationId);

@@ -23,6 +23,7 @@ export async function aiAssistantRoutes(app: FastifyInstance) {
   app.post("/feedback", controller.logFeedback as any);
 
   // AI Course & Journey Builder (AI-006 .. AI-010)
+  app.post("/generate-course", { preHandler: [requireRole(["owner", "admin"])] }, controller.generateCourseDraft as any);
   app.post("/course-builder/generate", { preHandler: [requireRole(["owner", "admin"])] }, controller.generateCourseDraft as any);
   app.get("/course-builder/drafts", { preHandler: [requireRole(["owner", "admin"])] }, controller.getCourseDrafts as any);
   app.get("/course-builder/drafts/:id", { preHandler: [requireRole(["owner", "admin"])] }, controller.getCourseDraftById as any);

@@ -85,9 +85,8 @@ const AuditLogSchema = new Schema<IAuditLog>(
     },
     description: { type: String, required: true },
     metadata: {
-      previousValue: { type: Schema.Types.Mixed },
-      newValue: { type: Schema.Types.Mixed },
-      changes: { type: Schema.Types.Mixed },
+      type: Schema.Types.Mixed,
+      default: {},
     },
     request: {
       ipAddress: { type: String },

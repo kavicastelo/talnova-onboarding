@@ -17,7 +17,11 @@ import {
   Plus,
   Trash2,
   Save,
-  Users
+  Users,
+  CheckCircle2,
+  Lock,
+  FileCode2,
+  AlertCircle
 } from 'lucide-react';
 import { useSSOConfig, useSaveSSOConfig } from '../hooks/useSSO';
 import { SSORoleMapping } from '../services/sso.service';
@@ -29,14 +33,16 @@ export function SSOSettings() {
   const { data: config, isLoading } = useSSOConfig();
   const saveMutation = useSaveSSOConfig();
 
-  const [provider, setProvider] = useState<'okta' | 'azure_ad' | 'google_workspace' | 'custom_saml' | 'custom_oidc'>('okta');
+  const [provider, setProvider] = useState<'okta' | 'azure_ad' | 'google_workspace' | 'custom_saml' | 'custom_oidc' | 'saml2'>('saml2');
   const [domainsInput, setDomainsInput] = useState('');
   const [issuerUrl, setIssuerUrl] = useState('');
   const [clientId, setClientId] = useState('');
   const [ssoUrl, setSsoUrl] = useState('');
+  const [certificate, setCertificate] = useState('');
   const [enforceSSO, setEnforceSSO] = useState(false);
   const [defaultRole, setDefaultRole] = useState<'admin' | 'manager' | 'employee'>('employee');
   const [status, setStatus] = useState<'active' | 'disabled'>('active');
+  const [urlError, setUrlError] = useState('');
 
   const [roleMappings, setRoleMappings] = useState<SSORoleMapping[]>([]);
   const [newGroupInput, setNewGroupInput] = useState('');
@@ -46,17 +52,37 @@ export function SSOSettings() {
 
   useEffect(() => {
     if (config) {
-      setProvider(config.provider || 'okta');
+      setProvider(config.provider || 'saml2');
       setDomainsInput((config.domains || []).join(', '));
       setIssuerUrl(config.issuerUrl || '');
       setClientId(config.clientId || '');
       setSsoUrl(config.ssoUrl || '');
+      setCertificate(config.certificate || '');
       setEnforceSSO(!!config.enforceSSO);
       setDefaultRole(config.defaultRole || 'employee');
       setStatus(config.status || 'active');
       setRoleMappings(config.roleMappings || []);
     }
   }, [config]);
+
+  const isValidUrl = (url: string) => {
+    if (!url) return true;
+    try {
+      const parsed = new URL(url);
+      return ['http:', 'https:'].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
+  };
+
+  const handleSsoUrlChange = (val: string) => {
+    setSsoUrl(val);
+    if (val.trim() && !isValidUrl(val.trim())) {
+      setUrlError('Invalid URL format for IdP Single Sign-On URL (must start with http:// or https://)');
+    } else {
+      setUrlError('');
+    }
+  };
 
   const handleAddMapping = () => {
     if (!newGroupInput.trim()) return;
@@ -69,6 +95,12 @@ export function SSOSettings() {
   };
 
   const handleSave = () => {
+    if (ssoUrl.trim() && !isValidUrl(ssoUrl.trim())) {
+      setUrlError('Invalid URL format for IdP Single Sign-On URL (must start with http:// or https://)');
+      toast.error('Invalid URL format for IdP Single Sign-On URL');
+      return;
+    }
+
     const domains = domainsInput
       .split(',')
       .map((d) => d.trim())
@@ -80,7 +112,8 @@ export function SSOSettings() {
         domains,
         issuerUrl,
         clientId,
-        ssoUrl,
+        ssoUrl: ssoUrl.trim(),
+        certificate: certificate.trim(),
         enforceSSO,
         defaultRole,
         roleMappings,
@@ -88,7 +121,7 @@ export function SSOSettings() {
       },
       {
         onSuccess: () => {
-          toast.success('Enterprise SSO configuration saved successfully!');
+          toast.success('SSO configuration saved successfully!');
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || 'Failed to save SSO configuration');
@@ -106,6 +139,8 @@ export function SSOSettings() {
     );
   }
 
+  const primaryDomain = domainsInput.split(',')[0]?.trim() || '';
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8">
       {/* Header */}
@@ -116,44 +151,78 @@ export function SSOSettings() {
             Enterprise SSO & Identity Configuration
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure SAML 2.0 / OIDC identity providers, domain discovery, JIT user provisioning, and group-to-role mappings.
+            Configure enterprise SAML 2.0 / OIDC parameters, paste an X.509 certificate, set the IdP entry point, and toggle SSO enforcement.
           </p>
         </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleSave} disabled={saveMutation.isPending}>
-          <Save className="h-4 w-4 mr-2" /> Save SSO Settings
-        </Button>
+        <div className="flex items-center gap-3">
+          <Badge
+            data-testid="sso-status-badge"
+            variant="outline"
+            className={
+              status === 'active'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold px-2.5 py-1 text-xs'
+                : 'bg-zinc-100 text-zinc-600 border-zinc-300 font-semibold px-2.5 py-1 text-xs'
+            }
+          >
+            {status === 'active' ? 'Active' : 'Disabled'}
+          </Badge>
+          <Button
+            data-testid="sso-save-btn"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" /> Save Configuration
+          </Button>
+        </div>
       </div>
 
-      {/* Provider Selection & Status */}
+      {/* Active Domain Banner */}
+      {status === 'active' && primaryDomain && (
+        <div
+          data-testid="sso-active-banner"
+          className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between shadow-sm animate-in fade-in duration-200"
+        >
+          <div className="flex items-center gap-2 font-medium text-sm">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>SSO configuration active for domain {primaryDomain}</span>
+          </div>
+          <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">Active</Badge>
+        </div>
+      )}
+
+      {/* Provider & Protocol Selection */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-indigo-600" />
-            Identity Provider Protocol
+            Identity Provider Protocol & Activation
           </CardTitle>
-          <CardDescription>Select your enterprise identity provider and status.</CardDescription>
+          <CardDescription>Select your enterprise identity provider protocol and enable the connection.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Provider Type</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Protocol / Provider Type</label>
               <select
-                className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none"
+                data-testid="sso-protocol-select"
+                className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={provider}
                 onChange={(e: any) => setProvider(e.target.value)}
               >
+                <option value="saml2">SAML 2.0</option>
+                <option value="custom_saml">Custom SAML 2.0 Provider</option>
                 <option value="okta">Okta (SAML / OIDC)</option>
                 <option value="azure_ad">Microsoft Entra ID / Azure AD</option>
                 <option value="google_workspace">Google Workspace SSO</option>
-                <option value="custom_saml">Custom SAML 2.0 Provider</option>
                 <option value="custom_oidc">Custom OIDC Provider</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">SSO Status</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">SSO State</label>
               <select
-                className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none"
+                className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={status}
                 onChange={(e: any) => setStatus(e.target.value)}
               >
@@ -163,23 +232,81 @@ export function SSOSettings() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Issuer / Metadata URL</label>
+              <div className="font-semibold text-xs text-foreground">Enable Single Sign-On</div>
+              <div className="text-[11px] text-muted-foreground">Activate enterprise identity authentication for configured domains.</div>
+            </div>
+            <input
+              type="checkbox"
+              data-testid="sso-enable-toggle"
+              className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+              checked={status === 'active'}
+              onChange={(e) => setStatus(e.target.checked ? 'active' : 'disabled')}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SAML / OIDC Endpoints & Certificate */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Lock className="h-5 w-5 text-indigo-600" />
+            Endpoints & Certificate Configuration
+          </CardTitle>
+          <CardDescription>Enter IdP endpoints and paste public signing certificate.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                IdP Single Sign-On URL (Entry Point) <span className="text-red-500">*</span>
+              </label>
               <Input
-                placeholder="https://company.okta.com/oauth2/default"
+                data-testid="sso-url-input"
+                placeholder="https://okta.acme.corp/app/sso"
+                value={ssoUrl}
+                onChange={(e: any) => handleSsoUrlChange(e.target.value)}
+                className={urlError ? 'border-red-500 focus-visible:ring-red-500 bg-red-50/20' : ''}
+              />
+              {urlError && (
+                <div data-testid="sso-url-error" className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5 font-medium">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>{urlError}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                Issuer ID / Entity ID <span className="text-red-500">*</span>
+              </label>
+              <Input
+                data-testid="sso-issuer-input"
+                placeholder="http://www.okta.com/exk123"
                 value={issuerUrl}
                 onChange={(e: any) => setIssuerUrl(e.target.value)}
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Client ID / Entity ID</label>
-              <Input
-                placeholder="0oa1234567890abcdef"
-                value={clientId}
-                onChange={(e: any) => setClientId(e.target.value)}
-              />
-            </div>
+          </div>
+
+          <div className="pt-2">
+            <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-1">
+              <FileCode2 className="h-4 w-4 text-indigo-600" />
+              Public Certificate PEM (X.509)
+            </label>
+            <textarea
+              data-testid="sso-certificate-textarea"
+              rows={5}
+              className="w-full text-xs font-mono p-3 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="-----BEGIN CERTIFICATE-----&#10;MIIDXTCCAkWgAwIBAgIJAL9...&#10;-----END CERTIFICATE-----"
+              value={certificate}
+              onChange={(e) => setCertificate(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Base64-encoded X.509 certificate used to verify SAML assertion signatures.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -197,7 +324,8 @@ export function SSOSettings() {
           <div>
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Authorized Domains (Comma separated)</label>
             <Input
-              placeholder="acme.com, corp.acme.com"
+              data-testid="sso-domain-input"
+              placeholder="acme.corp, company.com"
               value={domainsInput}
               onChange={(e: any) => setDomainsInput(e.target.value)}
             />
@@ -205,12 +333,13 @@ export function SSOSettings() {
 
           <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
             <div>
-              <div className="font-semibold text-xs text-foreground">Enforce Mandatory SSO</div>
-              <div className="text-[11px] text-muted-foreground">Force all users with matched domains to sign in via SSO.</div>
+              <div className="font-semibold text-xs text-foreground">Enforce SSO</div>
+              <div className="text-[11px] text-muted-foreground">Disables standard password login for users in configured domains.</div>
             </div>
             <input
               type="checkbox"
-              className="h-4 w-4 rounded accent-indigo-600"
+              data-testid="sso-enforce-toggle"
+              className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
               checked={enforceSSO}
               onChange={(e) => setEnforceSSO(e.target.checked)}
             />
@@ -236,7 +365,7 @@ export function SSOSettings() {
               className="flex-1 text-xs"
             />
             <select
-              className="text-xs p-2 border rounded-md bg-background focus:outline-none"
+              className="text-xs p-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newRoleInput}
               onChange={(e: any) => setNewRoleInput(e.target.value)}
             >

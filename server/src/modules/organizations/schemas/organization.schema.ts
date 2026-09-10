@@ -51,6 +51,7 @@ export const updateSecuritySchema = z.object({
 
 export const departmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  code: z.string().optional(),
   description: z.string().optional(),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Must be valid hex color").or(z.string().length(0)).optional(),
 });

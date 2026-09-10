@@ -29,6 +29,7 @@ export interface MeetingEvent {
   status: 'scheduled' | 'completed' | 'cancelled';
   reminderMinutesBefore: number;
   iCalUid: string;
+  notes?: string;
 }
 
 export const calendarService = {
@@ -48,6 +49,7 @@ export const calendarService = {
   createMeetingEvent: async (data: {
     title: string;
     description?: string;
+    notes?: string;
     category?: 'manager_1on1' | 'buddy_coffee' | 'orientation' | 'training' | 'custom';
     attendeeUserIds: string[];
     startTime: string;
@@ -66,6 +68,18 @@ export const calendarService = {
   updateMeetingEvent: async (id: string, data: Partial<MeetingEvent>): Promise<MeetingEvent> => {
     const response = await apiClient.put<ApiResponse<MeetingEvent>>(`/calendar/events/${id}`, data);
     return response.data.data;
+  },
+
+  patchMeetingEvent: async (id: string, data: Partial<MeetingEvent>): Promise<MeetingEvent> => {
+    const response = await apiClient.patch<ApiResponse<MeetingEvent>>(`/calendar/events/${id}`, data);
+    return response.data.data;
+  },
+
+  exportEventICal: async (id: string): Promise<string> => {
+    const response = await apiClient.get<string>(`/calendar/events/${id}/export`, {
+      responseType: 'text' as any,
+    });
+    return response.data;
   },
 
   cancelMeetingEvent: async (id: string): Promise<MeetingEvent> => {

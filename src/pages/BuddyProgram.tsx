@@ -8,12 +8,15 @@ import {
   Users,
   Building2,
   Star,
-  CheckSquare
+  CheckSquare,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import {
   useMyBuddy,
   useMyMentees,
   useAvailableBuddies,
+  useBuddyAssignments,
   useRegisterBuddy,
   useAssignBuddy,
   useUpdateBuddyChecklist,
@@ -39,9 +42,9 @@ import { usePagination } from '../hooks/usePagination';
 
 export const BuddyProgram: React.FC = () => {
   const { role } = useRole();
-  const isAdmin = role === 'admin' || role === 'owner';
+  const canAssignBuddy = role === 'manager' || role === 'admin' || role === 'owner' || role === 'hr_admin' || role === 'super_admin';
 
-  const [activeTab, setActiveTab] = useState<'my-buddy' | 'my-mentees' | 'directory'>('my-buddy');
+  const [activeTab, setActiveTab] = useState<'my-buddy' | 'my-mentees' | 'pairings' | 'directory'>('my-buddy');
 
   // Modals
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -52,6 +55,8 @@ export const BuddyProgram: React.FC = () => {
   // Form states
   const [selectedNewHireId, setSelectedNewHireId] = useState('');
   const [selectedBuddyId, setSelectedBuddyId] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('Standard Cultural Onboarding');
+  const [validationError, setValidationError] = useState('');
   const [checkinNotes, setCheckinNotes] = useState('');
   const [checkinRating, setCheckinRating] = useState(5);
   const [buddyBio, setBuddyBio] = useState('');
@@ -60,9 +65,11 @@ export const BuddyProgram: React.FC = () => {
   const { data: myBuddy, isLoading: buddyLoading, refetch: refetchBuddy } = useMyBuddy();
   const { data: mentees, isLoading: menteesLoading, refetch: refetchMentees } = useMyMentees();
   const { data: availableBuddies, isLoading: availableLoading, refetch: refetchAvailable } = useAvailableBuddies();
+  const { data: allAssignments, isLoading: assignmentsLoading, refetch: refetchAssignments } = useBuddyAssignments();
 
   const menteesPagination = usePagination({ data: mentees || [], initialPageSize: 6 });
   const buddiesPagination = usePagination({ data: availableBuddies || [], initialPageSize: 6 });
+  const assignmentsPagination = usePagination({ data: allAssignments || [], initialPageSize: 6 });
   const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
 
   const registerBuddyMutation = useRegisterBuddy();
@@ -80,6 +87,7 @@ export const BuddyProgram: React.FC = () => {
           toast.success('Checklist item updated!');
           refetchBuddy();
           refetchMentees();
+          refetchAssignments();
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || 'Failed to update checklist item');
@@ -89,25 +97,47 @@ export const BuddyProgram: React.FC = () => {
   };
 
   const handleAssignBuddy = () => {
+    setValidationError('');
+
     if (!selectedNewHireId || !selectedBuddyId) {
-      toast.error('Please select both a new hire and an onboarding buddy.');
+      const err = 'Please select both a new hire mentee and an onboarding buddy.';
+      setValidationError(err);
+      toast.error(err);
+      return;
+    }
+
+    if (selectedNewHireId === selectedBuddyId) {
+      const err = 'Cannot pair an employee with themselves as buddy';
+      setValidationError(err);
+      toast.error(err);
       return;
     }
 
     assignBuddyMutation.mutate(
-      { newHireUserId: selectedNewHireId, buddyUserId: selectedBuddyId },
+      {
+        newHireUserId: selectedNewHireId,
+        buddyUserId: selectedBuddyId,
+        checklistTemplate: selectedTemplate,
+      },
       {
         onSuccess: () => {
           toast.success('Buddy assigned to new hire successfully!');
           setIsAssignModalOpen(false);
           setSelectedNewHireId('');
           setSelectedBuddyId('');
+          setValidationError('');
           refetchBuddy();
           refetchMentees();
           refetchAvailable();
+          refetchAssignments();
+          if (canAssignBuddy) {
+            setActiveTab('pairings');
+          }
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign buddy');
+          const errMsg = err?.response?.data?.message || err?.message || 'Failed to assign buddy';
+          setValidationError(errMsg);
+          toast.error(errMsg);
         }
       }
     );
@@ -129,6 +159,7 @@ export const BuddyProgram: React.FC = () => {
           setSelectedAssignmentId(null);
           refetchMentees();
           refetchBuddy();
+          refetchAssignments();
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || 'Failed to log check-in');
@@ -175,13 +206,18 @@ export const BuddyProgram: React.FC = () => {
           <Button
             variant="outline"
             onClick={() => setIsRegisterModalOpen(true)}
+            data-testid="become-buddy-btn"
           >
             <Sparkles className="h-4 w-4 mr-2" /> Become a Buddy
           </Button>
-          {isAdmin && (
+          {canAssignBuddy && (
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => setIsAssignModalOpen(true)}
+              onClick={() => {
+                setValidationError('');
+                setIsAssignModalOpen(true);
+              }}
+              data-testid="assign-buddy-btn"
             >
               <Plus className="h-4 w-4 mr-2" /> Assign Buddy
             </Button>
@@ -211,6 +247,18 @@ export const BuddyProgram: React.FC = () => {
         >
           <Users className="h-4 w-4" /> My Mentees ({mentees?.length || 0})
         </button>
+        {canAssignBuddy && (
+          <button
+            className={`py-3 px-6 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
+              activeTab === 'pairings'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setActiveTab('pairings')}
+          >
+            <Users className="h-4 w-4" /> Active Pairings ({allAssignments?.length || 0})
+          </button>
+        )}
         <button
           className={`py-3 px-6 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
             activeTab === 'directory'
@@ -259,9 +307,9 @@ export const BuddyProgram: React.FC = () => {
                   {myBuddy.communicationLinks?.email && (
                     <a
                       href={`mailto:${myBuddy.communicationLinks.email}`}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium transition-colors"
+                      className="p-3 border rounded-lg flex items-center justify-center gap-2 font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
                     >
-                      <Mail className="h-4 w-4" /> Send Email Message
+                      <Mail className="h-4 w-4" /> Send Email
                     </a>
                   )}
                 </CardContent>
@@ -397,44 +445,200 @@ export const BuddyProgram: React.FC = () => {
         </Card>
       )}
 
-      {/* Tab 3: Available Buddy Directory */}
-      {activeTab === 'directory' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {availableLoading ? (
-              <div className="col-span-full p-8 text-center text-muted-foreground">Loading available buddies...</div>
-            ) : (availableBuddies || []).length === 0 ? (
-              <div className="col-span-full p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-                No eligible buddies registered. Click "Become a Buddy" to register your profile!
+      {/* Tab 3: Active Pairings Dashboard (Manager / Admin View) */}
+      {activeTab === 'pairings' && canAssignBuddy && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-semibold">Active Onboarding Buddy Pairings</CardTitle>
+                <CardDescription>Review peer mentorship pairings, checklist progress, and re-assign buddies.</CardDescription>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setValidationError('');
+                  setIsAssignModalOpen(true);
+                }}
+                data-testid="assign-buddy-btn-tab"
+              >
+                <Plus className="h-4 w-4 mr-1" /> New Pairing
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6">
+              {assignmentsLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading pairings...</div>
+              ) : (allAssignments || []).length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No active buddy pairings found. Click "Assign Buddy" to create one.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {assignmentsPagination.paginatedData.map((p) => {
+                    const menteeName = p.newHireUserId?.profile
+                      ? `${p.newHireUserId.profile.firstName || ''} ${p.newHireUserId.profile.lastName || ''}`
+                      : 'New Hire';
+                    const buddyName = p.buddyUserId?.profile
+                      ? `${p.buddyUserId.profile.firstName || ''} ${p.buddyUserId.profile.lastName || ''}`
+                      : 'Peer Buddy';
+
+                    const completedCount = p.checklist?.filter((c: any) => c.completed).length || 0;
+                    const totalCount = p.checklist?.length || 1;
+                    const progressPercent = Math.round((completedCount / totalCount) * 100);
+
+                    return (
+                      <Card
+                        key={p._id}
+                        data-testid="active-pairing-card"
+                        className="border shadow-sm hover:border-indigo-300 transition-all p-5 space-y-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-base text-foreground">{menteeName}</h4>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  p.status === 'active'
+                                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs'
+                                    : 'bg-slate-500/10 text-slate-600 border-slate-500/20 text-xs'
+                                }
+                              >
+                                {p.status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Mentee ({p.newHireUserId?.employment?.department || 'Department'}) &bull; Paired with <span className="font-semibold text-foreground">{buddyName}</span>
+                            </p>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs shrink-0"
+                            onClick={() => {
+                              setSelectedNewHireId(p.newHireUserId?._id || p.newHireUserId);
+                              setSelectedBuddyId('');
+                              setValidationError('');
+                              setIsAssignModalOpen(true);
+                            }}
+                            data-testid="reassign-buddy-btn"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Re-assign
+                          </Button>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>Checklist Progress</span>
+                            <span data-testid="checklist-progress">{progressPercent}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-600 transition-all duration-300"
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {completedCount} of {totalCount} onboarding tasks completed
+                          </p>
+                        </div>
+
+                        {/* Checklist Preview */}
+                        <div className="space-y-1.5 pt-2 border-t text-xs">
+                          {p.checklist?.slice(0, 3).map((item: any) => (
+                            <div
+                              key={item._id || item.title}
+                              className="flex items-center justify-between gap-2 p-1.5 rounded hover:bg-muted/20"
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={item.completed}
+                                  onChange={() => handleToggleTask(p._id, item._id || item.title, item.completed)}
+                                  className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 cursor-pointer"
+                                />
+                                <span className={item.completed ? 'line-through text-muted-foreground' : 'text-foreground'}>
+                                  {item.title}
+                                </span>
+                              </div>
+                              <Badge variant="outline" className="text-[9px] uppercase">
+                                {item.stage.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                          ))}
+                          {(p.checklist?.length || 0) > 3 && (
+                            <p className="text-[10px] text-muted-foreground italic text-center pt-1">
+                              + {(p.checklist?.length || 0) - 3} more checklist items
+                            </p>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Tab 4: Available Buddies Directory */}
+      {activeTab === 'directory' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {availableLoading ? (
+              <div className="p-8 text-center text-muted-foreground col-span-3">Loading available buddies...</div>
+            ) : (availableBuddies || []).length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground col-span-3">No buddies registered in this organization yet.</div>
             ) : (
               buddiesPagination.paginatedData.map((b) => (
-                <Card key={b._id} className="hover:border-indigo-500/40 transition-all">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
-                        Available ({b.currentMenteeCount} / {b.maxMentees} Mentees)
-                      </Badge>
+                <Card key={b._id} className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-lg">
+                        {b.userId?.profile?.firstName?.[0] || 'B'}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm">
+                          {b.userId?.profile?.firstName} {b.userId?.profile?.lastName}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">{b.department || 'General'}</p>
+                      </div>
                     </div>
-                    <CardTitle className="text-base font-semibold mt-2">
-                      {b.userId?.profile?.firstName} {b.userId?.profile?.lastName}
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      {b.department || 'General'} | {b.jobTitle || 'Peer Buddy'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-xs text-muted-foreground space-y-3">
-                    {b.bio && <p className="line-clamp-2 italic">"{b.bio}"</p>}
-                    {b.skills?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {b.skills.map((s, idx) => (
-                          <Badge key={idx} variant="outline" className="text-[9px]">
+
+                    {b.bio && <p className="text-xs text-slate-600 dark:text-slate-300 italic">"{b.bio}"</p>}
+
+                    {b.skills && b.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {b.skills.map((s: string) => (
+                          <Badge key={s} variant="outline" className="text-[10px]">
                             {s}
                           </Badge>
                         ))}
                       </div>
                     )}
-                  </CardContent>
+                  </div>
+
+                  <div className="pt-4 border-t mt-4 flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">
+                      Mentee Capacity: <strong className="text-foreground">{b.currentMenteeCount} / {b.maxMentees}</strong>
+                    </span>
+                    {canAssignBuddy && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => {
+                          setSelectedBuddyId(b.userId?._id || b.userId);
+                          setValidationError('');
+                          setIsAssignModalOpen(true);
+                        }}
+                      >
+                        Pair Mentee
+                      </Button>
+                    )}
+                  </div>
                 </Card>
               ))
             )}
@@ -459,17 +663,31 @@ export const BuddyProgram: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Pair New Hire with Onboarding Buddy</DialogTitle>
-            <DialogDescription>Select an employee and an eligible buddy mentor.</DialogDescription>
+            <DialogDescription>Select an incoming direct report, choose an eligible buddy mentor, and attach a checklist.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {validationError && (
+              <div
+                data-testid="buddy-validation-error"
+                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{validationError}</span>
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">New Hire Employee</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Incoming Mentee (Direct Report) *</label>
               <select
+                data-testid="mentee-select"
                 className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={selectedNewHireId}
-                onChange={(e) => setSelectedNewHireId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedNewHireId(e.target.value);
+                  setValidationError('');
+                }}
               >
-                <option value="">-- Select New Hire --</option>
+                <option value="">-- Select Direct Report Mentee --</option>
                 {employees.map((emp: any) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.name} ({emp.email}) - {emp.department || 'General'}
@@ -479,18 +697,36 @@ export const BuddyProgram: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Designated Buddy</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Available Designated Buddy *</label>
               <select
+                data-testid="buddy-select"
                 className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={selectedBuddyId}
-                onChange={(e) => setSelectedBuddyId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedBuddyId(e.target.value);
+                  setValidationError('');
+                }}
               >
-                <option value="">-- Select Available Buddy --</option>
+                <option value="">-- Select Registered Buddy --</option>
                 {availableBuddies?.map((b: any) => (
                   <option key={b.userId?._id} value={b.userId?._id}>
-                    {b.userId?.profile?.firstName} {b.userId?.profile?.lastName} ({b.department}) - Load: {b.currentMenteeCount}/{b.maxMentees}
+                    {b.userId?.profile?.firstName} {b.userId?.profile?.lastName} ({b.department}) - Active Load: {b.currentMenteeCount}/{b.maxMentees}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Checklist Template *</label>
+              <select
+                data-testid="checklist-template-select"
+                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+                value={selectedTemplate}
+                onChange={(e) => setSelectedTemplate(e.target.value)}
+              >
+                <option value="Standard Cultural Onboarding">Standard Cultural Onboarding</option>
+                <option value="Technical Deep Dive & Tooling">Technical Deep Dive & Tooling</option>
+                <option value="Leadership & Executive Fast Track">Leadership & Executive Fast Track</option>
               </select>
             </div>
           </div>
@@ -498,8 +734,12 @@ export const BuddyProgram: React.FC = () => {
             <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleAssignBuddy}>
-              Assign Buddy
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleAssignBuddy}
+              data-testid="create-pairing-btn"
+            >
+              Create Pairing
             </Button>
           </DialogFooter>
         </DialogContent>

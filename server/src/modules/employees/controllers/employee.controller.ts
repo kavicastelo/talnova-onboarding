@@ -143,16 +143,25 @@ export class EmployeeController {
   importEmployees = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const body = request.body as any;
+    const users = body?.users || body?.employees || (Array.isArray(body) ? body : []);
     const result = await this.employeeService.bulkImportEmployees(
       user.organizationId,
-      body.users,
+      users,
       user.userId
     );
 
     return reply.status(200).send({
       success: true,
       message: "Employees imported successfully",
-      data: result,
+      imported: result.successCount,
+      skipped: result.failures.length,
+      errors: result.failures,
+      data: {
+        ...result,
+        imported: result.successCount,
+        skipped: result.failures.length,
+        errors: result.failures,
+      },
     });
   };
 }

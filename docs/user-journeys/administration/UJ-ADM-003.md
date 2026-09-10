@@ -70,7 +70,8 @@ None.
 None.
 
 ## Test Coverage
-Automated in `server/src/tests/phase1-core-onboarding.test.ts`.
+Automated in `server/src/tests/uj-adm-003.test.ts`.
+Audit report in `docs/audits/current/user-journeys/UJ-ADM-003.md`.
 
 ## Test Prompt
 Reference:

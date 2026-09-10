@@ -41,16 +41,42 @@ export class OrganizationService {
   }
 
   // Department services
-  async createDepartment(orgId: string | mongoose.Types.ObjectId, deptData: { name: string; description?: string; color?: string }) {
+  async createDepartment(
+    orgId: string | mongoose.Types.ObjectId,
+    deptData: { name: string; code?: string; description?: string; color?: string }
+  ) {
+    const org = await this.getOrganization(orgId);
+
+    // Check for duplicate code within tenant
+    if (deptData.code) {
+      const normalizedCode = deptData.code.trim().toUpperCase();
+      const codeExists = org.departments?.some(
+        (d) => d.active !== false && d.code?.toUpperCase() === normalizedCode
+      );
+      if (codeExists) {
+        throw new AppError(400, "DEPARTMENT_CODE_EXISTS", `Department with code '${deptData.code}' already exists`);
+      }
+    }
+
+    // Check for duplicate name within tenant
+    const normalizedName = deptData.name.trim().toLowerCase();
+    const nameExists = org.departments?.some(
+      (d) => d.active !== false && d.name.trim().toLowerCase() === normalizedName
+    );
+    if (nameExists) {
+      throw new AppError(400, "DEPARTMENT_NAME_EXISTS", `Department with name '${deptData.name}' already exists`);
+    }
+
     const dept: Partial<IDepartment> = {
       _id: new mongoose.Types.ObjectId(),
-      name: deptData.name,
+      name: deptData.name.trim(),
+      code: deptData.code ? deptData.code.trim().toUpperCase() : deptData.name.trim().substring(0, 3).toUpperCase(),
       description: deptData.description,
       color: deptData.color,
       active: true,
     };
-    const org = await this.orgRepository.addDepartment(orgId, dept);
-    if (!org) {
+    const updatedOrg = await this.orgRepository.addDepartment(orgId, dept);
+    if (!updatedOrg) {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
     }
     return dept;
@@ -65,7 +91,11 @@ export class OrganizationService {
   }
 
   async deleteDepartment(orgId: string | mongoose.Types.ObjectId, deptId: string | mongoose.Types.ObjectId) {
-    return this.updateDepartment(orgId, deptId, { active: false });
+    const updatedOrg = await this.orgRepository.deleteDepartment(orgId, deptId);
+    if (!updatedOrg) {
+      throw new AppError(404, "NOT_FOUND", "Organization or Department not found");
+    }
+    return true;
   }
 
   // Team services

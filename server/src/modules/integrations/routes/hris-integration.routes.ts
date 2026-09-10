@@ -21,6 +21,21 @@ export async function hrisIntegrationRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.createIntegration as any
   );
+  app.post(
+    "/:provider/connect",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.connectProvider as any
+  );
+  app.post(
+    "/:idOrProvider/sync",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.triggerSync as any
+  );
+  app.post(
+    "/:provider/disconnect",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.disconnectProvider as any
+  );
   app.put(
     "/:id",
     { preHandler: [authenticate, requireRole(["owner", "admin"])] },
@@ -35,11 +50,6 @@ export async function hrisIntegrationRoutes(app: FastifyInstance) {
     "/:id/test",
     { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.testConnection as any
-  );
-  app.post(
-    "/:id/sync",
-    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
-    controller.triggerSync as any
   );
   app.get(
     "/:id/logs",

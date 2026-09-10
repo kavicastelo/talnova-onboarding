@@ -237,9 +237,12 @@ export class EmployeeService {
     orgId: string | mongoose.Types.ObjectId,
     usersData: Array<{
       email: string;
-      firstName: string;
-      lastName: string;
+      firstName?: string;
+      lastName?: string;
+      fullName?: string;
+      department?: string;
       departmentId?: string;
+      jobTitle?: string;
       role?: string;
       employeeId?: string;
       designation?: string;
@@ -298,28 +301,52 @@ export class EmployeeService {
       }
       inFlightEmailSet.add(email);
 
-      // Resolve departmentId dynamically
+      // Name resolution
+      let firstName = data.firstName?.trim() || "";
+      let lastName = data.lastName?.trim() || "";
+      const rawFullName = data.fullName?.trim() || "";
+
+      if (!firstName && rawFullName) {
+        const parts = rawFullName.split(/\s+/);
+        firstName = parts[0] || "Employee";
+        lastName = parts.slice(1).join(" ") || "";
+      } else if (!rawFullName && (firstName || lastName)) {
+        // keep firstName & lastName
+      }
+      const fullName = rawFullName || `${firstName} ${lastName}`.trim() || "Employee";
+
+      // Department resolution
+      const deptCandidate = (data.department || data.departmentId || "").trim();
       let resolvedDeptId: mongoose.Types.ObjectId | undefined = undefined;
-      if (data.departmentId) {
-        const cleanDept = data.departmentId.trim();
-        if (mongoose.Types.ObjectId.isValid(cleanDept) && deptMap.has(cleanDept)) {
-          resolvedDeptId = deptMap.get(cleanDept);
-        } else if (deptMap.has(cleanDept.toLowerCase())) {
-          resolvedDeptId = deptMap.get(cleanDept.toLowerCase());
+      let cleanDeptName: string | undefined = undefined;
+
+      if (deptCandidate) {
+        if (mongoose.Types.ObjectId.isValid(deptCandidate) && deptMap.has(deptCandidate)) {
+          resolvedDeptId = deptMap.get(deptCandidate);
+          const found = org.departments.find((d) => d._id.toString() === deptCandidate);
+          cleanDeptName = found?.name || deptCandidate;
+        } else if (deptMap.has(deptCandidate.toLowerCase())) {
+          resolvedDeptId = deptMap.get(deptCandidate.toLowerCase());
+          const found = org.departments.find((d) => d.name.toLowerCase() === deptCandidate.toLowerCase());
+          cleanDeptName = found?.name || deptCandidate;
         } else {
           // Create new department on the fly
           const newDeptId = new mongoose.Types.ObjectId();
           org.departments.push({
             _id: newDeptId,
-            name: cleanDept,
+            name: deptCandidate,
             active: true,
           } as any);
-          deptMap.set(cleanDept.toLowerCase(), newDeptId);
+          deptMap.set(deptCandidate.toLowerCase(), newDeptId);
           deptMap.set(newDeptId.toString(), newDeptId);
           resolvedDeptId = newDeptId;
+          cleanDeptName = deptCandidate;
           orgModified = true;
         }
       }
+
+      const designation = data.designation || data.jobTitle || undefined;
+      const jobTitle = data.jobTitle || data.designation || undefined;
 
       documentsToInsert.push({
         organizationId: new mongoose.Types.ObjectId(orgId),
@@ -329,19 +356,21 @@ export class EmployeeService {
           emailVerified: true,
         },
         profile: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          fullName: `${data.firstName} ${data.lastName}`.trim(),
+          firstName: firstName || "Employee",
+          lastName: lastName || "",
+          fullName,
           phone: data.phone || undefined,
           location: data.location || undefined,
           timezone: data.timezone || undefined,
         },
         employment: {
           employeeId: data.employeeId || undefined,
+          department: cleanDeptName,
           departmentId: resolvedDeptId,
           status: "active" as const,
           employmentType: data.employmentType || ("full_time" as const),
-          designation: data.designation || undefined,
+          designation,
+          jobTitle,
           payrollCategory: data.payrollCategory || undefined,
           hireDate: data.hireDate ? new Date(data.hireDate) : new Date(),
         },
@@ -360,19 +389,52 @@ export class EmployeeService {
 
     // Save updated departments once if new departments were added
     if (orgModified) {
-      await org.save();
+      await Organization.updateOne(
+        { _id: org._id },
+        { $set: { departments: org.departments } }
+      );
     }
 
-    // 3. Batch insert users in chunks of 250
+    // 3. Batch insert users in chunks of 250 and emit events
     const BATCH_SIZE = 250;
     for (let i = 0; i < documentsToInsert.length; i += BATCH_SIZE) {
       const batch = documentsToInsert.slice(i, i + BATCH_SIZE);
       try {
         const inserted = await User.insertMany(batch, { ordered: false });
         results.successCount += inserted.length;
+        for (const userDoc of inserted) {
+          eventBus.publish({
+            eventName: "USER_CREATED",
+            organizationId: orgId,
+            actorId: userDoc._id,
+            entityId: userDoc._id,
+            payload: {
+              userId: userDoc._id.toString(),
+              email: userDoc.auth.email,
+              role: userDoc.permissions.role,
+              department: userDoc.employment?.departmentId?.toString() || userDoc.employment?.department,
+              jobTitle: userDoc.employment?.designation || userDoc.employment?.jobTitle,
+            },
+          }).catch((err) => console.error("Event publish error:", err));
+        }
       } catch (err: any) {
         if (err.insertedDocs && Array.isArray(err.insertedDocs)) {
           results.successCount += err.insertedDocs.length;
+          for (const userDoc of err.insertedDocs) {
+            eventBus.publish({
+              eventName: "USER_CREATED",
+              organizationId: orgId,
+              actorId: userDoc._id,
+              entityId: userDoc._id,
+              payload: {
+                userId: userDoc._id.toString(),
+                email: userDoc.auth.email,
+                role: userDoc.permissions.role,
+                department: userDoc.employment?.departmentId?.toString() || userDoc.employment?.department,
+                jobTitle: userDoc.employment?.designation || userDoc.employment?.jobTitle,
+              },
+            }).catch((e) => console.error("Event publish error:", e));
+          }
         }
         if (err.writeErrors && Array.isArray(err.writeErrors)) {
           for (const we of err.writeErrors) {

@@ -55,6 +55,17 @@ export function useUpdateMeetingEvent() {
   });
 }
 
+export function usePatchMeetingEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<MeetingEvent> }) =>
+      calendarService.patchMeetingEvent(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetingEvents'] });
+    },
+  });
+}
+
 export function useCancelMeetingEvent() {
   const queryClient = useQueryClient();
   return useMutation({

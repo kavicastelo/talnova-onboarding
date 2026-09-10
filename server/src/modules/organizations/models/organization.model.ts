@@ -9,6 +9,7 @@ export interface IUploadReference {
 export interface IDepartment {
   _id: mongoose.Types.ObjectId;
   name: string;
+  code?: string;
   description?: string;
   color?: string;
   active: boolean;
@@ -97,6 +98,19 @@ export interface IOrganization extends Document {
     signatoryName?: string;
     signatoryTitle?: string;
   };
+  ssoConfig?: {
+    enabled: boolean;
+    provider?: string;
+    domain?: string;
+    domains?: string[];
+    entryPoint?: string;
+    ssoUrl?: string;
+    issuerId?: string;
+    issuerUrl?: string;
+    certificate?: string;
+    enforceSSO?: boolean;
+    status?: "active" | "disabled";
+  };
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   isDeleted: boolean;
@@ -114,6 +128,7 @@ const UploadReferenceSchema = new Schema({
 
 const DepartmentSchema = new Schema({
   name: { type: String, required: true, trim: true },
+  code: { type: String, trim: true },
   description: { type: String },
   color: { type: String },
   active: { type: Boolean, default: true },
@@ -202,6 +217,19 @@ const OrganizationSchema = new Schema<IOrganization>(
       signatureUrl: { type: String },
       signatoryName: { type: String },
       signatoryTitle: { type: String },
+    },
+    ssoConfig: {
+      enabled: { type: Boolean, default: false },
+      provider: { type: String, default: "okta" },
+      domain: { type: String },
+      domains: { type: [String], default: [] },
+      entryPoint: { type: String },
+      ssoUrl: { type: String },
+      issuerId: { type: String },
+      issuerUrl: { type: String },
+      certificate: { type: String },
+      enforceSSO: { type: Boolean, default: false },
+      status: { type: String, enum: ["active", "disabled"], default: "disabled" },
     },
     createdBy: { type: Schema.Types.ObjectId, required: true },
     updatedBy: { type: Schema.Types.ObjectId },
