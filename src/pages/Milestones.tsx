@@ -199,6 +199,7 @@ export const Milestones: React.FC = () => {
         </button>
         {isManager && (
           <button
+            id="tab-team-milestones"
             className={`py-3 px-6 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
               activeTab === 'team'
                 ? 'border-indigo-600 text-indigo-600'
@@ -206,7 +207,7 @@ export const Milestones: React.FC = () => {
             }`}
             onClick={() => setActiveTab('team')}
           >
-            <UserCheck className="h-4 w-4" /> Team Milestones ({teamMilestones?.length || 0})
+            <UserCheck className="h-4 w-4" /> Team Milestone Reviews ({teamMilestones?.length || 0})
           </button>
         )}
         {isAdmin && (
@@ -257,7 +258,7 @@ export const Milestones: React.FC = () => {
                           </div>
 
                           <div>
-                            {m.status === 'completed' && (
+                            {(m.status === 'completed' || m.status === 'approved') && (
                               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Milestone Completed & Approved
                               </Badge>
@@ -265,6 +266,11 @@ export const Milestones: React.FC = () => {
                             {(m.status === 'in_review' || m.status === 'pending_manager_review') && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
                                 <Clock className="h-3.5 w-3.5 mr-1" /> Submitted — Awaiting Manager Sign-off
+                              </Badge>
+                            )}
+                            {m.status === 'revision_requested' && (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+                                Revision Requested
                               </Badge>
                             )}
                             {m.status === 'pending' && (
@@ -306,12 +312,12 @@ export const Milestones: React.FC = () => {
                         </div>
 
                         {/* Manager Feedback section if completed */}
-                        {m.managerReview && m.managerReview.feedback && (
+                        {(m.managerFeedback || m.managerReview?.feedback) && (
                           <div className="p-4 border rounded-lg bg-indigo-50/20 text-xs space-y-1">
                             <span className="font-semibold text-indigo-700 flex items-center gap-1">
-                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Manager Feedback (Rating: {m.managerReview.performanceRating || 5}/5):
+                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Manager Feedback (Rating: {m.managerRating || m.managerReview?.performanceRating || 5}/5):
                             </span>
-                            <p className="text-slate-700 italic">"{m.managerReview.feedback}"</p>
+                            <p className="text-slate-700 italic">"{m.managerFeedback || m.managerReview?.feedback}"</p>
                           </div>
                         )}
 
@@ -371,10 +377,15 @@ export const Milestones: React.FC = () => {
                   {teamPagination.paginatedData.map((m) => {
                     const empName = m.employeeId?.profile
                       ? `${m.employeeId.profile.firstName || ''} ${m.employeeId.profile.lastName || ''}`
-                      : 'Employee';
+                      : 'Direct Report';
+                    const mid = m.milestoneCode || m._id;
 
                     return (
-                      <div key={m._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors">
+                      <div
+                        key={m._id}
+                        id={`milestone-card-${mid}`}
+                        className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
+                      >
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <h4 className="font-semibold text-sm">{empName}</h4>
@@ -388,20 +399,32 @@ export const Milestones: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          {m.status === 'completed' ? (
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                              Approved (Rating: {m.managerReview?.performanceRating || 5}/5)
+                          {m.status === 'completed' || m.status === 'approved' ? (
+                            <Badge
+                              id={`badge-approved-${mid}`}
+                              variant="outline"
+                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Approved (Rating: {m.managerRating || m.managerReview?.performanceRating || 5}/5)
                             </Badge>
-                          ) : m.status === 'in_review' ? (
+                          ) : m.status === 'revision_requested' ? (
+                            <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+                              Revision Requested
+                            </Badge>
+                          ) : m.status === 'in_review' || m.status === 'pending_manager_review' ? (
                             <Button
+                              id={`review-milestone-btn-${mid}`}
                               size="sm"
-                              className="bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center gap-1.5"
                               onClick={() => {
                                 setSelectedMilestone(m);
+                                setManagerRating(5);
+                                setApprovalStatus('approved');
+                                setManagerFeedback('Exceeded expectations on ramp-up. Completed initial project ahead of schedule.');
                                 setIsManagerReviewOpen(true);
                               }}
                             >
-                              Review & Approve Check-In
+                              <UserCheck className="h-3.5 w-3.5" /> Review Milestone
                             </Button>
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground">
@@ -553,25 +576,63 @@ export const Milestones: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Direct Report Submission Inspection Card */}
+            <div id="employee-submitted-section" className="p-3.5 border rounded-lg bg-muted/20 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <UserCheck className="h-4 w-4 text-indigo-600" /> Employee Self-Reflection:
+                </span>
+                <span id="employee-submitted-rating" className="inline-flex items-center gap-1 font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200">
+                  ★ {selectedMilestone?.employeeRating || selectedMilestone?.employeeSelfCheck?.employeeRating || selectedMilestone?.employeeSelfCheck?.confidenceRating || 4} / 5 Stars
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-medium mb-1">Submitted Reflection & Notes:</span>
+                <p id="employee-submitted-notes" className="italic text-foreground/90 bg-card p-2 rounded border leading-relaxed">
+                  "{selectedMilestone?.comments || selectedMilestone?.employeeSelfCheck?.comments || selectedMilestone?.employeeSelfCheck?.reflectionNotes || 'Ramping up well on team workflows. Ready for independent tickets.'}"
+                </p>
+              </div>
+              {selectedMilestone?.goalsProgress && selectedMilestone.goalsProgress.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground block text-[11px] font-medium mb-1">Milestone Objectives Progress:</span>
+                  <div className="grid grid-cols-1 gap-1">
+                    {selectedMilestone.goalsProgress.map((g: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-[11px]">
+                        {g.completed ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        <span className={g.completed ? 'text-foreground' : 'text-muted-foreground'}>{g.goalTitle}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Approval Status:</label>
               <select
+                id="approval-status-select"
                 className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={approvalStatus}
                 onChange={(e: any) => setApprovalStatus(e.target.value)}
               >
-                <option value="approved">Approved & Complete</option>
-                <option value="needs_action">Needs Follow-Up / Action</option>
+                <option value="approved">Approve Milestone</option>
+                <option value="revision_requested">Request Revision</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Performance Rating (1 to 5 Stars):</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Manager Rating (1 to 5 Stars):</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
+                    id={`manager-star-${star}`}
+                    aria-label={`Rate ${star} star`}
                     onClick={() => setManagerRating(star)}
                     className={`p-2 rounded border flex items-center justify-center transition-colors ${
                       managerRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600' : 'bg-background'
@@ -584,10 +645,11 @@ export const Milestones: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Manager Feedback & Encouragement:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Manager Feedback & Sign-Off Notes:</label>
               <textarea
+                id="manager-feedback-textarea"
                 className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Leave feedback notes for your direct report..."
+                placeholder="Exceeded expectations on ramp-up. Completed initial project ahead of schedule."
                 value={managerFeedback}
                 onChange={(e) => setManagerFeedback(e.target.value)}
               />
@@ -597,8 +659,12 @@ export const Milestones: React.FC = () => {
             <Button variant="outline" onClick={() => setIsManagerReviewOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleManagerReviewSubmit}>
-              Submit Manager Sign-Off
+            <Button
+              id="approve-signoff-btn"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+              onClick={handleManagerReviewSubmit}
+            >
+              Approve & Sign Off
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -608,3 +674,4 @@ export const Milestones: React.FC = () => {
 };
 
 export default Milestones;
+

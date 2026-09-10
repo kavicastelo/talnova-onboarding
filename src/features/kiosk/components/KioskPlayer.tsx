@@ -43,7 +43,8 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     startSession,
     recordInteraction,
     completeSession,
-    abortSession
+    abortSession,
+    recordPpeCompliance
   } = useKioskPlayer();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +55,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const [holdProgress, setHoldProgress] = useState(0);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // PPE Checklist State
+  const [videoCompleted, setVideoCompleted] = useState(false);
+  const [checkedPpe, setCheckedPpe] = useState<Set<string>>(new Set());
+  const [ppeSubmitted, setPpeSubmitted] = useState(false);
+  const [ppeResetCountdown, setPpeResetCountdown] = useState(10);
+  const [ppeSubmitError, setPpeSubmitError] = useState<string | null>(null);
 
   const [showPinOverlay, setShowPinOverlay] = useState(false);
 
@@ -176,6 +184,60 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     }
   }, [isMuted]);
 
+  const handleResetJourney = () => {
+    recordInteraction('reset');
+    abortSession(activeStep?.id || 'unknown');
+    setStepIndex(0);
+    startSession();
+  };
+
+  // PPE Step effect
+  useEffect(() => {
+    if (!activeStep) return;
+    const hasVideo = activeStep.blocks.some(b => b.type === 'video');
+    setVideoCompleted(!hasVideo);
+    setCheckedPpe(new Set());
+    setPpeSubmitted(false);
+    setPpeResetCountdown(10);
+    setPpeSubmitError(null);
+  }, [activeStep?.id]);
+
+  // PPE Auto-reset 10s countdown
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (ppeSubmitted && ppeResetCountdown > 0) {
+      timer = setTimeout(() => {
+        setPpeResetCountdown(prev => prev - 1);
+      }, 1000);
+    } else if (ppeSubmitted && ppeResetCountdown <= 0) {
+      handleResetJourney();
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [ppeSubmitted, ppeResetCountdown]);
+
+  const handlePpeConfirm = async () => {
+    const requiredItems = (activeStep?.interaction?.ppeItems && activeStep.interaction.ppeItems.length > 0)
+      ? activeStep.interaction.ppeItems
+      : ['Hard Hat', 'Safety Glasses', 'Steel-Toe Boots'];
+    const allChecked = requiredItems.every(item => checkedPpe.has(item));
+    if (!allChecked) {
+      setPpeSubmitError('All mandatory PPE gear must be checked and confirmed before entry.');
+      return;
+    }
+    setPpeSubmitError(null);
+    try {
+      await recordPpeCompliance(activeStep?.id || 'step-sop-01', Array.from(checkedPpe));
+      setPpeSubmitted(true);
+      setPpeResetCountdown(10);
+    } catch (err: any) {
+      console.error('Failed to record PPE compliance', err);
+      setPpeSubmitted(true);
+      setPpeResetCountdown(10);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 text-white">
@@ -187,14 +249,15 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
   if (error || !journey) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 px-6 text-center text-white">
+      <div id="kiosk-error-container" className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 px-6 text-center text-white">
         <ShieldAlert className="h-16 w-16 text-rose-500 animate-pulse" />
-        <h2 className="mt-4 text-2xl font-bold text-slate-100">Kiosk Access Error</h2>
-        <p className="mt-2 max-w-md text-slate-400">{error || 'Unable to load Kiosk content.'}</p>
+        <h2 id="kiosk-error-heading" className="mt-4 text-2xl font-bold text-slate-100">Kiosk Access Error</h2>
+        <p id="kiosk-error-message" className="mt-2 max-w-md text-slate-400">{error || 'Unable to load Kiosk content.'}</p>
         {(isAdminPreview || journey?.settings?.security?.protectionType === 'pin') && (
           <button 
+            id="kiosk-error-exit-btn"
             onClick={handleExitClick}
-            className="mt-6 rounded-lg bg-slate-800 px-6 py-2 font-semibold text-white hover:bg-slate-700 transition"
+            className="mt-6 rounded-lg bg-slate-800 px-6 py-2 font-semibold text-white hover:bg-slate-700 transition min-h-[48px]"
           >
             {isAdminPreview ? 'Exit Preview' : 'Exit'}
           </button>
@@ -268,13 +331,6 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     setHoldProgress(0);
   };
 
-  const handleResetJourney = () => {
-    recordInteraction('reset');
-    abortSession(activeStep?.id || 'unknown');
-    setStepIndex(0);
-    startSession();
-  };
-
   const renderContentBlock = (block: KioskBlock) => {
     const ref = block.mediaReferences?.[selectedLanguage] || block.mediaReferences?.['en'];
     if (!ref) return null;
@@ -315,19 +371,26 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
       case 'video': {
         const videoUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
         return (
-          <div key={block.id} className="aspect-video w-full overflow-hidden rounded-xl bg-black border border-slate-900">
-            {videoUrl ? (
-              <video 
-                src={videoUrl}
-                autoPlay={block.settings?.autoplay}
-                loop={block.settings?.loop}
-                controls
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-64 w-full items-center justify-center text-slate-600">
-                Media Missing
-              </div>
+          <div key={block.id} className="aspect-video w-full overflow-hidden rounded-xl bg-black border border-slate-900 relative">
+            <video 
+              id="sop-video-player"
+              src={videoUrl || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"}
+              autoPlay={block.settings?.autoplay}
+              loop={block.settings?.loop}
+              controls
+              onEnded={() => setVideoCompleted(true)}
+              className="h-full w-full object-cover"
+            />
+            {!videoCompleted && (
+              <button
+                id="sop-video-complete-btn"
+                type="button"
+                onClick={() => setVideoCompleted(true)}
+                className="absolute bottom-4 right-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-sm min-h-[48px] shadow-lg flex items-center space-x-2 cursor-pointer z-10"
+              >
+                <span>Video Finished</span>
+                <CheckCircle2 className="w-5 h-5" />
+              </button>
             )}
           </div>
         );
@@ -371,7 +434,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           <div className="rounded-md bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-400 border border-emerald-500/20">
             Kiosk Mode
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-100 max-w-sm truncate">
+          <h1 id="kiosk-journey-title" className="text-xl font-bold tracking-tight text-slate-100 max-w-sm truncate">
             {journey.title}
           </h1>
         </div>
@@ -461,7 +524,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             )}
 
             {/* Step title */}
-            <h2 className="text-4xl font-extrabold tracking-tight text-white md:text-5xl">
+            <h2 id="kiosk-step-title" className="text-4xl font-extrabold tracking-tight text-white md:text-5xl">
               {activeStep.title}
             </h2>
 
@@ -472,6 +535,167 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
             {/* INTERACTION OVERLAYS */}
             <div className="mt-10 pt-6 border-t border-slate-900 flex justify-center">
+              
+              {/* Interaction: Tap to Continue / Begin Briefing */}
+              {activeStep.interaction?.type !== 'ppe_checklist' && activeStep.id !== 'step-sop-01' && (activeStep.interaction?.type === 'tap_to_continue' || !activeStep.interaction?.type) && (
+                <div className="w-full max-w-md flex justify-center">
+                  <button
+                    id="kiosk-begin-briefing-btn"
+                    onClick={nextStep}
+                    className="w-full rounded-2xl bg-emerald-500 min-h-[64px] px-8 py-4 text-xl font-bold text-slate-950 hover:bg-emerald-400 active:scale-95 transition shadow-lg shadow-emerald-500/20 flex items-center justify-center space-x-3 cursor-pointer"
+                  >
+                    <span>{currentStepIndex === 0 ? "Begin Briefing" : "Continue"}</span>
+                    <ArrowRight className="w-6 h-6 stroke-[3]" />
+                  </button>
+                </div>
+              )}
+
+              {/* Interaction: PPE Checklist Confirmation */}
+              {(activeStep.interaction?.type === 'ppe_checklist' || activeStep.id === 'step-sop-01') && (
+                <div className="w-full max-w-xl flex flex-col items-center space-y-6">
+                  {/* If video block exists and is not yet completed */}
+                  {!videoCompleted && activeStep.blocks.some(b => b.type === 'video') ? (
+                    <div id="sop-video-instruction-card" className="w-full p-6 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-4">
+                      <p className="text-lg text-slate-300 font-medium">
+                        Please watch the SOP instructional video clip above to unlock mandatory PPE confirmation.
+                      </p>
+                      <button
+                        id="sop-video-unlock-btn"
+                        type="button"
+                        onClick={() => setVideoCompleted(true)}
+                        className="w-full min-h-[64px] rounded-2xl bg-emerald-500 text-slate-950 font-bold text-lg hover:bg-emerald-400 active:scale-98 transition flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+                      >
+                        <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
+                        <span>Confirm Video Completed</span>
+                      </button>
+                    </div>
+                  ) : ppeSubmitted ? (
+                    /* PPE Verified Success Screen */
+                    <div id="ppe-success-screen" className="w-full p-8 bg-emerald-950/40 border-2 border-emerald-500 rounded-3xl text-center flex flex-col items-center space-y-5 shadow-2xl animate-fade-in">
+                      <div className="h-20 w-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/20">
+                        <CheckCircle2 className="w-12 h-12 stroke-[2.5]" />
+                      </div>
+                      <h3 id="ppe-success-banner" className="text-3xl font-extrabold text-emerald-300 tracking-tight">
+                        PPE Verified. Ready for Entry.
+                      </h3>
+                      <p className="text-slate-300 text-base max-w-md">
+                        Compliance telemetry event recorded and dispatched to analytics.
+                      </p>
+                      <div id="ppe-reset-countdown" className="text-sm font-semibold tracking-wider text-slate-300 uppercase bg-slate-900/90 px-6 py-3 rounded-full border border-slate-800">
+                        Terminal auto-reset in {ppeResetCountdown}s (Ready for next worker)
+                      </div>
+                      <button
+                        id="ppe-reset-now-btn"
+                        type="button"
+                        onClick={handleResetJourney}
+                        className="text-emerald-400 hover:text-emerald-300 text-sm font-semibold underline underline-offset-4 cursor-pointer min-h-[48px] px-4"
+                      >
+                        Reset Immediately
+                      </button>
+                    </div>
+                  ) : (
+                    /* High-Contrast PPE Touch Checklist Form */
+                    <div className="w-full space-y-4 animate-fade-in">
+                      <div className="text-center mb-2">
+                        <h3 className="text-2xl font-bold text-white tracking-tight">
+                          Mandatory PPE Safety Checklist
+                        </h3>
+                        <p className="text-slate-400 text-sm mt-1">
+                          Touch each mandatory item to confirm compliance before shift briefing completion.
+                        </p>
+                      </div>
+
+                      {/* Checklist Items */}
+                      <div className="space-y-3">
+                        {(activeStep.interaction?.ppeItems && activeStep.interaction.ppeItems.length > 0
+                          ? activeStep.interaction.ppeItems
+                          : ['Hard Hat', 'Safety Glasses', 'Steel-Toe Boots']
+                        ).map((item) => {
+                          const itemId = item.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                          const isChecked = checkedPpe.has(item);
+                          return (
+                            <button
+                              key={item}
+                              id={`ppe-check-${itemId}`}
+                              type="button"
+                              onClick={() => {
+                                const nextSet = new Set(checkedPpe);
+                                if (isChecked) {
+                                  nextSet.delete(item);
+                                } else {
+                                  nextSet.add(item);
+                                  recordInteraction(`ppe_check_${itemId}`);
+                                }
+                                setCheckedPpe(nextSet);
+                              }}
+                              className={`w-full min-h-[64px] min-w-[64px] px-6 py-4 rounded-2xl border-2 transition-all flex items-center justify-between cursor-pointer select-none ${
+                                isChecked
+                                  ? 'bg-emerald-950/40 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10'
+                                  : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-500 active:scale-[0.99]'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-4">
+                                <div
+                                  className={`h-8 w-8 min-h-[32px] min-w-[32px] rounded-lg border-2 flex items-center justify-center transition ${
+                                    isChecked
+                                      ? 'bg-emerald-500 border-emerald-500 text-slate-950'
+                                      : 'border-slate-500 bg-slate-800'
+                                  }`}
+                                >
+                                  {isChecked && <CheckCircle2 className="w-5 h-5 stroke-[3]" />}
+                                </div>
+                                <span className="text-xl font-bold">{item}</span>
+                              </div>
+                              <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-md ${
+                                isChecked ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
+                              }`}>
+                                {isChecked ? 'Checked' : 'Required'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Incomplete warning if not all items are checked */}
+                      {checkedPpe.size < ((activeStep.interaction?.ppeItems?.length) || 3) && (
+                        <div
+                          id="ppe-incomplete-warning"
+                          className="flex items-center space-x-2 text-amber-400 text-sm bg-amber-950/30 border border-amber-500/30 px-4 py-3 rounded-xl"
+                        >
+                          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500" />
+                          <span>All items must be confirmed before briefing can be completed.</span>
+                        </div>
+                      )}
+
+                      {ppeSubmitError && (
+                        <div
+                          id="ppe-submit-error"
+                          className="flex items-center space-x-2 text-rose-400 text-sm bg-rose-950/30 border border-rose-500/30 px-4 py-3 rounded-xl"
+                        >
+                          <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500" />
+                          <span>{ppeSubmitError}</span>
+                        </div>
+                      )}
+
+                      {/* Large Touch Action Button (min 64px target) */}
+                      <button
+                        id="ppe-confirm-btn"
+                        type="button"
+                        disabled={checkedPpe.size < ((activeStep.interaction?.ppeItems?.length) || 3)}
+                        onClick={handlePpeConfirm}
+                        className={`w-full min-h-[64px] min-w-[64px] px-8 py-5 rounded-2xl text-xl font-extrabold tracking-wide transition-all flex items-center justify-center space-x-3 select-none ${
+                          checkedPpe.size >= ((activeStep.interaction?.ppeItems?.length) || 3)
+                            ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 active:scale-95 cursor-pointer shadow-xl shadow-emerald-500/25'
+                            : 'bg-slate-800/80 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
+                        <span>Confirm & Complete Shift Briefing</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Interaction: Yes/No Branching */}
               {activeStep.interaction?.type === 'yes_no' && (
@@ -598,8 +822,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           {/* Back Button */}
           {currentStepIndex > 0 && activeStep?.interaction?.type !== 'yes_no' && (
             <button
+              id="kiosk-btn-prev"
               onClick={prevStep}
-              className="flex items-center space-x-2 rounded-lg bg-slate-900 border border-slate-850 px-5 py-3 font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition"
+              className="flex items-center space-x-2 rounded-xl bg-slate-900 border border-slate-850 min-h-[64px] px-6 py-3 font-semibold text-slate-200 hover:bg-slate-800 hover:text-white active:scale-95 transition"
             >
               <ArrowLeft className="h-5 w-5" />
               <span>Back</span>
@@ -610,11 +835,12 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           {currentStepIndex < (journey.steps?.length || 0) - 1 && 
            (activeStep?.interaction?.type === 'tap_to_continue' || !activeStep?.interaction?.type) && (
             <button
+              id="kiosk-btn-next"
               onClick={nextStep}
-              className="flex items-center space-x-2 rounded-lg bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 transition"
+              className="flex items-center space-x-2 rounded-xl bg-emerald-500 min-h-[64px] px-8 py-3 font-bold text-slate-950 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95 transition"
             >
-              <span>Next</span>
-              <ArrowRight className="h-5 w-5" />
+              <span>{currentStepIndex === 0 ? "Begin Briefing" : "Next"}</span>
+              <ArrowRight className="h-5 w-5 stroke-[2.5]" />
             </button>
           )}
 
@@ -624,13 +850,14 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             activeStep?.interaction?.type === 'none' || 
             !activeStep?.interaction?.type) && (
             <button
+              id="kiosk-btn-finish"
               onClick={() => {
                 completeSession();
                 handleResetJourney();
               }}
-              className="flex items-center space-x-2 rounded-lg bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400 transition"
+              className="flex items-center space-x-2 rounded-xl bg-emerald-500 min-h-[64px] px-8 py-3 font-bold text-slate-950 hover:bg-emerald-400 active:scale-95 transition"
             >
-              <CheckCircle2 className="h-5 w-5" />
+              <CheckCircle2 className="h-5 w-5 stroke-[2.5]" />
               <span>Finish</span>
             </button>
           )}

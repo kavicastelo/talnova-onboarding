@@ -89,8 +89,8 @@ export const kioskService = {
     return response.data.success;
   },
 
-  syncAnalytics: async (sessions: Partial<KioskAnalytics>[]): Promise<any> => {
-    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/analytics/sync', { sessions });
+  syncAnalytics: async (sessions: Partial<KioskAnalytics>[], signedParams?: { o: string; exp: string; sig: string; journeyId?: string }): Promise<any> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/analytics/sync', { sessions }, { params: signedParams });
     return response.data.data;
   },
 

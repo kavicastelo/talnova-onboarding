@@ -227,7 +227,12 @@ export class KioskController {
       throw new AppError(400, "BAD_REQUEST", "sessions must be an array");
     }
 
-    const result = await this.kioskService.syncAnalytics(userPayload.organizationId, body.sessions);
+    const orgId = userPayload?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const result = await this.kioskService.syncAnalytics(orgId, body.sessions);
     return reply.status(200).send({
       success: true,
       message: "Analytics synced successfully",

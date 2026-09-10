@@ -27,7 +27,8 @@ export const KioskInteractionSchema = z
     holdDurationMs: z.number().int().nonnegative().optional(),
     hotspots: z.array(KioskHotspotSchema).readonly().optional(),
     correctStepId: z.string().min(1).optional(),
-    incorrectStepId: z.string().min(1).optional()
+    incorrectStepId: z.string().min(1).optional(),
+    ppeItems: z.array(z.string()).readonly().optional()
   })
   .strict()
   .describe("Kiosk step advance interaction behavior configuration");

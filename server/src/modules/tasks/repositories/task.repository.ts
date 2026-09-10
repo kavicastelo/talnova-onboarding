@@ -3,14 +3,15 @@ import mongoose from "mongoose";
 
 export interface TaskFilter {
   organizationId: string | mongoose.Types.ObjectId;
-  assignedToUserId?: string | mongoose.Types.ObjectId;
-  employeeId?: string | mongoose.Types.ObjectId;
+  assignedToUserId?: string | mongoose.Types.ObjectId | (string | mongoose.Types.ObjectId)[];
+  employeeId?: string | mongoose.Types.ObjectId | Record<string, any>;
   createdBy?: string | mongoose.Types.ObjectId;
   status?: string | Record<string, any>;
   stage?: string;
   category?: string;
   priority?: string;
   isOverdue?: boolean;
+  $or?: any[];
 }
 
 export interface PaginationOptions {
@@ -21,11 +22,18 @@ export interface PaginationOptions {
 }
 
 export class TaskRepository {
+  private buildQuery(id: string | mongoose.Types.ObjectId, orgId: string | mongoose.Types.ObjectId) {
+    const isObjectId = typeof id === "string" ? mongoose.Types.ObjectId.isValid(id) && id.length === 24 : id instanceof mongoose.Types.ObjectId;
+    return isObjectId
+      ? { _id: id, organizationId: orgId, isDeleted: false }
+      : { taskCode: id, organizationId: orgId, isDeleted: false };
+  }
+
   async findById(
     id: string | mongoose.Types.ObjectId,
     orgId: string | mongoose.Types.ObjectId
   ): Promise<ITask | null> {
-    return Task.findOne({ _id: id, organizationId: orgId, isDeleted: false })
+    return Task.findOne(this.buildQuery(id, orgId))
       .populate("assignedToUserId", "profile auth.email permissions.role")
       .populate("employeeId", "profile auth.email employment")
       .populate("createdBy", "profile auth.email")
@@ -41,11 +49,39 @@ export class TaskRepository {
       isDeleted: false,
     };
 
+    if (filter.$or) {
+      query.$or = filter.$or.map((clause: any) => {
+        const transformed: Record<string, any> = {};
+        for (const [k, v] of Object.entries(clause)) {
+          if (v && typeof v === "object" && "$in" in (v as any) && Array.isArray((v as any).$in)) {
+            transformed[k] = {
+              $in: (v as any).$in.map((val: any) =>
+                mongoose.Types.ObjectId.isValid(val) ? new mongoose.Types.ObjectId(val) : val
+              ),
+            };
+          } else if (v && mongoose.Types.ObjectId.isValid(v as any) && typeof v === "string") {
+            transformed[k] = new mongoose.Types.ObjectId(v as any);
+          } else {
+            transformed[k] = v;
+          }
+        }
+        return transformed;
+      });
+    }
+
     if (filter.assignedToUserId) {
-      query.assignedToUserId = new mongoose.Types.ObjectId(filter.assignedToUserId);
+      if (Array.isArray(filter.assignedToUserId)) {
+        query.assignedToUserId = { $in: filter.assignedToUserId.map((id) => new mongoose.Types.ObjectId(id)) };
+      } else {
+        query.assignedToUserId = new mongoose.Types.ObjectId(filter.assignedToUserId);
+      }
     }
     if (filter.employeeId) {
-      query.employeeId = new mongoose.Types.ObjectId(filter.employeeId);
+      if (typeof filter.employeeId === "object" && "$in" in filter.employeeId) {
+        query.employeeId = filter.employeeId;
+      } else {
+        query.employeeId = new mongoose.Types.ObjectId(filter.employeeId as any);
+      }
     }
     if (filter.createdBy) {
       query.createdBy = new mongoose.Types.ObjectId(filter.createdBy);
@@ -67,6 +103,7 @@ export class TaskRepository {
       query.dueDate = { $lt: new Date() };
     }
 
+    console.log('[TaskRepository.find] query:', JSON.stringify(query));
     const total = await Task.countDocuments(query);
     const page = Math.max(1, pagination.page);
     const limit = Math.max(1, pagination.limit);
@@ -98,7 +135,7 @@ export class TaskRepository {
     data: Partial<ITask>
   ): Promise<ITask | null> {
     return Task.findOneAndUpdate(
-      { _id: id, organizationId: orgId, isDeleted: false },
+      this.buildQuery(id, orgId),
       { $set: data },
       { new: true }
     )
@@ -113,7 +150,7 @@ export class TaskRepository {
     orgId: string | mongoose.Types.ObjectId
   ): Promise<ITask | null> {
     return Task.findOneAndUpdate(
-      { _id: id, organizationId: orgId, isDeleted: false },
+      this.buildQuery(id, orgId),
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { new: true }
     );
@@ -125,7 +162,7 @@ export class TaskRepository {
     comment: { userId: mongoose.Types.ObjectId; comment: string }
   ): Promise<ITask | null> {
     return Task.findOneAndUpdate(
-      { _id: id, organizationId: orgId, isDeleted: false },
+      this.buildQuery(id, orgId),
       { $push: { comments: comment } },
       { new: true }
     )

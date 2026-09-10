@@ -16,6 +16,7 @@ import {
 import {
   useManagerDashboard,
   useTeamDirectReports,
+  useTeamOverview,
   useDirectReportDetails,
   useNudgeDirectReport,
   useSignOffDirectReport
@@ -40,6 +41,7 @@ import { usePagination } from '../hooks/usePagination';
 export const ManagerDashboard: React.FC = () => {
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useManagerDashboard();
   const { data: team, isLoading: teamLoading, refetch: refetchTeam } = useTeamDirectReports();
+  const { refetch: refetchOverview } = useTeamOverview();
 
   const [search, setSearch] = useState('');
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
@@ -127,7 +129,7 @@ export const ManagerDashboard: React.FC = () => {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-indigo-600">
+        <Card id="card-total-direct-reports" className="border-l-4 border-l-indigo-600">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Direct Reports
@@ -144,7 +146,7 @@ export const ManagerDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card id="card-active-onboardings" className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Active Onboardings
@@ -161,7 +163,7 @@ export const ManagerDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-emerald-500">
+        <Card id="card-completion-rate" className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Team Completion Rate
@@ -176,7 +178,7 @@ export const ManagerDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card id="card-overdue-items" className="border-l-4 border-l-amber-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Overdue Items
@@ -238,7 +240,15 @@ export const ManagerDashboard: React.FC = () => {
                   </thead>
                   <tbody className="divide-y">
                     {teamPagination.paginatedData.map((emp) => (
-                      <tr key={emp._id} className="hover:bg-muted/20 transition-colors">
+                      <tr
+                        key={emp._id}
+                        id={`direct-report-row-${emp._id}`}
+                        className="hover:bg-muted/20 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedEmpId(emp._id);
+                          setIsDetailsDrawerOpen(true);
+                        }}
+                      >
                         <td className="px-6 py-4 font-medium">
                           <div>{emp.fullName}</div>
                           <div className="text-xs text-muted-foreground font-normal">{emp.email}</div>
@@ -285,10 +295,12 @@ export const ManagerDashboard: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <Button
+                            id={`view-details-btn-${emp._id}`}
                             size="sm"
                             variant="ghost"
                             title="View Details"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedEmpId(emp._id);
                               setIsDetailsDrawerOpen(true);
                             }}
@@ -296,10 +308,12 @@ export const ManagerDashboard: React.FC = () => {
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button
+                            id={`send-nudge-btn-${emp._id}`}
                             size="sm"
                             variant="outline"
                             title="Send Nudge"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedEmpId(emp._id);
                               setIsNudgeModalOpen(true);
                             }}
@@ -307,10 +321,12 @@ export const ManagerDashboard: React.FC = () => {
                             <BellRing className="h-4 w-4 text-amber-600" />
                           </Button>
                           <Button
+                            id={`sign-off-btn-${emp._id}`}
                             size="sm"
                             variant="outline"
                             title="Sign Off Onboarding"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedEmpId(emp._id);
                               setIsSignOffModalOpen(true);
                             }}

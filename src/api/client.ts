@@ -117,7 +117,8 @@ apiClient.interceptors.response.use(
       const isAuthRoute = originalRequest.url?.includes('/auth/');
       const isKbRoute = window.location.pathname.startsWith('/kb') || window.location.pathname.startsWith('/knowledge-base');
       const isPublicCertRoute = window.location.pathname.startsWith('/public/certificate/');
-      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname) || isKbRoute || isPublicCertRoute;
+      const isKioskRoute = window.location.pathname.startsWith('/kiosk/');
+      const isPublicPage = ['/login', '/register', '/forgot-password'].includes(window.location.pathname) || isKbRoute || isPublicCertRoute || isKioskRoute;
 
       if (isAuthRoute || isPublicPage) {
         if (isKbRoute) {

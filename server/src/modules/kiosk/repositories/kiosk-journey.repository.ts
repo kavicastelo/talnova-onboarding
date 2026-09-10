@@ -16,14 +16,23 @@ export interface PaginationOptions {
 
 export class KioskJourneyRepository {
   async findById(id: string | mongoose.Types.ObjectId): Promise<IKioskJourney | null> {
-    return KioskJourneyModel.findOne({ _id: id, isDeleted: false });
+    const isObjectId = typeof id === "string" ? mongoose.Types.ObjectId.isValid(id) && id.length === 24 : id instanceof mongoose.Types.ObjectId;
+    const query = isObjectId ? { _id: id, isDeleted: false } : { journeyCode: id, isDeleted: false };
+    return KioskJourneyModel.findOne(query);
   }
 
   async findByIdAndOrg(
     id: string | mongoose.Types.ObjectId,
     orgId: string | mongoose.Types.ObjectId
   ): Promise<IKioskJourney | null> {
-    return KioskJourneyModel.findOne({ _id: id, organizationId: orgId, isDeleted: false });
+    const isObjectId = typeof id === "string" ? mongoose.Types.ObjectId.isValid(id) && id.length === 24 : id instanceof mongoose.Types.ObjectId;
+    const isOrgObjectId = typeof orgId === "string" ? mongoose.Types.ObjectId.isValid(orgId) && orgId.length === 24 : orgId instanceof mongoose.Types.ObjectId;
+    const orgQuery = isOrgObjectId ? orgId : (await mongoose.model("Organization").findOne({ slug: orgId }))?._id || orgId;
+
+    const query = isObjectId
+      ? { _id: id, organizationId: orgQuery, isDeleted: false }
+      : { journeyCode: id, organizationId: orgQuery, isDeleted: false };
+    return KioskJourneyModel.findOne(query);
   }
 
   async find(

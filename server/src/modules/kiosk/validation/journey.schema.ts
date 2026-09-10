@@ -219,9 +219,10 @@ export const UpdateKioskJourneySchema = BaseKioskJourneySchema.omit({
  */
 export const SignedUrlQuerySchema = z
   .object({
-    [SIGNED_URL_QUERY_KEYS.ORGANIZATION_ID]: ObjectIdSchema,
+    [SIGNED_URL_QUERY_KEYS.ORGANIZATION_ID]: z.string().min(1, { message: "Organization identifier is required" }),
     [SIGNED_URL_QUERY_KEYS.EXPIRATION]: z.string().regex(/^\d+$/, { message: "Expiration must be a numeric timestamp" }),
-    [SIGNED_URL_QUERY_KEYS.SIGNATURE]: z.string().min(1, { message: "Signature hash is required" })
+    [SIGNED_URL_QUERY_KEYS.SIGNATURE]: z.string().min(1, { message: "Signature hash is required" }),
+    journeyId: z.string().optional()
   })
   .strict()
   .describe("Signed URL validation parameter schema");

@@ -30,9 +30,10 @@ export interface IEmployeeMilestone extends Document {
   employeeId: mongoose.Types.ObjectId;
   assignedBy: mongoose.Types.ObjectId;
   milestoneTitle: string;
+  milestoneCode?: string;
   targetDay: 30 | 60 | 90 | 180;
   dueDate: Date;
-  status: "pending" | "in_review" | "pending_manager_review" | "completed" | "overdue";
+  status: "pending" | "in_review" | "pending_manager_review" | "completed" | "approved" | "revision_requested" | "overdue";
   goalsProgress: Array<{
     goalTitle: string;
     completed: boolean;
@@ -43,6 +44,9 @@ export interface IEmployeeMilestone extends Document {
   comments?: string;
   employeeSelfCheck?: IEmployeeSelfCheck;
   managerReview?: IManagerReview;
+  managerRating?: number;
+  managerFeedback?: string;
+  evaluatedAt?: Date;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -69,7 +73,7 @@ const ManagerReviewSchema = new Schema({
   reviewedAt: { type: Date, default: Date.now },
   approvalStatus: {
     type: String,
-    enum: ["pending", "approved", "needs_action"],
+    enum: ["pending", "approved", "needs_action", "revision_requested"],
     default: "pending",
   },
   performanceRating: { type: Number, min: 1, max: 5 },
@@ -83,16 +87,20 @@ const EmployeeMilestoneSchema = new Schema<IEmployeeMilestone>(
     employeeId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     assignedBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     milestoneTitle: { type: String, required: true },
+    milestoneCode: { type: String },
     targetDay: { type: Number, enum: [30, 60, 90, 180], required: true },
     dueDate: { type: Date, required: true },
     status: {
       type: String,
-      enum: ["pending", "in_review", "pending_manager_review", "completed", "overdue"],
+      enum: ["pending", "in_review", "pending_manager_review", "completed", "approved", "revision_requested", "overdue"],
       default: "pending",
     },
     employeeRating: { type: Number, min: 1, max: 5 },
     submittedAt: { type: Date },
     comments: { type: String },
+    managerRating: { type: Number, min: 1, max: 5 },
+    managerFeedback: { type: String },
+    evaluatedAt: { type: Date },
     goalsProgress: [
       {
         goalTitle: { type: String, required: true },
@@ -111,6 +119,7 @@ const EmployeeMilestoneSchema = new Schema<IEmployeeMilestone>(
 
 EmployeeMilestoneSchema.index({ organizationId: 1, employeeId: 1, status: 1 });
 EmployeeMilestoneSchema.index({ organizationId: 1, targetDay: 1 });
+EmployeeMilestoneSchema.index({ organizationId: 1, milestoneCode: 1 });
 
 export const EmployeeMilestone = mongoose.model<IEmployeeMilestone>("EmployeeMilestone", EmployeeMilestoneSchema);
 export const MilestonePlan = EmployeeMilestone;

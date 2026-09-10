@@ -116,9 +116,13 @@ export class MilestoneService {
 
     let directReportIds: mongoose.Types.ObjectId[] = [];
     if (role === "manager") {
+      const managerObjId = new mongoose.Types.ObjectId(managerUserId);
       const reports = await User.find({
         organizationId: orgObjectId,
-        "employment.managerId": new mongoose.Types.ObjectId(managerUserId),
+        $or: [
+          { "employment.managerId": managerObjId },
+          { "employment.managerUserId": managerObjId },
+        ],
         isDeleted: false,
       }).select("_id");
       directReportIds = reports.map((r) => r._id);
@@ -152,11 +156,17 @@ export class MilestoneService {
       goalsCompletedTitles?: string[];
     }
   ) {
-    const milestone = await EmployeeMilestone.findOne({
-      _id: new mongoose.Types.ObjectId(milestoneId),
+    let filter: any = {
       organizationId: new mongoose.Types.ObjectId(orgId),
       isDeleted: false,
-    });
+    };
+    if (typeof milestoneId === "string" && (!mongoose.Types.ObjectId.isValid(milestoneId) || milestoneId.length !== 24)) {
+      filter.$or = [{ milestoneCode: milestoneId }, { customId: milestoneId }];
+    } else {
+      filter._id = new mongoose.Types.ObjectId(milestoneId);
+    }
+
+    const milestone = await EmployeeMilestone.findOne(filter);
 
     if (!milestone) {
       throw new AppError(404, "NOT_FOUND", "Milestone not found");
@@ -205,19 +215,161 @@ export class MilestoneService {
 
     // Notify manager
     const employee = await User.findById(employeeId);
-    if (employee?.employment?.managerId) {
+    const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
+    if (managerId) {
       await notificationService.createNotification({
         organizationId: orgId,
-        recipientUserId: employee.employment.managerId,
+        recipientUserId: managerId,
         type: "journey_completed",
         title: `Day ${milestone.targetDay} Milestone Evaluation Submitted`,
-        message: `${employee.profile?.firstName} ${employee.profile?.lastName} has submitted their Day ${milestone.targetDay} self-evaluation (Rating: ${rating}/5). Please review and provide manager sign-off.`,
+        message: `${employee?.profile?.firstName || "Employee"} ${employee?.profile?.lastName || ""} has submitted their Day ${milestone.targetDay} self-evaluation (Rating: ${rating}/5). Please review and provide manager sign-off.`,
         priority: "high",
         data: {
           milestoneId: milestone._id.toString(),
           employeeId: employeeId.toString(),
           targetDay: milestone.targetDay,
           rating,
+        },
+      });
+    }
+
+    return milestone;
+  }
+
+  /**
+   * Evaluate Milestone & Sign-Off (UJ-MGR-002 / S90-004, S90-005)
+   */
+  async evaluateMilestone(
+    orgId: string | mongoose.Types.ObjectId,
+    milestoneId: string | mongoose.Types.ObjectId,
+    managerUserId: string | mongoose.Types.ObjectId,
+    role: string,
+    payload: {
+      status?: "approved" | "needs_action" | "revision_requested" | "completed";
+      approvalStatus?: "approved" | "needs_action" | "revision_requested" | "completed";
+      managerRating?: number;
+      performanceRating?: number;
+      rating?: number;
+      managerFeedback?: string;
+      feedback?: string;
+      notes?: string;
+    }
+  ) {
+    let filter: any = {
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    };
+    if (typeof milestoneId === "string" && (!mongoose.Types.ObjectId.isValid(milestoneId) || milestoneId.length !== 24)) {
+      filter.$or = [{ milestoneCode: milestoneId }, { customId: milestoneId }];
+    } else {
+      filter._id = new mongoose.Types.ObjectId(milestoneId);
+    }
+
+    const milestone = await EmployeeMilestone.findOne(filter);
+
+    if (!milestone) {
+      throw new AppError(404, "NOT_FOUND", "Milestone not found");
+    }
+
+    const employee = await User.findById(milestone.employeeId);
+    const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
+
+    // Security check: Manager can only review their direct reports
+    if (role === "manager" && managerId?.toString() !== managerUserId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "You can only review milestones for your direct reports");
+    }
+
+    // Rating validation
+    const rating = payload.managerRating ?? payload.performanceRating ?? payload.rating;
+    if (rating !== undefined && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+      throw new AppError(400, "VALIDATION_ERROR", "Rating must be between 1 and 5");
+    }
+
+    const statusInput = payload.status || payload.approvalStatus || "approved";
+    const isRevision = statusInput === "revision_requested" || statusInput === "needs_action";
+    const finalStatus = isRevision ? "revision_requested" : "approved";
+    const feedback = payload.managerFeedback || payload.feedback || payload.notes || "";
+    const evaluatedDate = new Date();
+    const finalRating = rating !== undefined ? rating : 5;
+
+    milestone.status = finalStatus;
+    milestone.managerRating = finalRating;
+    milestone.managerFeedback = feedback;
+    milestone.evaluatedAt = evaluatedDate;
+
+    milestone.managerReview = {
+      reviewedBy: new mongoose.Types.ObjectId(managerUserId),
+      reviewedAt: evaluatedDate,
+      approvalStatus: isRevision ? "needs_action" : "approved",
+      performanceRating: finalRating,
+      feedback,
+    };
+
+    if (!isRevision) {
+      // Publish event
+      try {
+        await eventBus.publish({
+          eventName: "ON_MILESTONE_EVALUATED" as any,
+          organizationId: orgId,
+          actorId: managerUserId,
+          entityId: milestone._id as any,
+          payload: {
+            milestoneId: milestone._id.toString(),
+            templateId: milestone.templateId.toString(),
+            milestoneTitle: milestone.milestoneTitle,
+            employeeId: milestone.employeeId.toString(),
+            targetDay: milestone.targetDay,
+            managerRating: finalRating,
+            status: "approved",
+          },
+        });
+        await eventBus.publish({
+          eventName: "MILESTONE_COMPLETED",
+          organizationId: orgId,
+          actorId: managerUserId,
+          entityId: milestone._id as any,
+          payload: {
+            milestoneId: milestone._id.toString(),
+            templateId: milestone.templateId.toString(),
+            milestoneTitle: milestone.milestoneTitle,
+            employeeId: milestone.employeeId.toString(),
+            targetDay: milestone.targetDay,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to publish milestone events:", e);
+      }
+    }
+
+    await milestone.save();
+
+    // Notify employee
+    if (!isRevision) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: milestone.employeeId,
+        type: "journey_completed",
+        title: `Day ${milestone.targetDay} Milestone Approved!`,
+        message: `Your Day ${milestone.targetDay} milestone has been approved by your manager. Feedback: ${feedback || "Exceeded expectations on ramp-up. Completed initial project ahead of schedule."}`,
+        priority: "high",
+        data: {
+          milestoneId: milestone._id.toString(),
+          targetDay: milestone.targetDay,
+          status: "approved",
+        },
+      });
+    } else {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: milestone.employeeId,
+        type: "journey_completed",
+        title: `Revision Requested: Day ${milestone.targetDay} Milestone`,
+        message: `Your manager requested revisions on your Day ${milestone.targetDay} milestone. Notes: ${feedback || "Please review and update your self-reflection."}`,
+        priority: "high",
+        data: {
+          milestoneId: milestone._id.toString(),
+          targetDay: milestone.targetDay,
+          status: "revision_requested",
         },
       });
     }
@@ -233,73 +385,9 @@ export class MilestoneService {
     milestoneId: string | mongoose.Types.ObjectId,
     managerUserId: string | mongoose.Types.ObjectId,
     role: string,
-    payload: {
-      approvalStatus: "approved" | "needs_action";
-      performanceRating?: number;
-      feedback?: string;
-    }
+    payload: any
   ) {
-    const milestone = await EmployeeMilestone.findOne({
-      _id: new mongoose.Types.ObjectId(milestoneId),
-      organizationId: new mongoose.Types.ObjectId(orgId),
-      isDeleted: false,
-    });
-
-    if (!milestone) {
-      throw new AppError(404, "NOT_FOUND", "Milestone not found");
-    }
-
-    const employee = await User.findById(milestone.employeeId);
-
-    // Security check: Manager can only review their direct reports
-    if (role === "manager" && employee?.employment?.managerId?.toString() !== managerUserId.toString()) {
-      throw new AppError(403, "FORBIDDEN", "You can only review milestones for your direct reports");
-    }
-
-    milestone.managerReview = {
-      reviewedBy: new mongoose.Types.ObjectId(managerUserId),
-      reviewedAt: new Date(),
-      approvalStatus: payload.approvalStatus,
-      performanceRating: payload.performanceRating || 5,
-      feedback: payload.feedback,
-    };
-
-    if (payload.approvalStatus === "approved") {
-      milestone.status = "completed";
-
-      // Publish MILESTONE_COMPLETED event
-      try {
-        await eventBus.publish({
-          eventName: "MILESTONE_COMPLETED",
-          organizationId: orgId,
-          actorId: managerUserId,
-          entityId: milestone._id as any,
-          payload: {
-            milestoneId: milestone._id.toString(),
-            templateId: milestone.templateId.toString(),
-            milestoneTitle: milestone.milestoneTitle,
-            employeeId: milestone.employeeId.toString(),
-            targetDay: milestone.targetDay,
-          },
-        });
-      } catch (e) {
-        console.error("Failed to publish MILESTONE_COMPLETED event:", e);
-      }
-    }
-
-    await milestone.save();
-
-    // Notify employee
-    await notificationService.createNotification({
-      organizationId: orgId,
-      recipientUserId: milestone.employeeId,
-      type: "journey_completed",
-      title: `Day ${milestone.targetDay} Milestone Review Approved!`,
-      message: `Your manager has reviewed and approved your Day ${milestone.targetDay} milestone program. Feedback: ${payload.feedback || "Great job!"}`,
-      priority: "high",
-    });
-
-    return milestone;
+    return this.evaluateMilestone(orgId, milestoneId, managerUserId, role, payload);
   }
 
   /**

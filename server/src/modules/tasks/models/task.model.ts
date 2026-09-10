@@ -8,7 +8,7 @@ export interface ITaskComment {
 }
 
 export interface ITaskStatusHistory {
-  status: "pending" | "in_progress" | "completed" | "overdue" | "cancelled";
+  status: "pending" | "in_progress" | "completed" | "verified" | "overdue" | "cancelled";
   changedBy: mongoose.Types.ObjectId;
   changedAt: Date;
   note?: string;
@@ -19,12 +19,16 @@ export interface ITask extends Document {
   employeeId?: mongoose.Types.ObjectId; // Target employee being onboarded
   assignedToUserId: mongoose.Types.ObjectId; // Responsible person executing the task (cross-person)
   createdBy: mongoose.Types.ObjectId;
+  taskCode?: string;
   title: string;
   description?: string;
   category: "it_setup" | "hr_paperwork" | "equipment" | "training" | "general";
   stage: "preboarding" | "day_1" | "week_1" | "month_1" | "custom";
   priority: "low" | "normal" | "high" | "critical";
-  status: "pending" | "in_progress" | "completed" | "overdue" | "cancelled";
+  status: "pending" | "in_progress" | "completed" | "verified" | "overdue" | "cancelled";
+  requiresVerification?: boolean;
+  verifiedAt?: Date;
+  verifiedBy?: mongoose.Types.ObjectId;
   dueDate?: Date;
   relativeOffsetDays?: number;
   prerequisiteTaskIds: mongoose.Types.ObjectId[];
@@ -44,6 +48,7 @@ const TaskSchema = new Schema<ITask>(
     employeeId: { type: Schema.Types.ObjectId, ref: "User" },
     assignedToUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    taskCode: { type: String },
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     category: {
@@ -63,9 +68,12 @@ const TaskSchema = new Schema<ITask>(
     },
     status: {
       type: String,
-      enum: ["pending", "in_progress", "completed", "overdue", "cancelled"],
+      enum: ["pending", "in_progress", "completed", "verified", "overdue", "cancelled"],
       default: "pending",
     },
+    requiresVerification: { type: Boolean, default: false },
+    verifiedAt: { type: Date },
+    verifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
     dueDate: { type: Date },
     relativeOffsetDays: { type: Number },
     prerequisiteTaskIds: [{ type: Schema.Types.ObjectId, ref: "Task" }],
@@ -82,7 +90,7 @@ const TaskSchema = new Schema<ITask>(
       {
         status: {
           type: String,
-          enum: ["pending", "in_progress", "completed", "overdue", "cancelled"],
+          enum: ["pending", "in_progress", "completed", "verified", "overdue", "cancelled"],
           required: true,
         },
         changedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -98,6 +106,7 @@ const TaskSchema = new Schema<ITask>(
 
 // Indexes
 TaskSchema.index({ organizationId: 1 });
+TaskSchema.index({ organizationId: 1, taskCode: 1 });
 TaskSchema.index({ assignedToUserId: 1 });
 TaskSchema.index({ employeeId: 1 });
 TaskSchema.index({ status: 1 });

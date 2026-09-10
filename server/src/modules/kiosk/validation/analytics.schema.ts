@@ -21,6 +21,7 @@ export const KioskUserInteractionSchema = z
   .object({
     stepId: z.string().min(1),
     elementClicked: z.string().min(1),
+    eventType: z.string().optional(),
     timestamp: z.union([z.date(), z.string().datetime()])
   })
   .strict()
@@ -37,6 +38,8 @@ export const KioskAnalyticsSchema = z
     journeyId: ObjectIdSchema,
     journeyVersion: z.number().int().positive(),
     languageUsed: LanguageCodeSchema,
+    stepId: z.string().optional(),
+    eventType: z.string().optional(),
     metrics: KioskSessionMetricsSchema,
     interactions: z.array(KioskUserInteractionSchema).readonly(),
     dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date key must be formatted as YYYY-MM-DD" })

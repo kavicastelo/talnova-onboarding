@@ -53,9 +53,11 @@ export function useSubmitSelfCheckin() {
     }: {
       id: string;
       payload: {
-        responses: Array<{ questionId: string; question: string; answer: string }>;
+        responses?: Array<{ questionId?: string; question?: string; answer?: string }>;
         confidenceRating?: number;
+        employeeRating?: number;
         comments?: string;
+        reflectionNotes?: string;
         goalsCompletedTitles?: string[];
       };
     }) => milestoneService.submitSelfCheckin(id, payload),
@@ -75,11 +77,14 @@ export function useSubmitManagerReview() {
     }: {
       id: string;
       payload: {
-        approvalStatus: 'approved' | 'needs_action';
+        status?: 'approved' | 'revision_requested' | 'needs_action';
+        approvalStatus?: 'approved' | 'revision_requested' | 'needs_action';
+        managerRating?: number;
         performanceRating?: number;
+        managerFeedback?: string;
         feedback?: string;
       };
-    }) => milestoneService.submitManagerReview(id, payload),
+    }) => milestoneService.evaluateMilestone(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teamMilestones'] });
       queryClient.invalidateQueries({ queryKey: ['myMilestones'] });

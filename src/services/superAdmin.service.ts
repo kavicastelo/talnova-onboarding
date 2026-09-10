@@ -27,9 +27,18 @@ export interface CrossTenantActivityLog {
 export interface OrganizationItem {
   id: string;
   name: string;
+  domain?: string;
   slug: string;
-  plan: 'Starter' | 'Growth' | 'Enterprise';
+  plan: 'Starter' | 'Growth' | 'Professional' | 'Enterprise';
   status: 'Active' | 'Suspended';
+  seatLimit?: number;
+  subscription?: {
+    plan?: string;
+    seatLimit?: number;
+  };
+  limits?: {
+    maxUsers?: number;
+  };
   usersCount: number;
   createdAt: string;
   supportEmail: string;
@@ -53,6 +62,11 @@ export interface FinanceSummary {
 }
 
 export const superAdminService = {
+  getStats: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/stats');
+    return response.data.data;
+  },
+
   getTelemetry: async (): Promise<SuperAdminTelemetry> => {
     const response = await apiClient.get<ApiResponse<SuperAdminTelemetry>>('/super-admin/telemetry');
     return response.data.data;
@@ -68,8 +82,20 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  createOrganization: async (org: Omit<OrganizationItem, 'id' | 'status' | 'usersCount' | 'createdAt'>): Promise<OrganizationItem> => {
+  createOrganization: async (org: {
+    name: string;
+    domain?: string;
+    slug?: string;
+    plan: 'Starter' | 'Growth' | 'Professional' | 'Enterprise';
+    adminEmail?: string;
+    supportEmail?: string;
+  }): Promise<OrganizationItem> => {
     const response = await apiClient.post<ApiResponse<OrganizationItem>>('/super-admin/organizations', org);
+    return response.data.data;
+  },
+
+  updateOrganization: async (id: string, data: { plan?: string; seatQuota?: number; seatLimit?: number; status?: string; name?: string }): Promise<OrganizationItem> => {
+    const response = await apiClient.patch<ApiResponse<OrganizationItem>>(`/super-admin/organizations/${id}`, data);
     return response.data.data;
   },
 

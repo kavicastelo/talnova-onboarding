@@ -18,6 +18,7 @@ export interface KioskSessionMetrics {
 export interface KioskUserInteraction {
   readonly stepId: string;
   readonly elementClicked: string; // e.g. "next", "prev", "replay_audio", "yes", "no", "hotspot_1"
+  readonly eventType?: string; // e.g. "PPE_COMPLIANCE_CONFIRMED", "PPE_ITEM_CHECKED"
   readonly timestamp: Timestamp;
 }
 
@@ -28,6 +29,8 @@ export interface KioskAnalytics {
   readonly journeyId: JourneyId;
   readonly journeyVersion: VersionNumber;
   readonly languageUsed: LanguageCode;
+  readonly stepId?: string;
+  readonly eventType?: string;
   readonly metrics: KioskSessionMetrics;
   readonly interactions: readonly KioskUserInteraction[];
   readonly dateKey: string; // ISO Date string: "YYYY-MM-DD" for efficient database indexing

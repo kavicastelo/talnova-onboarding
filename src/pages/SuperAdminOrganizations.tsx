@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw } from 'lucide-react';
+import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, Edit } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { SimplePagination } from '../components/SimplePagination';
 import { toast } from 'sonner';
-import { useSuperAdminOrganizations, useCreateOrganization, useToggleOrganizationStatus } from '../hooks/useSuperAdmin';
+import {
+  useSuperAdminOrganizations,
+  useCreateOrganization,
+  useUpdateOrganization,
+  useToggleOrganizationStatus
+} from '../hooks/useSuperAdmin';
+import { OrganizationItem } from '../services/superAdmin.service';
 
 export function SuperAdminOrganizations() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,14 +26,64 @@ export function SuperAdminOrganizations() {
   });
 
   const createOrgMutation = useCreateOrganization();
+  const updateOrgMutation = useUpdateOrganization();
   const toggleStatusMutation = useToggleOrganizationStatus();
 
   // Create Modal State
   const [showModal, setShowModal] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgSlug, setNewOrgSlug] = useState('');
-  const [newOrgPlan, setNewOrgPlan] = useState<'Starter' | 'Growth' | 'Enterprise'>('Starter');
+  const [newOrgPlan, setNewOrgPlan] = useState<'Starter' | 'Growth' | 'Professional' | 'Enterprise'>('Starter');
   const [newOrgEmail, setNewOrgEmail] = useState('');
+
+  // Edit Tenant Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<OrganizationItem | null>(null);
+  const [editPlan, setEditPlan] = useState<'Starter' | 'Growth' | 'Professional' | 'Enterprise'>('Professional');
+  const [editSeatQuota, setEditSeatQuota] = useState<number | string>(50);
+  const [editStatus, setEditStatus] = useState<'Active' | 'Suspended'>('Active');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleOpenEditModal = (org: OrganizationItem) => {
+    setEditingOrg(org);
+    setEditPlan(org.plan || 'Professional');
+    setEditSeatQuota(org.seatLimit || org.limits?.maxUsers || 50);
+    setEditStatus(org.status || 'Active');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrg) return;
+
+    const quotaNum = Number(editSeatQuota);
+    if (isNaN(quotaNum) || quotaNum < 0) {
+      toast.error('Seat quota must be a non-negative number.');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // Dispatch PATCH using slug or id
+      const targetId = editingOrg.slug || editingOrg.id;
+      await updateOrgMutation.mutateAsync({
+        id: targetId,
+        data: {
+          plan: editPlan,
+          seatQuota: quotaNum,
+          status: editStatus
+        }
+      });
+
+      toast.success(`Tenant "${editingOrg.name}" updated successfully.`);
+      setShowEditModal(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update tenant settings.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const toggleOrgStatus = async (id: string, currentStatus: 'Active' | 'Suspended') => {
     const nextStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
@@ -145,6 +201,7 @@ export function SuperAdminOrganizations() {
                     <th className="px-6 py-4">Slug / Domain</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4">Plan</th>
+                    <th className="px-6 py-4">Seat Limit</th>
                     <th className="px-6 py-4">Active Users</th>
                     <th className="px-6 py-4">Created Date</th>
                     <th className="px-6 py-4 text-right">Actions</th>
@@ -152,20 +209,25 @@ export function SuperAdminOrganizations() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {orgs.map((org) => (
-                    <tr key={org.id} className="hover:bg-white/[0.01] transition-colors">
+                    <tr
+                      key={org.id}
+                      id={`tenant-row-${org.slug || org.id}`}
+                      data-testid={`tenant-row-${org.slug || org.id}`}
+                      className="hover:bg-white/[0.01] transition-colors"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
                             <Building2 className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="font-semibold text-white">{org.name}</div>
+                            <div className="font-semibold text-white tenant-name-cell">{org.name}</div>
                             <div className="text-xs text-gray-500">{org.supportEmail}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-gray-400">
-                        {org.slug}.talnova.app
+                        {org.domain || `${org.slug}.talnova.app`}
                       </td>
                       <td className="px-6 py-4">
                         <Badge className={
@@ -174,12 +236,35 @@ export function SuperAdminOrganizations() {
                           {org.status}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 font-medium text-white">{org.plan}</td>
+                      <td className="px-6 py-4 font-medium text-white">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          org.plan === 'Enterprise' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                          org.plan === 'Professional' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                          org.plan === 'Growth' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
+                          'bg-gray-500/10 text-gray-300 border border-gray-500/20'
+                        }`}>
+                          {org.plan}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs text-indigo-300 seat-limit-cell">
+                        {org.seatLimit || org.limits?.maxUsers || 50} seats
+                      </td>
                       <td className="px-6 py-4 text-gray-400">{org.usersCount}</td>
                       <td className="px-6 py-4 text-gray-400">{org.createdAt}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                           <Button
+                            id={`edit-tenant-btn-${org.slug || org.id}`}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(org)}
+                            className="gap-1.5 px-2.5 py-1 text-xs border-white/10 text-white hover:bg-white/10"
+                          >
+                            <Edit className="h-3.5 w-3.5 text-indigo-400" />
+                            Edit Tenant
+                          </Button>
+                          <Button
+                            id={`suspend-tenant-btn-${org.slug || org.id}`}
                             variant="ghost"
                             size="sm"
                             disabled={toggleStatusMutation.isPending}
@@ -195,7 +280,7 @@ export function SuperAdminOrganizations() {
                   ))}
                   {orgs.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                         No organizations matching filter criteria.
                       </td>
                     </tr>
@@ -295,6 +380,94 @@ export function SuperAdminOrganizations() {
                   className="rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
                 >
                   {createOrgMutation.isPending ? 'Provisioning...' : 'Provision Org'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tenant Modal */}
+      {showEditModal && editingOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" id="edit-tenant-modal">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0F131E] p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">Edit Tenant</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{editingOrg.name} ({editingOrg.slug})</p>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Subscription Plan Tier
+                </label>
+                <select
+                  id="tenant-edit-plan-select"
+                  value={editPlan}
+                  onChange={(e) => setEditPlan(e.target.value as any)}
+                  className="mt-1 block w-full rounded-lg border border-white/10 bg-[#161B26] py-2.5 px-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="Starter">Starter</option>
+                  <option value="Growth">Growth</option>
+                  <option value="Professional">Professional</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Seat Quota / License Limit
+                </label>
+                <input
+                  id="tenant-edit-seat-quota-input"
+                  type="number"
+                  required
+                  min="0"
+                  value={editSeatQuota}
+                  onChange={(e) => setEditSeatQuota(e.target.value)}
+                  placeholder="500"
+                  className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 px-3.5 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Tenant Status
+                </label>
+                <select
+                  id="tenant-edit-status-select"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="mt-1 block w-full rounded-lg border border-white/10 bg-[#161B26] py-2.5 px-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEditModal(false)}
+                  className="rounded-lg border-white/10 bg-transparent text-white hover:bg-white/5"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  id="edit-tenant-save-btn"
+                  type="submit"
+                  disabled={isUpdating}
+                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 font-medium shadow-lg shadow-indigo-500/20"
+                >
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>

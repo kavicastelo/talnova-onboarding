@@ -3,18 +3,20 @@ import { z } from "zod";
 export const createTaskSchema = z.object({
   assignedToUserId: z.string().min(1, "Assigned user ID is required"),
   employeeId: z.string().optional(),
+  taskCode: z.string().optional(),
   title: z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().optional(),
   category: z.enum(["it_setup", "hr_paperwork", "equipment", "training", "general"]).optional(),
   stage: z.enum(["preboarding", "day_1", "week_1", "month_1", "custom"]).optional(),
   priority: z.enum(["low", "normal", "high", "critical"]).optional(),
+  requiresVerification: z.boolean().optional(),
   dueDate: z.string().optional(),
   relativeOffsetDays: z.number().optional(),
   prerequisiteTaskIds: z.array(z.string()).optional(),
 });
 
 export const updateTaskStatusSchema = z.object({
-  status: z.enum(["pending", "in_progress", "completed", "overdue", "cancelled"]),
+  status: z.enum(["pending", "in_progress", "completed", "verified", "overdue", "cancelled"]),
   note: z.string().optional(),
 });
 
@@ -25,6 +27,8 @@ export const addTaskCommentSchema = z.object({
 export const getTasksQuerySchema = z.object({
   assignedToUserId: z.string().optional(),
   assignedToMe: z.union([z.string(), z.boolean()]).optional(),
+  directReportsOnly: z.union([z.string(), z.boolean()]).optional(),
+  directReports: z.union([z.string(), z.boolean()]).optional(),
   employeeId: z.string().optional(),
   createdBy: z.string().optional(),
   status: z.string().optional(),

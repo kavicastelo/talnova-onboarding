@@ -38,13 +38,25 @@ export interface ILocation {
 export interface IOrganization extends Document {
   name: string;
   slug: string;
+  domain?: string;
   description?: string;
   website?: string;
   industry?: string;
   size?: "1-10" | "11-50" | "51-250" | "251-1000" | "1000+";
   supportEmail?: string;
   status: "Active" | "Suspended";
-  plan: "Starter" | "Growth" | "Enterprise";
+  plan: "Starter" | "Growth" | "Professional" | "Enterprise";
+  subscription?: {
+    plan?: string;
+    status?: string;
+    seatLimit?: number;
+    billingCycle?: string;
+    renewsAt?: Date;
+  };
+  limits?: {
+    maxUsers?: number;
+    maxStorageGb?: number;
+  };
   branding: {
     logo?: IUploadReference;
     favicon?: IUploadReference;
@@ -129,6 +141,7 @@ const OrganizationSchema = new Schema<IOrganization>(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    domain: { type: String, lowercase: true, trim: true },
     description: { type: String },
     website: { type: String },
     industry: { type: String },
@@ -138,7 +151,18 @@ const OrganizationSchema = new Schema<IOrganization>(
     },
     supportEmail: { type: String, lowercase: true, trim: true },
     status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
-    plan: { type: String, enum: ["Starter", "Growth", "Enterprise"], default: "Starter" },
+    plan: { type: String, enum: ["Starter", "Growth", "Professional", "Enterprise"], default: "Starter" },
+    subscription: {
+      plan: { type: String, default: "Starter" },
+      status: { type: String, default: "active" },
+      seatLimit: { type: Number, default: 50 },
+      billingCycle: { type: String, default: "monthly" },
+      renewsAt: { type: Date }
+    },
+    limits: {
+      maxUsers: { type: Number, default: 50 },
+      maxStorageGb: { type: Number, default: 10 }
+    },
     branding: {
       logo: { type: UploadReferenceSchema },
       favicon: { type: UploadReferenceSchema },

@@ -8,9 +8,12 @@ export interface IKioskAnalytics extends Omit<KioskAnalytics, "_id" | "organizat
   organizationId: mongoose.Types.ObjectId;
   deviceId?: mongoose.Types.ObjectId;
   journeyId: mongoose.Types.ObjectId;
+  stepId?: string;
+  eventType?: string;
   interactions: Array<{
     stepId: string;
     elementClicked: string;
+    eventType?: string;
     timestamp: Date;
   }>;
 }
@@ -29,6 +32,7 @@ const KioskUserInteractionSchema = new Schema(
   {
     stepId: { type: String, required: true },
     elementClicked: { type: String, required: true },
+    eventType: { type: String },
     timestamp: { type: Date, required: true, default: Date.now }
   },
   { _id: false }
@@ -41,6 +45,8 @@ const KioskAnalyticsSchema = new Schema<IKioskAnalytics>(
     journeyId: { type: Schema.Types.ObjectId, required: true, ref: "KioskJourney" },
     journeyVersion: { type: Number, required: true, min: 1 },
     languageUsed: { type: String, required: true },
+    stepId: { type: String },
+    eventType: { type: String },
     metrics: { type: KioskSessionMetricsSchema, required: true },
     interactions: { type: [KioskUserInteractionSchema], default: [] },
     dateKey: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ }

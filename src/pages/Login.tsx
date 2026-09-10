@@ -35,20 +35,26 @@ export function Login() {
 
       applyProfileLanguage(loginData.user?.preferences?.language);
 
-      let userRole: 'admin' | 'employee' | 'super_admin' = 'employee';
+      let userRole: 'admin' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' = 'employee';
       if (backendRole === 'super_admin') {
         userRole = 'super_admin';
       } else if (backendRole === 'owner' || backendRole === 'admin') {
         userRole = 'admin';
+      } else if (backendRole === 'manager') {
+        userRole = 'manager';
+      } else if (backendRole === 'hr_admin') {
+        userRole = 'hr_admin';
       }
 
-      setRole(userRole);
+      setRole(userRole as any);
       toast.success(t('login.success'));
 
       if (userRole === 'super_admin') {
         navigate('/super-admin');
       } else if (userRole === 'admin') {
         navigate('/');
+      } else if (userRole === 'manager') {
+        navigate('/manager');
       } else {
         navigate('/employee');
       }

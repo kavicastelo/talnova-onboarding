@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import mongoose from "mongoose";
 import AppError from "../../../common/errors/app-error.js";
 import config from "../../../config/index.js";
 import { Organization } from "../../organizations/models/organization.model.js";
@@ -13,10 +14,12 @@ const securityService = new KioskSecurityService();
  */
 export async function verifySignedUrl(request: FastifyRequest, reply: FastifyReply) {
   const params = request.params as Record<string, string>;
-  const journeyId = params?.id;
+  const query = request.query as Record<string, string>;
+  const body = request.body as any;
+  const journeyId = params?.id || query?.journeyId || body?.sessions?.[0]?.journeyId;
 
   if (!journeyId) {
-    throw new AppError(400, "BAD_REQUEST", "Journey identifier is required in route params");
+    throw new AppError(400, "BAD_REQUEST", "Journey identifier is required");
   }
 
   // 1. Validate query parameter structure
@@ -27,15 +30,24 @@ export async function verifySignedUrl(request: FastifyRequest, reply: FastifyRep
 
   const { o: orgId, exp, sig } = parseResult.data;
 
-  // 2. Validate cryptographic signature
+  // 2. Check expiration timestamp
+  const expTimestamp = parseInt(exp, 10);
+  const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+  if (expTimestamp < currentUnixTimestamp) {
+    throw new AppError(401, "SIGNATURE_EXPIRED", "Kiosk signature URL has expired");
+  }
+
+  // 3. Validate cryptographic signature
   const secret = config.jwt.secret;
-  const isValid = securityService.verifySignature(journeyId, orgId, parseInt(exp, 10), sig, secret);
+  const isValid = securityService.verifySignature(journeyId, orgId, expTimestamp, sig, secret);
   if (!isValid) {
     throw new AppError(403, "INVALID_SIGNATURE", "Invalid or expired kiosk signature URL");
   }
 
-  // 3. Enforce tenant active checks (prevent suspended organization access)
-  const org = await Organization.findById(orgId);
+  // 4. Enforce tenant active checks (prevent suspended organization access)
+  const isOrgObjectId = typeof orgId === "string" && mongoose.Types.ObjectId.isValid(orgId) && orgId.length === 24;
+  const orgQuery = isOrgObjectId ? { _id: orgId } : { slug: orgId };
+  const org = await Organization.findOne(orgQuery);
   if (!org) {
     throw new AppError(404, "NOT_FOUND", "Organization not found");
   }
@@ -45,7 +57,7 @@ export async function verifySignedUrl(request: FastifyRequest, reply: FastifyRep
 
   // Attach kiosk context to request
   request.kioskContext = {
-    organizationId: orgId,
+    organizationId: org._id.toString(),
     journeyId
   };
 }

@@ -132,13 +132,38 @@ export class TaskService {
     id: string | mongoose.Types.ObjectId,
     orgId: string | mongoose.Types.ObjectId,
     userId: string | mongoose.Types.ObjectId,
-    newStatus: "pending" | "in_progress" | "completed" | "overdue" | "cancelled",
+    newStatus: "pending" | "in_progress" | "completed" | "verified" | "overdue" | "cancelled",
     note?: string,
     userRole?: string
   ) {
     const task = await this.repository.findById(id, orgId);
     if (!task) {
       throw new AppError(404, "NOT_FOUND", "Task not found");
+    }
+
+    // Role-based task verification authorization:
+    // Only target employee's manager or admin/owner can verify tasks.
+    if (newStatus === "verified") {
+      if (userRole === "employee") {
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Unauthorized. Regular employees cannot verify tasks requiring manager sign-off."
+        );
+      }
+
+      if (userRole === "manager") {
+        const targetEmpId = (task.employeeId as any)?._id || task.employeeId || (task.assignedToUserId as any)?._id || task.assignedToUserId;
+        const targetEmp = await User.findById(targetEmpId);
+        const targetManagerId = targetEmp?.employment?.managerId || (targetEmp?.employment as any)?.managerUserId;
+        if (!targetManagerId || targetManagerId.toString() !== userId.toString()) {
+          throw new AppError(
+            403,
+            "FORBIDDEN",
+            "Unauthorized. Managers may only verify tasks belonging to their direct reports."
+          );
+        }
+      }
     }
 
     // Role-based task ownership enforcement:
@@ -155,12 +180,12 @@ export class TaskService {
       }
     }
 
-    // Check prerequisite tasks if completing
-    if (newStatus === "completed" && task.prerequisiteTaskIds && task.prerequisiteTaskIds.length > 0) {
+    // Check prerequisite tasks if completing or verifying
+    if ((newStatus === "completed" || newStatus === "verified") && task.prerequisiteTaskIds && task.prerequisiteTaskIds.length > 0) {
       const prereqs = await this.repository.find(
         {
           organizationId: orgId,
-          status: { $ne: "completed" },
+          status: { $nin: ["completed", "verified"] },
         },
         { page: 1, limit: 100 }
       );
@@ -185,6 +210,11 @@ export class TaskService {
     if (newStatus === "completed") {
       updateData.completedAt = new Date();
       updateData.completedBy = new mongoose.Types.ObjectId(userId);
+    } else if (newStatus === "verified") {
+      updateData.verifiedAt = new Date();
+      updateData.verifiedBy = new mongoose.Types.ObjectId(userId);
+      updateData.completedAt = task.completedAt || new Date();
+      updateData.completedBy = task.completedBy || new mongoose.Types.ObjectId(userId);
     }
 
     const updatedTask = await this.repository.update(id, orgId, updateData as any);
@@ -197,27 +227,29 @@ export class TaskService {
       status: newStatus,
       changedBy: new mongoose.Types.ObjectId(userId),
       changedAt: new Date(),
-      note: note || `Status changed to ${newStatus}`,
+      note: note || (newStatus === "verified" ? "Task verified by manager" : `Status changed to ${newStatus}`),
     });
     await updatedTask.save();
 
-    // Publish TASK_COMPLETED or status event
-    if (newStatus === "completed") {
+    // Publish TASK_COMPLETED or TASK_VERIFIED event
+    if (newStatus === "completed" || newStatus === "verified") {
       try {
         await eventBus.publish({
-          eventName: "TASK_COMPLETED",
+          eventName: newStatus === "verified" ? ("TASK_VERIFIED" as any) : "TASK_COMPLETED",
           organizationId: orgId,
           actorId: userId,
           entityId: updatedTask._id as any,
           payload: {
             taskId: updatedTask._id.toString(),
             title: updatedTask.title,
-            assignedToUserId: (updatedTask.assignedToUserId as any)?._id?.toString() || updatedTask.assignedToUserId.toString(),
+            status: newStatus,
+            assignedToUserId: (updatedTask.assignedToUserId as any)?._id?.toString() || updatedTask.assignedToUserId?.toString(),
             employeeId: (updatedTask.employeeId as any)?._id?.toString() || updatedTask.employeeId?.toString(),
+            verifiedBy: userId.toString(),
           },
         });
       } catch (e) {
-        console.error("Failed to publish TASK_COMPLETED event:", e);
+        console.error("Failed to publish task status event:", e);
       }
     }
 

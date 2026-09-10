@@ -24,7 +24,8 @@ export const KIOSK_INTERACTION_TYPES = [
   "hold_to_confirm",
   "yes_no",
   "hotspot",
-  "swipe"
+  "swipe",
+  "ppe_checklist"
 ] as const;
 
 /**

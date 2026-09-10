@@ -1,5 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import mongoose from "mongoose";
 import TaskService from "../services/task.service.js";
+import User from "../../auth/models/user.model.js";
 
 export class TaskController {
   constructor(private readonly service: TaskService) {}
@@ -21,8 +23,30 @@ export class TaskController {
     if (query.priority) filter.priority = query.priority;
     if (query.isOverdue === "true") filter.isOverdue = true;
 
-    // Default to tasks assigned to current user if "assignedToMe" flag is passed
-    if (query.assignedToMe === "true" || query.assignedToMe === true || query.assignedToMe === "1") {
+    // Filter by direct reports
+    if (
+      query.directReportsOnly === "true" ||
+      query.directReportsOnly === true ||
+      query.directReports === "true" ||
+      query.directReports === true
+    ) {
+      const managerId = user.userId ? new mongoose.Types.ObjectId(user.userId) : user.id;
+      const orgId = user.organizationId ? new mongoose.Types.ObjectId(user.organizationId) : undefined;
+      const reports = await User.find({
+        organizationId: orgId,
+        $or: [
+          { "employment.managerId": managerId },
+          { "employment.managerUserId": managerId },
+        ],
+        isDeleted: false,
+      }).select("_id");
+      const reportIds = reports.map((r) => r._id);
+      console.log('[TaskController.listTasks] query.directReportsOnly:', query.directReportsOnly, 'managerId:', managerId, 'reportIds:', reportIds);
+      filter.$or = [
+        { employeeId: { $in: reportIds } },
+        { assignedToUserId: { $in: reportIds } },
+      ];
+    } else if (query.assignedToMe === "true" || query.assignedToMe === true || query.assignedToMe === "1") {
       filter.assignedToUserId = user.userId;
     }
 

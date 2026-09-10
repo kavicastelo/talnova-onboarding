@@ -23,6 +23,9 @@ interface KioskPlayerContextProps {
   toggleMuted: () => void;
   toggleSubtitles: () => void;
   
+  signedParams?: { o: string; exp: string; sig: string };
+  recordPpeCompliance: (stepId: string, itemsChecked: string[]) => Promise<void>;
+
   // Analytics session triggers
   startSession: () => void;
   recordInteraction: (elementClicked: string) => void;
@@ -43,6 +46,7 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
+  const [signedParamsState, setSignedParamsState] = useState<{ o: string; exp: string; sig: string } | undefined>(undefined);
 
   // Track session details using refs to avoid stale closures in event handlers
   const activeSessionRef = useRef<{
@@ -78,6 +82,7 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const loadJourney = async (journeyId: string, signedParams?: { o: string; exp: string; sig: string }) => {
     setIsLoading(true);
     setError(null);
+    setSignedParamsState(signedParams);
     try {
       let data: KioskJourney;
       if (signedParams) {
@@ -196,7 +201,10 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     try {
-      await kioskService.syncAnalytics([analyticsRecord]);
+      await kioskService.syncAnalytics(
+        [analyticsRecord],
+        signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
+      );
     } catch (err) {
       console.warn('Analytics sync failed. Queueing session offline...', err);
       saveOfflineQueue([...offlineQueue, analyticsRecord]);
@@ -226,9 +234,62 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     try {
-      await kioskService.syncAnalytics([analyticsRecord]);
+      await kioskService.syncAnalytics(
+        [analyticsRecord],
+        signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
+      );
     } catch (err) {
       console.warn('Analytics sync failed. Queueing aborted session offline...', err);
+      saveOfflineQueue([...offlineQueue, analyticsRecord]);
+    }
+  };
+
+  const recordPpeCompliance = async (stepId: string, itemsChecked: string[]) => {
+    if (!journey) return;
+
+    const interactions: KioskUserInteraction[] = [
+      ...itemsChecked.map((item) => ({
+        stepId,
+        elementClicked: `ppe_check_${item.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        eventType: 'PPE_ITEM_CHECKED',
+        timestamp: new Date().toISOString()
+      })),
+      {
+        stepId,
+        elementClicked: 'ppe_confirm',
+        eventType: 'PPE_COMPLIANCE_CONFIRMED',
+        timestamp: new Date().toISOString()
+      }
+    ];
+
+    const durationSeconds = activeSessionRef.current 
+      ? Math.max(1, Math.round((Date.now() - activeSessionRef.current.startTime) / 1000))
+      : 15;
+
+    const metrics: KioskSessionMetrics = {
+      launchesCount: 1,
+      completedCount: 1,
+      durationSeconds
+    };
+
+    const analyticsRecord: Partial<KioskAnalytics> = {
+      journeyId: journey._id,
+      journeyVersion: journey.publishing.version || 1,
+      languageUsed: selectedLanguage,
+      stepId,
+      eventType: 'PPE_COMPLIANCE_CONFIRMED',
+      metrics,
+      interactions,
+      dateKey: getLocalDateKey()
+    };
+
+    try {
+      await kioskService.syncAnalytics(
+        [analyticsRecord],
+        signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
+      );
+    } catch (err) {
+      console.warn('PPE Analytics sync failed. Queueing session offline...', err);
       saveOfflineQueue([...offlineQueue, analyticsRecord]);
     }
   };
@@ -236,7 +297,10 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const syncOfflineAnalytics = async () => {
     if (offlineQueue.length === 0) return;
     try {
-      await kioskService.syncAnalytics(offlineQueue);
+      await kioskService.syncAnalytics(
+        offlineQueue,
+        signedParamsState && journey ? { ...signedParamsState, journeyId: journey._id } : undefined
+      );
       saveOfflineQueue([]); // Success: clear local queue
       console.log('Successfully synchronized offline analytics queue.');
     } catch (err) {
@@ -277,6 +341,7 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isLoading,
         error,
         offlineQueueCount: offlineQueue.length,
+        signedParams: signedParamsState,
         loadJourney,
         setStepIndex,
         nextStep,
@@ -289,6 +354,7 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         recordInteraction,
         completeSession,
         abortSession,
+        recordPpeCompliance,
         syncOfflineAnalytics
       }}
     >

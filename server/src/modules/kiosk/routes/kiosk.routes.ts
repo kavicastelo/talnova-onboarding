@@ -150,6 +150,11 @@ export async function kioskRoutes(app: FastifyInstance) {
               // Fail-through to standard authenticate
             }
           }
+          const query = request.query as any;
+          if (query?.sig && query?.exp && query?.o) {
+            await verifySignedUrl(request, reply);
+            return;
+          }
           await authenticate(request, reply);
         }
       ],
