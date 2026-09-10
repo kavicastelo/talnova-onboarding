@@ -22,22 +22,63 @@ export class WorkflowService {
     orgId: string | mongoose.Types.ObjectId,
     createdBy: string | mongoose.Types.ObjectId,
     data: {
-      name: string;
+      name?: string;
+      title?: string;
       description?: string;
-      triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due";
+      priority?: number;
+      triggerType: string;
       conditions?: any[];
       actions: any[];
       isActive?: boolean;
+      targetTemplateId?: string;
     }
   ) {
+    const name = data.name || data.title;
+    if (!name || !name.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Rule title or name is required");
+    }
+
+    let triggerType = (data.triggerType || "user_created").toLowerCase();
+    if (triggerType === "on_user_created") {
+      triggerType = "user_created";
+    }
+
+    const rawActions = data.actions || [];
+    if (!Array.isArray(rawActions) || rawActions.length === 0) {
+      throw new AppError(400, "BAD_REQUEST", "At least one action is required");
+    }
+
+    const actions = rawActions.map((act: any) => {
+      const type = (act.type || "").toLowerCase();
+      const journeyId =
+        act.params?.journeyId ||
+        act.targetTemplateId ||
+        act.targetTemplate ||
+        act.params?.targetTemplateId ||
+        data.targetTemplateId;
+
+      if (type === "assign_journey" && !journeyId) {
+        throw new AppError(400, "BAD_REQUEST", "Target template is required for journey assignment");
+      }
+
+      return {
+        type,
+        params: {
+          ...act.params,
+          journeyId: journeyId || act.params?.journeyId,
+        },
+      };
+    });
+
     const ruleData = {
       organizationId: new mongoose.Types.ObjectId(orgId),
       createdBy: new mongoose.Types.ObjectId(createdBy),
-      name: data.name,
+      name: name.trim(),
       description: data.description,
-      triggerType: data.triggerType,
+      triggerType: triggerType as any,
       conditions: data.conditions || [],
-      actions: data.actions || [],
+      actions,
+      priority: data.priority !== undefined ? Number(data.priority) : 0,
       isActive: data.isActive ?? true,
       version: 1,
     };
@@ -47,16 +88,39 @@ export class WorkflowService {
   async updateRule(
     id: string | mongoose.Types.ObjectId,
     orgId: string | mongoose.Types.ObjectId,
-    data: Partial<{
-      name: string;
-      description: string;
-      triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due";
-      conditions: any[];
-      actions: any[];
-      isActive: boolean;
-    }>
+    data: any
   ) {
-    const rule = await this.repository.updateRule(id, orgId, data as any);
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.title !== undefined) updateData.name = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.triggerType !== undefined) {
+      let t = data.triggerType.toLowerCase();
+      if (t === "on_user_created") t = "user_created";
+      updateData.triggerType = t;
+    }
+    if (data.conditions !== undefined) updateData.conditions = data.conditions;
+    if (data.actions !== undefined) {
+      updateData.actions = data.actions.map((act: any) => {
+        const type = (act.type || "").toLowerCase();
+        const journeyId =
+          act.params?.journeyId ||
+          act.targetTemplateId ||
+          act.targetTemplate ||
+          act.params?.targetTemplateId;
+        return {
+          type,
+          params: {
+            ...act.params,
+            journeyId: journeyId || act.params?.journeyId,
+          },
+        };
+      });
+    }
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.priority !== undefined) updateData.priority = Number(data.priority);
+
+    const rule = await this.repository.updateRule(id, orgId, updateData);
     if (!rule) {
       throw new AppError(404, "NOT_FOUND", "Workflow rule not found");
     }

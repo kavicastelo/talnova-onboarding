@@ -234,9 +234,18 @@ export class EmployeeAssignmentService {
     moduleId: string,
     lessonId: string,
     timeSpentSeconds: number,
-    completedBlockIds: string[]
+    completedBlockIds: string[],
+    userId?: string | mongoose.Types.ObjectId,
+    userRole?: string
   ) {
     const assignment = await this.getAssignment(id, orgId);
+
+    // Authorization: Employees cannot mutate another user's assignment
+    if (userRole === "employee" && userId) {
+      if (assignment.employeeId.toString() !== userId.toString()) {
+        throw new AppError(403, "FORBIDDEN", "Unauthorized. You cannot mutate another user's assignment.");
+      }
+    }
 
     // Verify mandatory compliance documents if assigned
     const pendingComplianceDocs = await DocumentAssignment.countDocuments({
@@ -302,6 +311,31 @@ export class EmployeeAssignmentService {
         lesProg.status = "completed";
         lesProg.completedAt = new Date();
         assignment.progress.completedLessons++;
+
+        if (!assignment.completedLessonIds) {
+          assignment.completedLessonIds = [];
+        }
+        if (!assignment.completedLessonIds.includes(lessonId.toString())) {
+          assignment.completedLessonIds.push(lessonId.toString());
+        }
+
+        // Emit ON_STEP_COMPLETED event
+        try {
+          eventBus.publish({
+            eventName: "JOURNEY_COMPLETED" as any,
+            organizationId: orgId,
+            actorId: assignment.employeeId,
+            entityId: assignment._id as any,
+            payload: {
+              assignmentId: assignment._id.toString(),
+              lessonId: lessonId.toString(),
+              moduleId: moduleId.toString(),
+              event: "ON_STEP_COMPLETED"
+            }
+          }).catch(() => {});
+        } catch (evErr) {
+          // ignore event bus publish error
+        }
       }
     } else {
       lesProg.status = "in_progress";
@@ -378,7 +412,7 @@ export class EmployeeAssignmentService {
     });
     if (pendingComplianceDocs > 0) {
       throw new AppError(
-        403,
+        400,
         "COMPLIANCE_PREREQUISITE_REQUIRED",
         "Mandatory compliance documents must be reviewed and signed before completing learning quizzes."
       );
@@ -448,6 +482,11 @@ export class EmployeeAssignmentService {
 
     lesProg.quizAttempt = attempt;
 
+    if (!assignment.quizAttempts) {
+      assignment.quizAttempts = [];
+    }
+    assignment.quizAttempts.push(attempt);
+
     // Re-evaluate lesson completion with quiz rules
     let contentCompleted = true;
     if (origLes.completionRules.requireContentCompletion) {
@@ -483,6 +522,23 @@ export class EmployeeAssignmentService {
     await assignment.save();
     await this.updateUserStatistics(assignment.employeeId);
 
+    // Award gamification points upon passing quiz
+    if (passed) {
+      try {
+        const { GamificationService } = await import("../../gamification/services/gamification.service.js");
+        const gamificationService = new GamificationService();
+        await gamificationService.awardPoints(
+          orgId,
+          assignment.employeeId,
+          "quiz_completed",
+          50,
+          `Passed quiz in lesson "${lesProg.title}"`
+        );
+      } catch (gErr) {
+        console.warn("Could not award gamification points for quiz:", gErr);
+      }
+    }
+
     // Create Audit Log for quiz submission
     try {
       const AuditLog = mongoose.model("AuditLog");
@@ -514,7 +570,7 @@ export class EmployeeAssignmentService {
       console.error("Failed to log submit quiz audit log:", err);
     }
 
-    return { passed, score, attempt };
+    return { score, passed, attemptsCount: currentAttemptNum, attempt };
   }
 
   public async checkOverallCompletion(assignment: any, journey: any) {

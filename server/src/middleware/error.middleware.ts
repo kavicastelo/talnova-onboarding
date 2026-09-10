@@ -26,10 +26,10 @@ export function errorHandler(
     return reply.status(error.statusCode).send({
       success: false,
       message: error.message,
-      error: {
-        code: error.code,
-        details: error.details,
-      },
+      error: error.code,
+      code: error.code,
+      ...(error.details && typeof error.details === "object" ? error.details : {}),
+      details: error.details,
     });
   }
 

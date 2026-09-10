@@ -27,6 +27,7 @@ export class DocumentService {
       category: data.category || "custom",
       content: data.content,
       signatureRequired: data.signatureRequired !== undefined ? data.signatureRequired : true,
+      isMandatory: data.isMandatory !== undefined ? data.isMandatory : false,
       version: 1,
       audience: data.audience || {},
       createdBy: new mongoose.Types.ObjectId(userId),
@@ -81,6 +82,7 @@ export class DocumentService {
       template.version += 1;
     }
     if (data.signatureRequired !== undefined) template.signatureRequired = data.signatureRequired;
+    if (data.isMandatory !== undefined) template.isMandatory = data.isMandatory;
     if (data.audience) template.audience = { ...template.audience, ...data.audience };
 
     template.updatedBy = new mongoose.Types.ObjectId(userId);
@@ -322,7 +324,9 @@ export class DocumentService {
       templateId: new mongoose.Types.ObjectId(templateId),
       status: "signed",
       isDeleted: false,
-    }).sort({ signedAt: -1 });
+    })
+      .populate("employeeId", "profile.fullName profile.firstName profile.lastName auth.email employment.department")
+      .sort({ signedAt: -1 });
   }
 
   /**

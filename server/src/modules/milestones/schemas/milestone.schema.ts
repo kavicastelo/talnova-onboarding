@@ -36,15 +36,19 @@ export const assignMilestoneSchema = z.object({
 });
 
 export const selfCheckinSchema = z.object({
-  responses: z.array(
-    z.object({
-      questionId: z.string(),
-      question: z.string(),
-      answer: z.string().min(1, "Answer cannot be empty"),
-    })
-  ),
-  confidenceRating: z.number().min(1).max(5).optional(),
+  responses: z
+    .array(
+      z.object({
+        questionId: z.string().optional(),
+        question: z.string().optional(),
+        answer: z.string().optional(),
+      })
+    )
+    .optional(),
+  confidenceRating: z.number().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5").optional(),
+  employeeRating: z.number().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5").optional(),
   comments: z.string().optional(),
+  reflectionNotes: z.string().optional(),
   goalsCompletedTitles: z.array(z.string()).optional(),
 });
 

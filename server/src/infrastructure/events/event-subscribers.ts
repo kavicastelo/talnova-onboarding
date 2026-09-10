@@ -145,7 +145,7 @@ export function registerEventSubscribers(): void {
   });
 
   // Workflow Engine & Smart Auto-Enrollment Listener for USER_CREATED event
-  eventBus.subscribe("USER_CREATED", async (event) => {
+  const handleUserCreated = async (event: any) => {
     if (event.actorId) {
       await workflowEngine.processEvent(
         event.organizationId,
@@ -174,7 +174,10 @@ export function registerEventSubscribers(): void {
         event.actorId
       );
     }
-  });
+  };
+
+  eventBus.subscribe("USER_CREATED", handleUserCreated);
+  eventBus.subscribe("ON_USER_CREATED" as any, handleUserCreated);
 
   // Workflow Engine Listener for JOURNEY_COMPLETED event
   eventBus.subscribe("JOURNEY_COMPLETED", async (event) => {

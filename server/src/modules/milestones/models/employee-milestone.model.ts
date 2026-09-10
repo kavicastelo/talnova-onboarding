@@ -8,9 +8,12 @@ export interface IQuestionAnswer {
 
 export interface IEmployeeSelfCheck {
   completedAt?: Date;
+  submittedAt?: Date;
   responses: IQuestionAnswer[];
   confidenceRating?: number; // 1-5 rating
+  employeeRating?: number; // 1-5 rating
   comments?: string;
+  reflectionNotes?: string;
 }
 
 export interface IManagerReview {
@@ -29,12 +32,15 @@ export interface IEmployeeMilestone extends Document {
   milestoneTitle: string;
   targetDay: 30 | 60 | 90 | 180;
   dueDate: Date;
-  status: "pending" | "in_review" | "completed" | "overdue";
+  status: "pending" | "in_review" | "pending_manager_review" | "completed" | "overdue";
   goalsProgress: Array<{
     goalTitle: string;
     completed: boolean;
     completedAt?: Date;
   }>;
+  employeeRating?: number;
+  submittedAt?: Date;
+  comments?: string;
   employeeSelfCheck?: IEmployeeSelfCheck;
   managerReview?: IManagerReview;
   isDeleted: boolean;
@@ -50,9 +56,12 @@ const QuestionAnswerSchema = new Schema({
 
 const EmployeeSelfCheckSchema = new Schema({
   completedAt: { type: Date, default: Date.now },
+  submittedAt: { type: Date, default: Date.now },
   responses: { type: [QuestionAnswerSchema], default: [] },
   confidenceRating: { type: Number, min: 1, max: 5 },
+  employeeRating: { type: Number, min: 1, max: 5 },
   comments: { type: String },
+  reflectionNotes: { type: String },
 });
 
 const ManagerReviewSchema = new Schema({
@@ -78,9 +87,12 @@ const EmployeeMilestoneSchema = new Schema<IEmployeeMilestone>(
     dueDate: { type: Date, required: true },
     status: {
       type: String,
-      enum: ["pending", "in_review", "completed", "overdue"],
+      enum: ["pending", "in_review", "pending_manager_review", "completed", "overdue"],
       default: "pending",
     },
+    employeeRating: { type: Number, min: 1, max: 5 },
+    submittedAt: { type: Date },
+    comments: { type: String },
     goalsProgress: [
       {
         goalTitle: { type: String, required: true },
@@ -101,4 +113,5 @@ EmployeeMilestoneSchema.index({ organizationId: 1, employeeId: 1, status: 1 });
 EmployeeMilestoneSchema.index({ organizationId: 1, targetDay: 1 });
 
 export const EmployeeMilestone = mongoose.model<IEmployeeMilestone>("EmployeeMilestone", EmployeeMilestoneSchema);
+export const MilestonePlan = EmployeeMilestone;
 export default EmployeeMilestone;

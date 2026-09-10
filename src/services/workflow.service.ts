@@ -75,9 +75,11 @@ export interface WorkflowExecutionLogItem {
 }
 
 export interface CreateWorkflowRulePayload {
-  name: string;
+  name?: string;
+  title?: string;
   description?: string;
-  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due";
+  priority?: number;
+  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due" | "ON_USER_CREATED";
   conditions?: WorkflowCondition[];
   actions: WorkflowAction[];
   isActive?: boolean;
@@ -87,24 +89,24 @@ export class FrontendWorkflowService {
   async getRules(triggerType?: string): Promise<WorkflowRuleItem[]> {
     const query = triggerType ? `?triggerType=${triggerType}` : "";
     const response = await apiClient.get<{ success: boolean; data: WorkflowRuleItem[] }>(
-      `/workflows${query}`
+      `/workflows/rules${query}`
     );
     return response.data.data;
   }
 
   async getRule(id: string): Promise<WorkflowRuleItem> {
-    const response = await apiClient.get<{ success: boolean; data: WorkflowRuleItem }>(`/workflows/${id}`);
+    const response = await apiClient.get<{ success: boolean; data: WorkflowRuleItem }>(`/workflows/rules/${id}`);
     return response.data.data;
   }
 
   async createRule(payload: CreateWorkflowRulePayload): Promise<WorkflowRuleItem> {
-    const response = await apiClient.post<{ success: boolean; data: WorkflowRuleItem }>("/workflows", payload);
+    const response = await apiClient.post<{ success: boolean; data: WorkflowRuleItem }>("/workflows/rules", payload);
     return response.data.data;
   }
 
   async updateRule(id: string, payload: Partial<CreateWorkflowRulePayload>): Promise<WorkflowRuleItem> {
     const response = await apiClient.patch<{ success: boolean; data: WorkflowRuleItem }>(
-      `/workflows/${id}`,
+      `/workflows/rules/${id}`,
       payload
     );
     return response.data.data;
@@ -112,7 +114,7 @@ export class FrontendWorkflowService {
 
   async toggleRuleActive(id: string, isActive: boolean): Promise<WorkflowRuleItem> {
     const response = await apiClient.patch<{ success: boolean; data: WorkflowRuleItem }>(
-      `/workflows/${id}/toggle`,
+      `/workflows/rules/${id}`,
       { isActive }
     );
     return response.data.data;

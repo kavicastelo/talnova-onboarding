@@ -6,6 +6,7 @@ export const createTemplateSchema = z.object({
   category: z.enum(["nda", "code_of_conduct", "offer_letter", "handbook", "direct_deposit", "custom"]).default("custom"),
   content: z.string().min(10, "Template content must be at least 10 characters"),
   signatureRequired: z.boolean().default(true),
+  isMandatory: z.boolean().default(false),
   audience: z
     .object({
       departmentNames: z.array(z.string()).optional(),

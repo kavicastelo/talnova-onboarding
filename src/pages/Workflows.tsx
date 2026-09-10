@@ -38,10 +38,12 @@ export function Workflows() {
   // Workflow Builder Form State
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<number>(10);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [triggerType, setTriggerType] = useState<"user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due">('user_created');
   const [conditions, setConditions] = useState<WorkflowCondition[]>([]);
   const [actions, setActions] = useState<WorkflowAction[]>([
-    { type: 'send_notification', params: { notificationTitle: 'Welcome to Talnova', notificationMessage: 'Welcome to your onboarding path!' } },
+    { type: 'assign_journey', params: { journeyId: '' } },
   ]);
 
   // Queries & Mutations
@@ -81,7 +83,7 @@ export function Workflows() {
   const handleAddAction = () => {
     setActions((prev) => [
       ...prev,
-      { type: 'create_task', params: { taskTitle: 'Setup Workstation & Accounts', taskStage: 'day_1', taskPriority: 'high' } },
+      { type: 'assign_journey', params: { journeyId: '' } },
     ]);
   };
 
@@ -91,15 +93,35 @@ export function Workflows() {
 
   const handleCreateWorkflow = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || actions.length === 0) return;
+    setValidationError(null);
+
+    if (!name.trim()) {
+      setValidationError('Rule title is required.');
+      return;
+    }
+
+    if (actions.length === 0) {
+      setValidationError('At least one action step is required.');
+      return;
+    }
+
+    for (let i = 0; i < actions.length; i++) {
+      const act = actions[i];
+      if (act.type === 'assign_journey' && !act.params.journeyId) {
+        setValidationError('Target template is required for journey assignment.');
+        return;
+      }
+    }
 
     createWorkflowMutation.mutate(
       {
         name,
+        title: name,
         description,
         triggerType,
         conditions,
         actions,
+        priority,
         isActive: true,
       },
       {
@@ -108,6 +130,11 @@ export function Workflows() {
           setName('');
           setDescription('');
           setConditions([]);
+          setPriority(10);
+          setValidationError(null);
+        },
+        onError: (err: any) => {
+          setValidationError(err?.response?.data?.message || 'Failed to save workflow rule.');
         },
       }
     );
@@ -179,6 +206,7 @@ export function Workflows() {
               Execution Logs
             </button>
             <button
+              id="create-rule-btn"
               onClick={() => setIsBuilderOpen(true)}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none"
             >
@@ -194,21 +222,19 @@ export function Workflows() {
             <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab('rules')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                  activeTab === 'rules'
-                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'rules'
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                  }`}
               >
                 Active Workflow Rules ({rules.length})
               </button>
               <button
                 onClick={() => setActiveTab('logs')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                  activeTab === 'logs'
-                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'logs'
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                  }`}
               >
                 Audit Execution History ({logs.length})
               </button>
@@ -259,25 +285,42 @@ export function Workflows() {
                 {rulesPagination.paginatedData.map((rule) => (
                   <div
                     key={rule._id}
+                    data-testid="workflow-rule-card"
                     className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          {getTriggerBadge(rule.triggerType)}
+                          <div className="flex items-center gap-2">
+                            {getTriggerBadge(rule.triggerType)}
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">
+                              Priority: {(rule as any).priority ?? 0}
+                            </span>
+                          </div>
                           <h3 className="text-lg font-bold mt-2">{rule.name}</h3>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={rule.isActive}
-                            onChange={(e) =>
-                              toggleWorkflowMutation.mutate({ id: rule._id, isActive: e.target.checked })
-                            }
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                        </label>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${rule.isActive
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                              }`}
+                          >
+                            {rule.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id={`rule-toggle-${rule._id}`}
+                              checked={rule.isActive}
+                              onChange={(e) =>
+                                toggleWorkflowMutation.mutate({ id: rule._id, isActive: e.target.checked })
+                              }
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                          </label>
+                        </div>
                       </div>
 
                       {rule.description && (
@@ -432,30 +475,59 @@ export function Workflows() {
             </div>
 
             <form onSubmit={handleCreateWorkflow} className="space-y-4 text-sm">
+              {validationError && (
+                <div
+                  id="rule-validation-error"
+                  className="p-3 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 text-xs rounded-xl border border-red-200 dark:border-red-800 font-medium"
+                >
+                  {validationError}
+                </div>
+              )}
+
               <div>
-                <label className="block font-medium mb-1">Workflow Rule Name *</label>
+                <label className="block font-medium mb-1">Workflow Rule Title / Name *</label>
                 <input
+                  id="rule-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Engineering Onboarding Auto-Provisioning"
+                  placeholder="e.g. Auto Assign Eng Onboarding"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div>
-                <label className="block font-medium mb-1">Event Trigger *</label>
-                <select
-                  value={triggerType}
-                  onChange={(e) => setTriggerType(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="user_created">WHEN: New Employee Created / Hired</option>
-                  <option value="journey_completed">WHEN: Journey Completed</option>
-                  <option value="task_completed">WHEN: Task Completed</option>
-                  <option value="stage_entered">WHEN: Stage Entered</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-medium mb-1">Event Trigger *</label>
+                  <select
+                    id="rule-trigger-select"
+                    value={triggerType}
+                    onChange={(e) => setTriggerType(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="user_created">ON_USER_CREATED (New User Created / Hired)</option>
+                    <option value="journey_completed">ON_JOURNEY_COMPLETED (Journey Completed)</option>
+                    <option value="task_completed">ON_TASK_COMPLETED (Task Completed)</option>
+                    <option value="stage_entered">ON_STAGE_ENTERED (Stage Entered)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium mb-1">Priority (Higher runs first)</label>
+                  <input
+                    id="rule-priority-input"
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={priority}
+                    onChange={(e) => setPriority(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
 
               {/* Conditions Section */}
@@ -466,6 +538,7 @@ export function Workflows() {
                   </h4>
                   <button
                     type="button"
+                    id="add-condition-btn"
                     onClick={handleAddCondition}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                   >
@@ -477,6 +550,7 @@ export function Workflows() {
                 {conditions.map((cond, idx) => (
                   <div key={idx} className="flex gap-2 items-center">
                     <select
+                      id={`condition-field-select-${idx}`}
                       value={cond.field}
                       onChange={(e) => {
                         const updated = [...conditions];
@@ -491,6 +565,7 @@ export function Workflows() {
                     </select>
 
                     <select
+                      id={`condition-operator-select-${idx}`}
                       value={cond.operator}
                       onChange={(e) => {
                         const updated = [...conditions];
@@ -505,6 +580,7 @@ export function Workflows() {
                     </select>
 
                     <input
+                      id={`condition-value-input-${idx}`}
                       type="text"
                       value={cond.value as string}
                       onChange={(e) => {
@@ -535,6 +611,7 @@ export function Workflows() {
                   </h4>
                   <button
                     type="button"
+                    id="add-action-btn"
                     onClick={handleAddAction}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                   >
@@ -557,11 +634,13 @@ export function Workflows() {
                     </div>
 
                     <select
+                      id={`action-type-select-${idx}`}
                       value={act.type}
                       onChange={(e) => {
                         const updated = [...actions];
                         updated[idx].type = e.target.value as any;
                         setActions(updated);
+                        if (validationError) setValidationError(null);
                       }}
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                     >
@@ -574,22 +653,26 @@ export function Workflows() {
                     </select>
 
                     {act.type === 'assign_journey' && (
-                      <select
-                        value={act.params.journeyId || ''}
-                        onChange={(e) => {
-                          const updated = [...actions];
-                          updated[idx].params = { ...updated[idx].params, journeyId: e.target.value };
-                          setActions(updated);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
-                      >
-                        <option value="">Select Journey Template</option>
-                        {journeys.map((j: any) => (
-                          <option key={j._id} value={j._id}>
-                            {j.title}
-                          </option>
-                        ))}
-                      </select>
+                      <div>
+                        <select
+                          id={`action-target-journey-select-${idx}`}
+                          value={act.params.journeyId || ''}
+                          onChange={(e) => {
+                            const updated = [...actions];
+                            updated[idx].params = { ...updated[idx].params, journeyId: e.target.value };
+                            setActions(updated);
+                            if (validationError) setValidationError(null);
+                          }}
+                          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        >
+                          <option value="">Select Journey Template</option>
+                          {journeys.map((j: any) => (
+                            <option key={j._id} value={j._id}>
+                              {j.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
 
                     {act.type === 'assign_document' && (
@@ -670,11 +753,12 @@ export function Workflows() {
                   Cancel
                 </button>
                 <button
+                  id="save-activate-rule-btn"
                   type="submit"
                   disabled={createWorkflowMutation.isPending}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all"
                 >
-                  {createWorkflowMutation.isPending ? 'Saving Rule...' : 'Save Workflow Rule'}
+                  {createWorkflowMutation.isPending ? 'Saving...' : 'Save & Activate'}
                 </button>
               </div>
             </form>
@@ -706,8 +790,8 @@ export function Workflows() {
               >
                 <option value="">Select Target Employee</option>
                 {employees.map((emp: any) => (
-                  <option key={emp._id} value={emp._id}>
-                    {emp.profile?.firstName} {emp.profile?.lastName}
+                  <option key={emp.id} value={emp.id}>
+                    {emp?.firstName} {emp?.lastName}
                   </option>
                 ))}
               </select>

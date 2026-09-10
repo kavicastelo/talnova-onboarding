@@ -67,6 +67,8 @@ export interface IEmployeeAssignment extends Document {
     lastActivityAt?: Date;
   };
   modules: IModuleProgress[];
+  completedLessonIds?: string[];
+  quizAttempts?: IQuizAttempt[];
   certificate?: {
     issued: boolean;
     issuedAt?: Date;
@@ -157,6 +159,8 @@ const EmployeeAssignmentSchema = new Schema<IEmployeeAssignment>(
       lastActivityAt: { type: Date },
     },
     modules: { type: [ModuleProgressSchema], default: [] },
+    completedLessonIds: { type: [String], default: [] },
+    quizAttempts: { type: [QuizAttemptSchema], default: [] },
     certificate: {
       issued: { type: Boolean, default: false },
       issuedAt: { type: Date },

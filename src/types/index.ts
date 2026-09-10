@@ -87,6 +87,9 @@ export interface Employee {
   timezone?: string;
   designation?: string;
   payrollCategory?: string;
+  employeeId?: string;
+  onboardingState?: string;
+  rawUser?: any;
 }
 
 // -------------------------

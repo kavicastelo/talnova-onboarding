@@ -7,9 +7,10 @@ const workflowConditionSchema = z.object({
 });
 
 const workflowActionSchema = z.object({
-  type: z.enum(["assign_journey", "create_task", "send_notification", "trigger_buddy", "assign_document", "trigger_webhook", "delay"]),
+  type: z.string(),
   params: z.object({
     journeyId: z.string().optional(),
+    targetTemplateId: z.string().optional(),
     taskTitle: z.string().optional(),
     taskDescription: z.string().optional(),
     taskCategory: z.enum(["it_setup", "hr_paperwork", "equipment", "training", "general"]).optional(),
@@ -23,17 +24,21 @@ const workflowActionSchema = z.object({
     buddyUserId: z.string().optional(),
     webhookUrl: z.string().optional(),
     delayMinutes: z.number().optional(),
-  }),
+  }).passthrough().optional(),
+  targetTemplateId: z.string().optional(),
+  targetTemplate: z.string().optional(),
 });
 
 export const createWorkflowRuleSchema = z.object({
-  name: z.string().min(2, "Rule name is required"),
+  name: z.string().optional(),
+  title: z.string().optional(),
   description: z.string().optional(),
-  triggerType: z.enum(["user_created", "journey_completed", "task_completed", "stage_entered", "checkin_due"]),
+  priority: z.number().optional(),
+  triggerType: z.string(),
   conditions: z.array(workflowConditionSchema).optional(),
   actions: z.array(workflowActionSchema).min(1, "At least one action is required"),
   isActive: z.boolean().optional(),
-});
+}).passthrough();
 
 export const updateWorkflowRuleSchema = createWorkflowRuleSchema.partial();
 

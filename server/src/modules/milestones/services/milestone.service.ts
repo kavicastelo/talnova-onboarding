@@ -137,28 +137,33 @@ export class MilestoneService {
   }
 
   /**
-   * Submit Employee Self Check-In (S90-003)
+   * Submit Employee Self Check-In / Self-Evaluation (S90-003)
    */
   async submitEmployeeSelfCheck(
     orgId: string | mongoose.Types.ObjectId,
     milestoneId: string | mongoose.Types.ObjectId,
     employeeId: string | mongoose.Types.ObjectId,
     payload: {
-      responses: Array<{ questionId: string; question: string; answer: string }>;
+      responses?: Array<{ questionId?: string; question?: string; answer?: string }>;
       confidenceRating?: number;
+      employeeRating?: number;
       comments?: string;
+      reflectionNotes?: string;
       goalsCompletedTitles?: string[];
     }
   ) {
     const milestone = await EmployeeMilestone.findOne({
       _id: new mongoose.Types.ObjectId(milestoneId),
       organizationId: new mongoose.Types.ObjectId(orgId),
-      employeeId: new mongoose.Types.ObjectId(employeeId),
       isDeleted: false,
     });
 
     if (!milestone) {
       throw new AppError(404, "NOT_FOUND", "Milestone not found");
+    }
+
+    if (milestone.employeeId.toString() !== employeeId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "You cannot submit an evaluation for another employee's milestone.");
     }
 
     // Update goals progress
@@ -172,18 +177,30 @@ export class MilestoneService {
       });
     }
 
+    const rating = payload.employeeRating ?? payload.confidenceRating ?? 4;
+    const comments = payload.comments || payload.reflectionNotes || "";
+    const submittedDate = new Date();
+
+    const responses = (payload.responses || []).map((r) => ({
+      questionId: r.questionId && mongoose.Types.ObjectId.isValid(r.questionId) ? new mongoose.Types.ObjectId(r.questionId) : new mongoose.Types.ObjectId(),
+      question: r.question || "Confidence in Role",
+      answer: r.answer || String(rating),
+    }));
+
     milestone.employeeSelfCheck = {
-      completedAt: new Date(),
-      responses: payload.responses.map((r) => ({
-        questionId: new mongoose.Types.ObjectId(r.questionId),
-        question: r.question,
-        answer: r.answer,
-      })),
-      confidenceRating: payload.confidenceRating || 4,
-      comments: payload.comments,
+      completedAt: submittedDate,
+      submittedAt: submittedDate,
+      responses,
+      confidenceRating: rating,
+      employeeRating: rating,
+      comments,
+      reflectionNotes: comments,
     };
 
-    milestone.status = "in_review";
+    milestone.employeeRating = rating;
+    milestone.submittedAt = submittedDate;
+    milestone.comments = comments;
+    milestone.status = "pending_manager_review";
     await milestone.save();
 
     // Notify manager
@@ -193,9 +210,15 @@ export class MilestoneService {
         organizationId: orgId,
         recipientUserId: employee.employment.managerId,
         type: "journey_completed",
-        title: `30/60/90 Milestone Self Check-In Submitted`,
-        message: `${employee.profile?.firstName} ${employee.profile?.lastName} has completed their Day ${milestone.targetDay} milestone check-in. Please review and provide feedback.`,
+        title: `Day ${milestone.targetDay} Milestone Evaluation Submitted`,
+        message: `${employee.profile?.firstName} ${employee.profile?.lastName} has submitted their Day ${milestone.targetDay} self-evaluation (Rating: ${rating}/5). Please review and provide manager sign-off.`,
         priority: "high",
+        data: {
+          milestoneId: milestone._id.toString(),
+          employeeId: employeeId.toString(),
+          targetDay: milestone.targetDay,
+          rating,
+        },
       });
     }
 

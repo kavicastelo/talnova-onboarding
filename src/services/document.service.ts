@@ -13,6 +13,7 @@ export interface DocumentTemplate {
   category: 'nda' | 'code_of_conduct' | 'offer_letter' | 'handbook' | 'direct_deposit' | 'custom';
   content: string;
   signatureRequired: boolean;
+  isMandatory?: boolean;
   version: number;
   audience?: {
     departmentNames?: string[];
@@ -28,7 +29,7 @@ export interface DocumentAssignment {
   templateId: string;
   templateTitle: string;
   templateVersion: number;
-  employeeId: string;
+  employeeId: any;
   assignedBy: string;
   status: 'pending' | 'viewed' | 'signed' | 'declined' | 'expired';
   assignedAt: string;
@@ -53,7 +54,7 @@ export interface DocumentAssignment {
 
 export const documentService = {
   createTemplate: async (data: Partial<DocumentTemplate>): Promise<DocumentTemplate> => {
-    const response = await apiClient.post<ApiResponse<DocumentTemplate>>('/documents/templates', data);
+    const response = await apiClient.post<ApiResponse<DocumentTemplate>>('/documents', data);
     return response.data.data;
   },
 
@@ -63,8 +64,13 @@ export const documentService = {
   },
 
   updateTemplate: async (id: string, data: Partial<DocumentTemplate>): Promise<DocumentTemplate> => {
-    const response = await apiClient.put<ApiResponse<DocumentTemplate>>(`/documents/templates/${id}`, data);
+    const response = await apiClient.patch<ApiResponse<DocumentTemplate>>(`/documents/${id}`, data);
     return response.data.data;
+  },
+
+  getTemplateSignatures: async (templateId: string): Promise<DocumentAssignment[]> => {
+    const response = await apiClient.get<ApiResponse<DocumentAssignment[]>>(`/documents/${templateId}/signatures`);
+    return response.data.data || [];
   },
 
   deleteTemplate: async (id: string): Promise<void> => {

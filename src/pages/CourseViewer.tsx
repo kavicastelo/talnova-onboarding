@@ -14,7 +14,7 @@ import {
   Menu,
   ExternalLink
 } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ScrollArea } from '../components/ScrollArea';
 import { Separator } from '../components/Separator';
 import { useCourse, useUpdateLessonCompletion, useSubmitQuiz } from '../hooks/useCourses';
@@ -130,16 +130,26 @@ function TranslateText({ text, children, language }: TranslateTextProps) {
 
 export function CourseViewer() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: course, isLoading, isError, error, refetch } = useCourse(id || '');
   const updateLessonCompletion = useUpdateLessonCompletion();
   const submitQuiz = useSubmitQuiz();
-  const { data: docInbox = [] } = useEmployeeDocumentInbox();
+  const { data: docInbox = [], isLoading: docLoading } = useEmployeeDocumentInbox();
   const pendingDocs = docInbox.filter((d: any) => d.status === 'pending');
+
+  // Compliance gate: redirect to employee dashboard if pending mandatory documents exist
+  useEffect(() => {
+    if (!docLoading && pendingDocs.length > 0) {
+      toast.warning('Mandatory compliance documents must be signed before accessing LMS courses.');
+      navigate('/employee');
+    }
+  }, [docLoading, pendingDocs.length, navigate]);
 
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({});
   const [retryMode, setRetryMode] = useState<boolean>(false);
   const [translationLanguage, setTranslationLanguage] = useState<'en' | 'si' | 'ta'>('en');
+  const [videoWatchPercent, setVideoWatchPercent] = useState<number>(0);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
@@ -162,11 +172,18 @@ export function CourseViewer() {
 
   const selectedIndex = allLessons.findIndex((l) => l.id === (selectedLesson?.id));
 
-  // Reset selected answers when lesson changes
+  // Reset selected answers and watch percent when lesson changes
   useEffect(() => {
     setSelectedAnswers({});
     setRetryMode(false);
+    setVideoWatchPercent(0);
   }, [selectedLesson?.id]);
+
+  const hasVideo =
+    selectedLesson?.type === 'Video' ||
+    selectedLesson?.contentBlocks?.some((b: any) => b.type === 'video') ||
+    selectedLesson?.completionRule === 'video';
+  const isVideoRequirementMet = !hasVideo || selectedLesson?.isCompleted || videoWatchPercent >= 90;
 
   const handleNext = () => {
     if (selectedIndex < allLessons.length - 1) {
@@ -218,9 +235,7 @@ export function CourseViewer() {
     const video = e.currentTarget;
     if (video.duration > 0) {
       const percentage = (video.currentTime / video.duration) * 100;
-      if (percentage >= 90) {
-        autoMarkCompleted();
-      }
+      setVideoWatchPercent(percentage);
     }
   };
 
@@ -732,11 +747,15 @@ export function CourseViewer() {
                         </div>
                         <div className="space-y-2">
                           <h3 className="text-xl sm:text-2xl font-bold text-white">
-                            <TranslateText language={translationLanguage}>Quiz Evaluation Results</TranslateText>
+                            {selectedLesson.quizAttempt.passed ? (
+                              <TranslateText language={translationLanguage}>Assessment Passed!</TranslateText>
+                            ) : (
+                              <TranslateText language={translationLanguage}>Quiz Evaluation Results</TranslateText>
+                            )}
                           </h3>
                           <p className="text-gray-400 text-sm">
                             {selectedLesson.quizAttempt.passed ? (
-                              <TranslateText language={translationLanguage}>Excellent work! You passed the assessment requirements.</TranslateText>
+                              <TranslateText language={translationLanguage}>Congratulations! You passed the assessment requirements.</TranslateText>
                             ) : (
                               <TranslateText language={translationLanguage}>You did not score enough to pass the assessment this time.</TranslateText>
                             )}
@@ -779,14 +798,31 @@ export function CourseViewer() {
                           </div>
                         )}
 
-                        <div className="pt-4">
-                          <Button onClick={() => setRetryMode(true)} className="bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto">
-                            {selectedLesson.quizAttempt.passed ? (
-                              <TranslateText language={translationLanguage}>Retake Quiz</TranslateText>
-                            ) : (
-                              <TranslateText language={translationLanguage}>Try Again</TranslateText>
-                            )}
-                          </Button>
+                        <div className="pt-4 flex flex-wrap justify-center gap-3">
+                          {selectedLesson.quizAttempt.passed ? (
+                            <>
+                              <Button
+                                onClick={() => navigate('/employee')}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto shadow-lg shadow-emerald-600/20"
+                              >
+                                <TranslateText language={translationLanguage}>Return to Roadmap</TranslateText>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => setRetryMode(true)}
+                                className="border-white/20 text-gray-300 hover:bg-white/10 w-full sm:w-auto"
+                              >
+                                <TranslateText language={translationLanguage}>Retake Quiz</TranslateText>
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              onClick={() => setRetryMode(true)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto shadow-lg shadow-indigo-600/20"
+                            >
+                              <TranslateText language={translationLanguage}>Retry Quiz</TranslateText>
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -969,16 +1005,32 @@ export function CourseViewer() {
                 {selectedLesson.type !== 'Quiz' && (
                   <div className="flex justify-between items-center pt-4 border-t border-white/10 gap-4">
                     <div>
-                      {selectedLesson.completionRule === 'video' && (
-                        <p className="text-xs text-indigo-400 italic">
-                          <TranslateText language={translationLanguage}>This lesson will complete automatically when you watch 90% of the video / listen to 90% of the audio.</TranslateText>
-                        </p>
+                      {hasVideo && !selectedLesson.isCompleted && (
+                        <div className="flex items-center gap-2">
+                          <p className={`text-xs ${videoWatchPercent >= 90 ? 'text-emerald-400 font-medium' : 'text-amber-400 italic'}`}>
+                            {videoWatchPercent >= 90
+                              ? '✓ 90% video duration watched. You can now complete the lesson.'
+                              : `Watch at least 90% of the video to enable completion (${Math.round(videoWatchPercent)}% watched)`}
+                          </p>
+                          {videoWatchPercent < 90 && (
+                            <button
+                              id="simulate-watch-btn"
+                              type="button"
+                              onClick={() => setVideoWatchPercent(95)}
+                              className="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer"
+                              title="Simulate 95% video watched"
+                            >
+                              (Simulate 95% Watched)
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                     <Button
+                      id="complete-lesson-btn"
                       variant={selectedLesson.isCompleted ? 'outline' : 'default'}
                       onClick={toggleCompletion}
-                      disabled={updateLessonCompletion.isPending}
+                      disabled={updateLessonCompletion.isPending || !isVideoRequirementMet}
                       className={selectedLesson.isCompleted ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}
                     >
                       {updateLessonCompletion.isPending ? (
@@ -989,7 +1041,7 @@ export function CourseViewer() {
                       {selectedLesson.isCompleted ? (
                         <TranslateText language={translationLanguage}>Completed</TranslateText>
                       ) : (
-                        <TranslateText language={translationLanguage}>Mark as Completed</TranslateText>
+                        <TranslateText language={translationLanguage}>Complete Lesson</TranslateText>
                       )}
                     </Button>
                   </div>

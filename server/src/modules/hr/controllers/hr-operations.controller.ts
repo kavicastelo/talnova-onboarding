@@ -38,10 +38,19 @@ export class HROperationsController {
       body.reason
     );
 
+    const certificateId = result.certificate?._id?.toString() || result.certificateId;
+    const employeeStatus = result.employeeStatus || result.user?.employment?.status || "active";
+
     return reply.status(200).send({
       success: true,
+      certificateId,
+      employeeStatus,
       message: result.message,
-      data: result.user,
+      data: {
+        ...(result.user?.toObject ? result.user.toObject() : result.user),
+        certificateId,
+        employeeStatus,
+      },
     });
   };
 

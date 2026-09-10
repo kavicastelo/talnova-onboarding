@@ -239,7 +239,9 @@ export class EmployeeAssignmentController {
       body.moduleId,
       body.lessonId,
       body.timeSpentSeconds,
-      body.completedBlockIds
+      body.completedBlockIds,
+      user.userId,
+      user.role
     );
 
     return reply.status(200).send({
@@ -281,7 +283,15 @@ export class EmployeeAssignmentController {
   submitQuiz = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;
-    const body = request.body as any;
+    const body = (request.body as any) || {};
+
+    if (!body.answers || !Array.isArray(body.answers) || body.answers.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        message: "Answers array cannot be empty.",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
 
     const result = await this.service.submitQuiz(
       params.id,
@@ -294,6 +304,9 @@ export class EmployeeAssignmentController {
     return reply.status(200).send({
       success: true,
       message: "Quiz submitted and evaluated successfully",
+      score: result.score,
+      passed: result.passed,
+      attemptsCount: result.attemptsCount,
       data: result,
     });
   };
@@ -301,15 +314,53 @@ export class EmployeeAssignmentController {
   verifyCertificatePublic = async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     try {
-      if (!mongoose.Types.ObjectId.isValid(params.id)) {
-        return reply.status(404).send({
-          success: false,
-          message: "No certificates found"
-        });
+      let assignment: any = null;
+      if (mongoose.Types.ObjectId.isValid(params.id)) {
+        assignment = await mongoose.model("EmployeeAssignment").findById(params.id);
       }
       
-      const assignment = await mongoose.model("EmployeeAssignment").findById(params.id);
       if (!assignment || assignment.status !== "completed" || !assignment.certificate?.issued) {
+        // Fallback: Check Certificate collection
+        let certQuery: any = { status: "active" };
+        if (mongoose.Types.ObjectId.isValid(params.id)) {
+          certQuery.$or = [
+            { _id: new mongoose.Types.ObjectId(params.id) },
+            { assignmentId: new mongoose.Types.ObjectId(params.id) },
+            { certificateNumber: params.id },
+          ];
+        } else {
+          certQuery.certificateNumber = params.id;
+        }
+
+        const cert: any = await mongoose.model("Certificate").findOne(certQuery);
+        if (cert) {
+          const org = await mongoose.model("Organization").findById(cert.organizationId);
+          const branding = org ? {
+            orgName: org.name,
+            primaryColor: org.branding?.primaryColor || '#4F46E5',
+            logoUrl: org.branding?.logo?.publicUrl || ''
+          } : {
+            orgName: cert.organizationName || 'Talnova Onboarding',
+            primaryColor: '#4F46E5',
+            logoUrl: ''
+          };
+
+          return reply.status(200).send({
+            success: true,
+            message: "Certificate verified successfully",
+            data: {
+              id: cert._id,
+              journeyTitle: cert.journeyTitle,
+              recipientName: cert.recipientName,
+              issuedAt: cert.issueDate,
+              certificateId: cert.certificateNumber,
+              sha256Signature: cert.sha256Signature,
+              branding,
+              certificate: org?.certificate || { template: 'classic' }
+            }
+          });
+        }
+
         return reply.status(404).send({
           success: false,
           message: "No certificates found"

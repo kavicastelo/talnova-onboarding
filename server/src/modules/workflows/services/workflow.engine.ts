@@ -51,7 +51,7 @@ export class WorkflowEngine {
 
     for (const rule of rules) {
       // 1. Evaluate Rule Conditions
-      const conditionsMatch = this.evaluateConditions(rule.conditions, targetUser);
+      const conditionsMatch = this.evaluateConditions(rule.conditions, targetUser, eventPayload);
       if (!conditionsMatch) {
         continue;
       }
@@ -116,18 +116,24 @@ export class WorkflowEngine {
   /**
    * Evaluate rule condition logic against target user profile & employment fields
    */
-  public evaluateConditions(conditions: IWorkflowCondition[], targetUser: any): boolean {
+  public evaluateConditions(conditions: IWorkflowCondition[], targetUser: any, eventPayload: any = {}): boolean {
     if (!conditions || conditions.length === 0) {
       return true;
     }
 
     for (const cond of conditions) {
       let fieldValue: any = undefined;
-      if (cond.field === "department") fieldValue = targetUser.employment?.department;
-      else if (cond.field === "jobTitle") fieldValue = targetUser.employment?.jobTitle;
-      else if (cond.field === "location") fieldValue = targetUser.employment?.location;
-      else if (cond.field === "employmentStatus") fieldValue = targetUser.employment?.status;
-      else if (cond.field === "role") fieldValue = targetUser.permissions?.role;
+      if (cond.field === "department") {
+        fieldValue = targetUser.employment?.department || targetUser.employment?.departmentId || eventPayload?.department;
+      } else if (cond.field === "jobTitle") {
+        fieldValue = targetUser.employment?.jobTitle || targetUser.employment?.designation || targetUser.employment?.jobTitleId || eventPayload?.jobTitle;
+      } else if (cond.field === "location") {
+        fieldValue = targetUser.employment?.location || targetUser.profile?.location || eventPayload?.location;
+      } else if (cond.field === "employmentStatus") {
+        fieldValue = targetUser.employment?.status || targetUser.employment?.employmentType || eventPayload?.employmentStatus;
+      } else if (cond.field === "role") {
+        fieldValue = targetUser.permissions?.role || eventPayload?.role;
+      }
 
       const userValStr = String(fieldValue || "").toLowerCase();
       const condValStr = Array.isArray(cond.value)
@@ -169,23 +175,28 @@ export class WorkflowEngine {
 
     switch (action.type) {
       case "assign_journey": {
-        if (!action.params.journeyId) {
+        const journeyId =
+          action.params?.journeyId ||
+          (action as any).targetTemplateId ||
+          (action as any).targetTemplate ||
+          (action.params as any)?.targetTemplateId;
+        if (!journeyId) {
           return { status: "failed", message: "journeyId parameter missing for assign_journey action" };
         }
         try {
           const journey = await Journey.findOne({
-            _id: action.params.journeyId,
+            _id: journeyId,
             organizationId,
             isDeleted: false,
           });
           if (!journey) {
-            return { status: "failed", message: `Journey ${action.params.journeyId} not found` };
+            return { status: "failed", message: `Journey ${journeyId} not found` };
           }
 
           const assignment = await assignmentService.assignJourney(
             organizationId,
             targetUser._id,
-            action.params.journeyId,
+            journeyId,
             authorIdStr,
             {
               dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Default 14 days

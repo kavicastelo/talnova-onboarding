@@ -37,6 +37,7 @@ export const inviteEmployeeSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   role: z.enum(["owner", "admin", "manager", "employee"]),
+  department: z.string().optional(),
   departmentId: z.string().optional(),
   teamId: z.string().optional(),
   jobTitleId: z.string().optional(),
