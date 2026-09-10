@@ -218,7 +218,7 @@ export class AuthService {
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const user = await this.userRepository.findByResetToken(hashedToken);
     if (!user) {
-      throw new AppError(400, "INVALID_TOKEN", "Password reset token is invalid or has expired.");
+      throw new AppError(400, "INVALID_OR_EXPIRED_TOKEN", "Password reset token is invalid or has expired.");
     }
 
     // Hash new password

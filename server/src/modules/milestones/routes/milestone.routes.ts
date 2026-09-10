@@ -38,11 +38,14 @@ export async function milestoneRoutes(app: FastifyInstance) {
     controller.assignMilestone as any
   );
 
-  // Employee Milestones & Self Check-in
+  // Employee Milestones & Self Check-in / Self-Evaluation
   app.get("/my-milestones", controller.getMyMilestones as any);
   app.post(
     "/:id/self-checkin",
-    { schema: { body: selfCheckinSchema } },
+    controller.submitEmployeeSelfCheck as any
+  );
+  app.post(
+    "/:id/self-evaluation",
     controller.submitEmployeeSelfCheck as any
   );
 

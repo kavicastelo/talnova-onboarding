@@ -5,6 +5,8 @@ import DocumentAssignment from "../../documents/models/document-assignment.model
 import EmployeeMilestone from "../../milestones/models/employee-milestone.model.js";
 import BuddyAssignment from "../../buddy/models/buddy-assignment.model.js";
 import Task from "../../tasks/models/task.model.js";
+import { Certificate, generateCertificateSignature } from "../../certificates/models/certificate.model.js";
+import { EventBus } from "../../../infrastructure/events/event-bus.js";
 import NotificationService from "../../notifications/services/notification.service.js";
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
 import AppError from "../../../common/errors/app-error.js";
@@ -259,13 +261,31 @@ export class HROperationsService {
     reason?: string
   ) {
     const orgObjectId = new mongoose.Types.ObjectId(orgId);
-    const userObjectId = new mongoose.Types.ObjectId(targetUserId);
+    let user: any = null;
+    let userObjectId: mongoose.Types.ObjectId = new mongoose.Types.ObjectId();
 
-    const user = await User.findOne({
-      _id: userObjectId,
-      organizationId: orgObjectId,
-      isDeleted: false,
-    });
+    if (mongoose.Types.ObjectId.isValid(targetUserId)) {
+      userObjectId = new mongoose.Types.ObjectId(targetUserId);
+      user = await User.findOne({
+        _id: userObjectId,
+        organizationId: orgObjectId,
+        isDeleted: false,
+      });
+    }
+
+    if (!user) {
+      user = await User.findOne({
+        $or: [
+          { "employment.employeeId": targetUserId },
+          { "auth.email": targetUserId },
+        ],
+        organizationId: orgObjectId,
+        isDeleted: false,
+      });
+      if (user) {
+        userObjectId = user._id;
+      }
+    }
 
     if (!user) {
       throw new AppError(404, "NOT_FOUND", "Employee not found");
@@ -273,8 +293,16 @@ export class HROperationsService {
 
     // Idempotency check: if employee is already active, return success without duplicate side-effects
     if (user.employment?.status === "active" || user.employment?.onboardingState === "completed") {
+      const cert = await Certificate.findOne({
+        organizationId: orgObjectId,
+        employeeId: userObjectId,
+        status: "active",
+      });
       return {
         user,
+        certificate: cert,
+        certificateId: cert?._id?.toString(),
+        employeeStatus: "active",
         alreadyActive: true,
         message: "Employee is already active. Handover sign-off previously completed.",
       };
@@ -301,7 +329,7 @@ export class HROperationsService {
     // 2. Evaluate mandatory tasks
     const incompleteTasks = await Task.find({
       organizationId: orgObjectId,
-      employeeId: userObjectId,
+      $or: [{ employeeId: userObjectId }, { assignedToUserId: userObjectId }],
       status: { $ne: "completed" },
       isDeleted: false,
     }).select("title stage category");
@@ -309,8 +337,8 @@ export class HROperationsService {
     // 3. Evaluate mandatory compliance documents
     const unsignedDocuments = await DocumentAssignment.find({
       organizationId: orgObjectId,
-      employeeId: userObjectId,
-      status: { $ne: "signed" },
+      $or: [{ employeeId: userObjectId }, { recipientUserId: userObjectId }],
+      status: { $nin: ["signed", "completed"] },
       isDeleted: false,
     }).select("templateTitle status");
 
@@ -318,7 +346,7 @@ export class HROperationsService {
     const incompleteMilestones = await EmployeeMilestone.find({
       organizationId: orgObjectId,
       employeeId: userObjectId,
-      status: { $ne: "completed" },
+      status: { $nin: ["completed", "approved"] },
       isDeleted: false,
     }).select("milestoneTitle status targetDay");
 
@@ -330,13 +358,15 @@ export class HROperationsService {
     if (hasIncompleteModules || hasIncompleteTasks || hasUnsignedDocs || hasIncompleteMilestones) {
       throw new AppError(
         400,
-        "UNIFIED_ONBOARDING_INCOMPLETE",
+        "ONBOARDING_INCOMPLETE",
         `Handover rejected. Mandatory onboarding requirements remain incomplete for ${user.profile?.firstName || "Employee"} ${user.profile?.lastName || ""}.`.trim(),
         {
-          incompleteModules,
+          error: "ONBOARDING_INCOMPLETE",
+          openTasks: incompleteTasks.length,
+          unsignedDocuments: unsignedDocuments.length,
+          incompleteModules: incompleteModules.length,
+          incompleteMilestones: incompleteMilestones.length,
           incompleteTasks: incompleteTasks.map((t) => t.title),
-          unsignedDocuments: unsignedDocuments.map((d) => d.templateTitle),
-          incompleteMilestones: incompleteMilestones.map((m) => m.milestoneTitle),
         }
       );
     }
@@ -348,6 +378,70 @@ export class HROperationsService {
     user.employment.status = "active";
     user.employment.onboardingState = "completed";
     user.employment.onboardingStateReason = reason || "HR Operations Handover Sign-Off Completed";
+
+    // Issue verifiable Certificate
+    const existingCert = await Certificate.findOne({
+      organizationId: orgObjectId,
+      employeeId: userObjectId,
+      status: "active",
+    });
+
+    let certificate = existingCert;
+    if (!certificate) {
+      const org: any = await mongoose.model("Organization").findById(orgObjectId);
+      const certificateNumber = `CERT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const issueDate = new Date();
+      const signature = generateCertificateSignature(
+        certificateNumber,
+        userObjectId.toString(),
+        orgObjectId.toString(),
+        issueDate
+      );
+
+      certificate = await Certificate.create({
+        organizationId: orgObjectId,
+        employeeId: userObjectId,
+        assignmentId: activeAssignments[0]?._id,
+        certificateNumber,
+        recipientName:
+          `${user.profile?.firstName || ""} ${user.profile?.lastName || ""}`.trim() ||
+          user.auth?.email ||
+          "Employee",
+        organizationName: org?.name || "Talnova",
+        journeyTitle: activeAssignments[0]?.journey?.title || "Comprehensive Employee Onboarding",
+        issueDate,
+        completionDate: issueDate,
+        sha256Signature: signature,
+        status: "active",
+        metadata: {
+          handoverBy: actorUserId.toString(),
+          reason: reason || "Unified Onboarding Handover Verified",
+        },
+      });
+    }
+
+    // Mark active assignments completed with certificate attached
+    for (const assignment of activeAssignments) {
+      assignment.status = "completed";
+      if (assignment.progress) {
+        assignment.progress.completionPercentage = 100;
+        assignment.progress.completedModules = assignment.progress.totalModules;
+        assignment.progress.completedLessons = assignment.progress.totalLessons;
+      }
+      assignment.completedAt = new Date();
+      assignment.certificate = {
+        issued: true,
+        issuedAt: new Date(),
+        certificateId: certificate._id,
+      };
+      await assignment.save();
+    }
+
+    // Increment user statistics
+    if (!user.statistics) {
+      user.statistics = {} as any;
+    }
+    user.statistics.certificates = Math.max(1, (user.statistics?.certificates || 0) + 1);
     await user.save();
 
     // Create Audit Log
@@ -366,6 +460,7 @@ export class HROperationsService {
         metadata: {
           targetUserId: targetUserId.toString(),
           reason,
+          certificateId: certificate._id.toString(),
         },
         severity: "info",
       });
@@ -373,19 +468,57 @@ export class HROperationsService {
       console.error("Failed to log handover audit log:", err);
     }
 
-    await notificationService.createNotification({
-      organizationId: orgId,
-      recipientUserId: targetUserId,
-      type: "system",
-      title: "Onboarding Completed & Account Activated!",
-      message: "Congratulations! Your onboarding handover sign-off has been verified and your profile status is now ACTIVE.",
-      priority: "high",
-    });
+    // Publish event bus triggers
+    try {
+      const eventBus = EventBus.getInstance();
+      await eventBus.publish({
+        eventName: "JOURNEY_COMPLETED",
+        organizationId: orgObjectId,
+        actorId: actorUserId,
+        entityId: userObjectId,
+        payload: {
+          employeeId: userObjectId,
+          certificateId: certificate._id,
+          certificateNumber: certificate.certificateNumber,
+          journeyTitle: certificate.journeyTitle,
+          recipientName: certificate.recipientName,
+        },
+      });
+      await eventBus.publish({
+        eventName: "ON_JOURNEY_COMPLETED" as any,
+        organizationId: orgObjectId,
+        actorId: actorUserId,
+        entityId: userObjectId,
+        payload: {
+          employeeId: userObjectId,
+          certificateId: certificate._id,
+          certificateNumber: certificate.certificateNumber,
+        },
+      });
+    } catch (evtErr) {
+      console.error("Failed to publish journey completion event:", evtErr);
+    }
+
+    try {
+      await notificationService.createNotification({
+        organizationId: orgObjectId.toString(),
+        recipientUserId: userObjectId.toString(),
+        type: "system",
+        title: "Onboarding Completed & Account Activated!",
+        message: "Congratulations! Your onboarding handover sign-off has been verified and your profile status is now ACTIVE.",
+        priority: "high",
+      });
+    } catch (notifErr) {
+      console.error("Failed to send handover notification:", notifErr);
+    }
 
     return {
       user,
+      certificate,
+      certificateId: certificate._id?.toString(),
+      employeeStatus: "active",
       alreadyActive: false,
-      message: "Handover completed successfully and employee activated.",
+      message: "Handover completed successfully, certificate generated, and employee activated.",
     };
   }
 

@@ -41,8 +41,16 @@ export interface HRComplianceItem {
 
 export const hrService = {
   getDashboardMetrics: async (): Promise<HRDashboardMetrics> => {
-    const response = await apiClient.get<ApiResponse<HRDashboardMetrics>>('/hr/dashboard');
+    const response = await apiClient.get<ApiResponse<HRDashboardMetrics>>('/hr/dashboard-metrics');
     return response.data.data;
+  },
+
+  completeHandover: async (
+    userId: string,
+    reason?: string
+  ): Promise<{ success: boolean; certificateId?: string; employeeStatus?: string; message: string; data: any }> => {
+    const response = await apiClient.post<any>(`/hr/handover/${userId}`, { reason });
+    return response.data;
   },
 
   getExceptionQueue: async (): Promise<HRExceptionItem[]> => {

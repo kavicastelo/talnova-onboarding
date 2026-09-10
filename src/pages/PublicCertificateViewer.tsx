@@ -97,8 +97,8 @@ export function PublicCertificateViewer() {
       `}</style>
 
       {/* Verification Badge */}
-      <div className="flex items-center gap-2 mb-8 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded-full border border-green-500/20 text-xs font-semibold uppercase tracking-wider print-hide">
-        <ShieldCheck className="h-4 w-4" /> Verified Digital Credential
+      <div id="verified-authentic-badge" className="flex items-center gap-2 mb-8 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded-full border border-green-500/20 text-xs font-semibold uppercase tracking-wider print-hide">
+        <ShieldCheck className="h-4 w-4" /> Verified Authentic Onboarding Credential
       </div>
 
       {/* Certificate Rendering Container */}

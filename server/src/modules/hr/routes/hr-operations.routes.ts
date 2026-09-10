@@ -13,22 +13,30 @@ export async function hrOperationsRoutes(app: FastifyInstance) {
 
   app.register(async (authApp) => {
     authApp.addHook("preHandler", authenticate);
-    authApp.addHook("preHandler", requireRole(["owner", "admin", "manager"]));
 
-    authApp.get("/dashboard", controller.getDashboardMetrics as any);
-    authApp.get("/exceptions", controller.getExceptionQueue as any);
-    authApp.post("/handover/:userId/complete", controller.completeHandover as any);
+    const staffOnly = requireRole(["owner", "admin", "manager"]);
+    const adminOnly = requireRole(["owner", "admin"]);
+
+    // Dashboard metrics & exception queue
+    authApp.get("/dashboard", { preHandler: [staffOnly] }, controller.getDashboardMetrics as any);
+    authApp.get("/dashboard-metrics", { preHandler: [staffOnly] }, controller.getDashboardMetrics as any);
+    authApp.get("/exceptions", { preHandler: [staffOnly] }, controller.getExceptionQueue as any);
+
+    // Handover operations - strictly Owner & Admin only
+    authApp.post("/handover/:userId", { preHandler: [adminOnly] }, controller.completeHandover as any);
+    authApp.post("/handover/:userId/complete", { preHandler: [adminOnly] }, controller.completeHandover as any);
+
     authApp.put(
       "/lifecycle/:userId/state",
-      { schema: { body: updateLifecycleStateSchema } },
+      { preHandler: [adminOnly], schema: { body: updateLifecycleStateSchema } },
       controller.updateLifecycleState as any
     );
     authApp.post(
       "/bulk-action",
-      { schema: { body: executeHRBulkActionSchema } },
+      { preHandler: [adminOnly], schema: { body: executeHRBulkActionSchema } },
       controller.executeBulkAction as any
     );
-    authApp.get("/compliance-report", controller.generateComplianceReport as any);
+    authApp.get("/compliance-report", { preHandler: [staffOnly] }, controller.generateComplianceReport as any);
   });
 }
 

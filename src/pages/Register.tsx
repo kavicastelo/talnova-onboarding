@@ -7,8 +7,11 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../api/client';
 
+import { useRole } from '../context/RoleContext';
+
 export function Register() {
   const navigate = useNavigate();
+  const { setRole } = useRole();
   const { t } = useTranslation('auth');
   const [step, setStep] = useState(1);
   
@@ -41,9 +44,14 @@ export function Register() {
       return;
     }
 
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await authService.register({
+      const data = await authService.register({
         orgName,
         orgSlug,
         supportEmail,
@@ -52,10 +60,16 @@ export function Register() {
         email,
         password
       });
-      toast.success('Workspace created successfully! Check email to verify.');
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
+
+      const token = data?.accessToken || data?.token;
+      if (token) {
+        localStorage.setItem('auth_token', token);
+      }
+      const userRole = data?.user?.role || 'owner';
+      setRole(userRole);
+
+      toast.success('Workspace created successfully!');
+      navigate('/');
     } catch (err: any) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -117,7 +131,7 @@ export function Register() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  {t('register.orgName')}
+                  Workspace URL
                 </label>
                 <div className="relative mt-1 flex rounded-lg shadow-sm">
                   <span className="inline-flex items-center rounded-l-lg border border-r-0 border-white/10 bg-white/[0.02] px-3 text-sm text-gray-500">
@@ -232,9 +246,18 @@ export function Register() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className={`block w-full rounded-lg border bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:ring-2 ${
+                      password.length > 0 && password.length < 8
+                        ? 'border-rose-500/50 focus:border-rose-500 focus:ring-rose-500/20'
+                        : 'border-white/10 focus:border-indigo-500 focus:ring-indigo-500/20'
+                    }`}
                   />
                 </div>
+                {password.length > 0 && password.length < 8 && (
+                  <p id="password-hint" className="mt-1 text-xs text-rose-500 font-medium">
+                    Password must be at least 8 characters.
+                  </p>
+                )}
               </div>
             </div>
 

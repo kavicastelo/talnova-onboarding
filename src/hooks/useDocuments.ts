@@ -33,6 +33,25 @@ export function useCreateDocumentTemplate() {
   });
 }
 
+export function useUpdateDocumentTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<DocumentTemplate> }) =>
+      documentService.updateTemplate(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentTemplates'] });
+    },
+  });
+}
+
+export function useTemplateSignatures(templateId: string | null) {
+  return useQuery({
+    queryKey: ['templateSignatures', templateId],
+    queryFn: () => documentService.getTemplateSignatures(templateId!),
+    enabled: !!templateId,
+  });
+}
+
 export function useAssignDocument() {
   const queryClient = useQueryClient();
   return useMutation({

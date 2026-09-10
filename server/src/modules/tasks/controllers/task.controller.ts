@@ -64,7 +64,12 @@ export class TaskController {
     const user = request.user as any;
     const body = request.body as any;
 
-    const task = await this.service.createTask(user.organizationId, user.userId, body);
+    const task = await this.service.createTask(
+      user.organizationId,
+      user.userId,
+      body,
+      user.role
+    );
 
     return reply.status(201).send({
       success: true,

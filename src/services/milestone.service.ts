@@ -76,13 +76,15 @@ export const milestoneService = {
   submitSelfCheckin: async (
     id: string,
     payload: {
-      responses: Array<{ questionId: string; question: string; answer: string }>;
+      responses?: Array<{ questionId?: string; question?: string; answer?: string }>;
       confidenceRating?: number;
+      employeeRating?: number;
       comments?: string;
+      reflectionNotes?: string;
       goalsCompletedTitles?: string[];
     }
   ): Promise<EmployeeMilestone> => {
-    const response = await apiClient.post<ApiResponse<EmployeeMilestone>>(`/milestones/${id}/self-checkin`, payload);
+    const response = await apiClient.post<ApiResponse<EmployeeMilestone>>(`/milestones/${id}/self-evaluation`, payload);
     return response.data.data;
   },
 

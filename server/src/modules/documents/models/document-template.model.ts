@@ -7,6 +7,7 @@ export interface IDocumentTemplate extends Document {
   category: "nda" | "code_of_conduct" | "offer_letter" | "handbook" | "direct_deposit" | "custom";
   content: string; // Rich HTML/Markdown template content with {{variable}} placeholders
   signatureRequired: boolean;
+  isMandatory: boolean;
   version: number;
   audience: {
     departmentNames?: string[];
@@ -34,6 +35,7 @@ const DocumentTemplateSchema = new Schema<IDocumentTemplate>(
     },
     content: { type: String, required: true },
     signatureRequired: { type: Boolean, default: true },
+    isMandatory: { type: Boolean, default: false },
     version: { type: Number, default: 1 },
     audience: {
       departmentNames: { type: [String], default: [] },

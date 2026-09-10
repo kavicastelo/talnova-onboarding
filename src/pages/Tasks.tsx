@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import {
   CheckCircle2,
   Plus,
@@ -65,6 +66,7 @@ export function Tasks() {
   const deleteTaskMutation = useDeleteTask();
 
   const employees = employeesData?.employees || [];
+  console.log("employees", employees);
   const tasks = tasksData?.tasks || [];
 
   const filteredTasks = tasks.filter((t) => {
@@ -92,12 +94,15 @@ export function Tasks() {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !assignedToUserId) return;
+    if (!title.trim() || !assignedToUserId) {
+      toast.error('Please enter a task title and select an assignee');
+      return;
+    }
 
     createTaskMutation.mutate(
       {
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim() || undefined,
         assignedToUserId,
         employeeId: employeeId || undefined,
         category,
@@ -107,12 +112,17 @@ export function Tasks() {
       },
       {
         onSuccess: () => {
+          toast.success('Operational task created successfully');
           setIsCreateModalOpen(false);
           setTitle('');
           setDescription('');
           setAssignedToUserId('');
           setEmployeeId('');
           setDueDate('');
+          setActiveTab('all');
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to create task');
         },
       }
     );
@@ -175,6 +185,22 @@ export function Tasks() {
     );
   };
 
+  const getCategoryBadge = (c: string) => {
+    const labels: Record<string, { label: string; color: string }> = {
+      it_setup: { label: 'IT Setup', color: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800' },
+      hr_paperwork: { label: 'HR Paperwork', color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' },
+      equipment: { label: 'Equipment', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800' },
+      training: { label: 'Training', color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' },
+      general: { label: 'General', color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
+    };
+    const info = labels[c] || { label: c, color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300' };
+    return (
+      <span className={`px-2.5 py-0.5 text-xs font-medium border rounded-md ${info.color}`}>
+        {info.label}
+      </span>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -191,11 +217,13 @@ export function Tasks() {
           </div>
           {canManageTasks && (
             <button
+              id="add-task-btn"
+              data-testid="add-task-btn"
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              Create Task
+              Add Task
             </button>
           )}
         </div>
@@ -205,42 +233,42 @@ export function Tasks() {
           {/* Main Tabs */}
           <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
             <button
+              id="tab-my-tasks"
               onClick={() => setActiveTab('my')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                activeTab === 'my'
-                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${activeTab === 'my'
+                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
             >
               My Tasks Inbox
             </button>
             <button
+              id="tab-assigned-tasks"
               onClick={() => setActiveTab('assigned')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                activeTab === 'assigned'
-                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${activeTab === 'assigned'
+                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
             >
               Assigned Tasks
             </button>
             <button
+              id="tab-overdue-tasks"
               onClick={() => setActiveTab('overdue')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                activeTab === 'overdue'
-                  ? 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${activeTab === 'overdue'
+                ? 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
             >
               Overdue Alert
             </button>
             <button
+              id="tab-all-tasks"
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                activeTab === 'all'
-                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${activeTab === 'all'
+                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
             >
               All Tasks
             </button>
@@ -324,23 +352,21 @@ export function Tasks() {
                 return (
                   <div
                     key={task._id}
-                    className={`bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 border transition-all hover:shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                      isOverdue
-                        ? 'border-red-200 dark:border-red-900/40 bg-red-50/10'
-                        : isCompleted
+                    className={`bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 border transition-all hover:shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isOverdue
+                      ? 'border-red-200 dark:border-red-900/40 bg-red-50/10'
+                      : isCompleted
                         ? 'border-emerald-200 dark:border-emerald-900/30 opacity-80'
                         : 'border-slate-200 dark:border-slate-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-4">
                       {/* Complete Checkbox Button */}
                       <button
                         onClick={() => handleToggleComplete(task)}
-                        className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                          isCompleted
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
-                        }`}
+                        className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${isCompleted
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
+                          }`}
                       >
                         {isCompleted && <Check className="w-4 h-4 stroke-[3]" />}
                       </button>
@@ -349,14 +375,17 @@ export function Tasks() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span
                             onClick={() => setSelectedTask(task)}
-                            className={`font-semibold cursor-pointer hover:text-indigo-600 transition-colors ${
-                              isCompleted ? 'line-through text-slate-400' : ''
-                            }`}
+                            className={`font-semibold cursor-pointer hover:text-indigo-600 transition-colors ${isCompleted ? 'line-through text-slate-400' : ''
+                              }`}
                           >
                             {task.title}
                           </span>
+                          {getCategoryBadge(task.category)}
                           {getStageBadge(task.stage)}
                           {getPriorityBadge(task.priority)}
+                          <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 rounded-full dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            Assigned: {task.assignedToUserId?.profile?.firstName || 'User'} {task.assignedToUserId?.profile?.lastName || ''}
+                          </span>
                           {isOverdue && (
                             <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">
                               Overdue
@@ -440,6 +469,7 @@ export function Tasks() {
               <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
                 <div>
                   <div className="flex items-center gap-2">
+                    {getCategoryBadge(selectedTask.category)}
                     {getStageBadge(selectedTask.stage)}
                     {getPriorityBadge(selectedTask.priority)}
                   </div>
@@ -538,11 +568,10 @@ export function Tasks() {
             <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex gap-3">
               <button
                 onClick={() => handleToggleComplete(selectedTask)}
-                className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                  selectedTask.status === 'completed'
-                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
+                className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${selectedTask.status === 'completed'
+                  ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
               >
                 {selectedTask.status === 'completed' ? 'Reopen Task' : 'Mark Task Complete'}
               </button>
@@ -553,11 +582,11 @@ export function Tasks() {
 
       {/* Create Task Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div id="create-task-modal" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
               <h3 className="text-lg font-bold">Create Operational Task</h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsCreateModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -566,6 +595,7 @@ export function Tasks() {
               <div>
                 <label className="block font-medium mb-1">Task Title *</label>
                 <input
+                  id="task-title-input"
                   type="text"
                   required
                   placeholder="e.g. Set up laptop and IT permissions"
@@ -578,6 +608,7 @@ export function Tasks() {
               <div>
                 <label className="block font-medium mb-1">Instructions / Description</label>
                 <textarea
+                  id="task-desc-input"
                   rows={2}
                   placeholder="Additional guidance for responsible person..."
                   value={description}
@@ -590,15 +621,16 @@ export function Tasks() {
                 <div>
                   <label className="block font-medium mb-1">Assign Responsible User *</label>
                   <select
+                    id="task-assignee-select"
                     required
                     value={assignedToUserId}
                     onChange={(e) => setAssignedToUserId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="">Select Responsible Assignee</option>
                     {employees.map((emp: any) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.profile?.firstName} {emp.profile?.lastName} ({emp.permissions?.role || 'User'})
+                      <option key={emp.id} value={emp.id}>
+                        {emp?.firstName} {emp?.lastName} ({emp?.role || 'User'})
                       </option>
                     ))}
                   </select>
@@ -607,14 +639,15 @@ export function Tasks() {
                 <div>
                   <label className="block font-medium mb-1">Target Employee (Optional)</label>
                   <select
+                    id="task-target-employee-select"
                     value={employeeId}
                     onChange={(e) => setEmployeeId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="">Select Onboarding Employee</option>
                     {employees.map((emp: any) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.profile?.firstName} {emp.profile?.lastName}
+                      <option key={emp.id} value={emp.id}>
+                        {emp?.firstName} {emp?.lastName}
                       </option>
                     ))}
                   </select>
@@ -625,9 +658,10 @@ export function Tasks() {
                 <div>
                   <label className="block font-medium mb-1">Category</label>
                   <select
+                    id="task-category-select"
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="it_setup">IT Setup</option>
                     <option value="hr_paperwork">HR Paperwork</option>
@@ -640,9 +674,10 @@ export function Tasks() {
                 <div>
                   <label className="block font-medium mb-1">Stage</label>
                   <select
+                    id="task-stage-select"
                     value={stage}
                     onChange={(e) => setStage(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="preboarding">Preboarding</option>
                     <option value="day_1">Day 1</option>
@@ -655,9 +690,10 @@ export function Tasks() {
                 <div>
                   <label className="block font-medium mb-1">Priority</label>
                   <select
+                    id="task-priority-select"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="low">Low</option>
                     <option value="normal">Normal</option>
@@ -670,6 +706,7 @@ export function Tasks() {
               <div>
                 <label className="block font-medium mb-1">Due Date</label>
                 <input
+                  id="task-due-date-input"
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
@@ -679,16 +716,18 @@ export function Tasks() {
 
               <div className="pt-3 flex justify-end gap-2">
                 <button
+                  id="cancel-create-task-btn"
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  id="submit-create-task-btn"
                   type="submit"
                   disabled={createTaskMutation.isPending}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all cursor-pointer"
                 >
                   {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
                 </button>

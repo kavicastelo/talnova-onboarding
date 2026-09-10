@@ -17,6 +17,7 @@ import {
   useHRExceptions,
   useHRComplianceReport,
   useUpdateLifecycleState,
+  useCompleteHandover,
   useExecuteHRBulkAction
 } from '../hooks/useHROperations';
 import { useEmployees } from '../hooks/useEmployees';
@@ -41,6 +42,8 @@ export const HROperations: React.FC = () => {
   const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
+  const [activeDirectoryTab, setActiveDirectoryTab] = useState<'ready' | 'completed' | 'drilldown' | 'all'>('ready');
+
   // Modals State
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
@@ -64,23 +67,35 @@ export const HROperations: React.FC = () => {
   const { data: journeys } = useJourneys();
 
   const updateLifecycleMutation = useUpdateLifecycleState();
+  const completeHandoverMutation = useCompleteHandover();
   const executeBulkMutation = useExecuteHRBulkAction();
 
   const employees = employeesData?.employees || [];
-  const filteredEmployees = employees.filter(
+  const searchedEmployees = employees.filter(
     (e: any) =>
       e.name.toLowerCase().includes(search.toLowerCase()) ||
       e.email.toLowerCase().includes(search.toLowerCase()) ||
+      (e.employeeId || '').toLowerCase().includes(search.toLowerCase()) ||
       (e.department || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const empPagination = usePagination({ data: filteredEmployees, initialPageSize: 10 });
+  const tabEmployees = searchedEmployees.filter((e: any) => {
+    if (activeDirectoryTab === 'ready') {
+      return e.status !== 'Active' && e.onboardingState !== 'completed';
+    }
+    if (activeDirectoryTab === 'completed') {
+      return e.status === 'Active' || e.onboardingState === 'completed';
+    }
+    return true; // 'all' or 'drilldown'
+  });
+
+  const empPagination = usePagination({ data: tabEmployees, initialPageSize: 10 });
   const excPagination = usePagination({ data: exceptions || [], initialPageSize: 5 });
   const compPagination = usePagination({ data: complianceReport || [], initialPageSize: 10 });
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedEmpIds(filteredEmployees.map((e: any) => e.id));
+      setSelectedEmpIds(tabEmployees.map((e: any) => e.id));
     } else {
       setSelectedEmpIds([]);
     }
@@ -147,25 +162,32 @@ export const HROperations: React.FC = () => {
     );
   };
 
-  const handleCompleteHandover = () => {
-    if (!activeEmpUser) return;
-    updateLifecycleMutation.mutate(
+  const handleFinalizeHandover = (emp: any) => {
+    const targetId = emp.employeeId || emp.id;
+    completeHandoverMutation.mutate(
+      { userId: targetId },
       {
-        userId: activeEmpUser.id,
-        state: 'active',
-      },
-      {
-        onSuccess: () => {
-          toast.success(`Handover sign-off completed! ${activeEmpUser.name} is now ACTIVE.`);
+        onSuccess: (res: any) => {
+          toast.success(res?.message || `Handover verified! ${emp.name} transitioned to Active.`);
           setIsHandoverModalOpen(false);
           refetchEmployees();
           refetchExceptions();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to complete handover');
-        }
+          const errData = err?.response?.data || {};
+          const openTasks = errData.openTasks;
+          const msg = errData.error === 'ONBOARDING_INCOMPLETE'
+            ? `Handover blocked: ONBOARDING_INCOMPLETE (${openTasks} open task remaining)`
+            : (errData.message || err?.message || 'Handover blocked');
+          toast.error(msg);
+        },
       }
     );
+  };
+
+  const handleCompleteHandover = () => {
+    if (!activeEmpUser) return;
+    handleFinalizeHandover(activeEmpUser);
   };
 
   const handleExecuteBulkAction = () => {
@@ -378,7 +400,7 @@ export const HROperations: React.FC = () => {
                 <Users className="h-5 w-5 text-indigo-600" />
                 Employee Onboarding Lifecycle Directory
               </CardTitle>
-              <CardDescription>Manage active onboarding progress, pause states, and lifecycle timeline extensions.</CardDescription>
+              <CardDescription>Manage active onboarding progress, pause states, and authoritative handover verification.</CardDescription>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Input
@@ -394,9 +416,150 @@ export const HROperations: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Directory Tabs */}
+          <div className="flex border-b border-border/60 mt-4 gap-6 overflow-x-auto">
+            <button
+              id="tab-ready-for-handover"
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                activeDirectoryTab === 'ready'
+                  ? 'border-indigo-600 text-indigo-600 font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setActiveDirectoryTab('ready')}
+            >
+              <CheckCircle2 className="h-4 w-4" /> Ready for Handover
+              <span className="text-xs ml-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold">
+                {searchedEmployees.filter((e: any) => e.status !== 'Active' && e.onboardingState !== 'completed').length}
+              </span>
+            </button>
+            <button
+              id="tab-completed-archive"
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                activeDirectoryTab === 'completed'
+                  ? 'border-indigo-600 text-indigo-600 font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setActiveDirectoryTab('completed')}
+            >
+              <Users className="h-4 w-4" /> Completed Archive
+              <span className="text-xs ml-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                {searchedEmployees.filter((e: any) => e.status === 'Active' || e.onboardingState === 'completed').length}
+              </span>
+            </button>
+            <button
+              id="tab-dropoff-drilldown"
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                activeDirectoryTab === 'drilldown'
+                  ? 'border-indigo-600 text-indigo-600 font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setActiveDirectoryTab('drilldown')}
+            >
+              <AlertTriangle className="h-4 w-4 text-red-500" /> Drop-off & Overdue Drilldown
+              <span className="text-xs ml-1 px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 font-bold">
+                {(exceptions || []).length}
+              </span>
+            </button>
+            <button
+              id="tab-all-employees"
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                activeDirectoryTab === 'all'
+                  ? 'border-indigo-600 text-indigo-600 font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setActiveDirectoryTab('all')}
+            >
+              All Employees ({searchedEmployees.length})
+            </button>
+          </div>
         </CardHeader>
+
         <CardContent className="p-0">
-          {employeesLoading ? (
+          {activeDirectoryTab === 'drilldown' ? (
+            /* Drilldown Table View */
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/40 text-xs text-muted-foreground border-b uppercase">
+                    <tr>
+                      <th className="p-3 font-semibold">Employee</th>
+                      <th className="p-3 font-semibold">Risk Level</th>
+                      <th className="p-3 font-semibold">Bottleneck / Overdue Issues</th>
+                      <th className="p-3 font-semibold text-right">Intervention</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(exceptions || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                          ✅ No drop-off or overdue exceptions flagged. All onboardees are on track!
+                        </td>
+                      </tr>
+                    ) : (
+                      (exceptions || []).map((exc) => (
+                        <tr key={exc.employee._id} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3">
+                            <div className="font-semibold text-foreground">{exc.employee.name}</div>
+                            <div className="text-xs text-muted-foreground">{exc.employee.email} • {exc.employee.department}</div>
+                          </td>
+                          <td className="p-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                exc.riskLevel === 'critical'
+                                  ? 'bg-red-500/10 text-red-600 border-red-500/20 text-[10px]'
+                                  : exc.riskLevel === 'high'
+                                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]'
+                                  : 'bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]'
+                              }
+                            >
+                              {exc.riskLevel.toUpperCase()} RISK
+                            </Badge>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex flex-wrap gap-1.5">
+                              {exc.issues.map((issue, idx) => (
+                                <span key={idx} className="text-xs text-red-600 font-medium bg-red-500/10 px-2 py-0.5 rounded">
+                                  ⚠️ {issue}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  setActiveEmpUser({ id: exc.employee._id, name: exc.employee.name });
+                                  setIsExtendModalOpen(true);
+                                }}
+                              >
+                                <Calendar className="h-3.5 w-3.5 mr-1" /> Extend
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-amber-600"
+                                onClick={() => {
+                                  setActiveEmpUser({ id: exc.employee._id, name: exc.employee.name });
+                                  setIsPauseModalOpen(true);
+                                }}
+                              >
+                                <Pause className="h-3.5 w-3.5 mr-1" /> Pause
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : employeesLoading ? (
             <div className="p-8 text-center text-muted-foreground">Loading employee directory...</div>
           ) : (
             <div>
@@ -409,7 +572,7 @@ export const HROperations: React.FC = () => {
                           type="checkbox"
                           className="rounded"
                           onChange={(e) => handleSelectAll(e.target.checked)}
-                          checked={selectedEmpIds.length === filteredEmployees.length && filteredEmployees.length > 0}
+                          checked={selectedEmpIds.length === tabEmployees.length && tabEmployees.length > 0}
                         />
                       </th>
                       <th className="p-3 font-semibold">Employee</th>
@@ -419,59 +582,72 @@ export const HROperations: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {empPagination.paginatedData.map((emp: any) => (
-                      <tr key={emp.id} className="hover:bg-muted/10 transition-colors">
-                        <td className="p-3">
-                          <input
-                            type="checkbox"
-                            className="rounded"
-                            checked={selectedEmpIds.includes(emp.id)}
-                            onChange={() => handleToggleSelect(emp.id)}
-                          />
+                    {empPagination.paginatedData.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                          {activeDirectoryTab === 'ready'
+                            ? 'No employees currently awaiting handover sign-off.'
+                            : activeDirectoryTab === 'completed'
+                            ? 'No employees in completed archive yet.'
+                            : 'No employees found.'}
                         </td>
-                        <td className="p-3">
-                          <div className="font-semibold text-foreground">{emp.name}</div>
-                          <div className="text-xs text-muted-foreground">{emp.email}</div>
-                        </td>
-                        <td className="p-3 text-xs text-muted-foreground">{emp.department || 'General'}</td>
-                        <td className="p-3">
-                          <Badge
-                            variant="outline"
-                            className={
-                              emp.onboardingState === 'paused'
-                                ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs'
-                                : emp.onboardingState === 'completed'
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs'
-                                : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-xs'
-                            }
-                          >
-                            {(emp.onboardingState || 'active').toUpperCase()}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            {emp.onboardingState === 'paused' ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs text-emerald-600"
-                                onClick={() => handleResumeOnboarding(emp)}
-                              >
-                                <Play className="h-3 w-3 mr-1" /> Resume
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs text-amber-600"
-                                onClick={() => {
-                                  setActiveEmpUser(emp);
-                                  setIsPauseModalOpen(true);
-                                }}
-                              >
-                                <Pause className="h-3 w-3 mr-1" /> Pause
-                              </Button>
-                            )}
+                      </tr>
+                    ) : (
+                      empPagination.paginatedData.map((emp: any) => (
+                        <tr key={emp.id} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3">
+                            <input
+                              type="checkbox"
+                              className="rounded"
+                              checked={selectedEmpIds.includes(emp.id)}
+                              onChange={() => handleToggleSelect(emp.id)}
+                            />
+                          </td>
+                          <td className="p-3">
+                            <div className="font-semibold text-foreground">{emp.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {emp.email} {emp.employeeId ? `• ID: ${emp.employeeId}` : ''}
+                            </div>
+                          </td>
+                          <td className="p-3 text-xs text-muted-foreground">{emp.department || 'General'}</td>
+                          <td className="p-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                emp.onboardingState === 'paused'
+                                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs'
+                                  : emp.status === 'Active' || emp.onboardingState === 'completed'
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs font-semibold'
+                                  : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-xs'
+                              }
+                            >
+                              {(emp.status === 'Active' ? 'ACTIVE' : emp.onboardingState || 'active').toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex justify-end gap-2 items-center">
+                              {emp.onboardingState === 'paused' ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-emerald-600"
+                                  onClick={() => handleResumeOnboarding(emp)}
+                                >
+                                  <Play className="h-3 w-3 mr-1" /> Resume
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-amber-600"
+                                  onClick={() => {
+                                    setActiveEmpUser(emp);
+                                    setIsPauseModalOpen(true);
+                                  }}
+                                >
+                                  <Pause className="h-3 w-3 mr-1" /> Pause
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -484,20 +660,20 @@ export const HROperations: React.FC = () => {
                                 <Calendar className="h-3 w-3 mr-1" /> Extend
                               </Button>
                               <Button
-                                variant="outline"
+                                id={`finalize-handover-btn-${emp.employeeId || emp.id}`}
+                                variant="default"
                                 size="sm"
-                                className="text-xs text-emerald-600 border-emerald-500/20 hover:bg-emerald-50"
-                                onClick={() => {
-                                  setActiveEmpUser(emp);
-                                  setIsHandoverModalOpen(true);
-                                }}
+                                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 font-medium"
+                                disabled={completeHandoverMutation.isPending}
+                                onClick={() => handleFinalizeHandover(emp)}
                               >
-                                <CheckCircle2 className="h-3 w-3 mr-1" /> Handover
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Finalize Handover
                               </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -734,11 +910,12 @@ export const HROperations: React.FC = () => {
               Cancel
             </Button>
             <Button
+              id="modal-finalize-handover-btn"
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={handleCompleteHandover}
-              disabled={updateLifecycleMutation.isPending}
+              disabled={completeHandoverMutation.isPending}
             >
-              {updateLifecycleMutation.isPending ? 'Processing Handover...' : 'Confirm Handover & Activate'}
+              {completeHandoverMutation.isPending ? 'Processing Handover...' : 'Finalize Handover'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -33,8 +33,22 @@ export class TaskService {
       dueDate?: Date | string;
       relativeOffsetDays?: number;
       prerequisiteTaskIds?: string[];
-    }
+    },
+    userRole?: string
   ) {
+    // Authorization check: Regular employees cannot assign tasks to others (only personal tasks)
+    if (userRole === "employee") {
+      const assignedId = data.assignedToUserId?.toString();
+      const creatorId = createdBy?.toString();
+      if (assignedId && creatorId && assignedId !== creatorId) {
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Employees cannot create tasks assigned to others"
+        );
+      }
+    }
+
     // Verify assigned user exists & belongs to same org
     const assignee = await User.findOne({
       _id: data.assignedToUserId,
@@ -47,9 +61,10 @@ export class TaskService {
 
     // Verify target employee if specified
     let targetEmployee: any = null;
-    if (data.employeeId) {
+    const cleanEmployeeId = data.employeeId && data.employeeId.trim() ? data.employeeId.trim() : undefined;
+    if (cleanEmployeeId) {
       targetEmployee = await User.findOne({
-        _id: data.employeeId,
+        _id: cleanEmployeeId,
         organizationId: orgId,
         isDeleted: false,
       });
@@ -69,7 +84,7 @@ export class TaskService {
       organizationId: new mongoose.Types.ObjectId(orgId),
       createdBy: new mongoose.Types.ObjectId(createdBy),
       assignedToUserId: new mongoose.Types.ObjectId(data.assignedToUserId),
-      employeeId: data.employeeId ? new mongoose.Types.ObjectId(data.employeeId) : undefined,
+      employeeId: cleanEmployeeId ? new mongoose.Types.ObjectId(cleanEmployeeId) : undefined,
       title: data.title,
       description: data.description,
       category: data.category || "general",
@@ -127,15 +142,14 @@ export class TaskService {
     }
 
     // Role-based task ownership enforcement:
-    // Regular employees may only update tasks explicitly assigned to them or where they are the employee subject
+    // Regular employees may only update tasks explicitly assigned to them (assignedToUserId === userId)
     if (userRole === "employee") {
-      const isAssigned =
-        (task.assignedToUserId && task.assignedToUserId.toString() === userId.toString()) ||
-        (task.employeeId && task.employeeId.toString() === userId.toString());
+      const assignedId = (task.assignedToUserId as any)?._id?.toString() || task.assignedToUserId?.toString();
+      const isAssigned = assignedId && assignedId === userId.toString();
       if (!isAssigned) {
         throw new AppError(
           403,
-          "FORBIDDEN",
+          "FORBIDDEN_TASK_MUTATION",
           "Unauthorized. Employees may only update tasks assigned to them."
         );
       }
@@ -198,8 +212,8 @@ export class TaskService {
           payload: {
             taskId: updatedTask._id.toString(),
             title: updatedTask.title,
-            assignedToUserId: updatedTask.assignedToUserId.toString(),
-            employeeId: updatedTask.employeeId?.toString(),
+            assignedToUserId: (updatedTask.assignedToUserId as any)?._id?.toString() || updatedTask.assignedToUserId.toString(),
+            employeeId: (updatedTask.employeeId as any)?._id?.toString() || updatedTask.employeeId?.toString(),
           },
         });
       } catch (e) {

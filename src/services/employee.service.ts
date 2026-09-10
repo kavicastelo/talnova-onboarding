@@ -32,7 +32,10 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
     avatar: user.profile?.avatar?.publicUrl || '',
     assignedJourneys: [],
     designation: user.employment?.designation || '',
-    payrollCategory: user.employment?.payrollCategory || ''
+    payrollCategory: user.employment?.payrollCategory || '',
+    employeeId: user.employment?.employeeId || user._id,
+    onboardingState: user.employment?.onboardingState || 'active',
+    rawUser: user
   };
 };
 

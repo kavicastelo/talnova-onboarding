@@ -53,11 +53,11 @@ export const courseService = {
     // 3. Map & Merge into Course structure
     const modules = journey.modules.map((m: any) => {
       // Find progress for this module in assignment
-      const mProg = assignment.modules?.find((ap: any) => ap.moduleId === m._id);
+      const mProg = assignment.modules?.find((ap: any) => String(ap.moduleId?._id || ap.moduleId) === String(m._id || m.id));
       
       const lessons = m.lessons.map((l: any) => {
         // Find progress for this lesson in assignment
-        const lProg = mProg?.lessons?.find((lp: any) => lp.lessonId === l._id);
+        const lProg = mProg?.lessons?.find((lp: any) => String(lp.lessonId?._id || lp.lessonId) === String(l._id || l.id));
         
         let type: LessonType = 'Article';
         if (l.quiz) {

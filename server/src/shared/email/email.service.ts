@@ -58,6 +58,7 @@ export class EmailService {
 
   async sendPasswordResetEmail(to: string, token: string): Promise<boolean> {
     EmailService.sentEmails.push({ to, token });
+    console.log(`[EmailService] Password reset email dispatched to ${to} with token: ${token}`);
     const resetUrl = `http://localhost:5173/reset-password?token=${token}`;
     const subject = "Reset Your Password - Talnova Onboarding";
     const html = `

@@ -17,12 +17,24 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../api/client';
+import { ApiResponse } from '../types';
 
 export function Certificates() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: employee, isLoading: employeeLoading, isError, error, refetch } = useEmployee('me');
   const { data: settings } = useWorkspaceSettings();
   const [selectedCert, setSelectedCert] = useState<any>(null);
+
+  // Fetch verified digital certificates from GET /api/v1/certificates/me
+  const { data: myCertsData, isLoading: myCertsLoading } = useQuery({
+    queryKey: ['myCertificates'],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<{ certificates: any[] }>>('/certificates/me');
+      return res.data?.data?.certificates || [];
+    },
+  });
 
   const isLoading = userLoading || employeeLoading;
 
@@ -51,10 +63,28 @@ export function Certificates() {
     );
   }
 
-  // Handle "No Certificates Found" message state if the employee has no assignments or completed training
-  const completedJourneys = employee?.assignedJourneys?.filter(
-    j => j.status === 'Completed' && j.certificate?.issued
-  ) || [];
+  // Merge digital certificates from backend API with local assigned journeys
+  const apiCerts = (myCertsData || []).map((c: any) => ({
+    id: c.id || c._id,
+    title: c.journeyTitle || 'Employee Onboarding Journey',
+    status: 'Completed',
+    assignedAt: c.issueDate ? new Date(c.issueDate).toLocaleDateString() : new Date().toLocaleDateString(),
+    completionDate: c.completionDate ? new Date(c.completionDate).toLocaleDateString() : new Date().toLocaleDateString(),
+    recipientName: c.recipientName,
+    organizationName: c.organizationName,
+    certificate: {
+      issued: true,
+      issuedAt: c.issueDate,
+      certificateId: c.certificateNumber || c.certificateId || c.id,
+      sha256Signature: c.sha256Signature,
+    },
+  }));
+
+  const localCompleted = (employee?.assignedJourneys || []).filter(
+    (j) => j.status === 'Completed' && j.certificate?.issued && !apiCerts.some((c: any) => c.id === j.id || c.certificate.certificateId === j.certificate?.certificateId)
+  );
+
+  const completedJourneys = [...apiCerts, ...localCompleted];
 
   const certsPagination = usePagination({ data: completedJourneys, initialPageSize: 6 });
 
@@ -132,17 +162,21 @@ export function Certificates() {
                   <Button
                     onClick={() => setSelectedCert(journey)}
                     className="w-full text-xs font-medium"
+                    id="view-cert-modal-btn"
                   >
                     <ExternalLink className="mr-2 h-3.5 w-3.5" /> View & Download Certificate
                   </Button>
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <Button
+                      asChild
                       variant="outline"
                       size="sm"
+                      id="verify-public-link-btn"
                       className="text-xs text-indigo-600 hover:text-indigo-700"
-                      onClick={() => handleShareLinkedIn(journey.id)}
                     >
-                      <Linkedin className="mr-1.5 h-3.5 w-3.5" /> Share
+                      <Link to={`/public/certificate/${journey.id}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Verify Public Link
+                      </Link>
                     </Button>
                     <Button
                       variant="outline"
@@ -231,23 +265,43 @@ export function Certificates() {
                 This credential is proudly presented to
               </p>
               <h3 className="text-xl font-bold font-serif tracking-tight text-slate-900 mb-2">
-                {employee?.name || user?.name || 'Jane Doe'}
+                {selectedCert?.recipientName || employee?.name || user?.name || 'Jane Doe'}
               </h3>
               <p className="text-slate-500 text-[10px] sm:text-xs max-w-md mx-auto mb-2 font-serif leading-relaxed">
-                for successfully finishing all lessons, tasks, and evaluations in the onboarding journey
+                for successfully finishing all lessons, tasks, and evaluations in the onboarding journey at <span className="font-semibold text-slate-700">{selectedCert?.organizationName || settings?.orgName || 'Talnova'}</span>
               </p>
-              <h4 className="text-sm font-bold text-slate-900 mb-4 border-b border-dashed pb-2 max-w-md mx-auto">
+              <h4 className="text-sm font-bold text-slate-900 mb-3 border-b border-dashed pb-2 max-w-md mx-auto">
                 {selectedCert?.title || 'General Onboarding'}
               </h4>
+
+              {/* QR Code Verification Widget */}
+              <div className="my-2 flex flex-col items-center justify-center">
+                <div className="p-2 bg-white rounded border border-yellow-800/20 shadow-sm flex flex-col items-center">
+                  <svg className="w-14 h-14 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="2" width="7" height="7" rx="1" fill="currentColor" fillOpacity="0.1" />
+                    <rect x="3.5" y="3.5" width="4" height="4" fill="currentColor" />
+                    <rect x="15" y="2" width="7" height="7" rx="1" fill="currentColor" fillOpacity="0.1" />
+                    <rect x="16.5" y="3.5" width="4" height="4" fill="currentColor" />
+                    <rect x="2" y="15" width="7" height="7" rx="1" fill="currentColor" fillOpacity="0.1" />
+                    <rect x="3.5" y="16.5" width="4" height="4" fill="currentColor" />
+                    <rect x="11" y="11" width="3" height="3" fill="currentColor" />
+                    <rect x="16" y="11" width="2" height="2" fill="currentColor" />
+                    <rect x="11" y="16" width="2" height="2" fill="currentColor" />
+                    <rect x="15" y="15" width="3" height="3" fill="currentColor" />
+                    <rect x="19" y="19" width="3" height="3" fill="currentColor" />
+                  </svg>
+                  <span className="text-[7px] font-mono tracking-widest uppercase text-slate-500 mt-0.5">Scan to Verify</span>
+                </div>
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[9px] text-muted-foreground font-mono pt-4 border-t border-yellow-800/20 items-end">
                 <div className="text-left">
                   <p className="font-semibold text-slate-700">DATE</p>
-                  <p>{selectedCert?.assignedAt || 'June 2026'}</p>
+                  <p>{selectedCert?.completionDate || selectedCert?.assignedAt || 'June 2026'}</p>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-700">CREDENTIAL ID</p>
-                  <p className="uppercase">{selectedCert?.certificate?.certificateId?.slice(-12) || selectedCert?.id?.slice(-12) || 'ONB123'}</p>
+                  <p className="uppercase">{selectedCert?.certificate?.certificateId || selectedCert?.id?.slice(-12) || 'ONB123'}</p>
                 </div>
                 <div className="text-right flex flex-col items-center sm:items-end">
                   {settings?.certificate?.signatureUrl ? (
@@ -371,19 +425,21 @@ export function Certificates() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center p-4 bg-muted border-t">
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5 justify-center" onClick={() => handleShareLinkedIn(selectedCert.id)}>
-                <Linkedin className="h-3.5 w-3.5 text-[#0A66C2] fill-[#0A66C2]" /> Share on LinkedIn
+              <Button asChild variant="outline" size="sm" id="modal-verify-public-link-btn" className="gap-1.5 justify-center text-xs">
+                <Link to={`/public/certificate/${selectedCert?.id}`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" /> Verify Public Link
+                </Link>
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5 justify-center" onClick={() => handleCopyLink(selectedCert.id)}>
-                <ExternalLink className="h-3.5 w-3.5" /> Copy Link
+              <Button variant="outline" size="sm" className="gap-1.5 justify-center text-xs" onClick={() => handleShareLinkedIn(selectedCert.id)}>
+                <Linkedin className="h-3.5 w-3.5 text-[#0A66C2] fill-[#0A66C2]" /> Share on LinkedIn
               </Button>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button variant="outline" size="sm" className="justify-center" onClick={() => setSelectedCert(null)}>
                 Close
               </Button>
-              <Button size="sm" className="justify-center" onClick={handlePrint}>
-                <Download className="mr-1.5 h-3.5 w-3.5" /> Save / Print
+              <Button size="sm" id="download-print-cert-btn" className="justify-center" onClick={handlePrint}>
+                <Download className="mr-1.5 h-3.5 w-3.5" /> Download / Print Certificate
               </Button>
             </div>
           </div>

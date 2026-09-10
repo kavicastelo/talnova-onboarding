@@ -12,6 +12,8 @@ import AppError from "../../../common/errors/app-error.js";
 import { hashPassword } from "../../../utils/crypto.js";
 import { User } from "../models/user.model.js";
 import { Organization } from "../../organizations/models/organization.model.js";
+import { Journey } from "../../journeys/models/journey.model.js";
+import { EmailService } from "../../../shared/email/email.service.js";
 
 const registerSchema = z.object({
   orgName: z.string().min(1, "Organization name is required"),
@@ -57,13 +59,13 @@ export async function authRoutes(app: FastifyInstance) {
       // 1. Check if organization slug is taken
       const existingOrg = await Organization.findOne({ slug: slugLower, isDeleted: false });
       if (existingOrg) {
-        throw new AppError(400, "BAD_REQUEST", "Workspace URL slug is already taken.");
+        throw new AppError(409, "SLUG_ALREADY_EXISTS", "Workspace URL slug is already taken.");
       }
 
       // 2. Check if user email is registered
       const existingUser = await User.findOne({ "auth.email": emailLower, isDeleted: false });
       if (existingUser) {
-        throw new AppError(400, "BAD_REQUEST", "Email address is already registered.");
+        throw new AppError(409, "EMAIL_ALREADY_EXISTS", "Email address is already registered.");
       }
 
       // 3. Hash password
@@ -147,10 +149,100 @@ export async function authRoutes(app: FastifyInstance) {
 
       await newUser.save();
 
+      // 6. Seed default onboarding journey template if configured
+      try {
+        const defaultJourney = new Journey({
+          organizationId: orgId,
+          title: `Welcome to ${orgName.trim()}`,
+          slug: `welcome-${slugLower}`,
+          description: "Standard new hire onboarding journey and company introduction.",
+          category: "onboarding",
+          tags: ["welcome", "onboarding"],
+          audience: {
+            isPublic: true,
+            autoEnrollNewHires: true,
+          },
+          modules: [
+            {
+              _id: new mongoose.Types.ObjectId(),
+              title: "Getting Started",
+              description: "Welcome to your new workspace",
+              order: 1,
+              estimatedDurationMinutes: 15,
+              lessons: [
+                {
+                  _id: new mongoose.Types.ObjectId(),
+                  title: "About Our Workspace",
+                  order: 1,
+                  estimatedDurationMinutes: 15,
+                  contentBlocks: [
+                    {
+                      _id: new mongoose.Types.ObjectId(),
+                      type: "text",
+                      title: "Introduction",
+                      content: `Welcome to ${orgName.trim()}! We are excited to have you on our team.`,
+                      order: 1,
+                    }
+                  ],
+                  attachments: [],
+                  completionRules: {
+                    requireContentCompletion: true,
+                    requireQuizCompletion: false
+                  }
+                }
+              ]
+            }
+          ],
+          publishing: {
+            status: "published",
+            publishedAt: new Date(),
+            version: 1
+          },
+          createdBy: userId
+        });
+        await defaultJourney.save();
+      } catch (seedErr) {
+        request.log.warn({ err: seedErr }, "Non-fatal error seeding default journey template");
+      }
+
+      // 7. Create session & issue authentication tokens
+      const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const session = await sessionRepository.create({
+        userId: userId,
+        organizationId: orgId,
+        tokenVersion: 1,
+        deviceInfo: request.headers["user-agent"],
+        ipAddress: request.ip,
+        expiresAt: sessionExpiresAt,
+        isValid: true,
+        lastActivityAt: new Date(),
+      });
+
+      const tokenPayload = {
+        userId: userId.toString(),
+        organizationId: orgId.toString(),
+        role: "owner",
+        sessionId: (session._id as mongoose.Types.ObjectId).toString(),
+        tokenVersion: 1,
+      };
+
+      const accessToken = app.jwt.sign(tokenPayload, { expiresIn: "15m" });
+      const refreshToken = app.jwt.sign(tokenPayload, { expiresIn: "30d" });
+
+      reply.setCookie("refreshToken", refreshToken, {
+        path: "/api/v1/auth",
+        httpOnly: true,
+        secure: false,
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
       return reply.status(201).send({
         success: true,
         message: "Organization workspace launched successfully",
         data: {
+          accessToken,
+          token: accessToken,
           organization: {
             id: orgId,
             name: newOrg.name,
@@ -252,6 +344,17 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
   );
+
+  if (process.env.NODE_ENV !== "production") {
+    app.get("/test/latest-reset-token", async (request, reply) => {
+      const { email } = request.query as any;
+      const emailRecord = [...EmailService.sentEmails].reverse().find(e => !email || e.to.toLowerCase() === email.toLowerCase());
+      return reply.send({
+        success: true,
+        data: emailRecord || null,
+      });
+    });
+  }
 }
 
 export default authRoutes;

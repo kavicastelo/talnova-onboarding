@@ -48,6 +48,10 @@ export const authService = {
     await apiClient.post('/auth/forgot-password', { email });
   },
 
+  resetPassword: async (payload: { token: string; password: string }): Promise<void> => {
+    await apiClient.post('/auth/reset-password', payload);
+  },
+
   register: async (payload: any): Promise<any> => {
     const res = await apiClient.post<ApiResponse<any>>('/auth/register', payload);
     return res.data.data;

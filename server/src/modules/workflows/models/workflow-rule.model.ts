@@ -34,6 +34,7 @@ export interface IWorkflowRule extends Document {
   conditions: IWorkflowCondition[];
   actions: IWorkflowAction[];
   isActive: boolean;
+  priority?: number;
   version: number;
   createdBy: mongoose.Types.ObjectId;
   isDeleted: boolean;
@@ -115,6 +116,7 @@ const WorkflowRuleSchema = new Schema<IWorkflowRule>(
     conditions: [WorkflowConditionSchema],
     actions: [WorkflowActionSchema],
     isActive: { type: Boolean, default: true },
+    priority: { type: Number, default: 0, index: true },
     version: { type: Number, default: 1 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     isDeleted: { type: Boolean, default: false },

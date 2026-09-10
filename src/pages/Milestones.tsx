@@ -68,11 +68,8 @@ export const Milestones: React.FC = () => {
   const handleSelfCheckinSubmit = () => {
     if (!selectedMilestone) return;
 
-    const responses = (selectedMilestone.templateId?.checkinQuestions || [
-      { _id: 'q1', question: 'What were your key wins?' },
-      { _id: 'q2', question: 'Do you need additional support?' }
-    ]).map((q: any) => ({
-      questionId: q._id || 'q1',
+    const responses = (selectedMilestone.templateId?.checkinQuestions || []).map((q: any) => ({
+      questionId: q._id,
       question: q.question,
       answer: 'Completed check-in objectives.',
     }));
@@ -83,13 +80,15 @@ export const Milestones: React.FC = () => {
         payload: {
           responses,
           confidenceRating,
+          employeeRating: confidenceRating,
           comments: selfComments,
+          reflectionNotes: selfComments,
           goalsCompletedTitles: completedGoals,
         },
       },
       {
         onSuccess: () => {
-          toast.success('Self check-in submitted successfully!');
+          toast.success('Self-evaluation submitted successfully!');
           setIsSelfCheckinOpen(false);
           setSelectedMilestone(null);
           refetchMy();
@@ -263,9 +262,9 @@ export const Milestones: React.FC = () => {
                                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Milestone Completed & Approved
                               </Badge>
                             )}
-                            {m.status === 'in_review' && (
+                            {(m.status === 'in_review' || m.status === 'pending_manager_review') && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                                <Clock className="h-3.5 w-3.5 mr-1" /> Pending Manager Review
+                                <Clock className="h-3.5 w-3.5 mr-1" /> Submitted — Awaiting Manager Sign-off
                               </Badge>
                             )}
                             {m.status === 'pending' && (
@@ -320,6 +319,7 @@ export const Milestones: React.FC = () => {
                         {m.status === 'pending' && (
                           <div className="pt-2 flex justify-end">
                             <Button
+                              id="open-self-evaluation-btn"
                               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
                               onClick={() => {
                                 setSelectedMilestone(m);
@@ -327,7 +327,7 @@ export const Milestones: React.FC = () => {
                                 setIsSelfCheckinOpen(true);
                               }}
                             >
-                              Submit Self Check-In
+                              Submit Self-Evaluation
                             </Button>
                           </div>
                         )}
@@ -469,12 +469,12 @@ export const Milestones: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Employee Self Check-In */}
+      {/* Modal: Employee Self-Evaluation */}
       <Dialog open={isSelfCheckinOpen} onOpenChange={setIsSelfCheckinOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Day {selectedMilestone?.targetDay} Self Check-In</DialogTitle>
-            <DialogDescription>Evaluate your progress and submit feedback for your manager.</DialogDescription>
+            <DialogTitle>Day {selectedMilestone?.targetDay} Milestone Evaluation</DialogTitle>
+            <DialogDescription>Evaluate your progress, select your confidence rating, and submit reflections for your manager.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
@@ -498,12 +498,14 @@ export const Milestones: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Confidence & Satisfaction Rating (1 to 5):</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Confidence in Role (1 to 5 Stars):</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
+                    id={`star-rating-${star}`}
+                    aria-label={`Rate ${star} star`}
                     onClick={() => setConfidenceRating(star)}
                     className={`p-2 rounded border flex items-center justify-center transition-colors ${
                       confidenceRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600' : 'bg-background'
@@ -516,10 +518,11 @@ export const Milestones: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Self-Assessment Summary & Key Wins:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Reflection Notes & Accomplishments:</label>
               <textarea
+                id="reflection-notes-textarea"
                 className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Share your accomplishments, challenges, or support needed..."
+                placeholder="Ramping up well on team workflows. Ready for independent tickets."
                 value={selfComments}
                 onChange={(e) => setSelfComments(e.target.value)}
               />
@@ -529,8 +532,12 @@ export const Milestones: React.FC = () => {
             <Button variant="outline" onClick={() => setIsSelfCheckinOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleSelfCheckinSubmit}>
-              Submit Check-In
+            <Button
+              id="submit-self-evaluation-btn"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleSelfCheckinSubmit}
+            >
+              Submit Self-Evaluation
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -25,7 +25,7 @@ export class WorkflowRepository {
     }
     return WorkflowRule.find(query)
       .populate("createdBy", "profile auth.email")
-      .sort({ createdAt: -1 });
+      .sort({ priority: -1, createdAt: -1 });
   }
 
   async findRuleById(

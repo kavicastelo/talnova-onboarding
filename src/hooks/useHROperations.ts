@@ -44,6 +44,20 @@ export function useUpdateLifecycleState() {
   });
 }
 
+export function useCompleteHandover() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
+      hrService.completeHandover(userId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hrDashboardMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['hrExceptionQueue'] });
+      queryClient.invalidateQueries({ queryKey: ['hrComplianceReport'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+}
+
 export function useExecuteHRBulkAction() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -63,3 +77,5 @@ export function useExecuteHRBulkAction() {
     },
   });
 }
+
+

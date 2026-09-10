@@ -10,12 +10,12 @@ import {
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2 } from 'lucide-react';
+import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
 import { useJourneys, useAssignJourney } from '../hooks/useJourneys';
-import { useTasks } from '../hooks/useTasks';
+import { useTasks, useUpdateTaskStatus } from '../hooks/useTasks';
 import { useEmployeeDocumentInbox } from '../hooks/useDocuments';
 import { useMyBuddy } from '../hooks/useBuddy';
 import { useMyMilestones } from '../hooks/useMilestones';
@@ -60,6 +60,22 @@ export function EmployeeDashboard() {
   const availablePublicJourneys = publicJourneys.filter((pj: any) => {
     return !employee?.assignedJourneys?.some((aj: any) => aj.journeyId === pj.id);
   });
+
+  const updateTaskMutation = useUpdateTaskStatus();
+  const handleToggleTask = (task: any) => {
+    const nextStatus = task.status === 'completed' ? 'pending' : 'completed';
+    updateTaskMutation.mutate(
+      { id: task._id, status: nextStatus },
+      {
+        onSuccess: () => {
+          toast.success(nextStatus === 'completed' ? 'Task marked as completed!' : 'Task status reverted to pending');
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || 'Failed to update task');
+        }
+      }
+    );
+  };
 
   const assignedPagination = usePagination({ data: employee?.assignedJourneys || [], initialPageSize: 6 });
   const publicPagination = usePagination({ data: availablePublicJourneys, initialPageSize: 6 });
@@ -211,11 +227,31 @@ export function EmployeeDashboard() {
   if (isOnboardingFullyCompleted) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Celebratory Banner */}
+        <div className="p-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <Award className="h-6 w-6 text-yellow-300" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Onboarding Completed! Welcome to Talnova.</h2>
+              <p className="text-xs text-emerald-100 mt-0.5">
+                All legal compliance, operational checklists, courses, and milestones are signed off.
+              </p>
+            </div>
+          </div>
+          <Button asChild variant="secondary" id="view-certificate-btn" className="font-semibold text-emerald-900 bg-white hover:bg-emerald-50 shrink-0 shadow-sm">
+            <Link to="/certificates">
+              View Certificate
+            </Link>
+          </Button>
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                Active Employee • Onboarding Completed
+                Phase 5: Active Employee Workspace • Onboarding Completed
               </span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -232,6 +268,43 @@ export function EmployeeDashboard() {
             </Link>
           </Button>
         </div>
+
+        {/* Certificate Preview Card */}
+        <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-background to-background">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Award className="h-4 w-4" /> Completion Credential
+              </span>
+              <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded font-medium">
+                Verified Authentic
+              </span>
+            </div>
+            <CardTitle className="text-lg">Certificate of Onboarding Completion</CardTitle>
+            <CardDescription>
+              Issued to {user?.name || employee.fullName} for completing all onboarding curriculum requirements.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-muted/40 rounded-lg text-xs font-mono">
+              <div>
+                <span className="text-muted-foreground block text-[10px] uppercase">Certificate ID</span>
+                <span className="font-semibold text-foreground">{assignedJourneys[0]?.certificate?.certificateId || 'CERT-ONB-COMPLETED'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px] uppercase">Issue Date</span>
+                <span className="font-semibold text-foreground">{assignedJourneys[0]?.certificate?.issuedAt ? new Date(assignedJourneys[0].certificate.issuedAt).toLocaleDateString() : new Date().toLocaleDateString()}</span>
+              </div>
+              <div className="col-span-2 sm:col-span-1 flex sm:justify-end items-center">
+                <Button asChild size="sm" variant="outline" className="w-full sm:w-auto text-xs">
+                  <Link to="/certificates">
+                    Open Certificate Viewer
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Active Employee Quick Stats & Operational Hub */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -484,6 +557,67 @@ export function EmployeeDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Personal Operational Checklist */}
+      {(tasksData?.tasks || []).length > 0 && (
+        <Card className="border border-indigo-500/20 bg-gradient-to-r from-indigo-500/[0.03] to-purple-500/[0.03]">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-indigo-500" />
+                Personal Onboarding Checklist
+              </CardTitle>
+              <CardDescription>
+                Track and complete your personal operational setup tasks.
+              </CardDescription>
+            </div>
+            <Link to="/tasks" className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">
+              View All Tasks &rarr;
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2.5">
+              {(tasksData?.tasks || []).map((t: any) => {
+                const isDone = t.status === 'completed';
+                return (
+                  <div
+                    key={t._id}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      isDone
+                        ? 'border-emerald-500/30 bg-emerald-500/5 opacity-80'
+                        : 'border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:border-indigo-500/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleToggleTask(t)}
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+                          isDone
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
+                        }`}
+                      >
+                        {isDone && <Check className="w-4 h-4 stroke-[3]" />}
+                      </button>
+                      <div>
+                        <p className={`text-sm font-medium ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {t.title}
+                        </p>
+                        {t.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-1">{t.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold border border-white/10 text-muted-foreground">
+                      {t.priority || 'normal'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Assigned Journeys & Modules */}
       <div className="space-y-4">
