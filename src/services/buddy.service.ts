@@ -13,6 +13,7 @@ export interface BuddyProfile {
   maxMentees: number;
   currentMenteeCount: number;
   skills: string[];
+  languages?: string[];
   department?: string;
   jobTitle?: string;
   bio?: string;
@@ -33,9 +34,11 @@ export interface BuddyAssignment {
     completedAt?: string;
   }>;
   checkins: Array<{
+    _id?: string;
     completedAt: string;
     notes: string;
     rating?: number;
+    sentiment?: 'positive' | 'neutral' | 'challenged';
   }>;
   communicationLinks: {
     slackChannelUrl?: string;
@@ -48,6 +51,11 @@ export const buddyService = {
   registerProfile: async (data: Partial<BuddyProfile>): Promise<BuddyProfile> => {
     const response = await apiClient.post<ApiResponse<BuddyProfile>>('/buddy/profiles', data);
     return response.data.data;
+  },
+
+  getMyProfile: async (): Promise<BuddyProfile | null> => {
+    const response = await apiClient.get<ApiResponse<BuddyProfile | null>>('/buddy/my-profile');
+    return response.data.data || null;
   },
 
   listAvailableBuddies: async (): Promise<BuddyProfile[]> => {
@@ -88,8 +96,22 @@ export const buddyService = {
     return response.data.data;
   },
 
-  logBuddyCheckin: async (assignmentId: string, payload: { notes: string; rating?: number }): Promise<BuddyAssignment> => {
+  logBuddyCheckin: async (
+    assignmentId: string,
+    payload: { notes: string; rating?: number; sentiment?: 'positive' | 'neutral' | 'challenged' }
+  ): Promise<BuddyAssignment> => {
     const response = await apiClient.post<ApiResponse<BuddyAssignment>>(`/buddy/assignment/${assignmentId}/checkin`, payload);
+    return response.data.data;
+  },
+
+  addCustomChecklistTask: async (
+    assignmentId: string,
+    payload: { title: string; description?: string; stage?: string }
+  ): Promise<BuddyAssignment> => {
+    const response = await apiClient.post<ApiResponse<BuddyAssignment>>(
+      `/buddy/assignment/${assignmentId}/checklist/task`,
+      payload
+    );
     return response.data.data;
   },
 };

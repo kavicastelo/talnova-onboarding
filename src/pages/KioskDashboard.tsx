@@ -18,7 +18,10 @@ import {
   XCircle,
   Clock,
   Globe,
-  Loader2
+  Loader2,
+  Copy,
+  Check,
+  Key
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -66,10 +69,43 @@ export function KioskDashboard() {
   const [pairJourneyId, setPairJourneyId] = useState<string>('');
   const [pairing, setPairing] = useState(false);
 
+  // Pair New Terminal States
+  const [pairTerminalModalOpen, setPairTerminalModalOpen] = useState(false);
+  const [terminalGuid, setTerminalGuid] = useState('');
+  const [generatedPairCode, setGeneratedPairCode] = useState<string | null>(null);
+  const [codeExpiresInSeconds, setCodeExpiresInSeconds] = useState(900);
+  const [generatingPairCode, setGeneratingPairCode] = useState(false);
+  const [pairCodeCopied, setPairCodeCopied] = useState(false);
+
   // Analytics states
   const [selectedJourneyId, setSelectedJourneyId] = useState<string>('');
   const [analyticsData, setAnalyticsData] = useState<KioskAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  const handleGeneratePairCode = async () => {
+    if (!terminalGuid.trim()) {
+      toast.error('Please enter a Hardware GUID');
+      return;
+    }
+    setGeneratingPairCode(true);
+    try {
+      const res = await kioskService.generatePairingCode(terminalGuid.trim());
+      setGeneratedPairCode(res.code);
+      setCodeExpiresInSeconds(res.expiresInSeconds || 900);
+      toast.success('6-digit device pairing code generated');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to generate pairing code');
+    } finally {
+      setGeneratingPairCode(false);
+    }
+  };
+
+  const handleClosePairTerminalModal = () => {
+    setPairTerminalModalOpen(false);
+    setTerminalGuid('');
+    setGeneratedPairCode(null);
+    setPairCodeCopied(false);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -225,6 +261,16 @@ export function KioskDashboard() {
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="flex items-center space-x-1">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Reload</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPairTerminalModalOpen(true)}
+            data-testid="pair-terminal-btn"
+            className="flex items-center space-x-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+          >
+            <Tv className="w-4 h-4 text-indigo-600" />
+            <span>Pair New Terminal</span>
           </Button>
           <Button variant="default" size="sm" onClick={() => setCreateModalOpen(true)} className="flex items-center space-x-1">
             <Plus className="w-4 h-4" />
@@ -417,7 +463,20 @@ export function KioskDashboard() {
           {/* Devices Grid List */}
           <Card className="overflow-hidden border border-slate-200">
             <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800">Paired Devices Registry</h3>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Paired Devices Registry</h3>
+                <p className="text-xs text-slate-500">Live operational status and paired kiosk journeys for connected hardware.</p>
+              </div>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => setPairTerminalModalOpen(true)}
+                data-testid="pair-terminal-btn-tab"
+                className="flex items-center space-x-1.5"
+              >
+                <Tv className="w-3.5 h-3.5" />
+                <span>Pair New Terminal</span>
+              </Button>
             </div>
             
             {loading ? (
@@ -439,22 +498,30 @@ export function KioskDashboard() {
                     const isOnline = device.status === 'online';
                     
                     return (
-                      <div key={device._id} className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-slate-50/50 transition">
+                      <div key={device._id} data-testid="terminal-card" className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-slate-50/50 transition">
                         
                         {/* Name & Placement Details */}
                         <div className="space-y-1.5 max-w-sm">
                           <div className="flex items-center space-x-2">
                             <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-md shadow-emerald-400/50' : 'bg-slate-300'}`} />
-                            <h4 className="font-bold text-slate-800 text-sm">{device.name}</h4>
-                            <Badge variant={isOnline ? 'default' : 'secondary'} className="text-[9px] py-0">
-                              {device.status}
+                            <h4 data-testid="terminal-name" className="font-bold text-slate-800 text-sm">{device.name}</h4>
+                            <Badge
+                              data-testid="device-status-badge"
+                              variant={isOnline ? 'default' : 'secondary'}
+                              className={`text-[9px] py-0 px-2 font-semibold ${
+                                isOnline
+                                  ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {isOnline ? 'Online / Paired' : 'Offline'}
                             </Badge>
                           </div>
                           <p className="text-xs text-slate-500 flex items-center">
-                            <span className="font-semibold text-slate-600 mr-1.5">{device.location}</span>
+                            <span data-testid="terminal-location" className="font-semibold text-slate-600 mr-1.5">{device.location}</span>
                             <span className="text-slate-300">|</span>
-                            <span className="font-mono text-[10px] ml-1.5 text-slate-400 truncate max-w-[120px]" title={device.deviceId}>
-                              ID: {device.deviceId}
+                            <span data-testid="terminal-guid" className="font-mono text-[10px] ml-1.5 text-slate-400 truncate max-w-[150px]" title={device.deviceId}>
+                              GUID: {device.deviceId}
                             </span>
                           </p>
                         </div>
@@ -788,6 +855,107 @@ export function KioskDashboard() {
               {pairing ? 'Linking...' : 'Save Pairing'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PAIR NEW TERMINAL CODE GENERATOR MODAL */}
+      <Dialog open={pairTerminalModalOpen} onOpenChange={(open) => !open && handleClosePairTerminalModal()}>
+        <DialogContent className="sm:max-w-md bg-white rounded-2xl shadow-2xl p-6" data-testid="pair-terminal-modal">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center space-x-2">
+              <Tv className="w-5 h-5 text-indigo-600" />
+              <span>Pair New Terminal</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Generate a secure 6-digit one-time activation code to link physical tablet hardware to your organization.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Hardware GUID / Fingerprint *
+              </label>
+              <Input
+                value={terminalGuid}
+                onChange={(e) => setTerminalGuid(e.target.value)}
+                placeholder="e.g. TEST-KIOSK-001"
+                data-testid="terminal-guid-input"
+                className="w-full text-sm font-mono"
+                disabled={!!generatedPairCode}
+              />
+            </div>
+
+            {!generatedPairCode ? (
+              <Button
+                onClick={handleGeneratePairCode}
+                disabled={generatingPairCode || !terminalGuid.trim()}
+                data-testid="generate-pair-code-btn"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center space-x-2 py-2.5 rounded-lg"
+              >
+                {generatingPairCode ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                <span>Generate Pairing Code</span>
+              </Button>
+            ) : (
+              <div className="space-y-4 pt-1">
+                <div className="p-4 rounded-xl bg-slate-950 text-white border border-slate-800 text-center space-y-2 shadow-inner">
+                  <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                    One-Time Device Activation Code
+                  </div>
+                  <div
+                    data-testid="generated-pair-code"
+                    className="text-4xl font-mono font-black tracking-widest text-emerald-400 py-1"
+                  >
+                    {generatedPairCode}
+                  </div>
+                  <div
+                    data-testid="code-expiry-timer"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Valid for 15 minutes (Expires in 15:00)</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5">
+                  <div className="font-bold text-slate-800">Terminal Activation Instructions:</div>
+                  <div>1. On physical kiosk hardware, enter GUID: <span className="font-mono font-semibold text-slate-800">{terminalGuid}</span></div>
+                  <div>2. Enter this 6-digit code into the pairing screen to authenticate hardware.</div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPairCode);
+                      setPairCodeCopied(true);
+                      toast.success('Pairing code copied to clipboard');
+                      setTimeout(() => setPairCodeCopied(false), 2000);
+                    }}
+                    data-testid="copy-pair-code-btn"
+                    className="flex-1 flex items-center justify-center space-x-1.5"
+                  >
+                    {pairCodeCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>{pairCodeCopied ? 'Copied' : 'Copy Code'}</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      handleClosePairTerminalModal();
+                      fetchData();
+                    }}
+                    data-testid="close-pair-modal-btn"
+                    className="flex-1"
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,6 +1,10 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { EmployeeAssignmentService } from "../services/assignment.service.js";
 import mongoose from "mongoose";
+import { Certificate } from "../../certificates/models/certificate.model.js";
+import Organization from "../../organizations/models/organization.model.js";
+import User from "../../auth/models/user.model.js";
+import { EmployeeAssignment } from "../models/assignment.model.js";
 
 const pwaProgressState: Record<string, { completedLessonIds: string[]; lastActivityAt: Date }> = {};
 
@@ -469,25 +473,36 @@ export class EmployeeAssignmentController {
     try {
       let assignment: any = null;
       if (mongoose.Types.ObjectId.isValid(params.id)) {
-        assignment = await mongoose.model("EmployeeAssignment").findById(params.id);
+        const objId = new mongoose.Types.ObjectId(params.id);
+        assignment = await EmployeeAssignment.findOne({
+          $or: [
+            { _id: objId },
+            { "certificate.certificateId": objId },
+          ],
+        });
       }
-      
+
       if (!assignment || assignment.status !== "completed" || !assignment.certificate?.issued) {
-        // Fallback: Check Certificate collection
-        let certQuery: any = { status: "active" };
+        // Check Certificate collection
+        const idQueries: any[] = [{ certificateNumber: params.id }];
         if (mongoose.Types.ObjectId.isValid(params.id)) {
-          certQuery.$or = [
-            { _id: new mongoose.Types.ObjectId(params.id) },
-            { assignmentId: new mongoose.Types.ObjectId(params.id) },
-            { certificateNumber: params.id },
-          ];
-        } else {
-          certQuery.certificateNumber = params.id;
+          idQueries.push({ _id: new mongoose.Types.ObjectId(params.id) });
+          idQueries.push({ assignmentId: new mongoose.Types.ObjectId(params.id) });
         }
 
-        const cert: any = await mongoose.model("Certificate").findOne(certQuery);
+        const cert: any = await Certificate.findOne({ $or: idQueries });
         if (cert) {
-          const org = await mongoose.model("Organization").findById(cert.organizationId);
+          // If revoked, return 404 Invalid or Revoked Credential
+          if (cert.status === "revoked") {
+            return reply.status(404).send({
+              success: false,
+              verified: false,
+              error: "INVALID_OR_REVOKED_CREDENTIAL",
+              message: "Invalid or revoked credential",
+            });
+          }
+
+          const org = await Organization.findById(cert.organizationId);
           const branding = org ? {
             orgName: org.name,
             primaryColor: org.branding?.primaryColor || '#4F46E5',
@@ -498,15 +513,28 @@ export class EmployeeAssignmentController {
             logoUrl: ''
           };
 
+          const orgName = branding.orgName;
+          const issueDate = cert.issueDate ? new Date(cert.issueDate).toISOString() : new Date().toISOString();
+          const credentialId = cert.certificateNumber || cert._id.toString();
+
           return reply.status(200).send({
             success: true,
+            verified: true,
+            recipientName: cert.recipientName,
+            issueDate,
+            organizationName: orgName,
+            credentialId,
             message: "Certificate verified successfully",
             data: {
               id: cert._id,
-              journeyTitle: cert.journeyTitle,
+              verified: true,
               recipientName: cert.recipientName,
-              issuedAt: cert.issueDate,
-              certificateId: cert.certificateNumber,
+              issueDate,
+              issuedAt: issueDate,
+              organizationName: orgName,
+              credentialId,
+              certificateId: credentialId,
+              journeyTitle: cert.journeyTitle,
               sha256Signature: cert.sha256Signature,
               branding,
               certificate: org?.certificate || { template: 'classic' }
@@ -516,21 +544,25 @@ export class EmployeeAssignmentController {
 
         return reply.status(404).send({
           success: false,
-          message: "No certificates found"
+          verified: false,
+          error: "INVALID_OR_REVOKED_CREDENTIAL",
+          message: "Invalid or revoked credential"
         });
       }
 
       // Fetch user
-      const employee = await mongoose.model("User").findById(assignment.employeeId);
+      const employee = await User.findById(assignment.employeeId);
       if (!employee) {
         return reply.status(404).send({
           success: false,
-          message: "No certificates found"
+          verified: false,
+          error: "INVALID_OR_REVOKED_CREDENTIAL",
+          message: "Invalid or revoked credential"
         });
       }
 
       // Fetch organization branding
-      const org = await mongoose.model("Organization").findById(assignment.organizationId);
+      const org = await Organization.findById(assignment.organizationId);
       const branding = org ? {
         orgName: org.name,
         primaryColor: org.branding?.primaryColor || '#4F46E5',
@@ -545,15 +577,29 @@ export class EmployeeAssignmentController {
         template: 'classic'
       };
 
+      const orgName = branding.orgName;
+      const recipientName = employee.profile?.fullName || `${employee.profile?.firstName || ''} ${employee.profile?.lastName || ''}`.trim() || 'Employee';
+      const issueDate = (assignment.certificate.issuedAt || assignment.completedAt || assignment.updatedAt || new Date()).toISOString();
+      const credentialId = assignment.certificate.certificateId || assignment._id.toString();
+
       return reply.status(200).send({
         success: true,
+        verified: true,
+        recipientName,
+        issueDate,
+        organizationName: orgName,
+        credentialId,
         message: "Certificate verified successfully",
         data: {
           id: assignment._id,
-          journeyTitle: assignment.journey.title,
-          recipientName: employee.profile?.fullName || `${employee.profile?.firstName || ''} ${employee.profile?.lastName || ''}`.trim() || 'Employee',
-          issuedAt: assignment.certificate.issuedAt || assignment.completedAt || assignment.updatedAt,
-          certificateId: assignment.certificate.certificateId || assignment._id,
+          verified: true,
+          recipientName,
+          issueDate,
+          issuedAt: issueDate,
+          organizationName: orgName,
+          credentialId,
+          certificateId: credentialId,
+          journeyTitle: assignment.journey?.title || "Onboarding Journey",
           branding,
           certificate: certificateConfig
         }
@@ -561,7 +607,9 @@ export class EmployeeAssignmentController {
     } catch (error) {
       return reply.status(404).send({
         success: false,
-        message: "No certificates found"
+        verified: false,
+        error: "INVALID_OR_REVOKED_CREDENTIAL",
+        message: "Invalid or revoked credential"
       });
     }
   };

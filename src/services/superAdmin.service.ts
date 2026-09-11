@@ -61,6 +61,46 @@ export interface FinanceSummary {
   overdueRevenue: number;
 }
 
+export interface TierDistributionItem {
+  tier: string;
+  name: string;
+  count: number;
+  mrr: number;
+  arr: number;
+  percentage: number;
+  color: string;
+}
+
+export interface FinanceMonthlyGrowth {
+  month: string;
+  mrr: number;
+  arr: number;
+  subscriptions: number;
+}
+
+export interface FinanceOverview {
+  summary: {
+    totalArr: number;
+    totalMrr: number;
+    activeSubscriptions: number;
+    arpu: number;
+    platformUsers: number;
+    totalRevenue: number;
+    pendingRevenue: number;
+    overdueRevenue: number;
+  };
+  tierDistribution: TierDistributionItem[];
+  monthlyGrowth: FinanceMonthlyGrowth[];
+  invoicesSummary: {
+    totalRevenue: number;
+    pendingRevenue: number;
+    overdueRevenue: number;
+    paidCount: number;
+    pendingCount: number;
+    overdueCount: number;
+  };
+}
+
 export const superAdminService = {
   getStats: async (): Promise<any> => {
     const response = await apiClient.get<ApiResponse<any>>('/super-admin/stats');
@@ -116,5 +156,14 @@ export const superAdminService = {
 
   exportInvoices: async (): Promise<void> => {
     await apiClient.get('/super-admin/invoices/export');
+  },
+
+  getFinance: async (): Promise<FinanceOverview> => {
+    const response = await apiClient.get<ApiResponse<FinanceOverview>>('/super-admin/finance');
+    return response.data.data;
+  },
+
+  exportFinance: async (): Promise<void> => {
+    await apiClient.get('/super-admin/finance/export');
   }
 };

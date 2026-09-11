@@ -45,14 +45,19 @@ export const kioskService = {
   },
 
   // --- Device Management ---
-  pairDevice: async (payload: { code: string; deviceId: string; name: string; location: string }): Promise<{ device: KioskDevice; token: string }> => {
-    const response = await apiClient.post<{ success: boolean; data: { device: KioskDevice; token: string } }>('/kiosk/devices/pair', payload);
-    return response.data.data;
+  pairDevice: async (payload: { code: string; deviceId: string; name: string; location: string }): Promise<{ device: KioskDevice; token: string; deviceToken: string }> => {
+    const response = await apiClient.post<any>('/kiosk/devices/pair', payload);
+    const data = response.data?.data || response.data;
+    const token = data?.deviceToken || data?.token || response.data?.deviceToken;
+    const device = data?.device || response.data?.device;
+    return { device, token, deviceToken: token };
   },
 
-  generatePairingCode: async (deviceId: string): Promise<string> => {
-    const response = await apiClient.post<{ success: boolean; data: { code: string } }>('/kiosk/devices/pair/code', { deviceId });
-    return response.data.data.code;
+  generatePairingCode: async (deviceId: string): Promise<{ code: string; expiresInSeconds: number }> => {
+    const response = await apiClient.post<any>('/kiosk/devices/pair/code', { deviceId });
+    const code = response.data?.code || response.data?.data?.code || '';
+    const expiresInSeconds = response.data?.expiresInSeconds || response.data?.data?.expiresInSeconds || 900;
+    return { code, expiresInSeconds };
   },
 
   heartbeat: async (payload: { currentContentVersion: number; telemetry: KioskTelemetry }): Promise<{ status: string; pendingCommands: KioskCommand[] }> => {

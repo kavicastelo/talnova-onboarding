@@ -46,12 +46,14 @@ export function PublicCertificateViewer() {
   if (error || !cert) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
-        <div className="max-w-md w-full text-center p-8 bg-white dark:bg-slate-800 border rounded-xl shadow-sm space-y-6">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+        <div data-testid="invalid-credential-alert" className="max-w-md w-full text-center p-8 bg-white dark:bg-slate-800 border border-rose-500/20 rounded-xl shadow-sm space-y-6">
+          <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 mx-auto flex items-center justify-center">
+            <AlertCircle className="h-8 w-8" />
+          </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-bold tracking-tight">No Certificates Found</h2>
+            <h2 className="text-xl font-bold tracking-tight text-rose-600 dark:text-rose-400">Invalid or Revoked Credential</h2>
             <p className="text-muted-foreground text-sm">
-              The requested certificate could not be found, or it may have been revoked.
+              The requested certificate could not be found, or it may have been revoked by the issuing organization.
             </p>
           </div>
           <Button asChild className="w-full">
@@ -97,8 +99,12 @@ export function PublicCertificateViewer() {
       `}</style>
 
       {/* Verification Badge */}
-      <div id="verified-authentic-badge" className="flex items-center gap-2 mb-8 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded-full border border-green-500/20 text-xs font-semibold uppercase tracking-wider print-hide">
-        <ShieldCheck className="h-4 w-4" /> Verified Authentic Onboarding Credential
+      <div
+        id="verified-authentic-badge"
+        data-testid="verified-authentic-badge"
+        className="flex items-center gap-2 mb-8 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded-full border border-green-500/20 text-xs font-semibold uppercase tracking-wider print-hide"
+      >
+        <ShieldCheck className="h-4 w-4 text-green-500" /> Verified Authentic Credential
       </div>
 
       {/* Certificate Rendering Container */}
@@ -121,7 +127,7 @@ export function PublicCertificateViewer() {
                     <div className="w-6 h-6 rounded bg-primary text-primary-foreground font-bold flex items-center justify-center text-xs">
                       {cert.branding.orgName.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-semibold text-sm tracking-tight text-slate-800 dark:text-slate-200">{cert.branding.orgName}</span>
+                    <span data-testid="organization-name" className="font-semibold text-sm tracking-tight text-slate-800 dark:text-slate-200">{cert.branding.orgName}</span>
                   </div>
                 )}
               </div>
@@ -141,13 +147,13 @@ export function PublicCertificateViewer() {
               <p className="italic text-muted-foreground text-xs font-serif">
                 This credential is proudly presented to
               </p>
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight font-serif">
+              <h2 data-testid="recipient-name" className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight font-serif">
                 {cert.recipientName}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-xs max-w-lg mx-auto font-serif leading-relaxed">
                 for successfully completing all curriculum requirements, lessons, and assessments in the onboarding journey
               </p>
-              <h3 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-200 pt-2 pb-1 max-w-xl mx-auto border-b border-dashed border-slate-200 dark:border-slate-800">
+              <h3 data-testid="journey-title" className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-200 pt-2 pb-1 max-w-xl mx-auto border-b border-dashed border-slate-200 dark:border-slate-800">
                 {cert.journeyTitle}
               </h3>
             </div>
@@ -156,12 +162,12 @@ export function PublicCertificateViewer() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-muted-foreground font-mono pt-6 border-t border-yellow-800/20 mt-4 items-end">
               <div className="text-center sm:text-left">
                 <p className="font-bold text-slate-700 dark:text-slate-400">ISSUED DATE</p>
-                <p>{new Date(cert.issuedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p data-testid="issue-date">{new Date(cert.issuedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
               
               <div className="text-center">
                 <p className="font-bold text-slate-700 dark:text-slate-400">CREDENTIAL ID</p>
-                <p className="uppercase">{cert.certificateId.slice(-12)}</p>
+                <p data-testid="credential-id" className="uppercase">{cert.certificateId.slice(-12)}</p>
               </div>
 
               <div className="text-center sm:text-right flex flex-col items-center sm:items-end">

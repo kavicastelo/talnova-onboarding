@@ -83,6 +83,16 @@ export function useCreateInvoice() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['superAdminInvoices'] });
       queryClient.invalidateQueries({ queryKey: ['superAdminTelemetry'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminFinance'] });
     },
   });
 }
+
+export function useSuperAdminFinance() {
+  return useQuery({
+    queryKey: ['superAdminFinance'],
+    queryFn: superAdminService.getFinance,
+    staleTime: 60 * 1000,
+  });
+}
+

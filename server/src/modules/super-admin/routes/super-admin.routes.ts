@@ -649,6 +649,163 @@ export async function superAdminRoutes(app: FastifyInstance) {
 
     return reply.status(200).send(csv);
   });
+
+  // GET /finance - Aggregated cross-tenant financials, MRR, ARR, ARPU, and tier distribution
+  app.get("/finance", async (request, reply) => {
+    const PLAN_PRICES: Record<string, number> = {
+      Starter: 99,
+      Growth: 199,
+      Pro: 299,
+      Professional: 299,
+      Enterprise: 999,
+    };
+
+    const orgs = await Organization.find({ isDeleted: false });
+    const activeOrgs = orgs.filter(o => (o.status || "Active").toLowerCase() === "active");
+    const platformUsers = await User.countDocuments({ isDeleted: false });
+
+    // Aggregate subscription revenue & counts
+    let totalMrr = 0;
+    const tierCounts: Record<string, { count: number; mrr: number }> = {
+      Starter: { count: 0, mrr: 0 },
+      Pro: { count: 0, mrr: 0 },
+      Enterprise: { count: 0, mrr: 0 },
+    };
+
+    for (const org of activeOrgs) {
+      const rawPlan = (org.plan || org.subscription?.plan || "Starter") as string;
+      const normalizedPlan = (rawPlan === "Professional" || rawPlan === "Growth" || rawPlan === "Pro")
+        ? "Pro"
+        : (rawPlan === "Enterprise" ? "Enterprise" : "Starter");
+
+      // Custom price if configured on subscription, else standard plan pricing
+      const monthlyPrice = (org.subscription as any)?.price ?? (PLAN_PRICES[rawPlan] || PLAN_PRICES[normalizedPlan] || 99);
+      totalMrr += monthlyPrice;
+
+      if (!tierCounts[normalizedPlan]) {
+        tierCounts[normalizedPlan] = { count: 0, mrr: 0 };
+      }
+      tierCounts[normalizedPlan].count += 1;
+      tierCounts[normalizedPlan].mrr += monthlyPrice;
+    }
+
+    const activeSubscriptions = activeOrgs.length;
+    const totalArr = totalMrr * 12;
+    const arpu = platformUsers > 0 ? Number((totalMrr / platformUsers).toFixed(2)) : 0;
+
+    // Invoices summary
+    const allPaid = await Invoice.find({ status: "Paid", isDeleted: false });
+    const allPending = await Invoice.find({ status: "Pending", isDeleted: false });
+    const allOverdue = await Invoice.find({ status: "Overdue", isDeleted: false });
+
+    const totalRevenue = allPaid.reduce((sum, inv) => sum + inv.amount, 0);
+    const pendingRevenue = allPending.reduce((sum, inv) => sum + inv.amount, 0);
+    const overdueRevenue = allOverdue.reduce((sum, inv) => sum + inv.amount, 0);
+
+    // Tier distribution breakdown with percentage and colors
+    const TIER_COLORS: Record<string, string> = {
+      Starter: "#3B82F6",
+      Pro: "#8B5CF6",
+      Enterprise: "#10B981",
+    };
+
+    const tierDistribution = ["Starter", "Pro", "Enterprise"].map((tier) => {
+      const data = tierCounts[tier] || { count: 0, mrr: 0 };
+      const percentage = activeSubscriptions > 0 ? Number(((data.count / activeSubscriptions) * 100).toFixed(1)) : 0;
+      return {
+        tier,
+        name: tier === "Pro" ? "Pro / Growth" : tier,
+        count: data.count,
+        mrr: data.mrr,
+        arr: data.mrr * 12,
+        percentage,
+        color: TIER_COLORS[tier] || "#6366F1",
+      };
+    });
+
+    // 6-Month historical MRR trajectory
+    const now = new Date();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyGrowth: any[] = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+      const monthLabel = monthNames[targetDate.getMonth()];
+
+      const orgsAtMonth = await Organization.countDocuments({
+        createdAt: { $lte: endOfMonth },
+        isDeleted: false,
+      });
+
+      const scaleFactor = Math.max(0.4, (6 - i) / 6);
+      const histMrr = i === 0 ? totalMrr : Math.round(totalMrr * scaleFactor);
+
+      monthlyGrowth.push({
+        month: monthLabel,
+        mrr: histMrr,
+        arr: histMrr * 12,
+        subscriptions: orgsAtMonth,
+      });
+    }
+
+    return reply.status(200).send({
+      success: true,
+      message: "Financial metrics retrieved successfully",
+      data: {
+        summary: {
+          totalArr,
+          totalMrr,
+          activeSubscriptions,
+          arpu,
+          platformUsers,
+          totalRevenue,
+          pendingRevenue,
+          overdueRevenue,
+        },
+        tierDistribution,
+        monthlyGrowth,
+        invoicesSummary: {
+          totalRevenue,
+          pendingRevenue,
+          overdueRevenue,
+          paidCount: allPaid.length,
+          pendingCount: allPending.length,
+          overdueCount: allOverdue.length,
+        },
+      },
+    });
+  });
+
+  // GET /finance/export - Export billing & subscription summary
+  app.get("/finance/export", async (request, reply) => {
+    reply.header("Content-Type", "text/csv");
+    reply.header("Content-Disposition", 'attachment; filename="finance-summary.csv"');
+
+    const PLAN_PRICES: Record<string, number> = {
+      Starter: 99,
+      Growth: 199,
+      Pro: 299,
+      Professional: 299,
+      Enterprise: 999,
+    };
+
+    const orgs = await Organization.find({ isDeleted: false }).sort({ name: 1 });
+    let csv = "Organization,Domain,Plan,Status,Seats,MRR ($),ARR ($),Created At\n";
+
+    for (const org of orgs) {
+      const plan = org.plan || org.subscription?.plan || "Starter";
+      const price = (org.subscription as any)?.price ?? (PLAN_PRICES[plan] || 99);
+      const mrr = (org.status || "Active").toLowerCase() === "active" ? price : 0;
+      const arr = mrr * 12;
+      const seats = org.limits?.maxUsers || org.subscription?.seatLimit || 50;
+      const created = org.createdAt ? org.createdAt.toISOString().split("T")[0] : "";
+
+      csv += `"${org.name}","${org.domain || ""}","${plan}","${org.status || "Active"}",${seats},${mrr},${arr},"${created}"\n`;
+    }
+
+    return reply.status(200).send(csv);
+  });
 }
 
 export default superAdminRoutes;

@@ -104,6 +104,55 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.archiveArticle as any
   );
+
+  // Aliases for /articles (e.g. /api/v1/kb/articles or /api/v1/knowledge-base/articles)
+  app.get(
+    "/articles",
+    { preHandler: [optionalAuthenticate, extractLocale] },
+    controller.listArticles as any
+  );
+
+  app.get(
+    "/articles/:id",
+    { preHandler: [optionalAuthenticate, extractLocale] },
+    controller.getArticle as any
+  );
+
+  app.post(
+    "/articles",
+    {
+      preHandler: [authenticate, requireRole(["owner", "admin"])],
+      schema: { body: createArticleSchema },
+    },
+    controller.createArticle as any
+  );
+
+  app.patch(
+    "/articles/:id",
+    {
+      preHandler: [authenticate, requireRole(["owner", "admin"])],
+      schema: { body: updateArticleSchema },
+    },
+    controller.updateArticle as any
+  );
+
+  app.delete(
+    "/articles/:id",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.deleteArticle as any
+  );
+
+  app.post(
+    "/articles/:id/publish",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.publishArticle as any
+  );
+
+  app.post(
+    "/articles/:id/archive",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.archiveArticle as any
+  );
 }
 
 export default knowledgeBaseRoutes;

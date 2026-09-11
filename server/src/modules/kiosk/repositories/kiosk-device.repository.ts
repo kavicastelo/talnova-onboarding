@@ -56,6 +56,17 @@ export class KioskDeviceRepository {
   }
 
   async register(deviceData: Partial<IKioskDevice>): Promise<IKioskDevice> {
+    if (deviceData.deviceId) {
+      const existing = await KioskDeviceModel.findOne({ deviceId: deviceData.deviceId });
+      if (existing) {
+        const updated = await KioskDeviceModel.findByIdAndUpdate(
+          existing._id,
+          { $set: deviceData },
+          { new: true }
+        );
+        return updated!;
+      }
+    }
     const device = new KioskDeviceModel(deviceData);
     return device.save();
   }
@@ -71,6 +82,7 @@ export class KioskDeviceRepository {
         $set: {
           status: "online",
           lastSeen: new Date(),
+          lastHeartbeatAt: new Date(),
           currentContentVersion: contentVersion,
           telemetry
         }

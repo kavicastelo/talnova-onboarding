@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -124,6 +124,22 @@ export function KnowledgeBase() {
     setIsEditing(false);
     setIsCreating(false);
   };
+
+  const { id: paramArticleId } = useParams();
+
+  useEffect(() => {
+    if (paramArticleId && articles && articles.length > 0) {
+      const match = articles.find(
+        (a: any) =>
+          a.id === paramArticleId ||
+          a.slug === paramArticleId ||
+          a.title.toLowerCase().includes(paramArticleId.toLowerCase())
+      );
+      if (match) {
+        handleOpenArticle(match);
+      }
+    }
+  }, [paramArticleId, articles]);
 
   const handleStartCreate = () => {
     setArtTitle('');
@@ -316,27 +332,41 @@ export function KnowledgeBase() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
             </Button>
 
-            {/* Admin actions for detail view */}
-            {activeArticle && isAdmin && (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleStartEdit(activeArticle)}>
-                  <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Edit
+            <div className="flex items-center gap-2">
+              {activeArticle && !isCreating && !isEditing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/kb/slideshow')}
+                  data-testid="slideshow-view-btn"
+                  className="gap-1.5 border-indigo-500/30 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                >
+                  <MonitorPlay className="h-4 w-4" /> Slideshow View
                 </Button>
-                {activeArticle.publishingStatus === 'draft' && (
-                  <Button variant="default" size="sm" onClick={() => handlePublishArticle(activeArticle.id)}>
-                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Publish
+              )}
+
+              {/* Admin actions for detail view */}
+              {activeArticle && isAdmin && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleStartEdit(activeArticle)}>
+                    <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Edit
                   </Button>
-                )}
-                {activeArticle.publishingStatus === 'published' && (
-                  <Button variant="outline" size="sm" onClick={() => handleArchiveArticle(activeArticle.id)}>
-                    <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
+                  {activeArticle.publishingStatus === 'draft' && (
+                    <Button variant="default" size="sm" onClick={() => handlePublishArticle(activeArticle.id)}>
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Publish
+                    </Button>
+                  )}
+                  {activeArticle.publishingStatus === 'published' && (
+                    <Button variant="outline" size="sm" onClick={() => handleArchiveArticle(activeArticle.id)}>
+                      <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
+                    </Button>
+                  )}
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteArticle(activeArticle.id)}>
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
                   </Button>
-                )}
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteArticle(activeArticle.id)}>
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
-                </Button>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
 
           {isCreating || isEditing ? (
@@ -404,7 +434,7 @@ export function KnowledgeBase() {
               </div>
             </form>
           ) : (
-            <article className="max-w-3xl mx-auto space-y-6">
+            <article data-testid="active-article-view" className="max-w-3xl mx-auto space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="inline-block text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
@@ -420,13 +450,13 @@ export function KnowledgeBase() {
                     </span>
                   )}
                 </div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{activeArticle.title}</h1>
+                <h1 data-testid="active-article-title" className="text-3xl font-extrabold tracking-tight text-foreground">{activeArticle.title}</h1>
                 {activeArticle.summary && (
                   <p className="text-muted-foreground text-lg italic leading-relaxed">{activeArticle.summary}</p>
                 )}
               </div>
               <hr className="border-border" />
-              <div className="prose dark:prose-invert max-w-none text-foreground/90 space-y-4 whitespace-pre-line leading-relaxed">
+              <div data-testid="active-article-content" className="prose dark:prose-invert max-w-none text-foreground/90 space-y-4 whitespace-pre-line leading-relaxed">
                 {activeArticle.content}
               </div>
               {activeArticle.tags && activeArticle.tags.length > 0 && (
@@ -478,6 +508,7 @@ export function KnowledgeBase() {
             <div className="relative max-w-xl">
               <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
               <Input
+                data-testid="kb-search-input"
                 value={search}
                 onChange={(e: any) => setSearch(e.target.value)}
                 placeholder={t('searchPlaceholder')}
@@ -516,14 +547,18 @@ export function KnowledgeBase() {
               <h2 className="text-xl font-bold tracking-tight">{t('allArticles')}</h2>
               <div className="space-y-3">
                 {!articles || articles.length === 0 ? (
-                  <div className="text-center py-12 text-sm text-muted-foreground border border-dashed rounded-lg">
-                    {t('noArticles')}
+                  <div
+                    data-testid="no-articles-found"
+                    className="text-center py-12 text-sm text-muted-foreground border border-dashed rounded-lg"
+                  >
+                    {search ? "No articles found matching your query." : t('noArticles')}
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {artPagination.paginatedData.map((article: any) => (
                       <Card
                         key={article.id}
+                        data-testid="article-card"
                         onClick={() => handleOpenArticle(article)}
                         className="hover:bg-muted/40 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
                       >
@@ -534,7 +569,7 @@ export function KnowledgeBase() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-foreground">{article.title}</h3>
+                                <h3 data-testid="article-title" className="font-semibold text-foreground">{article.title}</h3>
                                 {isAdmin && (
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono capitalize ${article.publishingStatus === 'published' ? 'bg-green-500/10 text-green-500' :
                                       article.publishingStatus === 'archived' ? 'bg-amber-500/10 text-amber-500' :

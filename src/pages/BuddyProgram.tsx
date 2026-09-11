@@ -15,12 +15,14 @@ import {
 import {
   useMyBuddy,
   useMyMentees,
+  useMyBuddyProfile,
   useAvailableBuddies,
   useBuddyAssignments,
   useRegisterBuddy,
   useAssignBuddy,
   useUpdateBuddyChecklist,
-  useLogBuddyCheckin
+  useLogBuddyCheckin,
+  useAddBuddyChecklistTask
 } from '../hooks/useBuddy';
 import { useRole } from '../context/RoleContext';
 import { useEmployees } from '../hooks/useEmployees';
@@ -50,19 +52,30 @@ export const BuddyProgram: React.FC = () => {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isCustomTaskModalOpen, setIsCustomTaskModalOpen] = useState(false);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  const [customTaskAssignmentId, setCustomTaskAssignmentId] = useState<string | null>(null);
 
   // Form states
   const [selectedNewHireId, setSelectedNewHireId] = useState('');
   const [selectedBuddyId, setSelectedBuddyId] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('Standard Cultural Onboarding');
   const [validationError, setValidationError] = useState('');
+  const [profileValidationError, setProfileValidationError] = useState('');
+  const [customTaskTitle, setCustomTaskTitle] = useState('');
+  const [customTaskStage, setCustomTaskStage] = useState<'day_1' | 'week_1' | 'month_1'>('day_1');
   const [checkinNotes, setCheckinNotes] = useState('');
   const [checkinRating, setCheckinRating] = useState(5);
+  const [checkinSentiment, setCheckinSentiment] = useState<'positive' | 'neutral' | 'challenged'>('positive');
+  const [checkinValidationError, setCheckinValidationError] = useState('');
   const [buddyBio, setBuddyBio] = useState('');
   const [buddySkills, setBuddySkills] = useState('');
+  const [buddyLanguages, setBuddyLanguages] = useState('');
+  const [maxMentees, setMaxMentees] = useState(2);
+  const [isAvailable, setIsAvailable] = useState(true);
 
   const { data: myBuddy, isLoading: buddyLoading, refetch: refetchBuddy } = useMyBuddy();
+  const { data: myBuddyProfile, refetch: refetchMyProfile } = useMyBuddyProfile();
   const { data: mentees, isLoading: menteesLoading, refetch: refetchMentees } = useMyMentees();
   const { data: availableBuddies, isLoading: availableLoading, refetch: refetchAvailable } = useAvailableBuddies();
   const { data: allAssignments, isLoading: assignmentsLoading, refetch: refetchAssignments } = useBuddyAssignments();
@@ -76,6 +89,7 @@ export const BuddyProgram: React.FC = () => {
   const assignBuddyMutation = useAssignBuddy();
   const updateChecklistMutation = useUpdateBuddyChecklist();
   const logCheckinMutation = useLogBuddyCheckin();
+  const addCustomTaskMutation = useAddBuddyChecklistTask();
 
   const employees = employeesData?.employees || [];
 
@@ -144,46 +158,147 @@ export const BuddyProgram: React.FC = () => {
   };
 
   const handleLogCheckin = () => {
-    if (!selectedAssignmentId || !checkinNotes.trim()) {
+    setCheckinValidationError('');
+    if (!checkinNotes.trim()) {
+      setCheckinValidationError('Please provide check-in meeting notes.');
       toast.error('Please provide check-in meeting notes.');
       return;
     }
 
+    if (!selectedAssignmentId) {
+      toast.error('No assignment selected for check-in');
+      return;
+    }
+
     logCheckinMutation.mutate(
-      { assignmentId: selectedAssignmentId, payload: { notes: checkinNotes, rating: checkinRating } },
+      {
+        assignmentId: selectedAssignmentId,
+        payload: {
+          notes: checkinNotes.trim(),
+          rating: checkinRating,
+          sentiment: checkinSentiment,
+        },
+      },
       {
         onSuccess: () => {
           toast.success('1-on-1 Buddy check-in logged!');
           setIsCheckinModalOpen(false);
           setCheckinNotes('');
+          setCheckinValidationError('');
           setSelectedAssignmentId(null);
           refetchMentees();
           refetchBuddy();
           refetchAssignments();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to log check-in');
+          const errMsg = err?.response?.data?.message || err?.message || 'Failed to log check-in';
+          setCheckinValidationError(errMsg);
+          toast.error(errMsg);
+        }
+      }
+    );
+  };
+
+  const handleAddCustomTask = () => {
+    if (!customTaskAssignmentId || !customTaskTitle.trim()) {
+      toast.error('Please provide a task title');
+      return;
+    }
+
+    addCustomTaskMutation.mutate(
+      {
+        assignmentId: customTaskAssignmentId,
+        payload: {
+          title: customTaskTitle.trim(),
+          stage: customTaskStage,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Custom task added to checklist!');
+          setIsCustomTaskModalOpen(false);
+          setCustomTaskTitle('');
+          setCustomTaskAssignmentId(null);
+          refetchMentees();
+          refetchBuddy();
+          refetchAssignments();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to add custom task');
+        },
+      }
+    );
+  };
+
+  const handleOpenRegisterModal = () => {
+    setProfileValidationError('');
+    if (myBuddyProfile) {
+      setBuddyBio(myBuddyProfile.bio || '');
+      setBuddySkills((myBuddyProfile.skills || []).join(', '));
+      setBuddyLanguages((myBuddyProfile.languages || []).join(', '));
+      setMaxMentees(myBuddyProfile.maxMentees ?? 2);
+      setIsAvailable(myBuddyProfile.isAvailable ?? true);
+    } else {
+      setBuddyBio('');
+      setBuddySkills('');
+      setBuddyLanguages('');
+      setMaxMentees(2);
+      setIsAvailable(true);
+    }
+    setIsRegisterModalOpen(true);
+  };
+
+  const handleToggleAvailability = (currentAvailability: boolean) => {
+    const nextAvailability = !currentAvailability;
+    registerBuddyMutation.mutate(
+      {
+        isAvailable: nextAvailability,
+        maxMentees: myBuddyProfile?.maxMentees ?? 2,
+        bio: myBuddyProfile?.bio,
+        skills: myBuddyProfile?.skills,
+        languages: myBuddyProfile?.languages,
+      },
+      {
+        onSuccess: () => {
+          toast.success(nextAvailability ? 'Availability set to Active!' : 'Availability set to Away / Vacation');
+          refetchMyProfile();
+          refetchAvailable();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to update availability');
         }
       }
     );
   };
 
   const handleRegisterBuddyProfile = () => {
+    setProfileValidationError('');
+    if (!maxMentees || maxMentees < 1 || maxMentees > 10) {
+      const msg = 'Max mentees must be between 1 and 10';
+      setProfileValidationError(msg);
+      toast.error(msg);
+      return;
+    }
+
     registerBuddyMutation.mutate(
       {
-        isAvailable: true,
-        maxMentees: 3,
+        isAvailable,
+        maxMentees: Number(maxMentees),
         bio: buddyBio,
         skills: buddySkills.split(',').map((s) => s.trim()).filter(Boolean),
+        languages: buddyLanguages.split(',').map((s) => s.trim()).filter(Boolean),
       },
       {
         onSuccess: () => {
-          toast.success('You have registered as an Onboarding Buddy!');
+          toast.success('Buddy profile saved successfully!');
           setIsRegisterModalOpen(false);
           refetchAvailable();
+          refetchMyProfile();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to register profile');
+          const errMsg = err?.response?.data?.message || err?.message || 'Failed to register profile';
+          setProfileValidationError(errMsg);
+          toast.error(errMsg);
         }
       }
     );
@@ -205,10 +320,10 @@ export const BuddyProgram: React.FC = () => {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => setIsRegisterModalOpen(true)}
-            data-testid="become-buddy-btn"
+            onClick={handleOpenRegisterModal}
+            data-testid="join-as-buddy-btn"
           >
-            <Sparkles className="h-4 w-4 mr-2" /> Become a Buddy
+            <Sparkles className="h-4 w-4 mr-2" /> {myBuddyProfile ? 'Edit Buddy Profile' : 'Join as Buddy'}
           </Button>
           {canAssignBuddy && (
             <Button
@@ -224,6 +339,66 @@ export const BuddyProgram: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Buddy Profile Active Card */}
+      {myBuddyProfile && (
+        <Card data-testid="buddy-profile-active-card" className="border-l-4 border-l-indigo-600 bg-gradient-to-r from-indigo-50/50 via-white to-background dark:from-indigo-950/20 dark:via-background dark:to-background">
+          <CardContent className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-3">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-indigo-600" />
+                  Your Buddy Profile
+                </h3>
+                <Badge
+                  data-testid="buddy-status-badge"
+                  className={
+                    myBuddyProfile.isAvailable
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300'
+                  }
+                >
+                  {myBuddyProfile.isAvailable ? 'Buddy Profile Active' : 'On Vacation / Inactive'}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {myBuddyProfile.bio || 'Senior peer mentor supporting onboarding colleagues.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
+                <span><strong>Max Mentees:</strong> {myBuddyProfile.maxMentees}</span>
+                <span><strong>Current Load:</strong> {myBuddyProfile.currentMenteeCount || 0} mentees</span>
+                {myBuddyProfile.skills && myBuddyProfile.skills.length > 0 && (
+                  <span><strong>Skills:</strong> {myBuddyProfile.skills.join(', ')}</span>
+                )}
+                {myBuddyProfile.languages && myBuddyProfile.languages.length > 0 && (
+                  <span><strong>Languages:</strong> {myBuddyProfile.languages.join(', ')}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="availability-toggle"
+                onClick={() => handleToggleAvailability(myBuddyProfile.isAvailable)}
+                className="text-xs"
+              >
+                {myBuddyProfile.isAvailable ? 'Set to Away / Vacation' : 'Set to Active'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="edit-buddy-profile-btn"
+                onClick={handleOpenRegisterModal}
+                className="text-xs"
+              >
+                Edit Profile
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b text-sm font-medium">
@@ -389,37 +564,166 @@ export const BuddyProgram: React.FC = () => {
                 <div className="divide-y">
                   {menteesPagination.paginatedData.map((m) => {
                     const newHireName = m.newHireUserId?.profile
-                      ? `${m.newHireUserId.profile.firstName || ''} ${m.newHireUserId.profile.lastName || ''}`
+                      ? `${m.newHireUserId.profile.firstName || ''} ${m.newHireUserId.profile.lastName || ''}`.trim()
                       : 'New Hire';
 
                     const completedTasks = m.checklist?.filter((c) => c.completed).length || 0;
                     const totalTasks = m.checklist?.length || 1;
+                    const progressPercentage = Math.round((completedTasks / totalTasks) * 100);
 
                     return (
-                      <div key={m._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-sm">{newHireName}</h4>
-                            <Badge variant="outline" className="text-[10px]">
-                              {m.newHireUserId?.employment?.department || 'General'}
-                            </Badge>
+                      <div
+                        key={m._id}
+                        data-testid="mentee-card"
+                        className="p-6 space-y-4 hover:bg-muted/5 transition-colors border-b last:border-b-0"
+                      >
+                        {/* Mentee Header */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-base text-foreground">{newHireName}</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {m.newHireUserId?.employment?.department || 'General'}
+                              </Badge>
+                              <Badge variant="secondary" className="text-[10px]">
+                                {m.newHireUserId?.employment?.jobTitle || 'New Hire'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Paired on {new Date(m.assignedAt).toLocaleDateString()}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Checklist: {completedTasks} / {totalTasks} tasks completed | Paired on {new Date(m.assignedAt).toLocaleDateString()}
-                          </p>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              data-testid="add-custom-task-btn"
+                              onClick={() => {
+                                setCustomTaskAssignmentId(m._id);
+                                setCustomTaskTitle('');
+                                setCustomTaskStage('day_1');
+                                setIsCustomTaskModalOpen(true);
+                              }}
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Task
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                              data-testid="log-checkin-btn"
+                              onClick={() => {
+                                setSelectedAssignmentId(m._id);
+                                setIsCheckinModalOpen(true);
+                              }}
+                            >
+                              <MessageSquare className="h-3.5 w-3.5 mr-1" /> Log 1-on-1 Check-In
+                            </Button>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
-                            onClick={() => {
-                              setSelectedAssignmentId(m._id);
-                              setIsCheckinModalOpen(true);
-                            }}
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 mr-1" /> Log 1-on-1 Check-In
-                          </Button>
+                        {/* Progress Bar */}
+                        <div className="space-y-1.5 bg-muted/20 p-3.5 rounded-lg border">
+                          <div className="flex justify-between items-center text-xs font-semibold text-foreground">
+                            <span>Mentee Ramp Progress</span>
+                            <span data-testid="mentee-progress-bar">{progressPercentage}% ({completedTasks} of {totalTasks} tasks completed)</span>
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                            <div
+                              data-testid="checklist-progress"
+                              className="bg-indigo-600 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${progressPercentage}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Checklist Items */}
+                        <div className="space-y-2 pt-1">
+                          <h5 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                            <CheckSquare className="h-3.5 w-3.5 text-indigo-600" /> Onboarding & Cultural Checklist
+                          </h5>
+                          <div className="space-y-2">
+                            {m.checklist?.map((item: any) => (
+                              <div
+                                key={item._id || item.title}
+                                className="p-3 border rounded-lg flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.completed}
+                                    data-testid="checklist-task-checkbox"
+                                    data-task-title={item.title}
+                                    onChange={() => handleToggleTask(m._id, item._id || item.title, item.completed)}
+                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                                  />
+                                  <span className={item.completed ? 'line-through text-muted-foreground text-xs' : 'text-xs font-medium text-foreground'}>
+                                    {item.title}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {item.completedAt && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Done {new Date(item.completedAt).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                  <Badge variant="outline" className="uppercase text-[9px]">
+                                    {item.stage.replace('_', ' ')}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Check-In Timeline */}
+                        <div data-testid="checkin-timeline" className="space-y-2 pt-3 border-t">
+                          <div className="flex justify-between items-center">
+                            <h5 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                              <MessageSquare className="h-3.5 w-3.5 text-indigo-600" /> Recent Check-In Interactions ({m.checkins?.length || 0})
+                            </h5>
+                          </div>
+                          {(!m.checkins || m.checkins.length === 0) ? (
+                            <p className="text-xs text-muted-foreground italic py-1">No check-ins logged yet. Schedule or log an informal 1-on-1 check-in above.</p>
+                          ) : (
+                            <div className="space-y-2.5">
+                              {m.checkins.slice().reverse().map((c: any, idx: number) => {
+                                const sentiment = c.sentiment || 'positive';
+                                return (
+                                  <div
+                                    key={c._id || idx}
+                                    data-testid="checkin-entry"
+                                    className="p-3.5 border rounded-lg bg-card text-xs space-y-1.5 shadow-sm"
+                                  >
+                                    <div className="flex flex-wrap justify-between items-center gap-2">
+                                      <div className="flex items-center gap-2 font-semibold text-foreground">
+                                        <span>Check-in on {new Date(c.completedAt).toLocaleDateString()}</span>
+                                        <Badge
+                                          data-testid="sentiment-badge"
+                                          className={
+                                            sentiment === 'positive'
+                                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                              : sentiment === 'challenged'
+                                              ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300'
+                                              : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300'
+                                          }
+                                        >
+                                          {sentiment === 'positive' ? 'Positive' : sentiment === 'challenged' ? 'Challenged' : 'Neutral'}
+                                        </Badge>
+                                      </div>
+                                      {c.rating && (
+                                        <span className="flex items-center gap-1 text-amber-600 font-medium">
+                                          <Star className="h-3 w-3 fill-current" /> {c.rating}/5
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-muted-foreground italic">"{c.notes}"</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -750,9 +1054,33 @@ export const BuddyProgram: React.FC = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Log 1-on-1 Buddy Check-In</DialogTitle>
-            <DialogDescription>Record meeting notes and peer support progress.</DialogDescription>
+            <DialogDescription>Record meeting notes, guidance provided, and mentee sentiment.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {checkinValidationError && (
+              <div
+                data-testid="checkin-validation-error"
+                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{checkinValidationError}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Mentee Sentiment *</label>
+              <select
+                data-testid="checkin-sentiment-select"
+                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+                value={checkinSentiment}
+                onChange={(e: any) => setCheckinSentiment(e.target.value)}
+              >
+                <option value="positive">Positive - Settling in well & confident</option>
+                <option value="neutral">Neutral - Steady ramp & on track</option>
+                <option value="challenged">Challenged - Facing blockers or support needed</option>
+              </select>
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Meeting Rating (1 to 5 Stars):</label>
               <div className="flex gap-2">
@@ -772,12 +1100,16 @@ export const BuddyProgram: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">1-on-1 Meeting Notes & Guidance Provided:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">1-on-1 Meeting Notes & Observations *</label>
               <textarea
-                className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Discussed team workflows, answered questions about tools..."
+                data-testid="checkin-notes-textarea"
+                className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background"
+                placeholder="Met for coffee. Mentee is settling in well and enjoying the codebase..."
                 value={checkinNotes}
-                onChange={(e) => setCheckinNotes(e.target.value)}
+                onChange={(e) => {
+                  setCheckinNotes(e.target.value);
+                  setCheckinValidationError('');
+                }}
               />
             </div>
           </div>
@@ -785,8 +1117,12 @@ export const BuddyProgram: React.FC = () => {
             <Button variant="outline" onClick={() => setIsCheckinModalOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleLogCheckin}>
-              Log Check-In
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleLogCheckin}
+              data-testid="submit-checkin-btn"
+            >
+              Submit Check-in
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -796,34 +1132,141 @@ export const BuddyProgram: React.FC = () => {
       <Dialog open={isRegisterModalOpen} onOpenChange={setIsRegisterModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Register as an Onboarding Buddy</DialogTitle>
-            <DialogDescription>Opt-in to mentor new hires and support peer onboarding.</DialogDescription>
+            <DialogTitle>{myBuddyProfile ? 'Edit Buddy Profile' : 'Join as an Onboarding Buddy'}</DialogTitle>
+            <DialogDescription>Submit your mentorship bio, languages, technical skills, and mentee capacity.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {profileValidationError && (
+              <div
+                data-testid="buddy-profile-error"
+                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{profileValidationError}</span>
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Short Bio & Introduction</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Bio & Mentorship Introduction *</label>
               <textarea
-                className="w-full min-h-[80px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                data-testid="buddy-bio-input"
+                className="w-full min-h-[80px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background"
                 placeholder="Share your experience and how you can support new team members..."
                 value={buddyBio}
-                onChange={(e) => setBuddyBio(e.target.value)}
+                onChange={(e) => {
+                  setBuddyBio(e.target.value);
+                  setProfileValidationError('');
+                }}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Skills & Key Areas (comma separated)</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Technical Skills (comma separated)</label>
               <Input
-                placeholder="e.g. React, Node.js, Agile, Company Culture"
+                data-testid="buddy-skills-input"
+                placeholder="e.g. TypeScript, MongoDB, Node.js"
                 value={buddySkills}
-                onChange={(e: any) => setBuddySkills(e.target.value)}
+                onChange={(e: any) => {
+                  setBuddySkills(e.target.value);
+                  setProfileValidationError('');
+                }}
               />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Languages (comma separated)</label>
+              <Input
+                data-testid="buddy-languages-input"
+                placeholder="e.g. English, Spanish"
+                value={buddyLanguages}
+                onChange={(e: any) => {
+                  setBuddyLanguages(e.target.value);
+                  setProfileValidationError('');
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Max Mentees Capacity (1 to 10) *</label>
+              <Input
+                type="number"
+                min="1"
+                max="10"
+                data-testid="buddy-max-mentees-input"
+                value={maxMentees}
+                onChange={(e: any) => {
+                  setMaxMentees(parseInt(e.target.value, 10) || 0);
+                  setProfileValidationError('');
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="buddy-is-available"
+                data-testid="buddy-availability-toggle"
+                checked={isAvailable}
+                onChange={(e) => setIsAvailable(e.target.checked)}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+              />
+              <label htmlFor="buddy-is-available" className="text-xs font-medium cursor-pointer">
+                Available for new mentee pairings (uncheck if on vacation)
+              </label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRegisterModalOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleRegisterBuddyProfile}>
-              Register Profile
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleRegisterBuddyProfile}
+              data-testid="save-profile-btn"
+            >
+              Save Profile
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Add Custom Task */}
+      <Dialog open={isCustomTaskModalOpen} onOpenChange={setIsCustomTaskModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Custom Task to Mentee Checklist</DialogTitle>
+            <DialogDescription>Create an ad-hoc mentoring or cultural milestone for this mentee.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Task Title *</label>
+              <Input
+                data-testid="custom-task-title-input"
+                placeholder="e.g. Schedule team lunch or review project goals"
+                value={customTaskTitle}
+                onChange={(e: any) => setCustomTaskTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Onboarding Stage</label>
+              <select
+                data-testid="custom-task-stage-select"
+                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+                value={customTaskStage}
+                onChange={(e: any) => setCustomTaskStage(e.target.value)}
+              >
+                <option value="day_1">Day 1</option>
+                <option value="week_1">Week 1</option>
+                <option value="month_1">Month 1</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCustomTaskModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleAddCustomTask}
+              data-testid="save-custom-task-btn"
+            >
+              Add Task
             </Button>
           </DialogFooter>
         </DialogContent>

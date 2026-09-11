@@ -10,10 +10,12 @@ export interface IBuddyChecklistItem {
 }
 
 export interface IBuddyCheckinLog {
+  _id?: mongoose.Types.ObjectId;
   scheduledAt?: Date;
   completedAt: Date;
   notes: string;
   rating?: number; // 1-5 rating
+  sentiment?: "positive" | "neutral" | "challenged";
 }
 
 export interface IBuddyAssignment extends Document {
@@ -52,6 +54,11 @@ const BuddyCheckinLogSchema = new Schema({
   completedAt: { type: Date, default: Date.now },
   notes: { type: String, required: true },
   rating: { type: Number, min: 1, max: 5 },
+  sentiment: {
+    type: String,
+    enum: ["positive", "neutral", "challenged"],
+    default: "positive",
+  },
 });
 
 const BuddyAssignmentSchema = new Schema<IBuddyAssignment>(

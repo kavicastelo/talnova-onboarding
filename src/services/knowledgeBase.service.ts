@@ -43,7 +43,7 @@ const mapBackendArticleToKbArticle = (a: any): KbArticle & { summary?: string; b
 
 export const knowledgeBaseService = {
   getCategories: async (): Promise<KbCategory[]> => {
-    const response = await apiClient.get<ApiResponse<any[]>>('/knowledge-base');
+    const response = await apiClient.get<ApiResponse<any[]>>('/kb/articles');
     const articles = response.data.data || [];
     
     return Object.entries(CATEGORY_MAP).map(([name, info]) => {
@@ -69,12 +69,12 @@ export const knowledgeBaseService = {
       queryParams.status = params.status;
     }
 
-    const response = await apiClient.get<ApiResponse<any[]>>('/knowledge-base', { params: queryParams });
+    const response = await apiClient.get<ApiResponse<any[]>>('/kb/articles', { params: queryParams });
     return (response.data.data || []).map(mapBackendArticleToKbArticle);
   },
 
   getArticle: async (id: string): Promise<KbArticle> => {
-    const response = await apiClient.get<ApiResponse<any>>(`/knowledge-base/${id}`);
+    const response = await apiClient.get<ApiResponse<any>>(`/kb/articles/${id}`);
     return mapBackendArticleToKbArticle(response.data.data);
   },
 
@@ -93,7 +93,7 @@ export const knowledgeBaseService = {
       tags: data.tags || [],
       visibility: { access: 'all' }
     };
-    const response = await apiClient.post<ApiResponse<any>>('/knowledge-base', body);
+    const response = await apiClient.post<ApiResponse<any>>('/kb/articles', body);
     return mapBackendArticleToKbArticle(response.data.data);
   },
 
@@ -113,21 +113,21 @@ export const knowledgeBaseService = {
     }
     if (data.tags !== undefined) body.tags = data.tags;
 
-    const response = await apiClient.patch<ApiResponse<any>>(`/knowledge-base/${id}`, body);
+    const response = await apiClient.patch<ApiResponse<any>>(`/kb/articles/${id}`, body);
     return mapBackendArticleToKbArticle(response.data.data);
   },
 
   deleteArticle: async (id: string): Promise<void> => {
-    await apiClient.delete(`/knowledge-base/${id}`);
+    await apiClient.delete(`/kb/articles/${id}`);
   },
 
   publishArticle: async (id: string): Promise<KbArticle> => {
-    const response = await apiClient.post<ApiResponse<any>>(`/knowledge-base/${id}/publish`);
+    const response = await apiClient.post<ApiResponse<any>>(`/kb/articles/${id}/publish`);
     return mapBackendArticleToKbArticle(response.data.data);
   },
 
   archiveArticle: async (id: string): Promise<KbArticle> => {
-    const response = await apiClient.post<ApiResponse<any>>(`/knowledge-base/${id}/archive`);
+    const response = await apiClient.post<ApiResponse<any>>(`/kb/articles/${id}/archive`);
     return mapBackendArticleToKbArticle(response.data.data);
   },
 
