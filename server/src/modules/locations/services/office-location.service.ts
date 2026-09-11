@@ -94,10 +94,22 @@ export class OfficeLocationService {
       throw new AppError(404, "NOT_FOUND", "Office location facility not found");
     }
 
-    if (data.name) location.name = data.name;
-    if (data.address) location.address = data.address;
-    if (data.accessInfo) location.accessInfo = data.accessInfo;
-    if (data.floors) location.floors = data.floors;
+    if (data.name !== undefined) location.name = data.name;
+    if (data.code !== undefined) location.code = data.code;
+    if (data.address !== undefined) location.address = data.address;
+    if (data.coordinates !== undefined) location.coordinates = data.coordinates;
+    if (data.timezone !== undefined) location.timezone = data.timezone;
+    if (data.contactEmail !== undefined) location.contactEmail = data.contactEmail;
+    if (data.contactPhone !== undefined) location.contactPhone = data.contactPhone;
+    if (data.accessInfo !== undefined) {
+      location.accessInfo = data.accessInfo;
+      location.markModified("accessInfo");
+    }
+    if (data.floors !== undefined) {
+      location.floors = data.floors;
+      location.markModified("floors");
+    }
+    if (data.isPrimary !== undefined) location.isPrimary = data.isPrimary;
 
     await location.save();
     return location;
@@ -167,6 +179,16 @@ export class OfficeLocationService {
       assignedDesk: desk,
       user: targetUser,
     };
+  }
+
+  /**
+   * Get Office Floor Map and Guidance (LOC-004, UJ-OPS-002)
+   */
+  async getOfficeMap(
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId
+  ) {
+    return this.getEmployeeLocationGuidance(orgId, userId);
   }
 
   /**

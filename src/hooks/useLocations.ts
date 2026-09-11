@@ -29,6 +29,31 @@ export function useCreateLocation() {
     mutationFn: (data: Partial<OfficeLocationData>) => locationService.createLocation(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['officeLocations'] });
+      queryClient.invalidateQueries({ queryKey: ['myLocationGuidance'] });
+    },
+  });
+}
+
+export function useUpdateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { id: string; updates: Partial<OfficeLocationData> }) =>
+      locationService.updateLocation(data.id, data.updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['officeLocations'] });
+      queryClient.invalidateQueries({ queryKey: ['officeLocation', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['myLocationGuidance'] });
+    },
+  });
+}
+
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => locationService.deleteLocation(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['officeLocations'] });
+      queryClient.invalidateQueries({ queryKey: ['myLocationGuidance'] });
     },
   });
 }

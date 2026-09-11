@@ -110,4 +110,15 @@ export class OfficeLocationController {
       data: guidance,
     });
   };
+
+  getOfficeMap = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const officeMap = await this.service.getOfficeMap(user.organizationId, user.userId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Office map retrieved successfully",
+      data: officeMap,
+    });
+  };
 }

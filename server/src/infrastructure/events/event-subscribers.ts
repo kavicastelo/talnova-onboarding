@@ -7,8 +7,10 @@ import documentService from "../../modules/documents/services/document.service.j
 import milestoneService from "../../modules/milestones/services/milestone.service.js";
 import buddyService from "../../modules/buddy/services/buddy.service.js";
 import calendarService from "../../modules/calendar/services/calendar.service.js";
+import { GamificationService } from "../../modules/gamification/services/gamification.service.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
+const gamificationService = new GamificationService();
 
 export function registerEventSubscribers(): void {
   // Listener for JOURNEY_ASSIGNED event
@@ -28,6 +30,23 @@ export function registerEventSubscribers(): void {
   // Listener for JOURNEY_COMPLETED event
   eventBus.subscribe("JOURNEY_COMPLETED", async (event) => {
     const { employeeName, journeyTitle, assignmentId, journeyId, managerUserId } = event.payload || {};
+    
+    // Award milestone gamification points for journey graduation
+    if (event.organizationId && event.actorId) {
+      try {
+        await gamificationService.awardPoints(
+          event.organizationId,
+          event.actorId,
+          "journey_completed",
+          100,
+          `Graduated onboarding journey: "${journeyTitle || "Onboarding Journey"}"`,
+          `journey_${journeyId || assignmentId || event.entityId}`
+        );
+      } catch (gErr) {
+        console.warn("[EventSubscribers] Could not award gamification points for JOURNEY_COMPLETED:", gErr);
+      }
+    }
+
     if (event.actorId) {
       await notificationService.notifyJourneyCompletion(
         event.organizationId,
@@ -106,6 +125,24 @@ export function registerEventSubscribers(): void {
   // Listener for TASK_COMPLETED event
   eventBus.subscribe("TASK_COMPLETED", async (event) => {
     const { title, taskId, assignedToUserId } = event.payload || {};
+    const recipientId = assignedToUserId || event.actorId;
+
+    // Award gamification points for completed task
+    if (event.organizationId && recipientId) {
+      try {
+        await gamificationService.awardPoints(
+          event.organizationId,
+          recipientId,
+          "task_completed",
+          25,
+          `Completed onboarding task: "${title || "Operational Task"}"`,
+          `task_${taskId || event.entityId}`
+        );
+      } catch (err) {
+        console.warn("[EventSubscribers] Could not award gamification points for TASK_COMPLETED:", err);
+      }
+    }
+
     if (event.actorId) {
       await notificationService.createNotification({
         organizationId: event.organizationId,
@@ -120,6 +157,48 @@ export function registerEventSubscribers(): void {
           deepLink: `/tasks`,
         },
       });
+    }
+  });
+
+  // Listener for DOCUMENT_SIGNED event
+  eventBus.subscribe("DOCUMENT_SIGNED", async (event) => {
+    const { templateTitle, assignmentId, employeeId } = event.payload || {};
+    const recipientId = employeeId || event.actorId;
+
+    if (event.organizationId && recipientId) {
+      try {
+        await gamificationService.awardPoints(
+          event.organizationId,
+          recipientId,
+          "document_signed",
+          50,
+          `Completed and signed compliance document: "${templateTitle || "Document"}"`,
+          `doc_${assignmentId || event.entityId}`
+        );
+      } catch (err) {
+        console.warn("[EventSubscribers] Could not award gamification points for DOCUMENT_SIGNED:", err);
+      }
+    }
+  });
+
+  // Listener for MILESTONE_COMPLETED event
+  eventBus.subscribe("MILESTONE_COMPLETED", async (event) => {
+    const { milestoneTitle, milestoneId, employeeId, targetDay } = event.payload || {};
+    const recipientId = employeeId || event.actorId;
+
+    if (event.organizationId && recipientId) {
+      try {
+        await gamificationService.awardPoints(
+          event.organizationId,
+          recipientId,
+          "milestone_completed",
+          50,
+          `Achieved milestone: "${milestoneTitle || `Day ${targetDay || 30} Milestone`}"`,
+          `milestone_${milestoneId || event.entityId}`
+        );
+      } catch (err) {
+        console.warn("[EventSubscribers] Could not award gamification points for MILESTONE_COMPLETED:", err);
+      }
     }
   });
 

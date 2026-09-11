@@ -12,6 +12,7 @@ export interface IPointHistory {
   action: string;
   points: number;
   description: string;
+  referenceId?: string;
   timestamp: Date;
 }
 
@@ -45,6 +46,7 @@ const PointHistorySchema = new Schema<IPointHistory>(
     action: { type: String, required: true },
     points: { type: Number, required: true },
     description: { type: String, required: true },
+    referenceId: { type: String },
     timestamp: { type: Date, default: Date.now },
   },
   { _id: false }

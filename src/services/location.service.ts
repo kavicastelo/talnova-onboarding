@@ -72,6 +72,16 @@ export const locationService = {
     return response.data.data;
   },
 
+  updateLocation: async (id: string, data: Partial<OfficeLocationData>): Promise<OfficeLocationData> => {
+    const response = await apiClient.put<ApiResponse<OfficeLocationData>>(`/locations/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteLocation: async (id: string): Promise<any> => {
+    const response = await apiClient.delete<ApiResponse<any>>(`/locations/${id}`);
+    return response.data.data;
+  },
+
   assignDesk: async (locationId: string, floorNumber: number, deskNumber: string, targetUserId: string): Promise<any> => {
     const response = await apiClient.post<ApiResponse<any>>(`/locations/${locationId}/assign-desk`, {
       floorNumber,
@@ -81,8 +91,13 @@ export const locationService = {
     return response.data.data;
   },
 
+  getOfficeMap: async (): Promise<EmployeeLocationGuidanceData | null> => {
+    const response = await apiClient.get<ApiResponse<EmployeeLocationGuidanceData>>('/locations/office-map');
+    return response.data.data || null;
+  },
+
   getMyLocationGuidance: async (): Promise<EmployeeLocationGuidanceData | null> => {
-    const response = await apiClient.get<ApiResponse<EmployeeLocationGuidanceData>>('/locations/my-location');
+    const response = await apiClient.get<ApiResponse<EmployeeLocationGuidanceData>>('/locations/office-map');
     return response.data.data || null;
   },
 };

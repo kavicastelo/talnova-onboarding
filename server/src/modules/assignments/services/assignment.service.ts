@@ -532,7 +532,8 @@ export class EmployeeAssignmentService {
           assignment.employeeId,
           "quiz_completed",
           50,
-          `Passed quiz in lesson "${lesProg.title}"`
+          `Passed quiz in lesson "${lesProg.title}"`,
+          `quiz_${lesProg.lessonId}`
         );
       } catch (gErr) {
         console.warn("Could not award gamification points for quiz:", gErr);

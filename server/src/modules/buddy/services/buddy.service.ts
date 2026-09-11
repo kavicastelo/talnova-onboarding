@@ -341,6 +341,24 @@ export class BuddyService {
     });
 
     await assignment.save();
+
+    // Award gamification points for completing 1-on-1 buddy check-in
+    try {
+      const { GamificationService } = await import("../../gamification/services/gamification.service.js");
+      const gamificationService = new GamificationService();
+      const checkinIdx = assignment.checkins.length;
+      await gamificationService.awardPoints(
+        orgId,
+        assignment.newHireUserId,
+        "buddy_checkin",
+        25,
+        "Completed 1-on-1 buddy check-in meeting",
+        `buddy_checkin_${assignment._id}_${checkinIdx}`
+      );
+    } catch (gErr) {
+      console.warn("Could not award gamification points for buddy checkin:", gErr);
+    }
+
     return assignment;
   }
 
