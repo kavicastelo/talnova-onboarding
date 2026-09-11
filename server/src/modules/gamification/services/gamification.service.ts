@@ -4,11 +4,26 @@ import User from "../../auth/models/user.model.js";
 
 export const AVAILABLE_BADGES = [
   {
+    badgeId: "quick_starter",
+    name: "Quick Starter",
+    description: "Earned your first onboarding points!",
+    icon: "⚡",
+    pointsRequired: 25,
+  },
+  {
     badgeId: "first_step",
     name: "First Step",
-    description: "Earned your first 50 XP in onboarding!",
+    description: "Earned your first 50 points in onboarding!",
     icon: "🌟",
     pointsRequired: 50,
+  },
+  {
+    badgeId: "first_signer",
+    name: "First Signer",
+    description: "Completed key onboarding documents!",
+    icon: "✍️",
+    actionRequired: "document_signed",
+    pointsRequired: 100,
   },
   {
     badgeId: "fast_learner",
@@ -27,7 +42,7 @@ export const AVAILABLE_BADGES = [
   {
     badgeId: "quiz_master",
     name: "Quiz Master",
-    description: "Reached Level 5 with over 500 XP!",
+    description: "Reached Level 5 with over 500 points!",
     icon: "🎓",
     pointsRequired: 500,
   },
@@ -64,25 +79,34 @@ export class GamificationService {
   }
 
   /**
-   * Award points with anti-gaming rate limits (GAM-001)
+   * Award points with anti-gaming rate limits & entity idempotency (GAM-001)
    */
   async awardPoints(
     orgId: string | mongoose.Types.ObjectId,
     userId: string | mongoose.Types.ObjectId,
     action: string,
     points: number,
-    description: string
+    description: string,
+    referenceId?: string
   ) {
     const profile = await this.getProfile(orgId, userId);
 
-    // Anti-gaming rate limit check: Max 100 points for same action within 1 hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentActionPoints = profile.pointHistory
-      .filter((ph) => ph.action === action && new Date(ph.timestamp) >= oneHourAgo)
-      .reduce((sum, ph) => sum + ph.points, 0);
+    // 1. If referenceId is provided, enforce strict deduplication (anti-gaming idempotency)
+    if (referenceId) {
+      const alreadyAwarded = profile.pointHistory.some((ph) => ph.referenceId === referenceId);
+      if (alreadyAwarded) {
+        return profile; // Idempotent: points already earned for this specific entity
+      }
+    } else {
+      // 2. Anti-gaming rate limit check for generic/manual claims: Max 150 points for same action within 1 hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const recentActionPoints = profile.pointHistory
+        .filter((ph) => ph.action === action && !ph.referenceId && new Date(ph.timestamp) >= oneHourAgo)
+        .reduce((sum, ph) => sum + ph.points, 0);
 
-    if (recentActionPoints + points > 150) {
-      return profile; // Rate limited, skip awarding duplicate points
+      if (recentActionPoints + points > 150) {
+        return profile; // Rate limited, skip awarding duplicate points
+      }
     }
 
     profile.points += points;
@@ -92,6 +116,7 @@ export class GamificationService {
       action,
       points,
       description,
+      referenceId,
       timestamp: new Date(),
     });
 
@@ -103,6 +128,9 @@ export class GamificationService {
     await this.recordActivityStreakInternal(profile);
     await this.checkAndUnlockBadgesInternal(profile);
 
+    profile.markModified("pointHistory");
+    profile.markModified("unlockedBadges");
+
     await profile.save();
     return profile;
   }
@@ -113,6 +141,8 @@ export class GamificationService {
   async recordActivityStreak(orgId: string | mongoose.Types.ObjectId, userId: string | mongoose.Types.ObjectId) {
     const profile = await this.getProfile(orgId, userId);
     await this.recordActivityStreakInternal(profile);
+    await this.checkAndUnlockBadgesInternal(profile);
+    profile.markModified("unlockedBadges");
     await profile.save();
     return profile;
   }
@@ -123,24 +153,28 @@ export class GamificationService {
 
     if (!lastActive) {
       profile.currentStreak = 1;
-      profile.longestStreak = Math.max(profile.longestStreak, 1);
+      profile.longestStreak = Math.max(profile.longestStreak || 0, 1);
       profile.lastActiveDate = now;
       return;
     }
 
-    const isSameDay =
-      now.getFullYear() === lastActive.getFullYear() &&
-      now.getMonth() === lastActive.getMonth() &&
-      now.getDate() === lastActive.getDate();
+    // Accurate calendar day difference based on UTC midnight boundaries
+    const lastMidnight = Date.UTC(lastActive.getUTCFullYear(), lastActive.getUTCMonth(), lastActive.getUTCDate());
+    const nowMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const dayDiff = Math.round((nowMidnight - lastMidnight) / (24 * 60 * 60 * 1000));
 
-    if (isSameDay) return; // Already logged today
+    if (dayDiff === 0) {
+      // Same calendar day: streak already credited today, update timestamp only
+      profile.lastActiveDate = now;
+      return;
+    }
 
-    const diffDays = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) {
-      profile.currentStreak += 1;
-      profile.longestStreak = Math.max(profile.longestStreak, profile.currentStreak);
-    } else if (diffDays > 1) {
+    if (dayDiff === 1) {
+      // Exactly consecutive calendar day: increment streak
+      profile.currentStreak = (profile.currentStreak || 0) + 1;
+      profile.longestStreak = Math.max(profile.longestStreak || 0, profile.currentStreak);
+    } else if (dayDiff > 1) {
+      // Missed at least one full calendar day: reset streak to 1
       profile.currentStreak = 1;
     }
 
@@ -156,9 +190,12 @@ export class GamificationService {
       if (alreadyUnlocked) continue;
 
       let unlock = false;
+      if ((b as any).actionRequired && profile.pointHistory.some((ph: any) => ph.action === (b as any).actionRequired)) {
+        unlock = true;
+      }
       if (b.pointsRequired && profile.points >= b.pointsRequired) unlock = true;
-      if (b.levelRequired && profile.level >= b.levelRequired) unlock = true;
-      if (b.streakRequired && profile.currentStreak >= b.streakRequired) unlock = true;
+      if ((b as any).levelRequired && profile.level >= (b as any).levelRequired) unlock = true;
+      if ((b as any).streakRequired && profile.currentStreak >= (b as any).streakRequired) unlock = true;
 
       if (unlock) {
         profile.unlockedBadges.push({

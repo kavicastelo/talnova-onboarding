@@ -9,7 +9,8 @@ export async function officeLocationRoutes(app: FastifyInstance) {
 
   app.addHook("preHandler", authenticate);
 
-  // Employee Location Guidance (LOC-004)
+  // Office Map & Employee Location Guidance (LOC-004, UJ-OPS-002)
+  app.get("/office-map", controller.getOfficeMap as any);
   app.get("/my-location", controller.getEmployeeGuidance as any);
 
   // Location Management (LOC-001, LOC-002, LOC-003)

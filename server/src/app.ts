@@ -45,9 +45,11 @@ import { gamificationRoutes } from "./modules/gamification/routes/gamification.r
 import { aiAssistantRoutes } from "./modules/ai/routes/ai-assistant.routes.js";
 import { certificateRoutes } from "./modules/certificates/routes/certificate.routes.js";
 import { registerAssignmentSubscribers } from "./modules/assignments/subscribers/assignment.subscriber.js";
+import { registerEventSubscribers } from "./infrastructure/events/event-subscribers.js";
 
 export async function buildApp() {
   registerAssignmentSubscribers();
+  registerEventSubscribers();
   const app = Fastify({
     logger: loggerConfig,
     disableRequestLogging: true, // Custom request/response lifecycle logging in logging.middleware.ts
