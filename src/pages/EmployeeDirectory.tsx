@@ -13,7 +13,7 @@ import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
 import { SimplePagination } from '../components/SimplePagination';
-import { Plus, Search, AlertCircle, RefreshCw, Upload, Download, CheckCircle2, Check } from 'lucide-react';
+import { Plus, Search, AlertCircle, RefreshCw, Upload, Download, CheckCircle2 } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee, 

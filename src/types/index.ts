@@ -3,6 +3,7 @@
 // -------------------------
 export interface User {
   id: string;
+  _id?: string;
   name: string;
   email: string;
   role: 'admin' | 'employee' | 'super_admin';
@@ -70,6 +71,7 @@ export interface AssignedJourneyOverview {
 export interface Employee {
   id: string;
   name: string;
+  fullName?: string;
   role: string;
   department: string;
   status: EmployeeStatus;

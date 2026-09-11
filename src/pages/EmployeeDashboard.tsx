@@ -81,7 +81,7 @@ export function EmployeeDashboard() {
   const publicPagination = usePagination({ data: availablePublicJourneys, initialPageSize: 6 });
 
   // Persistence key for employee onboarding handover confirmation
-  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?._id || 'default'}`;
+  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?.id || user?._id || 'default'}`;
   const [isHandoverAcknowledged, setIsHandoverAcknowledged] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(handoverStorageKey) === 'true' || employee?.status === 'Active';
@@ -170,7 +170,7 @@ export function EmployeeDashboard() {
   let currentStageIndex = 1;
   let activeStageTitle = 'Compliance & E-Signatures';
   let activeStageDescription = 'Review and sign required legal & policy documents before proceeding.';
-  let activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0].id || pendingDocs[0]._id}/sign` : '/documents';
+  let activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0]._id}/sign` : '/documents';
   let activeStageActionText = 'Sign Pending Documents';
 
   if (isUnassignedNewUser) {
@@ -183,7 +183,7 @@ export function EmployeeDashboard() {
     currentStageIndex = 1;
     activeStageTitle = 'Stage 1: Compliance E-Signatures (Prerequisite)';
     activeStageDescription = 'Review and sign required legal & policy documents before proceeding with your training modules.';
-    activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0].id || pendingDocs[0]._id}/sign` : '/documents';
+    activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0]._id}/sign` : '/documents';
     activeStageActionText = 'Sign Pending Documents';
   } else if (openTasksCount > 0) {
     currentStageIndex = 2;
@@ -255,7 +255,7 @@ export function EmployeeDashboard() {
               </span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome Back, {user?.name || employee.fullName}!
+              Welcome Back, {user?.name || employee?.fullName || employee?.name || 'Team Member'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Your onboarding journey is 100% complete. Access your active workspace, knowledge base, and team tools below.
@@ -282,7 +282,7 @@ export function EmployeeDashboard() {
             </div>
             <CardTitle className="text-lg">Certificate of Onboarding Completion</CardTitle>
             <CardDescription>
-              Issued to {user?.name || employee.fullName} for completing all onboarding curriculum requirements.
+              Issued to {user?.name || employee?.fullName || employee?.name || 'Team Member'} for completing all onboarding curriculum requirements.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

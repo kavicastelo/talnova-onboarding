@@ -36,7 +36,7 @@ export function Certificates() {
     },
   });
 
-  const isLoading = userLoading || employeeLoading;
+  const isLoading = userLoading || employeeLoading || myCertsLoading;
 
   if (isLoading) {
     return (

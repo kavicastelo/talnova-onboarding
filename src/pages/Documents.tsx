@@ -8,9 +8,7 @@ import {
   Building2,
   ArrowRight,
   ShieldCheck,
-  Edit3,
-  Eye,
-  AlertCircle
+  Edit3
 } from 'lucide-react';
 import {
   useDocumentTemplates,

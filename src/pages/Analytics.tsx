@@ -41,7 +41,6 @@ import {
   Plus,
   Trash2,
   Filter,
-  CheckCircle2,
   BarChart3,
   LineChart as LineChartIcon
 } from 'lucide-react';
@@ -313,7 +312,7 @@ export function Analytics() {
                   tickLine={false}
                 />
                 <Tooltip
-                  formatter={(val: any, name: any, item: any) => [
+                  formatter={(val: any, _name: any, item: any) => [
                     `${val}% active (${item.payload.count} learners, drop-off: ${item.payload.dropOff}%)`,
                     'Completion'
                   ]}
@@ -325,7 +324,7 @@ export function Analytics() {
                   }}
                 />
                 <Bar dataKey="percentage" radius={[0, 4, 4, 0]}>
-                  {funnelData.map((entry, index) => (
+                  {funnelData.map((_entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={

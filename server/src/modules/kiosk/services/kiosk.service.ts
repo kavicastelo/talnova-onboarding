@@ -221,8 +221,14 @@ export class KioskService {
     }
 
     // Extract journey identifiers (can be ObjectId or journeyCode)
-    const rawJourneyIds = [...new Set(rawItems.map((item: any) => item.journeyId).filter(Boolean))];
-    const validObjectIds = rawJourneyIds.filter(id => mongoose.Types.ObjectId.isValid(id) && id.length === 24);
+    const rawJourneyIds: string[] = Array.from(
+      new Set(
+        rawItems
+          .map((item: any) => String(item.journeyId || ""))
+          .filter((id: string): id is string => Boolean(id))
+      )
+    );
+    const validObjectIds = rawJourneyIds.filter((id: string) => mongoose.Types.ObjectId.isValid(id) && id.length === 24);
 
     const journeys = await KioskJourneyModel.find({
       $or: [
@@ -249,7 +255,7 @@ export class KioskService {
 
       const journeyId = matchedJourney._id as mongoose.Types.ObjectId;
       const journeyVersion = matchedJourney.publishing?.version || 1;
-      const languageUsed = item.languageUsed || matchedJourney.settings?.defaultLanguage || "en";
+      const languageUsed = item.languageUsed || matchedJourney.languages?.[0] || (matchedJourney.settings as any)?.defaultLanguage || "en";
       const eventType = item.eventType || item.interactions?.[0]?.eventType || "STEP_VIEWED";
       const stepId = item.stepId || item.interactions?.[0]?.stepId || "step-01";
       const durationSeconds = item.durationSeconds || item.metrics?.durationSeconds || 0;
