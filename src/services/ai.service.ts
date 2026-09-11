@@ -39,8 +39,9 @@ export interface AIConversationData {
 
 export const aiService = {
   chat: async (message: string, conversationId?: string): Promise<AIConversationData> => {
-    const response = await apiClient.post<ApiResponse<AIConversationData>>('/ai/chat', {
+    const response = await apiClient.post<ApiResponse<AIConversationData>>('/ai/query', {
       message,
+      query: message,
       conversationId,
     });
     return response.data.data;

@@ -7,6 +7,7 @@ export interface IBuddyProfile extends Document {
   maxMentees: number;
   currentMenteeCount: number;
   skills: string[];
+  languages?: string[];
   department?: string;
   jobTitle?: string;
   bio?: string;
@@ -23,6 +24,7 @@ const BuddyProfileSchema = new Schema<IBuddyProfile>(
     maxMentees: { type: Number, default: 3 },
     currentMenteeCount: { type: Number, default: 0 },
     skills: { type: [String], default: [] },
+    languages: { type: [String], default: [] },
     department: { type: String },
     jobTitle: { type: String },
     bio: { type: String },

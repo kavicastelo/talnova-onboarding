@@ -3,9 +3,13 @@ import { ApiResponse } from '../types';
 
 export interface PublicCertificate {
   id: string;
+  verified?: boolean;
   journeyTitle: string;
   recipientName: string;
   issuedAt: string;
+  issueDate?: string;
+  organizationName?: string;
+  credentialId?: string;
   certificateId: string;
   certificate?: {
     template: 'classic' | 'modern' | 'minimalist';

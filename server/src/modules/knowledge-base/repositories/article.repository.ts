@@ -107,9 +107,27 @@ export class KnowledgeBaseRepository {
     const visibilityFilter = this.buildVisibilityFilter(userContext);
     Object.assign(query, visibilityFilter);
 
-    // Apply text search if query exists
-    if (filter.search) {
-      query.$text = { $search: filter.search };
+    // Apply real-time search if query exists
+    if (filter.search && filter.search.trim()) {
+      const escaped = filter.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escaped, "i");
+      const searchConditions = [
+        { title: searchRegex },
+        { summary: searchRegex },
+        { tags: searchRegex },
+        { "content.blocks.content": searchRegex },
+        { searchKeywords: searchRegex },
+      ];
+
+      if (query.$or) {
+        query.$and = [
+          { $or: query.$or },
+          { $or: searchConditions },
+        ];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     const total = await Article.countDocuments(query);
@@ -120,18 +138,9 @@ export class KnowledgeBaseRepository {
 
     const sortField = pagination.sortBy || "createdAt";
     const sortOrder = pagination.sortOrder === "asc" ? 1 : -1;
+    const sortOption: Record<string, any> = { [sortField]: sortOrder };
 
-    // If text search, sort by score by default if no sortBy provided
-    const sortOption: Record<string, any> = {};
-    if (filter.search && !pagination.sortBy) {
-      sortOption.score = { $meta: "textScore" };
-    } else {
-      sortOption[sortField] = sortOrder;
-    }
-
-    const projection = filter.search ? { score: { $meta: "textScore" } } : {};
-
-    const articles = await Article.find(query, projection)
+    const articles = await Article.find(query)
       .sort(sortOption)
       .skip(skip)
       .limit(limit);

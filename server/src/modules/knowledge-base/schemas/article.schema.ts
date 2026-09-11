@@ -33,6 +33,7 @@ export const createArticleSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
   visibility: VisibilitySchema.optional(),
   attachments: z.array(AttachmentSchema).optional().default([]),
+  status: z.enum(["draft", "published", "archived"]).optional(),
 });
 
 export const updateArticleSchema = z.object({

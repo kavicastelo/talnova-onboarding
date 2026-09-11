@@ -10,12 +10,13 @@ export class AIAssistantController {
 
   chat = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
-    const body = request.body as any;
+    const body = (request.body as any) || {};
+    const promptText = body.message || body.query || body.question || body.prompt;
 
-    if (!body.message || typeof body.message !== "string") {
+    if (!promptText || typeof promptText !== "string" || !promptText.trim()) {
       return reply.status(400).send({
         success: false,
-        message: "Message prompt is required",
+        message: "Message or query prompt is required",
       });
     }
 
@@ -23,13 +24,27 @@ export class AIAssistantController {
       user.organizationId,
       user.userId,
       user.role || "employee",
-      body.message,
+      promptText.trim(),
       body.conversationId
     );
+
+    const lastAssistantMsg = conversation.messages
+      .slice()
+      .reverse()
+      .find((m: any) => m.sender === "assistant");
+
+    const answer = lastAssistantMsg?.content || "";
+    const sources = (lastAssistantMsg?.citations || []).map((c: any) => ({
+      id: c.articleId,
+      title: c.title,
+      url: c.url,
+    }));
 
     return reply.status(200).send({
       success: true,
       message: "AI response generated successfully",
+      answer,
+      sources,
       data: conversation,
     });
   };

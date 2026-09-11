@@ -107,7 +107,11 @@ export class KnowledgeBaseService {
       tags: articleData.tags || [],
       visibility,
       attachments,
-      publishing: { status: "draft" as const, version: 1 },
+      publishing: {
+        status: (articleData as any).status === "published" ? ("published" as const) : ("draft" as const),
+        publishedAt: (articleData as any).status === "published" ? new Date() : undefined,
+        version: 1,
+      },
       searchKeywords,
       createdBy: new mongoose.Types.ObjectId(userId),
       isDeleted: false,

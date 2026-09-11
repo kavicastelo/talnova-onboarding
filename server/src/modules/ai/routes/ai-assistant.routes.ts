@@ -10,8 +10,9 @@ export async function aiAssistantRoutes(app: FastifyInstance) {
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
 
-  // POST /api/v1/ai/chat
+  // POST /api/v1/ai/chat & POST /api/v1/ai/query
   app.post("/chat", controller.chat as any);
+  app.post("/query", controller.chat as any);
 
   // GET /api/v1/ai/conversations
   app.get("/conversations", controller.getConversations as any);

@@ -9,7 +9,11 @@ export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId"
   organizationId: mongoose.Types.ObjectId;
   currentJourneyId?: mongoose.Types.ObjectId;
   lastSeen: Date;
+  lastHeartbeatAt?: Date;
   pairedAt?: Date;
+  paired?: boolean;
+  hardwareGuid?: string;
+  tokenRef?: string;
 }
 
 const KioskTelemetrySchema = new Schema(
@@ -28,6 +32,7 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
     deviceId: { type: String, required: true, trim: true },
+    hardwareGuid: { type: String, trim: true },
     name: { type: String, required: true, trim: true },
     location: { type: String, required: true },
     status: {
@@ -36,7 +41,10 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
       enum: KIOSK_DEVICE_STATUSES,
       default: "offline"
     },
+    paired: { type: Boolean, default: true },
+    tokenRef: { type: String },
     lastSeen: { type: Date, required: true, default: Date.now },
+    lastHeartbeatAt: { type: Date, default: Date.now },
     ipAddress: { type: String },
     macAddress: { type: String },
     pairedAt: { type: Date },

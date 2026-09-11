@@ -57,7 +57,8 @@ import {
   Bot,
   Wand2,
   KeyRound,
-  MapPin
+  MapPin,
+  Tv
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -115,6 +116,7 @@ export function AppShell() {
     { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
     { title: 'Workflows & Rules', url: '/workflows', icon: Workflow },
     { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+    { title: 'Kiosk Terminals', url: '/kiosks', icon: Tv },
     { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
     { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
     { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },

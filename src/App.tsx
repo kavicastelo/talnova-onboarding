@@ -79,6 +79,8 @@ export function App() {
               <Route path="directory/:id" element={<EmployeeProfile />} />
               <Route path="employee" element={<EmployeeDashboard />} />
               <Route path="kb" element={<KnowledgeBase />} />
+              <Route path="kb/:id" element={<KnowledgeBase />} />
+              <Route path="knowledge-base/:id" element={<KnowledgeBase />} />
               <Route path="analytics" element={<ProtectedRoute capability="view_analytics"><Analytics /></ProtectedRoute>} />
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />

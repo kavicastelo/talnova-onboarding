@@ -47,9 +47,9 @@ export class KioskSecurityService {
 
   /**
    * Generates a secure, 6-digit numeric pairing code for a physical device registration stream.
-   * Codes expire after ttlMs (default 5 minutes).
+   * Codes expire after ttlMs (default 15 minutes / 900000 ms).
    */
-  generatePairingCode(orgId: string, deviceId: string, ttlMs = 300000): string {
+  generatePairingCode(orgId: string, deviceId: string, ttlMs = 900000): string {
     // Generate a 6-digit random code string
     let code: string;
     do {

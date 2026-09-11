@@ -186,6 +186,7 @@ export function AIAssistant() {
               currentMessages.map((msg, idx) => (
                 <div
                   key={msg._id || idx}
+                  data-testid={msg.sender === 'user' ? 'user-message-bubble' : 'assistant-message-bubble'}
                   className={`flex gap-3 text-xs ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {msg.sender === 'assistant' && (
@@ -201,7 +202,7 @@ export function AIAssistant() {
                         : 'bg-card border text-foreground rounded-bl-none shadow-sm'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                    <div data-testid={msg.sender === 'assistant' ? 'assistant-message-content' : undefined} className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
 
                     {/* Citations / References */}
                     {msg.citations && msg.citations.length > 0 && (
@@ -213,10 +214,11 @@ export function AIAssistant() {
                           {msg.citations.map((c, cIdx) => (
                             <button
                               key={cIdx}
+                              data-testid="ai-citation-chip"
                               onClick={() => navigate(c.url)}
-                              className="text-[11px] bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 px-2 py-0.5 rounded border border-indigo-500/20"
+                              className="text-[11px] bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 px-2 py-0.5 rounded border border-indigo-500/20 transition-colors"
                             >
-                              📖 {c.title}
+                              📖 <span data-testid="ai-citation-title">{c.title}</span>
                             </button>
                           ))}
                         </div>
@@ -283,6 +285,7 @@ export function AIAssistant() {
           {/* Input Box Bar */}
           <div className="p-4 border-t bg-card flex gap-2 items-center">
             <Input
+              data-testid="ai-prompt-input"
               placeholder="Ask AI Onboarding Assistant a question..."
               value={inputPrompt}
               onChange={(e: any) => setInputPrompt(e.target.value)}
@@ -290,6 +293,7 @@ export function AIAssistant() {
               className="flex-1"
             />
             <Button
+              data-testid="ai-send-btn"
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={() => handleSendPrompt()}
               disabled={chatMutation.isPending || !inputPrompt.trim()}

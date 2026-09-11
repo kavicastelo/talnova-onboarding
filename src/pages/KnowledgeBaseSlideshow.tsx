@@ -244,6 +244,7 @@ export function KnowledgeBaseSlideshow() {
         {/* Article Selector Dropdown */}
         <div className="flex items-center gap-4">
           <select 
+            data-testid="slideshow-article-select"
             value={selectedArticleIndex}
             onChange={(e) => handleSelectArticle(Number(e.target.value))}
             className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -288,6 +289,7 @@ export function KnowledgeBaseSlideshow() {
             {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </Button>
           <Button 
+            data-testid="slideshow-exit-btn"
             variant="ghost" 
             size="icon" 
             onClick={() => navigate('/kb')}
@@ -312,6 +314,8 @@ export function KnowledgeBaseSlideshow() {
         
         {/* Navigation - Left Arrow */}
         <button 
+          data-testid="slideshow-prev-btn"
+          aria-label="Previous slide"
           onClick={handlePrev}
           className="absolute left-6 w-14 h-14 rounded-full flex items-center justify-center bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all hover:scale-105 z-10"
         >
@@ -321,6 +325,7 @@ export function KnowledgeBaseSlideshow() {
         {/* Slide Frame */}
         <div className="w-full max-w-5xl aspect-[16/9] flex items-center justify-center">
           <Card 
+            data-testid="slideshow-card"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className="w-full h-full border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm shadow-2xl relative flex flex-col justify-center px-16 py-12"
@@ -345,7 +350,7 @@ export function KnowledgeBaseSlideshow() {
                   <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-indigo-500/20">
                     {currentSlide.category}
                   </span>
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
+                  <h1 data-testid="slideshow-slide-title" className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
                     {currentSlide.title}
                   </h1>
                   <div className="h-1 w-24 bg-indigo-500/40 mx-auto" />
@@ -406,6 +411,8 @@ export function KnowledgeBaseSlideshow() {
 
         {/* Navigation - Right Arrow */}
         <button 
+          data-testid="slideshow-next-btn"
+          aria-label="Next slide"
           onClick={handleNext}
           className="absolute right-6 w-14 h-14 rounded-full flex items-center justify-center bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all hover:scale-105 z-10"
         >
@@ -421,6 +428,7 @@ export function KnowledgeBaseSlideshow() {
 
         <div className="flex items-center gap-4">
           <Button 
+            data-testid="slideshow-play-pause-btn"
             variant="outline" 
             size="icon" 
             onClick={() => setIsPlaying(!isPlaying)}

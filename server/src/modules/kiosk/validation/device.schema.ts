@@ -66,10 +66,16 @@ export const KioskDevicePairCodeSchema = z
  */
 export const KioskDeviceHeartbeatSchema = z
   .object({
-    currentContentVersion: z.number().int().nonnegative(),
-    telemetry: KioskTelemetrySchema
+    currentContentVersion: z.number().int().nonnegative().optional().default(0),
+    telemetry: KioskTelemetrySchema.optional(),
+    batteryLevel: z.number().optional(),
+    appVersion: z.string().optional(),
+    isCharging: z.boolean().optional(),
+    storageUsedBytes: z.number().optional(),
+    storageFreeBytes: z.number().optional(),
+    networkLatencyMs: z.number().optional()
   })
-  .strict();
+  .passthrough();
 
 /**
  * Remote administrator command schema validator.

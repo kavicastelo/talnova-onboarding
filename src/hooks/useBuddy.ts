@@ -8,6 +8,13 @@ export function useAvailableBuddies() {
   });
 }
 
+export function useMyBuddyProfile() {
+  return useQuery({
+    queryKey: ['myBuddyProfile'],
+    queryFn: () => buddyService.getMyProfile(),
+  });
+}
+
 export function useMyBuddy() {
   return useQuery({
     queryKey: ['myBuddy'],
@@ -35,6 +42,7 @@ export function useRegisterBuddy() {
     mutationFn: (data: Partial<BuddyProfile>) => buddyService.registerProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availableBuddies'] });
+      queryClient.invalidateQueries({ queryKey: ['myBuddyProfile'] });
     },
   });
 }
@@ -75,11 +83,35 @@ export function useUpdateBuddyChecklist() {
 export function useLogBuddyCheckin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ assignmentId, payload }: { assignmentId: string; payload: { notes: string; rating?: number } }) =>
-      buddyService.logBuddyCheckin(assignmentId, payload),
+    mutationFn: ({
+      assignmentId,
+      payload,
+    }: {
+      assignmentId: string;
+      payload: { notes: string; rating?: number; sentiment?: 'positive' | 'neutral' | 'challenged' };
+    }) => buddyService.logBuddyCheckin(assignmentId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myBuddy'] });
       queryClient.invalidateQueries({ queryKey: ['myMentees'] });
+      queryClient.invalidateQueries({ queryKey: ['buddyAssignments'] });
+    },
+  });
+}
+
+export function useAddBuddyChecklistTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      assignmentId,
+      payload,
+    }: {
+      assignmentId: string;
+      payload: { title: string; description?: string; stage?: string };
+    }) => buddyService.addCustomChecklistTask(assignmentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myBuddy'] });
+      queryClient.invalidateQueries({ queryKey: ['myMentees'] });
+      queryClient.invalidateQueries({ queryKey: ['buddyAssignments'] });
     },
   });
 }

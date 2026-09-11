@@ -46,19 +46,58 @@ export class AIAssistantService {
     });
 
     // 2. Perform RAG Knowledge Base Search
-    const cleanedWords = messageText
+    const STOP_WORDS = new Set([
+      "what", "is", "the", "for", "during", "and", "or", "in", "on", "at", "to", "a", "an", "of",
+      "how", "can", "tell", "about", "please", "me", "are", "do", "does", "with", "this", "that",
+      "from", "your", "our", "policy", "guidelines", "rules", "company", "many", "much"
+    ]);
+
+    const allWords = messageText
+      .toLowerCase()
       .replace(/[^\w\s]/g, "")
       .split(/\s+/)
       .filter((w) => w.length > 2);
 
-    const searchRegex = cleanedWords.length > 0 ? new RegExp(cleanedWords.join("|"), "i") : /.*/;
+    const keyTerms = allWords.filter((w) => !STOP_WORDS.has(w));
+    const searchTerms = keyTerms.length > 0 ? keyTerms : allWords;
+    const searchRegex = searchTerms.length > 0 ? new RegExp(searchTerms.join("|"), "i") : null;
 
-    const matchingArticles = await Article.find({
-      organizationId: orgObjectId,
-      "publishing.status": "published",
-      isDeleted: { $ne: true },
-      $or: [{ title: searchRegex }, { summary: searchRegex }, { searchKeywords: searchRegex }],
-    }).limit(3);
+    let matchingArticles: any[] = [];
+
+    if (searchRegex) {
+      const candidates = await Article.find({
+        organizationId: orgObjectId,
+        "publishing.status": "published",
+        isDeleted: { $ne: true },
+        $or: [
+          { title: searchRegex },
+          { summary: searchRegex },
+          { searchKeywords: searchRegex },
+          { tags: searchRegex },
+          { "content.blocks.content": searchRegex },
+        ],
+      });
+
+      // Score candidates by how many key terms appear in title, summary, tags, keywords
+      const scored = candidates.map((art) => {
+        let score = 0;
+        const titleLower = art.title.toLowerCase();
+        const summaryLower = (art.summary || "").toLowerCase();
+        const tagsLower = (art.tags || []).map((t) => t.toLowerCase());
+        const keywordsLower = (art.searchKeywords || []).map((k) => k.toLowerCase());
+
+        for (const term of searchTerms) {
+          if (titleLower.includes(term)) score += 15;
+          if (summaryLower.includes(term)) score += 8;
+          if (tagsLower.some((t) => t.includes(term))) score += 6;
+          if (keywordsLower.some((k) => k.includes(term))) score += 6;
+        }
+        return { article: art, score };
+      });
+
+      scored.sort((a, b) => b.score - a.score);
+      matchingArticles = scored.filter((s) => s.score > 0).slice(0, 3).map((s) => s.article);
+    }
 
     // 3. Perform Task/Assignment Context Search
     const activeAssignments = await EmployeeAssignment.find({
@@ -70,7 +109,7 @@ export class AIAssistantService {
     // 4. Synthesize AI Response & Citations
     const citations = matchingArticles.map((art) => ({
       title: art.title,
-      url: `/knowledge-base/${art.slug}`,
+      url: `/kb/${art._id.toString()}`,
       articleId: art._id.toString(),
     }));
 
@@ -83,7 +122,10 @@ export class AIAssistantService {
     let aiContent = "";
 
     if (matchingArticles.length > 0) {
-      aiContent = `Based on your company's knowledge base article **"${matchingArticles[0].title}"**:\n\n${matchingArticles[0].summary || matchingArticles[0].title}...\n\nFor more detailed step-by-step instructions, please reference the official article below.`;
+      const topArticle = matchingArticles[0];
+      const mainText = topArticle.content?.blocks?.map((b: any) => b.content).filter(Boolean).join(" ") || "";
+      const excerpt = mainText.length > 320 ? mainText.slice(0, 320) + "..." : mainText;
+      aiContent = `Based on your company's policy document **"${topArticle.title}"**:\n\n${topArticle.summary ? topArticle.summary + "\n\n" : ""}${excerpt || topArticle.title}\n\nFor additional guidelines, please reference the official article below.`;
     } else if (activeAssignments.length > 0) {
       aiContent = `You currently have **${activeAssignments.length} active onboarding journey(s)** assigned. Your progress is on track! Check your assigned tasks to complete pending modules.`;
     } else {

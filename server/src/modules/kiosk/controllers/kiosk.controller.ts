@@ -105,11 +105,13 @@ export class KioskController {
       throw new AppError(400, "BAD_REQUEST", "deviceId is required to generate pairing code");
     }
 
-    const code = await this.kioskService.generatePairingCode(user.organizationId, body.deviceId);
+    const { code, expiresInSeconds } = await this.kioskService.generatePairingCode(user.organizationId, body.deviceId);
     return reply.status(200).send({
       success: true,
       message: "Device pairing code generated successfully",
-      data: { code }
+      code,
+      expiresInSeconds,
+      data: { code, expiresInSeconds }
     });
   };
 
@@ -124,27 +126,51 @@ export class KioskController {
     return reply.status(200).send({
       success: true,
       message: "Device paired successfully",
-      data: result
+      deviceToken: result.token,
+      device: {
+        id: result.device._id.toString(),
+        _id: result.device._id.toString(),
+        name: result.device.name,
+        deviceId: result.device.deviceId,
+        hardwareGuid: (result.device as any).hardwareGuid || result.device.deviceId,
+        location: result.device.location,
+        status: result.device.status,
+        paired: (result.device as any).paired ?? true
+      },
+      data: {
+        deviceToken: result.token,
+        token: result.token,
+        device: result.device
+      }
     });
   };
 
   heartbeat = async (request: FastifyRequest, reply: FastifyReply) => {
     const devicePayload = request.user as any;
-    const body = request.body as any;
+    const body = (request.body || {}) as any;
 
-    if (!body) {
-      throw new AppError(400, "BAD_REQUEST", "Heartbeat body is required");
-    }
+    const telemetry = {
+      ...(body.telemetry || {}),
+      batteryLevel: body.batteryLevel !== undefined
+        ? (body.batteryLevel > 1 ? body.batteryLevel / 100 : body.batteryLevel)
+        : body.telemetry?.batteryLevel,
+      appVersion: body.appVersion || body.telemetry?.appVersion,
+      isCharging: body.isCharging !== undefined ? body.isCharging : body.telemetry?.isCharging,
+      networkLatencyMs: body.networkLatencyMs !== undefined ? body.networkLatencyMs : body.telemetry?.networkLatencyMs,
+      storageUsedBytes: body.storageUsedBytes !== undefined ? body.storageUsedBytes : body.telemetry?.storageUsedBytes,
+      storageFreeBytes: body.storageFreeBytes !== undefined ? body.storageFreeBytes : body.telemetry?.storageFreeBytes,
+    };
 
     const updated = await this.kioskService.heartbeat(
       devicePayload.deviceId,
       devicePayload.organizationId,
-      body.contentVersion || 0,
-      body.telemetry || {}
+      body.currentContentVersion || body.contentVersion || 0,
+      telemetry
     );
 
     return reply.status(200).send({
       success: true,
+      status: "ok",
       message: "Heartbeat logged successfully",
       data: updated
     });
@@ -223,8 +249,9 @@ export class KioskController {
     const userPayload = request.user as any;
     const body = request.body as any;
 
-    if (!Array.isArray(body?.sessions)) {
-      throw new AppError(400, "BAD_REQUEST", "sessions must be an array");
+    const items = body?.events || body?.sessions;
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new AppError(400, "BAD_REQUEST", "events or sessions must be a non-empty array");
     }
 
     const orgId = userPayload?.organizationId || request.kioskContext?.organizationId;
@@ -232,11 +259,15 @@ export class KioskController {
       throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
     }
 
-    const result = await this.kioskService.syncAnalytics(orgId, body.sessions);
+    const result = await this.kioskService.syncAnalytics(orgId, body, userPayload?.deviceId);
     return reply.status(200).send({
       success: true,
       message: "Analytics synced successfully",
-      data: result
+      syncedCount: result.length,
+      data: {
+        syncedCount: result.length,
+        items: result
+      }
     });
   };
 

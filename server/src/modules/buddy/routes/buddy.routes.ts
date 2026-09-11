@@ -7,6 +7,7 @@ import {
   assignBuddySchema,
   updateChecklistSchema,
   logCheckinSchema,
+  addCustomTaskSchema,
 } from "../schemas/buddy.schema.js";
 
 export async function buddyRoutes(app: FastifyInstance) {
@@ -24,6 +25,7 @@ export async function buddyRoutes(app: FastifyInstance) {
   );
 
   app.get("/available", controller.listAvailableBuddies as any);
+  app.get("/my-profile", controller.getMyProfile as any);
   app.get("/assignments", controller.listOrganizationAssignments as any);
 
   // Assignment (Admin / Owner / Manager)
@@ -45,6 +47,12 @@ export async function buddyRoutes(app: FastifyInstance) {
     "/assignment/:id/checklist",
     { schema: { body: updateChecklistSchema } },
     controller.updateChecklistTask as any
+  );
+
+  app.post(
+    "/assignment/:id/checklist/task",
+    { schema: { body: addCustomTaskSchema } },
+    controller.addCustomChecklistTask as any
   );
 
   app.post(

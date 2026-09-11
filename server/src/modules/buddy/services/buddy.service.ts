@@ -34,6 +34,7 @@ export class BuddyService {
         isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
         maxMentees: data.maxMentees || 3,
         skills: data.skills || [],
+        languages: (data as any).languages || [],
         department: user.employment?.department || "General",
         jobTitle: user.employment?.jobTitle || "Team Member",
         bio: data.bio,
@@ -42,11 +43,24 @@ export class BuddyService {
       if (data.isAvailable !== undefined) profile.isAvailable = data.isAvailable;
       if (data.maxMentees) profile.maxMentees = data.maxMentees;
       if (data.skills) profile.skills = data.skills;
+      if ((data as any).languages) (profile as any).languages = (data as any).languages;
       if (data.bio !== undefined) profile.bio = data.bio;
       await profile.save();
     }
 
     return profile;
+  }
+
+  /**
+   * Get Current User Buddy Profile
+   */
+  async getBuddyProfile(
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    return BuddyProfile.findOne({ organizationId: orgObjectId, userId: userObjectId });
   }
 
   /**
@@ -107,6 +121,7 @@ export class BuddyService {
     // Seed Buddy Checklist Template
     let checklist = [
       { title: "Conduct virtual welcome coffee & intro", stage: "day_1", completed: false },
+      { title: "Introduce mentee to engineering channel on Slack", stage: "day_1", completed: false },
       { title: "Help with IT tools & Slack channel setup", stage: "day_1", completed: false },
       { title: "Introduce new hire to team members", stage: "week_1", completed: false },
       { title: "Conduct 1-on-1 week 1 check-in meeting", stage: "week_1", completed: false },
@@ -219,7 +234,9 @@ export class BuddyService {
     orgId: string | mongoose.Types.ObjectId,
     assignmentId: string | mongoose.Types.ObjectId,
     taskId: string,
-    completed: boolean
+    completed: boolean,
+    actingUserId?: string | mongoose.Types.ObjectId,
+    actingUserRole?: string
   ) {
     const assignment = await BuddyAssignment.findOne({
       _id: new mongoose.Types.ObjectId(assignmentId),
@@ -229,6 +246,14 @@ export class BuddyService {
 
     if (!assignment) {
       throw new AppError(404, "NOT_FOUND", "Buddy assignment not found");
+    }
+
+    if (actingUserId && actingUserRole !== "admin" && actingUserRole !== "owner") {
+      const isBuddy = assignment.buddyUserId.toString() === actingUserId.toString();
+      const isMentee = assignment.newHireUserId.toString() === actingUserId.toString();
+      if (!isBuddy && !isMentee) {
+        throw new AppError(403, "FORBIDDEN", "Only assigned buddy or mentee can toggle checklist items");
+      }
     }
 
     const item = assignment.checklist.find((c) => c._id?.toString() === taskId || c.title === taskId);
@@ -242,12 +267,14 @@ export class BuddyService {
   }
 
   /**
-   * Log 1-on-1 Buddy Check-In (BUD-005)
+   * Add Ad-hoc Custom Task to Buddy Checklist (BUD-002)
    */
-  async logBuddyCheckin(
+  async addCustomChecklistTask(
     orgId: string | mongoose.Types.ObjectId,
     assignmentId: string | mongoose.Types.ObjectId,
-    payload: { notes: string; rating?: number }
+    taskData: { title: string; description?: string; stage?: "preboarding" | "day_1" | "week_1" | "month_1" },
+    actingUserId?: string | mongoose.Types.ObjectId,
+    actingUserRole?: string
   ) {
     const assignment = await BuddyAssignment.findOne({
       _id: new mongoose.Types.ObjectId(assignmentId),
@@ -259,10 +286,58 @@ export class BuddyService {
       throw new AppError(404, "NOT_FOUND", "Buddy assignment not found");
     }
 
+    if (actingUserId && actingUserRole !== "admin" && actingUserRole !== "owner") {
+      const isBuddy = assignment.buddyUserId.toString() === actingUserId.toString();
+      const isMentee = assignment.newHireUserId.toString() === actingUserId.toString();
+      if (!isBuddy && !isMentee) {
+        throw new AppError(403, "FORBIDDEN", "Only assigned buddy or mentee can modify checklist items");
+      }
+    }
+
+    assignment.checklist.push({
+      title: taskData.title,
+      description: taskData.description,
+      stage: taskData.stage || "day_1",
+      completed: false,
+    } as any);
+
+    await assignment.save();
+    return assignment;
+  }
+
+  /**
+   * Log 1-on-1 Buddy Check-In (BUD-005)
+   */
+  async logBuddyCheckin(
+    orgId: string | mongoose.Types.ObjectId,
+    assignmentId: string | mongoose.Types.ObjectId,
+    payload: { notes: string; rating?: number; sentiment?: "positive" | "neutral" | "challenged" },
+    actingUserId?: string | mongoose.Types.ObjectId,
+    actingUserRole?: string
+  ) {
+    const assignment = await BuddyAssignment.findOne({
+      _id: new mongoose.Types.ObjectId(assignmentId),
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    });
+
+    if (!assignment) {
+      throw new AppError(404, "NOT_FOUND", "Buddy assignment not found");
+    }
+
+    if (actingUserId && actingUserRole !== "admin" && actingUserRole !== "owner") {
+      const isBuddy = assignment.buddyUserId.toString() === actingUserId.toString();
+      const isMentee = assignment.newHireUserId.toString() === actingUserId.toString();
+      if (!isBuddy && !isMentee) {
+        throw new AppError(403, "FORBIDDEN", "Only assigned buddy or mentee can log check-ins for this pairing");
+      }
+    }
+
     assignment.checkins.push({
       completedAt: new Date(),
       notes: payload.notes,
       rating: payload.rating || 5,
+      sentiment: payload.sentiment || "positive",
     });
 
     await assignment.save();
