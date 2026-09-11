@@ -709,7 +709,7 @@ export class EmployeeAssignmentService {
     return assignment;
   }
 
-  private async updateUserStatistics(employeeId: mongoose.Types.ObjectId | string) {
+  async updateUserStatistics(employeeId: mongoose.Types.ObjectId | string) {
     const userId = new mongoose.Types.ObjectId(employeeId.toString());
     const EmployeeAssignment = mongoose.model("EmployeeAssignment");
     const assignments = await EmployeeAssignment.find({ employeeId: userId });

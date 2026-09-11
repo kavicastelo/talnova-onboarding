@@ -734,7 +734,7 @@ export function CourseViewer() {
               </span>
             </div>
             <Button size="sm" variant="outline" asChild className="border-amber-500/40 text-amber-200 hover:bg-amber-500/20 text-xs h-7 shrink-0">
-              <Link to={`/documents/${pendingDocs[0].id || pendingDocs[0]._id}/sign`}>
+              <Link to={`/documents/${pendingDocs[0]._id}/sign`}>
                 Sign Required Document
               </Link>
             </Button>

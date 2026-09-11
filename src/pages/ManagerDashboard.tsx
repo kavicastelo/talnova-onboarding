@@ -93,6 +93,7 @@ export const ManagerDashboard: React.FC = () => {
           setSignOffNotes('');
           refetchTeam();
           refetchMetrics();
+          refetchOverview();
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || 'Failed to sign off');

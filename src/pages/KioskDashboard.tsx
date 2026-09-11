@@ -914,7 +914,7 @@ export function KioskDashboard() {
                     className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30"
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Valid for 15 minutes (Expires in 15:00)</span>
+                    <span>Valid for {Math.round(codeExpiresInSeconds / 60)} minutes</span>
                   </div>
                 </div>
 

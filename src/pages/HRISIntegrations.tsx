@@ -17,16 +17,12 @@ import {
   Zap,
   Activity,
   List,
-  CheckCircle2,
   AlertCircle,
   Building2,
-  ExternalLink,
   PowerOff
 } from 'lucide-react';
 import {
   useIntegrations,
-  useCreateIntegration,
-  useSyncIntegration,
   useTestIntegration,
   useIntegrationLogs,
   useConnectProvider,
@@ -92,7 +88,6 @@ export function HRISIntegrations() {
   const syncProviderMut = useSyncProvider();
   const disconnectProviderMut = useDisconnectProvider();
   const testMutation = useTestIntegration();
-  const syncMutation = useSyncIntegration();
 
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string | null>(null);
   const { data: syncLogs = [] } = useIntegrationLogs(selectedIntegrationId || undefined);
@@ -105,9 +100,6 @@ export function HRISIntegrations() {
   const [apiKeyError, setApiKeyError] = useState('');
 
   const logsPagination = usePagination({ data: syncLogs, initialPageSize: 5 });
-
-  // Find BambooHR active integration if exists
-  const bamboohrIntegration = integrations.find((i) => i.provider === 'bamboohr' && i.status === 'active');
 
   const handleOpenConnect = (provider: 'bamboohr' | 'workday' | 'rippling' | 'personio' | 'custom_webhook') => {
     setActiveProvider(provider);
