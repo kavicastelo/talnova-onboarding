@@ -1,7 +1,7 @@
 /**
  * Active statuses for registered kiosk terminals.
  */
-export const KIOSK_DEVICE_STATUSES = ["online", "offline", "decommissioned"] as const;
+export const KIOSK_DEVICE_STATUSES = ["online", "offline", "maintenance", "decommissioned"] as const;
 
 /**
  * Remote administration commands sent to devices over heartbeats.

@@ -311,8 +311,8 @@ describe("Phase 8 — Buddy & Onboarding Support Program Test Suite", () => {
         },
       });
 
-      const success = await buddyService.autoAssignBuddyToNewHire(testOrg._id, brandNewHire._id);
-      expect(success).toBe(true);
+      const result = await buddyService.autoAssignBuddyToNewHire(testOrg._id, brandNewHire._id);
+      expect((result as any).success ?? result).toBe(true);
     });
   });
 

@@ -17,7 +17,11 @@ export class EmployeeAssignmentService {
     employeeId: string | mongoose.Types.ObjectId,
     journeyId: string | mongoose.Types.ObjectId,
     assignedBy: string | mongoose.Types.ObjectId,
-    assignmentData: { dueDate?: Date; priority?: "low" | "normal" | "high" | "critical" },
+    assignmentData: {
+      dueDate?: Date;
+      priority?: "low" | "normal" | "high" | "critical";
+      source?: "manual" | "workflow_engine" | "smart_assignment";
+    },
     enforcePublicCheck = false
   ) {
     const journey = await Journey.findOne({ _id: journeyId, organizationId: orgId, isDeleted: false });
@@ -90,6 +94,7 @@ export class EmployeeAssignmentService {
         priority: assignmentData.priority || "normal",
       },
       status: "assigned" as const,
+      source: assignmentData.source || "manual",
       progress: {
         totalModules: journey.modules.length,
         completedModules: 0,
@@ -392,6 +397,111 @@ export class EmployeeAssignmentService {
     }
 
     return assignment;
+  }
+
+  async reconcileOfflineProgress(
+    id: string | mongoose.Types.ObjectId,
+    orgId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    batchCompletions: Array<{
+      lessonId: string;
+      completedAt?: string | Date;
+      clientTransactionId?: string;
+    }>,
+    userRole?: string
+  ) {
+    const assignment = await this.getAssignment(id, orgId);
+
+    // Authorization: Employees cannot mutate another user's assignment
+    if (userRole === "employee" && userId) {
+      if (assignment.employeeId.toString() !== userId.toString()) {
+        throw new AppError(403, "FORBIDDEN", "Unauthorized. You cannot mutate another user's assignment.");
+      }
+    }
+
+    if (assignment.status === "assigned") {
+      assignment.status = "in_progress";
+    }
+
+    if (!assignment.completedLessonIds) {
+      assignment.completedLessonIds = [];
+    }
+
+    let newlyReconciledCount = 0;
+    const completedLessonIds: string[] = [...assignment.completedLessonIds];
+
+    for (const item of batchCompletions) {
+      if (!item.lessonId) continue;
+      const lidStr = item.lessonId.toString();
+      const completionDate = item.completedAt ? new Date(item.completedAt) : new Date();
+
+      for (const mod of assignment.modules) {
+        const les = mod.lessons.find((l: any) => l.lessonId.toString() === lidStr);
+        if (les) {
+          if (les.status === "completed") {
+            // Retain earliest timestamp
+            if (les.completedAt && completionDate < new Date(les.completedAt)) {
+              les.completedAt = completionDate;
+            }
+          } else {
+            les.status = "completed";
+            les.completedAt = completionDate;
+            newlyReconciledCount++;
+          }
+          if (!completedLessonIds.includes(lidStr)) {
+            completedLessonIds.push(lidStr);
+          }
+        }
+      }
+    }
+
+    assignment.completedLessonIds = completedLessonIds;
+
+    // Recalculate module completion and overall progress
+    let totalCompletedLessons = 0;
+    let totalLessons = 0;
+    let completedModulesCount = 0;
+
+    for (const mod of assignment.modules) {
+      const allCompleted = mod.lessons.length > 0 && mod.lessons.every((l: any) => l.status === "completed");
+      if (allCompleted && !mod.completed) {
+        mod.completed = true;
+        mod.completedAt = new Date();
+      }
+      if (mod.completed) completedModulesCount++;
+
+      for (const l of mod.lessons) {
+        totalLessons++;
+        if (l.status === "completed") totalCompletedLessons++;
+      }
+    }
+
+    assignment.progress.completedLessons = totalCompletedLessons;
+    assignment.progress.completedModules = completedModulesCount;
+    assignment.progress.totalLessons = totalLessons || 1;
+    assignment.progress.completionPercentage = Math.round(
+      (totalCompletedLessons / (totalLessons || 1)) * 100
+    );
+    assignment.progress.lastActivityAt = new Date();
+
+    const journey = await Journey.findOne({ _id: assignment.journey.journeyId, isDeleted: false });
+    if (journey) {
+      await this.checkOverallCompletion(assignment, journey);
+    } else if (assignment.progress.completionPercentage >= 100) {
+      assignment.status = "completed";
+      assignment.completedAt = new Date();
+    }
+
+    await assignment.save();
+    await this.updateUserStatistics(assignment.employeeId);
+
+    return {
+      assignment,
+      status: "synced",
+      reconciledCount: newlyReconciledCount,
+      currentProgress: assignment.progress.completionPercentage,
+      completedLessonIds: assignment.completedLessonIds,
+    };
   }
 
   async submitQuiz(

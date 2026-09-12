@@ -40,13 +40,21 @@ import {
 } from '../components/Dialog';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
+import { CompatibilityRadarWidget } from '../components/buddy/CompatibilityRadarWidget';
+import { ProactiveCoachingFeed } from '../components/buddy/ProactiveCoachingFeed';
+import { AdminBuddyOverrideModal } from '../components/buddy/AdminBuddyOverrideModal';
+import { buddyMatchingService } from '../services/buddy-matching.service';
 
 export const BuddyProgram: React.FC = () => {
   const { role } = useRole();
   const canAssignBuddy = role === 'manager' || role === 'admin' || role === 'owner' || role === 'hr_admin' || role === 'super_admin';
 
-  const [activeTab, setActiveTab] = useState<'my-buddy' | 'my-mentees' | 'pairings' | 'directory'>('my-buddy');
+  const [activeTab, setActiveTab] = useState<'my-buddy' | 'my-mentees' | 'pairings' | 'directory' | 'matching'>('my-buddy');
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [overridePairing, setOverridePairing] = useState<any>(null);
+  const [selectedHireForMatching, setSelectedHireForMatching] = useState<string>('');
 
   // Modals
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -83,7 +91,7 @@ export const BuddyProgram: React.FC = () => {
   const menteesPagination = usePagination({ data: mentees || [], initialPageSize: 6 });
   const buddiesPagination = usePagination({ data: availableBuddies || [], initialPageSize: 6 });
   const assignmentsPagination = usePagination({ data: allAssignments || [], initialPageSize: 6 });
-  const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
+  const { data: employeesData } = useEmployees({ page: 1, limit: 1000 });
 
   const registerBuddyMutation = useRegisterBuddy();
   const assignBuddyMutation = useAssignBuddy();
@@ -153,6 +161,39 @@ export const BuddyProgram: React.FC = () => {
           setValidationError(errMsg);
           toast.error(errMsg);
         }
+      }
+    );
+  };
+
+  const handleConfirmBuddyOverride = async ({
+    newHireId,
+    targetBuddyId,
+    reason,
+  }: {
+    newHireId: string;
+    targetBuddyId: string;
+    reason: string;
+    notifyParties: boolean;
+  }) => {
+    assignBuddyMutation.mutate(
+      {
+        newHireUserId: newHireId,
+        buddyUserId: targetBuddyId,
+        checklistTemplate: 'Standard Cultural Onboarding',
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Buddy partnership reassigned: ${reason}`);
+          setIsOverrideModalOpen(false);
+          setOverridePairing(null);
+          refetchBuddy();
+          refetchMentees();
+          refetchAvailable();
+          refetchAssignments();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to reassign buddy.');
+        },
       }
     );
   };
@@ -432,6 +473,18 @@ export const BuddyProgram: React.FC = () => {
             onClick={() => setActiveTab('pairings')}
           >
             <Users className="h-4 w-4" /> Active Pairings ({allAssignments?.length || 0})
+          </button>
+        )}
+        {canAssignBuddy && (
+          <button
+            className={`py-3 px-6 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
+              activeTab === 'matching'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setActiveTab('matching')}
+          >
+            <Sparkles className="h-4 w-4 text-indigo-600" /> Algorithmic Matching & Coaching
           </button>
         )}
         <button
@@ -962,6 +1015,133 @@ export const BuddyProgram: React.FC = () => {
         </div>
       )}
 
+      {/* Tab 5: Algorithmic Multi-Factor Matching & Proactive Coaching */}
+      {activeTab === 'matching' && (
+        <div className="space-y-6">
+          <Card className="border shadow-sm bg-card">
+            <CardHeader className="pb-3 border-b">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-indigo-600" />
+                    Algorithmic Multi-Factor Buddy Matching Engine
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Evaluates candidate mentors against incoming new hires across 5 weighted factors (Dept 35%, Loc/Tz 25%, Lang 20%, Capacity 15%, Skills 5%).
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200">
+                  Dynamic Algorithmic Scoring
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-6">
+              {/* Mentee Selector */}
+              <div className="max-w-md space-y-1.5">
+                <label className="text-xs font-semibold text-foreground block">
+                  Select New Hire to Analyze Compatibility:
+                </label>
+                <SearchableSelect
+                  value={selectedHireForMatching || employees[0]?.id || ''}
+                  onChange={setSelectedHireForMatching}
+                  placeholder="Select new hire..."
+                  options={employees.map((e: any) => ({
+                    value: e.id,
+                    label: e.name || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Employee',
+                    sublabel: `${e.department} • ${e.location || 'Remote'}`,
+                  }))}
+                />
+              </div>
+
+              {/* Compatibility Rankings Grid */}
+              {(() => {
+                const targetHire = employees.find((e: any) => e.id === (selectedHireForMatching || employees[0]?.id)) || employees[0];
+                const candidateMatches = targetHire && (availableBuddies || []).length > 0
+                  ? buddyMatchingService.rankBuddyCandidates(targetHire, availableBuddies || [])
+                  : [];
+
+                if (!targetHire || candidateMatches.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-muted-foreground text-xs">
+                      Please register available buddies and select a new hire to compute algorithmic match metrics.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Top Ranked Mentor Candidates for {targetHire.name} ({candidateMatches.length} candidates evaluated):
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {candidateMatches.slice(0, 4).map((match, idx) => {
+                        const buddyUser = match.buddy?.userId;
+                        const buddyName = `${buddyUser?.profile?.firstName || ''} ${buddyUser?.profile?.lastName || ''}`.trim() || 'Mentor';
+                        return (
+                          <div key={match.buddy._id} className="p-4 rounded-xl border border-border/80 bg-background/50 hover:bg-muted/10 transition-colors space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                                  #{idx + 1}
+                                </span>
+                                <div>
+                                  <h5 className="font-bold text-xs text-foreground">{buddyName}</h5>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {match.buddy?.department || 'General'} • {match.buddy?.currentMenteeCount || 0}/{match.buddy?.maxMentees || 3} active mentees
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setOverridePairing({
+                                    newHireId: targetHire.id,
+                                    newHireName: targetHire.name,
+                                    currentBuddyName: buddyName,
+                                    department: targetHire.department,
+                                  });
+                                  setIsOverrideModalOpen(true);
+                                }}
+                                className="text-xs h-7 gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                              >
+                                Pair Mentor
+                              </Button>
+                            </div>
+
+                            <CompatibilityRadarWidget
+                              score={match.score}
+                              scorePercent={match.scorePercent}
+                              criteria={match.criteria}
+                              buddyName={buddyName}
+                              menteeName={targetHire.name}
+                              reasons={match.reasons}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Proactive Coaching Sentinel Feed */}
+          <ProactiveCoachingFeed
+            onLogCheckin={(prompt) => {
+              toast.info(`Opening quick check-in log for ${prompt.menteeName}`);
+              setIsCheckinModalOpen(true);
+            }}
+            onScheduleSync={(prompt) => {
+              toast.success(`1-on-1 calendar invite dispatched for Week ${prompt.week} check-in with ${prompt.menteeName}`);
+            }}
+          />
+        </div>
+      )}
+
       {/* Modal: Assign Buddy */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
         <DialogContent className="sm:max-w-md">
@@ -982,42 +1162,45 @@ export const BuddyProgram: React.FC = () => {
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Incoming Mentee (Direct Report) *</label>
-              <select
+              <SearchableSelect
                 data-testid="mentee-select"
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={selectedNewHireId}
-                onChange={(e) => {
-                  setSelectedNewHireId(e.target.value);
+                onChange={(val) => {
+                  setSelectedNewHireId(val);
                   setValidationError('');
                 }}
-              >
-                <option value="">-- Select Direct Report Mentee --</option>
-                {employees.map((emp: any) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.email}) - {emp.department || 'General'}
-                  </option>
-                ))}
-              </select>
+                placeholder="Search & select incoming mentee..."
+                searchPlaceholder="Search by mentee name, email, dept..."
+                options={employees.map((emp: any) => ({
+                  value: emp.id,
+                  label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                  sublabel: emp.email,
+                  badge: emp.department || 'General',
+                }))}
+              />
             </div>
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Available Designated Buddy *</label>
-              <select
+              <SearchableSelect
                 data-testid="buddy-select"
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={selectedBuddyId}
-                onChange={(e) => {
-                  setSelectedBuddyId(e.target.value);
+                onChange={(val) => {
+                  setSelectedBuddyId(val);
                   setValidationError('');
                 }}
-              >
-                <option value="">-- Select Registered Buddy --</option>
-                {availableBuddies?.map((b: any) => (
-                  <option key={b.userId?._id} value={b.userId?._id}>
-                    {b.userId?.profile?.firstName} {b.userId?.profile?.lastName} ({b.department}) - Active Load: {b.currentMenteeCount}/{b.maxMentees}
-                  </option>
-                ))}
-              </select>
+                placeholder="Search & select registered buddy..."
+                searchPlaceholder="Search buddy by name, department..."
+                options={(availableBuddies || []).map((b: any) => {
+                  const bName = `${b.userId?.profile?.firstName || ''} ${b.userId?.profile?.lastName || ''}`.trim() || b.userId?.email || 'Buddy';
+                  return {
+                    value: b.userId?._id,
+                    label: bName,
+                    sublabel: `${b.department || 'General'} • Mentee Capacity: ${b.currentMenteeCount}/${b.maxMentees}`,
+                    badge: `${b.currentMenteeCount}/${b.maxMentees} load`,
+                  };
+                })}
+              />
             </div>
 
             <div>
@@ -1271,6 +1454,24 @@ export const BuddyProgram: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Admin Manual Override & Partner Reassignment Modal (HITL Guardrail) */}
+      <AdminBuddyOverrideModal
+        isOpen={isOverrideModalOpen}
+        onClose={() => {
+          setIsOverrideModalOpen(false);
+          setOverridePairing(null);
+        }}
+        pairing={overridePairing}
+        availableBuddies={(availableBuddies || []).map((b) => ({
+          id: b.userId?._id || b._id,
+          name: `${b.userId?.profile?.firstName || ''} ${b.userId?.profile?.lastName || ''}`.trim() || 'Buddy Mentor',
+          department: b.department || 'General',
+          currentMentees: b.currentMenteeCount || 0,
+          maxMentees: b.maxMentees || 3,
+        }))}
+        onConfirmOverride={handleConfirmBuddyOverride}
+      />
     </div>
   );
 };

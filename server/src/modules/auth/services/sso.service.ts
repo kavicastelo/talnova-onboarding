@@ -6,6 +6,13 @@ import UserRepository from "../repositories/user.repository.js";
 import AppError from "../../../common/errors/app-error.js";
 import AuditLog from "../../audit-logs/models/audit-log.model.js";
 import Organization from "../../organizations/models/organization.model.js";
+import onboardingCaseService from "../../onboarding/services/onboarding-case.service.js";
+import workflowEngine from "../../workflows/services/workflow.engine.js";
+import documentService from "../../documents/services/document.service.js";
+import Journey from "../../journeys/models/journey.model.js";
+import EmployeeAssignment from "../../assignments/models/assignment.model.js";
+import AssignmentService from "../../assignments/services/assignment.service.js";
+import AssignmentRepository from "../../assignments/repositories/assignment.repository.js";
 
 export class SSOService {
   constructor(
@@ -189,6 +196,9 @@ export class SSOService {
       email: string;
       firstName: string;
       lastName: string;
+      department?: string;
+      role?: "admin" | "manager" | "employee" | "owner" | "super_admin" | "it_admin";
+      authProvider?: string;
       ssoId: string;
       idpGroups?: string[];
     },
@@ -210,6 +220,10 @@ export class SSOService {
       }
     }
 
+    if (ssoPayload.role) {
+      role = ssoPayload.role as any;
+    }
+
     // Account Discovery or JIT Provisioning (SSO-003, SSO-005)
     let user = await User.findOne({
       organizationId: orgObjectId,
@@ -223,23 +237,116 @@ export class SSOService {
         auth: {
           email: ssoPayload.email.toLowerCase(),
           passwordHash: "SSO_AUTHENTICATED_NO_PASSWORD",
+          authProvider: (ssoPayload.authProvider || config?.provider || "saml2") as any,
         },
         profile: {
           firstName: ssoPayload.firstName || "SSO",
           lastName: ssoPayload.lastName || "User",
         },
         employment: {
-          department: "General",
+          department: ssoPayload.department || "General",
           jobTitle: "Team Member",
+          status: "onboarding",
           onboardingState: "active",
         },
         permissions: {
           role,
         },
       });
+
+      // Step 3: Instantiate OnboardingCase and execute workflow rule auto-assignment
+      try {
+        const { case: caseRecord } = await onboardingCaseService.createCase({
+          organizationId: orgObjectId.toString(),
+          employeeId: user._id.toString(),
+          source: "sso",
+          idempotencyKey: `sso-jit-${user._id.toString()}`,
+        });
+
+        await onboardingCaseService.transition(
+          caseRecord._id.toString(),
+          orgObjectId.toString(),
+          "resolving",
+          user._id.toString(),
+          "Resolving onboarding journey based on SSO department claim"
+        );
+
+        // Evaluate workflow rules & auto-provision journeys based on department claim
+        await workflowEngine.processEvent(
+          orgObjectId,
+          "user_created",
+          user._id,
+          { department: user.employment?.department }
+        );
+
+        // Fallback: If no journey was assigned by rules, check for department template
+        const existingAssignment = await EmployeeAssignment.findOne({
+          organizationId: orgObjectId,
+          employeeId: user._id,
+          isDeleted: false,
+        });
+
+        if (!existingAssignment) {
+          const deptRegex = new RegExp(`^${user.employment?.department}$`, "i");
+          const matchingJourney = await Journey.findOne({
+            organizationId: orgObjectId,
+            $or: [
+              { "audience.departmentNames": deptRegex },
+              { department: deptRegex },
+              { title: new RegExp(user.employment?.department || "", "i") },
+              { "publishing.status": "published" },
+            ],
+            isDeleted: false,
+          });
+
+          if (matchingJourney) {
+            const assignmentService = new AssignmentService(new AssignmentRepository());
+            try {
+              await assignmentService.assignJourney(
+                orgObjectId,
+                user._id,
+                matchingJourney._id,
+                user._id,
+                { source: "smart_assignment" }
+              );
+            } catch (err: any) {
+              // Ignore duplicate assignment errors
+            }
+          }
+        }
+
+        await documentService.autoAssignDocumentsToNewHire(orgObjectId, user._id);
+
+        await onboardingCaseService.transition(
+          caseRecord._id.toString(),
+          orgObjectId.toString(),
+          "provisioning",
+          user._id.toString(),
+          "SSO JIT provisioning journey and documents"
+        );
+
+        await onboardingCaseService.transition(
+          caseRecord._id.toString(),
+          orgObjectId.toString(),
+          "ready",
+          user._id.toString(),
+          "SSO JIT provisioning complete"
+        );
+
+        await onboardingCaseService.transition(
+          caseRecord._id.toString(),
+          orgObjectId.toString(),
+          "active",
+          user._id.toString(),
+          "SSO JIT employee onboarding active"
+        );
+      } catch (err: any) {
+        console.warn("[SSOService] JIT onboarding case workflow execution error:", err.message);
+      }
     } else {
       // Account Linking (SSO-005)
       user.permissions.role = role; // Update role from IdP
+      if (ssoPayload.department) user.employment.department = ssoPayload.department;
       await user.save();
     }
 

@@ -5,8 +5,11 @@ import User from "../../auth/models/user.model.js";
 import NotificationService from "../../notifications/services/notification.service.js";
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
 import AppError from "../../../common/errors/app-error.js";
+import { CalendarService } from "../../calendar/services/calendar.service.js";
+import eventBus from "../../../infrastructure/events/event-bus.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
+const calendarService = new CalendarService();
 
 export class BuddyService {
   /**
@@ -82,7 +85,9 @@ export class BuddyService {
     newHireUserId: string | mongoose.Types.ObjectId,
     buddyUserId: string | mongoose.Types.ObjectId,
     assignedByUserId: string | mongoose.Types.ObjectId,
-    templateName?: string
+    templateName?: string,
+    matchScore?: number,
+    matchCriteria?: any
   ) {
     const orgObjectId = new mongoose.Types.ObjectId(orgId);
     const newHireObjectId = new mongoose.Types.ObjectId(newHireUserId);
@@ -153,6 +158,8 @@ export class BuddyService {
       communicationLinks: {
         email: buddy.auth?.email,
       },
+      matchScore,
+      matchCriteria,
     });
 
     // Update buddy mentee count
@@ -183,6 +190,43 @@ export class BuddyService {
       message: `You have been paired as the onboarding buddy for ${newHireName}. Review your buddy checklist!`,
       priority: "high",
     });
+
+    // Automatically provision initial 1-on-1 meeting invite via CalendarService (Prompt 07 Step 2)
+    try {
+      const meetingStart = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // 2 days out
+      meetingStart.setHours(10, 0, 0, 0);
+      const meetingEnd = new Date(meetingStart.getTime() + 30 * 60 * 1000); // 30 min coffee
+
+      await calendarService.createMeetingEvent(orgId, buddyObjectId, {
+        title: `Welcome Coffee & Intro: ${buddyName} & ${newHireName}`,
+        description: "Initial 1-on-1 onboarding buddy coffee chat. Suggested topics: Team culture, tool setup Q&A, and favorite coffee spots.",
+        category: "buddy_coffee",
+        attendeeUserIds: [buddyObjectId.toString(), newHireObjectId.toString()],
+        startTime: meetingStart,
+        endTime: meetingEnd,
+        locationUrl: "Virtual Lounge / Office Café",
+      });
+    } catch (calErr) {
+      console.warn("[BuddyService] Calendar meeting provisioning skipped or failed:", calErr);
+    }
+
+    // Publish BUDDY_ASSIGNED event
+    try {
+      await eventBus.publish({
+        eventName: "BUDDY_ASSIGNED",
+        organizationId: orgId,
+        actorId: assignedByUserId,
+        entityId: assignment._id as any,
+        payload: {
+          assignmentId: assignment._id.toString(),
+          buddyUserId: buddyObjectId.toString(),
+          newHireUserId: newHireObjectId.toString(),
+          matchScore,
+        },
+      });
+    } catch (e) {
+      console.warn("[BuddyService] Failed to publish BUDDY_ASSIGNED event:", e);
+    }
 
     return assignment;
   }
@@ -363,19 +407,354 @@ export class BuddyService {
   }
 
   /**
-   * Event-driven auto-assignment of buddies on USER_CREATED
+   * Calculate Multi-Factor Buddy Compatibility Score (Prompt 07 Step 1)
+   * Weights: Dept: 0.35, Loc/Timezone: 0.25, Language: 0.20, Capacity: 0.15, Skills: 0.05
+   */
+  calculateCompatibilityScore(
+    newHire: any,
+    candidateProfile: IBuddyProfile,
+    candidateUser: any
+  ): {
+    score: number;
+    criteria: {
+      departmentScore: number;
+      locationScore: number;
+      languageScore: number;
+      capacityScore: number;
+      skillsScore: number;
+    };
+  } {
+    // 1. Department Score (w = 0.35)
+    // 1.0 exact match, 0.5 related cluster, 0.1 otherwise
+    const hireDept = (newHire.employment?.department || "").trim().toLowerCase();
+    const candidateDept = (
+      candidateProfile.department ||
+      candidateUser.employment?.department ||
+      ""
+    ).trim().toLowerCase();
+
+    let departmentScore = 0.1;
+    if (hireDept && candidateDept && hireDept === candidateDept) {
+      departmentScore = 1.0;
+    } else if (hireDept && candidateDept) {
+      const clusters = [
+        ["engineering", "tech", "technology", "it", "product", "software", "development", "qa", "devops", "systems"],
+        ["sales", "marketing", "growth", "business development", "revenue", "partnerships", "commercial"],
+        ["hr", "people", "talent", "operations", "admin", "recruiting", "legal", "compliance", "finance", "accounting"],
+      ];
+      const matchCluster = clusters.find(
+        (c) => c.some((k) => hireDept.includes(k)) && c.some((k) => candidateDept.includes(k))
+      );
+      if (matchCluster) {
+        departmentScore = 0.5;
+      }
+    }
+
+    // 2. Location / Timezone Score (w = 0.25)
+    // 1.0 same office/location or timezone within 2h, 0.2 if >6h difference, 0.6 default
+    const hireLoc = (newHire.profile?.location || "").trim().toLowerCase();
+    const candidateLoc = (candidateUser.profile?.location || "").trim().toLowerCase();
+    const hireTz = (newHire.profile?.timezone || "").trim().toLowerCase();
+    const candidateTz = (candidateUser.profile?.timezone || "").trim().toLowerCase();
+
+    let locationScore = 0.6; // default reasonable proximity
+    if (hireLoc && candidateLoc && (hireLoc === candidateLoc || hireLoc.includes(candidateLoc) || candidateLoc.includes(hireLoc))) {
+      locationScore = 1.0;
+    } else if (hireTz && candidateTz) {
+      if (hireTz === candidateTz) {
+        locationScore = 1.0;
+      } else {
+        // Try extracting timezone offsets if formatted as UTC+/-N or GMT+/-N
+        const parseOffset = (tz: string): number | null => {
+          const match = tz.match(/(?:utc|gmt)\s*([+-]\d+)/i);
+          return match ? parseInt(match[1], 10) : null;
+        };
+        const offsetHire = parseOffset(hireTz);
+        const offsetCand = parseOffset(candidateTz);
+        if (offsetHire !== null && offsetCand !== null) {
+          const diff = Math.abs(offsetHire - offsetCand);
+          if (diff <= 2) locationScore = 1.0;
+          else if (diff > 6) locationScore = 0.2;
+          else locationScore = 0.5;
+        }
+      }
+    }
+
+    // 3. Language Score (w = 0.20)
+    // 1.0 if shared working/native language, 0.2 otherwise
+    const hireLang = (newHire.preferences?.language || "en").trim().toLowerCase();
+    const candLanguages = (
+      candidateProfile.languages && candidateProfile.languages.length > 0
+        ? candidateProfile.languages
+        : [candidateUser.preferences?.language || "en"]
+    ).map((l: string) => l.trim().toLowerCase());
+
+    const hasSharedLanguage = candLanguages.some(
+      (cl: string) => cl === hireLang || cl.startsWith(hireLang) || hireLang.startsWith(cl)
+    );
+    const languageScore = hasSharedLanguage ? 1.0 : 0.2;
+
+    // 4. Capacity Score (w = 0.15)
+    // (maxMentees - currentMenteeCount) / maxMentees
+    const maxMentees = Math.max(1, candidateProfile.maxMentees || 3);
+    const currentMentees = candidateProfile.currentMenteeCount || 0;
+    const availableCapacity = Math.max(0, maxMentees - currentMentees);
+    const capacityScore = Math.min(1.0, availableCapacity / maxMentees);
+
+    // 5. Skills Overlap Score (w = 0.05)
+    // Jaccard index
+    const candSkills = (candidateProfile.skills || []).map((s: string) => s.trim().toLowerCase());
+    const hireSkills = ((newHire as any).skills || (newHire.employment?.jobTitle ? [newHire.employment.jobTitle] : [])).map(
+      (s: string) => s.trim().toLowerCase()
+    );
+
+    let skillsScore = 0.4;
+    if (hireSkills.length > 0 && candSkills.length > 0) {
+      const setA = new Set(candSkills);
+      const setB = new Set(hireSkills);
+      let intersection = 0;
+      for (const item of setA) {
+        if (setB.has(item)) intersection++;
+      }
+      const union = new Set([...candSkills, ...hireSkills]).size;
+      skillsScore = union > 0 ? intersection / union : 0.4;
+    } else if (candSkills.length > 0) {
+      skillsScore = 0.8;
+    }
+
+    // Composite Calculation
+    const composite =
+      0.35 * departmentScore +
+      0.25 * locationScore +
+      0.20 * languageScore +
+      0.15 * capacityScore +
+      0.05 * skillsScore;
+
+    const finalScore = Math.round(composite * 100) / 100;
+
+    return {
+      score: finalScore,
+      criteria: {
+        departmentScore: Math.round(departmentScore * 100) / 100,
+        locationScore: Math.round(locationScore * 100) / 100,
+        languageScore: Math.round(languageScore * 100) / 100,
+        capacityScore: Math.round(capacityScore * 100) / 100,
+        skillsScore: Math.round(skillsScore * 100) / 100,
+      },
+    };
+  }
+
+  /**
+   * Event-driven auto-assignment of buddies with Intelligent Multi-Factor Matching (Prompt 07)
    */
   async autoAssignBuddyToNewHire(
     orgId: string | mongoose.Types.ObjectId,
     newHireUserId: string | mongoose.Types.ObjectId
-  ): Promise<boolean> {
-    const availableBuddies = await this.listAvailableBuddies(orgId);
-    if (availableBuddies.length === 0) return false;
+  ): Promise<{
+    success: boolean;
+    assignmentId?: string;
+    buddyUserId?: string;
+    matchScore?: number;
+    matchCriteria?: any;
+    reason?: string;
+  }> {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+    const newHireObjectId = new mongoose.Types.ObjectId(newHireUserId);
 
-    // Pick first available buddy
-    const chosenBuddy = availableBuddies[0];
-    await this.assignBuddy(orgId, newHireUserId, chosenBuddy.userId._id, chosenBuddy.userId._id);
-    return true;
+    const newHire = await User.findOne({
+      _id: newHireObjectId,
+      organizationId: orgObjectId,
+      isDeleted: false,
+    });
+    if (!newHire) {
+      return { success: false, reason: "new_hire_not_found" };
+    }
+
+    // Fetch all active, available buddy profiles where currentMenteeCount < maxMentees
+    const candidateProfiles = await BuddyProfile.find({
+      organizationId: orgObjectId,
+      isAvailable: true,
+      userId: { $ne: newHireObjectId },
+      $expr: { $lt: ["$currentMenteeCount", "$maxMentees"] },
+    }).populate("userId", "profile auth employment preferences");
+
+    const validCandidates = candidateProfiles.filter(
+      (p) => p.userId && !(p.userId as any).isDeleted
+    );
+
+    // If zero available buddies found: escalate to HR Ops Exception Workbench
+    if (validCandidates.length === 0) {
+      const newHireName = `${newHire.profile?.firstName || ""} ${newHire.profile?.lastName || ""}`.trim() || "New Hire";
+      const department = newHire.employment?.department || "General";
+
+      const hrAdmins = await User.find({
+        organizationId: orgObjectId,
+        "permissions.role": { $in: ["admin", "owner"] },
+        isDeleted: false,
+      });
+
+      for (const admin of hrAdmins) {
+        await notificationService.createNotification({
+          organizationId: orgId,
+          recipientUserId: admin._id,
+          type: "manager_alert",
+          title: "Buddy Matching Exception: Capacity Exhausted",
+          message: `No available buddy for new hire ${newHireName} in ${department}. All mentors are at capacity or unavailable.`,
+          priority: "high",
+          data: {
+            newHireUserId: newHireObjectId.toString(),
+            department,
+            reason: "no_buddies_available",
+          },
+        });
+      }
+
+      try {
+        await eventBus.publish({
+          eventName: "WORKFLOW_RULE_CONFLICT_ARBITRATED",
+          organizationId: orgId,
+          actorId: newHireObjectId.toString(),
+          entityId: newHireObjectId as any,
+          payload: {
+            conflictType: "NO_BUDDY_AVAILABLE",
+            newHireUserId: newHireObjectId.toString(),
+            department,
+            message: `No available buddy for new hire ${newHireName} in ${department}`,
+          },
+        });
+      } catch (e) {
+        console.warn("[BuddyService] Failed to publish buddy exhaustion event:", e);
+      }
+
+      return { success: false, reason: "no_buddies_available" };
+    }
+
+    // Score all candidate buddies against new hire profile
+    const scoredCandidates = validCandidates.map((candidate) => {
+      const candidateUser = candidate.userId as any;
+      const { score, criteria } = this.calculateCompatibilityScore(newHire, candidate, candidateUser);
+      return { candidate, score, criteria };
+    });
+
+    // Select candidate with highest composite score
+    scoredCandidates.sort((a, b) => b.score - a.score);
+    const chosen = scoredCandidates[0];
+
+    const assignment = await this.assignBuddy(
+      orgId,
+      newHireObjectId,
+      chosen.candidate.userId._id,
+      chosen.candidate.userId._id,
+      undefined,
+      chosen.score,
+      chosen.criteria
+    );
+
+    return {
+      success: true,
+      assignmentId: assignment._id.toString(),
+      buddyUserId: chosen.candidate.userId._id.toString(),
+      matchScore: chosen.score,
+      matchCriteria: chosen.criteria,
+    };
+  }
+
+  /**
+   * Proactive Buddy Coaching Sentinel (Prompt 07 Step 2)
+   * Scans active pairings across Week 1, Week 2, and Week 4 to dispatch conversational guidance nudges.
+   */
+  async scanBuddyCoachingNudges(orgId?: string | mongoose.Types.ObjectId): Promise<{
+    processedCount: number;
+    nudgesSentCount: number;
+  }> {
+    const query: any = {
+      status: "active",
+      isDeleted: false,
+    };
+    if (orgId) {
+      query.organizationId = new mongoose.Types.ObjectId(orgId);
+    }
+
+    const activeAssignments = await BuddyAssignment.find(query)
+      .populate("buddyUserId", "profile auth preferences")
+      .populate("newHireUserId", "profile auth employment preferences");
+
+    let nudgesSentCount = 0;
+    const now = Date.now();
+
+    for (const assignment of activeAssignments) {
+      if (!assignment.buddyUserId || !assignment.newHireUserId) continue;
+
+      const newHire = assignment.newHireUserId as any;
+      const buddy = assignment.buddyUserId as any;
+      const newHireName = `${newHire.profile?.firstName || ""} ${newHire.profile?.lastName || ""}`.trim() || "your mentee";
+
+      const createdAt = new Date(assignment.createdAt).getTime();
+      const daysActive = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+
+      assignment.coachingNudges = assignment.coachingNudges || {};
+      const nudges = assignment.coachingNudges as any;
+
+      let nudgeToSend: {
+        stage: "week_1" | "week_2" | "week_4";
+        field: "week1SentAt" | "week2SentAt" | "week4SentAt";
+        title: string;
+        message: string;
+      } | null = null;
+
+      if (daysActive >= 0 && daysActive < 7 && !nudges.week1SentAt) {
+        nudgeToSend = {
+          stage: "week_1",
+          field: "week1SentAt",
+          title: "Buddy Coaching: Week 1 Welcome Tip",
+          message: `Tip: Your mentee ${newHireName} just started. Suggested agenda: Team culture, favorite coffee spots, tool setup Q&A.`,
+        };
+      } else if (daysActive >= 7 && daysActive < 21 && !nudges.week2SentAt) {
+        nudgeToSend = {
+          stage: "week_2",
+          field: "week2SentAt",
+          title: "Buddy Coaching: Week 2 Check-in Reminder",
+          message: `Check-in Reminder: Did you have your 1-on-1 with ${newHireName}? Tap here to log quick notes in 30 seconds.`,
+        };
+      } else if (daysActive >= 21 && !nudges.week4SentAt) {
+        nudgeToSend = {
+          stage: "week_4",
+          field: "week4SentAt",
+          title: "Buddy Coaching: Week 4 Milestone Check",
+          message: `Milestone Check: Month 1 is wrapping up for ${newHireName}. Review onboarding progress and celebrate initial wins!`,
+        };
+      }
+
+      if (nudgeToSend) {
+        await notificationService.createNotification({
+          organizationId: assignment.organizationId,
+          recipientUserId: buddy._id,
+          type: "manager_alert",
+          title: nudgeToSend.title,
+          message: nudgeToSend.message,
+          priority: "medium",
+          data: {
+            assignmentId: assignment._id.toString(),
+            menteeUserId: newHire._id.toString(),
+            stage: nudgeToSend.stage,
+            deepLink: `/buddy`,
+          },
+        });
+
+        if (!assignment.coachingNudges) {
+          assignment.coachingNudges = {};
+        }
+        (assignment.coachingNudges as any)[nudgeToSend.field] = new Date();
+
+        await assignment.save();
+        nudgesSentCount++;
+      }
+    }
+
+    return {
+      processedCount: activeAssignments.length,
+      nudgesSentCount,
+    };
   }
 }
 

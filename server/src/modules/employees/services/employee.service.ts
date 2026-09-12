@@ -7,6 +7,8 @@ import crypto from "crypto";
 import { EmailService } from "../../../shared/email/email.service.js";
 import { Organization } from "../../organizations/models/organization.model.js";
 import eventBus from "../../../infrastructure/events/event-bus.js";
+import onboardingCaseService from "../../onboarding/services/onboarding-case.service.js";
+import OutboxEvent from "../../onboarding/models/outbox-event.model.js";
 
 export class EmployeeService {
   constructor(private readonly employeeRepository: EmployeeRepository) { }
@@ -159,6 +161,21 @@ export class EmployeeService {
 
     const createdUser = await this.employeeRepository.create(employeeObj as any);
 
+    // Instantiate OnboardingCase and OutboxEvent for transactional state tracking
+    let onboardingCase: any = null;
+    try {
+      const caseResult = await onboardingCaseService.createCase({
+        organizationId: orgId.toString(),
+        employeeId: createdUser._id.toString(),
+        source: "invite",
+        idempotencyKey: `user_invite_${createdUser._id}`,
+        createdBy: invitedBy.toString(),
+      });
+      onboardingCase = caseResult.case;
+    } catch (caseErr: any) {
+      console.warn("[EmployeeService] OnboardingCase creation handled:", caseErr?.message);
+    }
+
     // Fetch organization info to personalize the email
     const org = await Organization.findById(orgId);
     const orgName = org?.name || "Talnova Workspace";
@@ -175,6 +192,7 @@ export class EmployeeService {
       entityId: createdUser._id,
       payload: {
         userId: createdUser._id.toString(),
+        caseId: onboardingCase?._id?.toString(),
         email: createdUser.auth.email,
         role: createdUser.permissions.role,
         department: invitationData.departmentId || createdUser.employment?.department,
@@ -183,6 +201,24 @@ export class EmployeeService {
         invitedBy: invitedBy.toString(),
       },
     });
+
+    if (onboardingCase) {
+      await eventBus.publish({
+        eventName: "ONBOARDING_CASE_CREATED",
+        organizationId: orgId,
+        actorId: createdUser._id,
+        entityId: onboardingCase._id,
+        payload: {
+          caseId: onboardingCase._id.toString(),
+          employeeId: createdUser._id.toString(),
+          source: "invite",
+          userId: createdUser._id.toString(),
+          email: createdUser.auth.email,
+          role: createdUser.permissions.role,
+          department: invitationData.departmentId || createdUser.employment?.department,
+        },
+      });
+    }
 
     return createdUser;
   }
@@ -196,6 +232,14 @@ export class EmployeeService {
     if (!employee) {
       throw new AppError(404, "NOT_FOUND", "Employee not found");
     }
+
+    const previousValues = {
+      department: employee.employment?.department,
+      departmentId: employee.employment?.departmentId?.toString(),
+      role: employee.permissions?.role,
+      managerId: employee.employment?.managerId?.toString(),
+      status: employee.employment?.status,
+    };
 
     // Map properties securely
     const updateObj: Record<string, any> = {};
@@ -218,7 +262,73 @@ export class EmployeeService {
       updateObj["employment.hireDate"] = updateData.hireDate ? new Date(updateData.hireDate) : null;
     }
 
-    return this.employeeRepository.update(employeeId, updateObj);
+    const updatedEmployee = await this.employeeRepository.update(employeeId, updateObj);
+
+    // Detect mutations and publish domain events
+    const departmentChanged = updateData.departmentId !== undefined && String(updateData.departmentId) !== String(previousValues.departmentId);
+    const roleChanged = updateData.role !== undefined && updateData.role !== previousValues.role;
+    const managerChanged = updateData.managerId !== undefined && String(updateData.managerId) !== String(previousValues.managerId);
+
+    if (departmentChanged || roleChanged || managerChanged || updateData.status !== undefined) {
+      const deltaPayload = {
+        userId: employeeId.toString(),
+        organizationId: orgId.toString(),
+        previousValues,
+        updatedValues: {
+          departmentId: updateData.departmentId,
+          role: updateData.role,
+          managerId: updateData.managerId,
+          status: updateData.status,
+        },
+      };
+
+      // Record in Transactional Outbox
+      try {
+        await OutboxEvent.create({
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          aggregateType: "employee",
+          aggregateId: new mongoose.Types.ObjectId(employeeId),
+          eventName: "employee.profile_updated",
+          eventVersion: 1,
+          correlationId: crypto.randomUUID(),
+          payload: deltaPayload,
+          status: "published",
+          publishedAt: new Date(),
+        });
+      } catch (outboxErr) {
+        console.warn("[EmployeeService] OutboxEvent write for profile update:", outboxErr);
+      }
+
+      await eventBus.publish({
+        eventName: "USER_UPDATED",
+        organizationId: orgId,
+        actorId: employeeId,
+        entityId: employeeId,
+        payload: deltaPayload,
+      });
+
+      if (departmentChanged) {
+        await eventBus.publish({
+          eventName: "USER_DEPARTMENT_CHANGED",
+          organizationId: orgId,
+          actorId: employeeId,
+          entityId: employeeId,
+          payload: deltaPayload,
+        });
+      }
+
+      if (roleChanged) {
+        await eventBus.publish({
+          eventName: "USER_ROLE_CHANGED",
+          organizationId: orgId,
+          actorId: employeeId,
+          entityId: employeeId,
+          payload: deltaPayload,
+        });
+      }
+    }
+
+    return updatedEmployee;
   }
 
   async deleteEmployee(
@@ -403,6 +513,14 @@ export class EmployeeService {
         const inserted = await User.insertMany(batch, { ordered: false });
         results.successCount += inserted.length;
         for (const userDoc of inserted) {
+          onboardingCaseService.createCase({
+            organizationId: orgId.toString(),
+            employeeId: userDoc._id.toString(),
+            source: "bulk_import",
+            idempotencyKey: `bulk_import_${userDoc._id}`,
+            createdBy: creatorId.toString(),
+          }).catch((e) => console.warn("[EmployeeService] Bulk import OnboardingCase create error:", e));
+
           eventBus.publish({
             eventName: "USER_CREATED",
             organizationId: orgId,
@@ -416,11 +534,34 @@ export class EmployeeService {
               jobTitle: userDoc.employment?.designation || userDoc.employment?.jobTitle,
             },
           }).catch((err) => console.error("Event publish error:", err));
+
+          eventBus.publish({
+            eventName: "ONBOARDING_CASE_CREATED",
+            organizationId: orgId,
+            actorId: userDoc._id,
+            entityId: userDoc._id,
+            payload: {
+              employeeId: userDoc._id.toString(),
+              source: "bulk_import",
+              userId: userDoc._id.toString(),
+              email: userDoc.auth.email,
+              role: userDoc.permissions.role,
+              department: userDoc.employment?.departmentId?.toString() || userDoc.employment?.department,
+            },
+          }).catch((err) => console.error("Event publish error:", err));
         }
       } catch (err: any) {
         if (err.insertedDocs && Array.isArray(err.insertedDocs)) {
           results.successCount += err.insertedDocs.length;
           for (const userDoc of err.insertedDocs) {
+            onboardingCaseService.createCase({
+              organizationId: orgId.toString(),
+              employeeId: userDoc._id.toString(),
+              source: "bulk_import",
+              idempotencyKey: `bulk_import_${userDoc._id}`,
+              createdBy: creatorId.toString(),
+            }).catch((e) => console.warn("[EmployeeService] Bulk import OnboardingCase create error:", e));
+
             eventBus.publish({
               eventName: "USER_CREATED",
               organizationId: orgId,
@@ -432,6 +573,21 @@ export class EmployeeService {
                 role: userDoc.permissions.role,
                 department: userDoc.employment?.departmentId?.toString() || userDoc.employment?.department,
                 jobTitle: userDoc.employment?.designation || userDoc.employment?.jobTitle,
+              },
+            }).catch((e) => console.error("Event publish error:", e));
+
+            eventBus.publish({
+              eventName: "ONBOARDING_CASE_CREATED",
+              organizationId: orgId,
+              actorId: userDoc._id,
+              entityId: userDoc._id,
+              payload: {
+                employeeId: userDoc._id.toString(),
+                source: "bulk_import",
+                userId: userDoc._id.toString(),
+                email: userDoc.auth.email,
+                role: userDoc.permissions.role,
+                department: userDoc.employment?.departmentId?.toString() || userDoc.employment?.department,
               },
             }).catch((e) => console.error("Event publish error:", e));
           }
@@ -453,6 +609,32 @@ export class EmployeeService {
     }
 
     return results;
+  }
+
+  async setLegalHold(
+    orgId: string | mongoose.Types.ObjectId,
+    employeeId: string | mongoose.Types.ObjectId,
+    legalHold: boolean,
+    reason?: string,
+    actorUserId?: string | mongoose.Types.ObjectId
+  ) {
+    const user = await User.findOne({
+      _id: new mongoose.Types.ObjectId(employeeId.toString()),
+      organizationId: new mongoose.Types.ObjectId(orgId.toString()),
+      isDeleted: false,
+    });
+    if (!user) {
+      throw new AppError(404, "NOT_FOUND", "Employee not found");
+    }
+
+    user.compliance = user.compliance || {};
+    user.compliance.legalHold = legalHold;
+    user.compliance.legalHoldReason = reason;
+    user.compliance.legalHoldPlacedAt = legalHold ? new Date() : undefined;
+    user.compliance.legalHoldPlacedBy = legalHold && actorUserId ? new mongoose.Types.ObjectId(actorUserId.toString()) : undefined;
+
+    await user.save();
+    return user;
   }
 }
 

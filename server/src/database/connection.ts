@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import dbConfig from "../config/database.config.js";
 
-export async function connectDatabase(log: any) {
+export async function connectDatabase(log: any = console) {
   mongoose.connection.on("connecting", () => {
     log.info("🔌 Connecting to MongoDB Atlas...");
   });
@@ -32,7 +32,7 @@ export async function connectDatabase(log: any) {
   }
 }
 
-export async function disconnectDatabase(log: any) {
+export async function disconnectDatabase(log: any = console) {
   if (mongoose.connection.readyState === 0) {
     return;
   }

@@ -29,4 +29,8 @@ export const signDocumentSchema = z.object({
   type: z.enum(["draw", "type"]),
   signatureDataUrl: z.string().optional(),
   signerName: z.string().min(2, "Signer name must be at least 2 characters"),
+  supervisorWitnessId: z.string().optional(),
+  supervisorPin: z.string().optional(),
+  kioskDeviceId: z.string().optional(),
+  kioskSessionToken: z.string().optional(),
 });

@@ -58,7 +58,8 @@ import {
   Wand2,
   KeyRound,
   MapPin,
-  Tv
+  Tv,
+  Laptop
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -158,6 +159,14 @@ export function AppShell() {
     { title: t('items.superAdminDashboard'), url: '/super-admin', icon: LayoutDashboard },
     { title: t('items.organizations'), url: '/super-admin/organizations', icon: Users },
     { title: t('items.finance'), url: '/super-admin/finance', icon: BarChart2 },
+  ];
+
+  const itAdminNav: NavItem[] = [
+    { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop },
+    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+    { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
+    { title: 'Employee Directory', url: '/directory', icon: Users },
+    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
   ];
 
   const labelByPath: Record<string, string> = {
@@ -280,7 +289,15 @@ export function AppShell() {
 
   const navItems = !hasToken
     ? [{ title: 'Knowledge Base', url: '/kb', icon: BookOpen }]
-    : role === 'super_admin' ? superAdminNav : role === 'admin' || role === 'owner' || role === 'hr_admin' ? adminNav : role === 'manager' ? managerNav : employeeNav;
+    : role === 'super_admin'
+      ? superAdminNav
+      : role === 'it_admin'
+        ? itAdminNav
+        : role === 'admin' || role === 'owner' || role === 'hr_admin'
+          ? adminNav
+          : role === 'manager'
+            ? managerNav
+            : employeeNav;
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {
@@ -288,6 +305,8 @@ export function AppShell() {
       setRole(next);
       if (next === 'super_admin') {
         navigate('/super-admin');
+      } else if (next === 'it_admin') {
+        navigate('/tasks/it-ops');
       } else {
         navigate(next === 'admin' ? '/' : '/employee');
       }

@@ -37,6 +37,7 @@ import {
 } from '../components/Dialog';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 
 export const CalendarIntegration: React.FC = () => {
@@ -63,7 +64,7 @@ export const CalendarIntegration: React.FC = () => {
 
   const { data: connection } = useCalendarConnection();
   const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useMeetingEvents();
-  const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
+  const { data: employeesData } = useEmployees({ page: 1, limit: 1000 });
 
   const eventsPagination = usePagination({ data: events || [], initialPageSize: 10 });
 
@@ -459,19 +460,19 @@ export const CalendarIntegration: React.FC = () => {
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Direct Report *</label>
-                <select
+                <SearchableSelect
                   data-testid="attendee-select"
-                  className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                   value={selectedAttendeeId}
-                  onChange={(e) => setSelectedAttendeeId(e.target.value)}
-                >
-                  <option value="">-- Select Direct Report --</option>
-                  {employees.map((emp: any) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedAttendeeId(val)}
+                  placeholder="Search & select direct report..."
+                  searchPlaceholder="Search attendee by name, email..."
+                  options={employees.map((emp: any) => ({
+                    value: emp.id,
+                    label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                    sublabel: emp.email,
+                    badge: emp.department || 'Direct Report',
+                  }))}
+                />
               </div>
             </div>
 

@@ -4,6 +4,7 @@ import { MilestoneService } from "../services/milestone.service.js";
 import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
 import {
   createMilestoneTemplateSchema,
+  updateMilestoneTemplateSchema,
   assignMilestoneSchema,
   selfCheckinSchema,
   managerReviewSchema,
@@ -16,17 +17,43 @@ export async function milestoneRoutes(app: FastifyInstance) {
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
 
-  // Template Management (Admin / Owner)
+  // Template Management (Admin / Owner / HR Admin / Super Admin)
   app.post(
     "/templates",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin", "super_admin"])],
       schema: { body: createMilestoneTemplateSchema },
     },
     controller.createTemplate as any
   );
 
   app.get("/templates", controller.listTemplates as any);
+
+  app.put(
+    "/templates/:id",
+    {
+      preHandler: [requireRole(["owner", "admin", "hr_admin", "super_admin"])],
+      schema: { body: updateMilestoneTemplateSchema },
+    },
+    controller.updateTemplate as any
+  );
+
+  app.patch(
+    "/templates/:id",
+    {
+      preHandler: [requireRole(["owner", "admin", "hr_admin", "super_admin"])],
+      schema: { body: updateMilestoneTemplateSchema },
+    },
+    controller.updateTemplate as any
+  );
+
+  app.delete(
+    "/templates/:id",
+    {
+      preHandler: [requireRole(["owner", "admin", "hr_admin", "super_admin"])],
+    },
+    controller.deleteTemplate as any
+  );
 
   // Assignment (Admin / Owner)
   app.post(

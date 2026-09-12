@@ -2,8 +2,15 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import HRISIntegration from "../models/hris-integration.model.js";
 import SyncLog from "../models/sync-log.model.js";
+import HRISWebhookLog from "../models/hris-webhook-log.model.js";
+import OutboxEvent from "../../onboarding/models/outbox-event.model.js";
 import User from "../../auth/models/user.model.js";
 import AppError from "../../../common/errors/app-error.js";
+import onboardingCaseService from "../../onboarding/services/onboarding-case.service.js";
+import documentService from "../../documents/services/document.service.js";
+import TaskService from "../../tasks/services/task.service.js";
+import TaskRepository from "../../tasks/repositories/task.repository.js";
+import workflowEngine from "../../workflows/services/workflow.engine.js";
 
 export class HRISIntegrationService {
   /**
@@ -257,6 +264,19 @@ export class HRISIntegrationService {
           throw new Error("Missing required email field in external HRIS record");
         }
 
+        // UQ-03 Termination Handling during Batch Sync
+        const isTerminated =
+          rawRecord.status === "terminated" ||
+          rawRecord.employment_status === "terminated" ||
+          rawRecord.event === "employee.terminated" ||
+          mappedData.status === "terminated";
+
+        if (isTerminated) {
+          await this.executeTerminationLifecycle(orgObjectId, email);
+          updatedCount++;
+          continue;
+        }
+
         let user = await User.findOne({
           organizationId: orgObjectId,
           "auth.email": email.toLowerCase(),
@@ -349,38 +369,217 @@ export class HRISIntegrationService {
   }
 
   /**
-   * Webhook Receiver Engine with HMAC Verification (INT-002)
+   * Webhook Receiver Engine with HMAC Verification (INT-002, Step 1 & UQ-03)
    */
   async processWebhookPayload(provider: string, signature: string, payload: any) {
-    // Find active integration matching provider
-    const integration = await HRISIntegration.findOne({
+    const activeIntegrations = await HRISIntegration.find({
       provider: provider.toLowerCase() as any,
       status: "active",
     });
 
-    if (!integration) {
+    if (!activeIntegrations || activeIntegrations.length === 0) {
       throw new AppError(404, "NOT_FOUND", `No active integration found for provider ${provider}`);
     }
 
-    // Optional HMAC signature verification (INT-002)
-    if (integration.webhookSecret && signature) {
-      const expectedSignature = crypto
-        .createHmac("sha256", integration.webhookSecret)
-        .update(JSON.stringify(payload))
-        .digest("hex");
+    const payloadString = typeof payload === "string" ? payload : JSON.stringify(payload);
+    const cleanSignature = signature?.startsWith("sha256=") ? signature.slice(7) : signature;
 
-      // Verify signature matching
-      if (signature !== expectedSignature && !signature.includes(expectedSignature)) {
-        // Log warning but proceed for integration flexibility
+    let integration: any = null;
+
+    // 1. Resolve by organizationId if provided in payload
+    if (payload.organizationId || payload.data?.organizationId) {
+      const targetOrgId = (payload.organizationId || payload.data?.organizationId).toString();
+      integration = activeIntegrations.find((i) => i.organizationId.toString() === targetOrgId);
+    }
+
+    // 2. Resolve by matching HMAC signature across candidate integrations
+    if (!integration && signature && signature.trim()) {
+      for (const candidate of activeIntegrations) {
+        if (candidate.webhookSecret) {
+          const expected = crypto
+            .createHmac("sha256", candidate.webhookSecret)
+            .update(payloadString)
+            .digest("hex");
+          if (cleanSignature === expected || signature === expected || signature.includes(expected)) {
+            integration = candidate;
+            break;
+          }
+        }
       }
     }
 
-    // Execute lifecycle sync with payload
-    const records = Array.isArray(payload.employees || payload.data || payload)
-      ? payload.employees || payload.data || payload
-      : [payload];
+    // 3. Fallback to newest active integration
+    if (!integration) {
+      integration = activeIntegrations[activeIntegrations.length - 1];
+    }
 
-    return this.triggerSync(integration.organizationId, integration._id.toString(), records);
+    // Strict HMAC signature verification (INT-002)
+    if (integration.webhookSecret) {
+      if (!signature || !signature.trim()) {
+        throw new AppError(401, "UNAUTHORIZED", "Missing webhook HMAC signature");
+      }
+
+      const expectedSignature = crypto
+        .createHmac("sha256", integration.webhookSecret)
+        .update(payloadString)
+        .digest("hex");
+
+      if (
+        cleanSignature !== expectedSignature &&
+        signature !== expectedSignature &&
+        !signature.includes(expectedSignature)
+      ) {
+        throw new AppError(401, "UNAUTHORIZED", "Invalid webhook HMAC signature");
+      }
+    }
+
+    // Parse event type and identifier
+    const eventType =
+      payload.event ||
+      payload.eventType ||
+      payload.action ||
+      payload.type ||
+      (payload.terminatedAt || payload.status === "terminated" || payload.data?.status === "terminated"
+        ? "employee.terminated"
+        : "employee.created");
+
+    const eventId =
+      payload.eventId ||
+      payload.id ||
+      payload.webhookEventId ||
+      (payload.data && (payload.data.eventId || payload.data.id)) ||
+      crypto.createHash("md5").update(JSON.stringify(payload)).digest("hex");
+
+    // Idempotency check via HRISWebhookLog
+    const existingLog = await HRISWebhookLog.findOne({
+      organizationId: integration.organizationId,
+      provider: integration.provider,
+      eventId,
+    });
+
+    if (existingLog) {
+      return {
+        success: true,
+        duplicate: true,
+        eventId,
+        status: existingLog.status,
+        message: "Webhook event already processed (idempotent duplicate)",
+      };
+    }
+
+    // Store event in HRISWebhookLog
+    const webhookLog = await HRISWebhookLog.create({
+      organizationId: integration.organizationId,
+      integrationId: integration._id,
+      provider: integration.provider,
+      eventId,
+      eventType,
+      payload,
+      signature,
+      status: "received",
+    });
+
+    // Write event to outbox_events collection for reliable asynchronous processing
+    let outboxEventName = "hris.employee.created";
+    if (
+      eventType === "employee.terminated" ||
+      eventType === "hris.employee.terminated" ||
+      eventType.includes("terminated")
+    ) {
+      outboxEventName = "hris.employee.terminated";
+    } else if (
+      eventType === "employee.updated" ||
+      eventType === "hris.employee.updated" ||
+      eventType.includes("updated")
+    ) {
+      outboxEventName = "hris.employee.updated";
+    }
+
+    await OutboxEvent.create({
+      organizationId: integration.organizationId,
+      aggregateType: "hris_integration",
+      aggregateId: integration._id,
+      eventName: outboxEventName,
+      correlationId: crypto.randomUUID(),
+      payload: {
+        integrationId: integration._id.toString(),
+        provider: integration.provider,
+        eventId,
+        eventType,
+        data: payload.data || payload.employees || payload.employee || payload,
+      },
+    });
+
+    return {
+      success: true,
+      eventId,
+      eventType,
+      status: "received",
+      message: "Webhook event verified and queued to transactional outbox",
+      webhookLogId: webhookLog._id.toString(),
+    };
+  }
+
+  /**
+   * Execute UQ-03 Formal Termination & Legal Retention Policy
+   */
+  async executeTerminationLifecycle(
+    orgId: string | mongoose.Types.ObjectId,
+    employeeIdOrEmail: string | mongoose.Types.ObjectId,
+    reason = "hris_termination_event"
+  ) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const isId =
+      mongoose.Types.ObjectId.isValid(employeeIdOrEmail) &&
+      employeeIdOrEmail.toString().length === 24;
+
+    const query: any = { organizationId: orgObjectId };
+    if (isId) {
+      query._id = new mongoose.Types.ObjectId(employeeIdOrEmail.toString());
+    } else {
+      query["auth.email"] = employeeIdOrEmail.toString().toLowerCase();
+    }
+
+    const user = await User.findOne(query);
+    if (!user) {
+      return { success: false, message: "Employee not found for termination" };
+    }
+
+    // Check Legal Hold override guardrail
+    if (user.compliance?.legalHold) {
+      return {
+        success: false,
+        legalHoldProtected: true,
+        message: "Employee is under active Legal Hold. Document revocation and archiving blocked.",
+        user,
+      };
+    }
+
+    // 1. OnboardingCase: Transition to cancelled
+    await onboardingCaseService.cancelCaseForEmployee(orgObjectId, user._id, reason);
+
+    // 2. TaskService: Cancel pending and in-progress tasks
+    const taskService = new TaskService(new TaskRepository());
+    await taskService.cancelTasksForTerminatedEmployee(
+      orgObjectId,
+      user._id,
+      "Cancelled due to HRIS termination event"
+    );
+
+    // 3. DocumentService: Revoke incomplete, preserve signed with complianceRetention
+    await documentService.handleEmployeeTermination(orgObjectId, user._id);
+
+    // 4. Update User record to terminated and archived
+    user.employment.status = "terminated";
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    await user.save();
+
+    return {
+      success: true,
+      message: "Employee termination and legal retention lifecycle executed successfully",
+      user,
+    };
   }
 
   /**

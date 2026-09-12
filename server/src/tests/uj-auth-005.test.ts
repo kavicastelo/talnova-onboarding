@@ -56,6 +56,7 @@ describe("Journey Test UJ-AUTH-005: Enterprise SSO Discovery & Initiation", () =
     });
 
     // 3. Precondition: Configure SAML 2.0 endpoint and acme.corp domain in /settings/sso
+    await SSOConfig.deleteMany({ domains: "acme.corp" });
     await SSOConfig.create({
       organizationId: acmeOrg._id,
       provider: "saml2",

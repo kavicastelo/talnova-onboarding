@@ -107,5 +107,25 @@ export const kioskService = {
   getJourneyAnalytics: async (journeyId: string, params?: { startDate?: string; endDate?: string }): Promise<KioskAnalyticsSummary> => {
     const response = await apiClient.get<{ success: boolean; data: KioskAnalyticsSummary }>(`/kiosk/journeys/${journeyId}/analytics`, { params });
     return response.data.data;
+  },
+
+  toggleMaintenanceMode: async (deviceId: string, maintenance: boolean): Promise<KioskDevice> => {
+    const response = await apiClient.patch<{ success: boolean; data: KioskDevice }>(`/kiosk/devices/${deviceId}/maintenance`, { maintenance });
+    return response.data.data;
+  },
+
+  identifyFrontlineWorker: async (identifier: string, kioskDeviceId?: string): Promise<{ token: string; user: any; pendingComplianceDocsCount: number }> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/identify', { identifier, kioskDeviceId });
+    return response.data.data;
+  },
+
+  verifySupervisorPin: async (supervisorIdentifier: string, pin: string): Promise<{ verified: boolean; supervisor: any }> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/supervisor/verify-pin', { supervisorIdentifier, pin });
+    return response.data.data;
+  },
+
+  setSupervisorPin: async (supervisorId: string, pin: string): Promise<boolean> => {
+    const response = await apiClient.post<{ success: boolean; message: string }>('/kiosk/supervisor/pin', { supervisorId, pin });
+    return response.data.success;
   }
 };

@@ -36,9 +36,26 @@ export function EmployeeDashboard() {
   const { data: buddyAssignment } = useMyBuddy();
   const { data: milestones = [] } = useMyMilestones();
   const assignJourneyMut = useAssignJourney();
+  const updateTaskMutation = useUpdateTaskStatus();
+
+  const availablePublicJourneys = (publicJourneys || []).filter((pj: any) => {
+    return !employee?.assignedJourneys?.some((aj: any) => aj.journeyId === pj.id);
+  });
+
+  const assignedPagination = usePagination({ data: employee?.assignedJourneys || [], initialPageSize: 6 });
+  const publicPagination = usePagination({ data: availablePublicJourneys, initialPageSize: 6 });
+
+  // Persistence key for employee onboarding handover confirmation
+  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?.id || user?._id || 'default'}`;
+  const [isHandoverAcknowledged, setIsHandoverAcknowledged] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(handoverStorageKey) === 'true' || employee?.status === 'Active';
+    }
+    return employee?.status === 'Active';
+  });
 
   const openTasksCount = (tasksData?.tasks || []).filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length;
-  const pendingDocs = docInbox.filter((d: any) => d.status === 'pending');
+  const pendingDocs = (docInbox || []).filter((d: any) => d.status === 'pending');
   const pendingDocsCount = pendingDocs.length;
 
   const handleEnroll = (journeyId: string) => {
@@ -57,11 +74,6 @@ export function EmployeeDashboard() {
     );
   };
 
-  const availablePublicJourneys = publicJourneys.filter((pj: any) => {
-    return !employee?.assignedJourneys?.some((aj: any) => aj.journeyId === pj.id);
-  });
-
-  const updateTaskMutation = useUpdateTaskStatus();
   const handleToggleTask = (task: any) => {
     const nextStatus = task.status === 'completed' ? 'pending' : 'completed';
     updateTaskMutation.mutate(
@@ -76,18 +88,6 @@ export function EmployeeDashboard() {
       }
     );
   };
-
-  const assignedPagination = usePagination({ data: employee?.assignedJourneys || [], initialPageSize: 6 });
-  const publicPagination = usePagination({ data: availablePublicJourneys, initialPageSize: 6 });
-
-  // Persistence key for employee onboarding handover confirmation
-  const handoverStorageKey = `talnova_handover_completed_${employee?.id || user?.id || user?._id || 'default'}`;
-  const [isHandoverAcknowledged, setIsHandoverAcknowledged] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(handoverStorageKey) === 'true' || employee?.status === 'Active';
-    }
-    return employee?.status === 'Active';
-  });
 
   const isLoading = userLoading || employeeLoading;
 

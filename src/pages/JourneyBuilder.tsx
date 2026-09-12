@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '../components/Select';
+import { SearchableSelect } from '../components/SearchableSelect';
 import {
   ChevronLeft,
   GripVertical,
@@ -689,18 +690,16 @@ export function JourneyBuilder() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Category</label>
-                        <Select value={category} onValueChange={setCategory} className="w-full">
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Category" />
-                          </SelectTrigger>
-                          <SelectContent className="w-full min-w-[200px]">
-                            {availableCategories.map((cat) => (
-                              <SelectItem key={cat} value={cat.toLowerCase()}>
-                                {cat}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={category}
+                          onChange={setCategory}
+                          placeholder="Select Category"
+                          searchPlaceholder="Search category..."
+                          options={availableCategories.map((cat) => ({
+                            value: cat.toLowerCase(),
+                            label: cat,
+                          }))}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -1593,17 +1592,22 @@ export function JourneyBuilder() {
                       </div>
 
                       <div className="sm:col-span-3">
-                        <Select value={empDeptFilter} onValueChange={(val: any) => { setEmpDeptFilter(val); setEmpPage(1); }}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="All Departments" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Departments</SelectItem>
-                            {employeeDepartments.map((dept: any) => (
-                              <SelectItem key={dept} value={dept.toLowerCase()}>{dept}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={empDeptFilter}
+                          onChange={(val) => {
+                            setEmpDeptFilter(val || 'all');
+                            setEmpPage(1);
+                          }}
+                          placeholder="All Departments"
+                          searchPlaceholder="Search department..."
+                          options={[
+                            { value: 'all', label: 'All Departments' },
+                            ...employeeDepartments.map((dept: any) => ({
+                              value: dept.toLowerCase(),
+                              label: dept,
+                            }))
+                          ]}
+                        />
                       </div>
 
                       <div className="sm:col-span-3">

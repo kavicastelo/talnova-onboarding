@@ -14,9 +14,11 @@ export interface IWorkflowExecutionLog extends Document {
   workflowRuleId: mongoose.Types.ObjectId;
   triggerEvent: string;
   targetUserId: mongoose.Types.ObjectId;
-  status: "success" | "partial_failure" | "failed" | "pending_delay";
+  status: "success" | "partial_failure" | "failed" | "pending_delay" | "paused_delay";
   conditionsEvaluated: boolean;
   stepResults: IWorkflowStepResult[];
+  nextStepIndex?: number;
+  resumeAt?: Date;
   errorDetails?: string;
   executedAt: Date;
   completedAt?: Date;
@@ -48,11 +50,13 @@ const WorkflowExecutionLogSchema = new Schema<IWorkflowExecutionLog>(
     targetUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     status: {
       type: String,
-      enum: ["success", "partial_failure", "failed", "pending_delay"],
+      enum: ["success", "partial_failure", "failed", "pending_delay", "paused_delay"],
       default: "success",
     },
     conditionsEvaluated: { type: Boolean, default: true },
     stepResults: [WorkflowStepResultSchema],
+    nextStepIndex: { type: Number },
+    resumeAt: { type: Date },
     errorDetails: { type: String },
     executedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },

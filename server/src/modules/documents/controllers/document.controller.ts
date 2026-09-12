@@ -128,7 +128,8 @@ export class DocumentController {
       params.id,
       user.userId,
       body,
-      reqMetadata
+      reqMetadata,
+      user.role || (user.scope ? "frontline_worker_kiosk" : undefined)
     );
 
     return reply.status(200).send({

@@ -28,6 +28,37 @@ export class MilestoneController {
     });
   };
 
+  updateTemplate = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const template = await this.milestoneService.updateTemplate(
+      user.organizationId,
+      params.id,
+      user.userId,
+      body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Milestone template updated successfully",
+      data: template,
+    });
+  };
+
+  deleteTemplate = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    await this.milestoneService.deleteTemplate(user.organizationId, params.id);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Milestone template deleted successfully",
+    });
+  };
+
   assignMilestone = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const body = request.body as any;

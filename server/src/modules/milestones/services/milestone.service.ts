@@ -6,8 +6,10 @@ import NotificationService from "../../notifications/services/notification.servi
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
 import AppError from "../../../common/errors/app-error.js";
 import eventBus from "../../../infrastructure/events/event-bus.js";
+import { AIAssistantService } from "../../ai/services/ai-assistant.service.js";
 
 const notificationService = new NotificationService(new NotificationRepository());
+const aiAssistantService = new AIAssistantService();
 
 export class MilestoneService {
   /**
@@ -26,6 +28,7 @@ export class MilestoneService {
       goals: data.goals || [],
       checkinQuestions: data.checkinQuestions || [],
       audience: data.audience || {},
+      autoApprovalEnabled: data.autoApprovalEnabled !== undefined ? data.autoApprovalEnabled : true,
       createdBy: new mongoose.Types.ObjectId(userId),
     });
 
@@ -40,6 +43,61 @@ export class MilestoneService {
       organizationId: new mongoose.Types.ObjectId(orgId),
       isDeleted: false,
     }).sort({ targetDay: 1 });
+  }
+
+  /**
+   * Update Milestone Template
+   */
+  async updateTemplate(
+    orgId: string | mongoose.Types.ObjectId,
+    templateId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    data: Partial<IMilestoneTemplate>
+  ) {
+    const template = await MilestoneTemplate.findOne({
+      _id: new mongoose.Types.ObjectId(templateId),
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    });
+
+    if (!template) {
+      throw new AppError(404, "NOT_FOUND", "Milestone template not found");
+    }
+
+    if (data.title !== undefined) template.title = data.title;
+    if (data.description !== undefined) template.description = data.description;
+    if (data.targetDay !== undefined) template.targetDay = data.targetDay;
+    if (data.goals !== undefined) template.goals = data.goals as any;
+    if (data.checkinQuestions !== undefined) template.checkinQuestions = data.checkinQuestions as any;
+    if (data.audience !== undefined) template.audience = data.audience as any;
+    template.updatedBy = new mongoose.Types.ObjectId(userId);
+
+    await template.save();
+    return template;
+  }
+
+  /**
+   * Delete Milestone Template (Soft delete)
+   */
+  async deleteTemplate(
+    orgId: string | mongoose.Types.ObjectId,
+    templateId: string | mongoose.Types.ObjectId
+  ) {
+    const template = await MilestoneTemplate.findOne({
+      _id: new mongoose.Types.ObjectId(templateId),
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    });
+
+    if (!template) {
+      throw new AppError(404, "NOT_FOUND", "Milestone template not found");
+    }
+
+    template.isDeleted = true;
+    template.deletedAt = new Date();
+    await template.save();
+
+    return { success: true, message: "Milestone template deleted successfully" };
   }
 
   /**
@@ -211,10 +269,48 @@ export class MilestoneService {
     milestone.submittedAt = submittedDate;
     milestone.comments = comments;
     milestone.status = "pending_manager_review";
-    await milestone.save();
 
-    // Notify manager
+    // Milestone SLA & Escalation Ladder (Prompt 06 Step 1)
+    const template = await MilestoneTemplate.findById(milestone.templateId);
+    const templateAllowsAutoApproval = template?.autoApprovalEnabled !== false;
+
+    const lower = comments.toLowerCase();
+    const blockersReported =
+      lower.includes("block") ||
+      lower.includes("stuck") ||
+      lower.includes("issue") ||
+      lower.includes("struggl") ||
+      lower.includes("difficult") ||
+      lower.includes("delay") ||
+      lower.includes("help needed") ||
+      lower.includes("impediment");
+
+    // Guardrail: High confidence (>=4/5) and 0 blockers -> autoApprovalEligible
+    // Low score (<=2/5) or negative sentiment/blockers -> autoApprovalEligible: false
+    const autoApprovalEligible = rating >= 4 && !blockersReported && templateAllowsAutoApproval;
+
+    milestone.sla = {
+      reviewDeadline: new Date(submittedDate.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days review window
+      reminderSentCount: 0,
+      autoApprovalEligible,
+      escalationState: "normal",
+      blockersReported,
+    };
+
+    // AI-Powered Reflection Summarization (Prompt 06 Step 2)
     const employee = await User.findById(employeeId);
+    try {
+      const aiSummary = await aiAssistantService.summarizeReflection(comments, {
+        employeeName: employee?.profile?.firstName,
+        rating,
+        targetDay: milestone.targetDay,
+      });
+      milestone.aiSummary = aiSummary;
+    } catch (aiErr) {
+      console.warn("[MilestoneService] AI reflection summarization failed:", aiErr);
+    }
+
+    await milestone.save();
     const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
     if (managerId) {
       await notificationService.createNotification({
@@ -341,6 +437,11 @@ export class MilestoneService {
       }
     }
 
+    if (milestone.sla) {
+      milestone.sla.escalationState = "normal";
+    }
+    milestone.approvedBy = isRevision ? undefined : new mongoose.Types.ObjectId(managerUserId);
+
     await milestone.save();
 
     // Notify employee
@@ -438,6 +539,246 @@ export class MilestoneService {
     }
 
     return assignedCount;
+  }
+
+  /**
+   * Autonomous Milestone Evaluation & Escalation Ladder Scanner (Prompt 06 Step 1)
+   * Scans pending milestone reviews and executes:
+   * - Day 3: Level 1 gentle reminder
+   * - Day 5: Level 2 urgent 48h warning
+   * - Day 7: Autonomous threshold approval (if eligible) or Skip-Level/HR escalation (if low score/blockers)
+   */
+  async scanPendingMilestoneReviews(orgId?: string | mongoose.Types.ObjectId) {
+    const filter: any = {
+      status: "pending_manager_review",
+      isDeleted: false,
+    };
+    if (orgId) {
+      filter.organizationId = new mongoose.Types.ObjectId(orgId);
+    }
+
+    const pendingMilestones = await EmployeeMilestone.find(filter);
+    const now = new Date();
+    const results = {
+      remindedLevel1: 0,
+      remindedLevel2: 0,
+      autoApproved: 0,
+      escalated: 0,
+    };
+
+    for (const milestone of pendingMilestones) {
+      const submittedAt = milestone.submittedAt || milestone.createdAt;
+      const daysElapsed = (now.getTime() - new Date(submittedAt).getTime()) / (24 * 60 * 60 * 1000);
+      const reviewDeadline =
+        milestone.sla?.reviewDeadline ||
+        new Date(new Date(submittedAt).getTime() + 7 * 24 * 60 * 60 * 1000);
+      const isBreached = now.getTime() >= reviewDeadline.getTime() || daysElapsed >= 7;
+
+      const employee = await User.findById(milestone.employeeId);
+      const managerId =
+        employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
+
+      // Skip already processed milestones (already escalated or auto-approved)
+      if (
+        milestone.sla?.escalationState === "auto_approved" ||
+        milestone.sla?.escalationState === "escalated"
+      ) {
+        continue;
+      }
+
+      if (isBreached) {
+        // =========================================================================
+        // DAY 7 POST-SUBMISSION: SLA BREACH WINDOW
+        // =========================================================================
+        if (milestone.sla?.autoApprovalEligible) {
+          // Autonomous Threshold-Based Approval (High Confidence >=4/5, 0 Blockers)
+          milestone.status = "approved";
+          milestone.managerRating = 4;
+          milestone.managerFeedback =
+            "Autonomous Milestone Approval: Auto-approved following 7-day manager SLA window without dissent. Employee self-rating was high (>=4/5).";
+          milestone.approvedBy = "system.autonomous.sentinel";
+          milestone.evaluatedAt = now;
+          milestone.managerReview = {
+            reviewedBy: undefined,
+            reviewedAt: now,
+            approvalStatus: "approved",
+            performanceRating: 4,
+            feedback: milestone.managerFeedback,
+          };
+          if (milestone.sla) {
+            milestone.sla.escalationState = "auto_approved";
+          }
+          await milestone.save();
+
+          // Emit milestone completion event to unlock downstream roadmap and gamification
+          try {
+            await eventBus.publish({
+              eventName: "MILESTONE_COMPLETED",
+              organizationId: milestone.organizationId,
+              actorId: undefined,
+              entityId: milestone._id as any,
+              payload: {
+                milestoneId: milestone._id.toString(),
+                templateId: milestone.templateId.toString(),
+                milestoneTitle: milestone.milestoneTitle,
+                employeeId: milestone.employeeId.toString(),
+                targetDay: milestone.targetDay,
+                autoApproved: true,
+                approvedBy: "system.autonomous.sentinel",
+              },
+            });
+
+            await eventBus.publish({
+              eventName: "milestone.auto_approved" as any,
+              organizationId: milestone.organizationId,
+              actorId: undefined,
+              entityId: milestone._id as any,
+              payload: {
+                milestoneId: milestone._id.toString(),
+                employeeId: milestone.employeeId.toString(),
+                targetDay: milestone.targetDay,
+                approvedBy: "system.autonomous.sentinel",
+              },
+            });
+          } catch (e) {
+            console.error("[MilestoneService] Failed to publish auto-approval events:", e);
+          }
+
+          // Notify Manager and Employee
+          if (managerId) {
+            await notificationService.createNotification({
+              organizationId: milestone.organizationId,
+              recipientUserId: managerId,
+              type: "journey_completed",
+              title: `Day ${milestone.targetDay} Milestone Auto-Approved`,
+              message: `Milestone for ${employee?.profile?.firstName || "Employee"} was autonomously approved following the 7-day manager SLA window without dissent.`,
+              priority: "medium",
+              data: {
+                milestoneId: milestone._id.toString(),
+                autoApproved: true,
+              },
+            });
+          }
+
+          await notificationService.createNotification({
+            organizationId: milestone.organizationId,
+            recipientUserId: milestone.employeeId,
+            type: "journey_completed",
+            title: `Day ${milestone.targetDay} Milestone Approved!`,
+            message: `Your Day ${milestone.targetDay} milestone has been autonomously approved following review SLA expiration.`,
+            priority: "high",
+            data: {
+              milestoneId: milestone._id.toString(),
+              targetDay: milestone.targetDay,
+              status: "approved",
+            },
+          });
+
+          results.autoApproved++;
+        } else {
+          // Low-Rating Guardrail or Blockers: Escalate directly to Skip-Level Manager or HR Ops
+          let skipLevelManagerId: any = undefined;
+          if (managerId) {
+            const managerUser = await User.findById(managerId);
+            skipLevelManagerId =
+              managerUser?.employment?.managerId ||
+              (managerUser?.employment as any)?.managerUserId;
+          }
+
+          // Find organization HR Admin if no skip-level exists
+          let escalationTargetId = skipLevelManagerId;
+          if (!escalationTargetId) {
+            const hrAdmin = await User.findOne({
+              organizationId: milestone.organizationId,
+              "permissions.role": { $in: ["admin", "owner"] },
+              isDeleted: false,
+            });
+            escalationTargetId = hrAdmin?._id;
+          }
+
+          if (milestone.sla) {
+            milestone.sla.escalationState = "escalated";
+            milestone.sla.delegatedToUserId = escalationTargetId;
+          }
+          await milestone.save();
+
+          if (escalationTargetId) {
+            await notificationService.createNotification({
+              organizationId: milestone.organizationId,
+              recipientUserId: escalationTargetId,
+              type: "manager_alert",
+              channel: "in_app",
+              title: "Milestone Review Escalation Alert",
+              message: `Milestone review for ${employee?.profile?.firstName || "Employee"} (Day ${milestone.targetDay}) breached the 7-day manager SLA. Auto-approval was blocked (Self-rating: ${milestone.employeeRating || "N/A"}/5, Blockers: ${milestone.sla?.blockersReported ? "Yes" : "None"}). Mandatory human review is required.`,
+              priority: "critical",
+              data: {
+                milestoneId: milestone._id.toString(),
+                employeeId: milestone.employeeId.toString(),
+                escalated: true,
+              },
+            });
+          }
+
+          results.escalated++;
+        }
+      } else if (daysElapsed >= 5 && (milestone.sla?.reminderSentCount ?? 0) < 2) {
+        // =========================================================================
+        // DAY 5 POST-SUBMISSION: LEVEL 2 URGENT 48-HOUR ALERT
+        // =========================================================================
+        if (managerId) {
+          await notificationService.createNotification({
+            organizationId: milestone.organizationId,
+            recipientUserId: managerId,
+            type: "manager_alert",
+            channel: "in_app",
+            title: "Action Required: Milestone Review Overdue in 48 Hours",
+            message: `Action Required: Day ${milestone.targetDay} milestone evaluation for ${employee?.profile?.firstName || "Employee"} is awaiting review and will breach SLA in 48 hours.`,
+            priority: "high",
+            data: {
+              milestoneId: milestone._id.toString(),
+              reviewDeadline: reviewDeadline.toISOString(),
+              level: 2,
+            },
+          });
+        }
+        if (milestone.sla) {
+          milestone.sla.reminderSentCount = 2;
+          milestone.sla.lastReminderSentAt = now;
+          milestone.sla.escalationState = "reminded";
+        }
+        await milestone.save();
+        results.remindedLevel2++;
+      } else if (daysElapsed >= 3 && (milestone.sla?.reminderSentCount ?? 0) < 1) {
+        // =========================================================================
+        // DAY 3 POST-SUBMISSION: LEVEL 1 FRIENDLY REMINDER
+        // =========================================================================
+        if (managerId) {
+          await notificationService.createNotification({
+            organizationId: milestone.organizationId,
+            recipientUserId: managerId,
+            type: "journey_due_soon",
+            channel: "in_app",
+            title: `Friendly Reminder: Day ${milestone.targetDay} Review Awaiting Sign-Off`,
+            message: `Friendly reminder: ${employee?.profile?.firstName || "Employee"}'s Day ${milestone.targetDay} evaluation is awaiting review.`,
+            priority: "medium",
+            data: {
+              milestoneId: milestone._id.toString(),
+              reviewDeadline: reviewDeadline.toISOString(),
+              level: 1,
+            },
+          });
+        }
+        if (milestone.sla) {
+          milestone.sla.reminderSentCount = 1;
+          milestone.sla.lastReminderSentAt = now;
+          milestone.sla.escalationState = "reminded";
+        }
+        await milestone.save();
+        results.remindedLevel1++;
+      }
+    }
+
+    return results;
   }
 }
 

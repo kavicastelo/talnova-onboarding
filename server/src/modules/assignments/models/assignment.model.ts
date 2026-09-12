@@ -57,6 +57,7 @@ export interface IEmployeeAssignment extends Document {
     priority: "low" | "normal" | "high" | "critical";
   };
   status: "assigned" | "in_progress" | "completed" | "overdue" | "expired";
+  source?: "manual" | "workflow_engine" | "smart_assignment";
   progress: {
     totalModules: number;
     completedModules: number;
@@ -148,6 +149,11 @@ const EmployeeAssignmentSchema = new Schema<IEmployeeAssignment>(
       type: String,
       enum: ["assigned", "in_progress", "completed", "overdue", "expired"],
       default: "assigned",
+    },
+    source: {
+      type: String,
+      enum: ["manual", "workflow_engine", "smart_assignment"],
+      default: "manual",
     },
     progress: {
       totalModules: { type: Number, required: true, default: 0 },

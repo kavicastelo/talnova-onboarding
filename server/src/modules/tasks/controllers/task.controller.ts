@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
 import TaskService from "../services/task.service.js";
 import User from "../../auth/models/user.model.js";
+import itHardwareService from "../services/it-hardware.service.js";
 
 export class TaskController {
   constructor(private readonly service: TaskService) {}
@@ -168,6 +169,75 @@ export class TaskController {
       success: true,
       message: "Task deleted successfully",
       data: null,
+    });
+  };
+
+  updateHardwareMetadata = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const task = await itHardwareService.updateHardwareMetadata(
+      user.organizationId,
+      params.id,
+      body,
+      user.userId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Hardware metadata updated successfully",
+      data: task,
+    });
+  };
+
+  attachHardwareReceipt = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = request.body as any;
+
+    const task = await itHardwareService.attachHardwareReceipt(
+      user.organizationId,
+      params.id,
+      body,
+      user.userId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Hardware serial receipt attached successfully",
+      data: task,
+    });
+  };
+
+  dispatchMdmWebhook = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const result = await itHardwareService.dispatchMdmWebhook(
+      user.organizationId,
+      params.taskId,
+      body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "MDM webhook dispatched successfully",
+      data: result,
+    });
+  };
+
+  handleMdmCallback = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const orgId = (request.headers["x-organization-id"] as string) || (request.user as any)?.organizationId || body.organizationId;
+
+    const task = await itHardwareService.handleMdmCallback(orgId, body);
+
+    return reply.status(200).send({
+      success: true,
+      message: "MDM callback processed successfully",
+      data: task,
     });
   };
 }

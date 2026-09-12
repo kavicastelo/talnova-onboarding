@@ -28,7 +28,10 @@ export const createMilestoneTemplateSchema = z.object({
       autoAssignNewHires: z.boolean().optional(),
     })
     .optional(),
+  autoApprovalEnabled: z.boolean().optional(),
 });
+
+export const updateMilestoneTemplateSchema = createMilestoneTemplateSchema.partial();
 
 export const assignMilestoneSchema = z.object({
   templateId: z.string().min(1, "Template ID is required"),

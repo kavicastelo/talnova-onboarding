@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CheckCircle2,
@@ -11,6 +12,11 @@ import {
   Send,
   Trash2,
   Check,
+  Laptop,
+  Cpu,
+  ExternalLink,
+  FileText,
+  RotateCcw,
 } from 'lucide-react';
 import {
   useTasks,
@@ -20,16 +26,25 @@ import {
   useDeleteTask,
 } from '../hooks/useTasks';
 import { useEmployees } from '../hooks/useEmployees';
-import { TaskItem } from '../services/task.service';
+import { TaskItem, frontendTaskService } from '../services/task.service';
 import { useRole } from '../context/RoleContext';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
+import { AutoVerificationBadge } from '../components/tasks/AutoVerificationBadge';
+import { TaskDependencyTree } from '../components/tasks/TaskDependencyTree';
+import { TaskRevocationModal } from '../components/tasks/TaskRevocationModal';
 
 export function Tasks() {
   const { can } = useRole();
-  const canManageTasks = can('create_task_template') || can('assign_task');
+  const canManageTasks = can('create_task_template') || can('assign_task') || can('manage_it_ops');
 
-  const [activeTab, setActiveTab] = useState<'my' | 'assigned' | 'overdue' | 'all' | 'direct_reports'>('my');
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const isItOpsRoute = location.pathname.includes('it-ops');
+  const initialTab = (searchParams.get('tab') as any) === 'it_ops' || isItOpsRoute ? 'it_ops' : 'my';
+
+  const [activeTab, setActiveTab] = useState<'my' | 'assigned' | 'overdue' | 'all' | 'direct_reports' | 'it_ops'>(initialTab);
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -39,6 +54,23 @@ export function Tasks() {
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
+
+  // Revocation Modal State (Prompt 05 HITL Guardrail)
+  const [revocationTask, setRevocationTask] = useState<TaskItem | null>(null);
+  const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
+
+  // Hardware Provisioning Modal States (Prompt 08 Step 3)
+  const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
+  const [hardwareTask, setHardwareTask] = useState<TaskItem | null>(null);
+  const [hwDeviceType, setHwDeviceType] = useState<string>('laptop');
+  const [hwSerialNumber, setHwSerialNumber] = useState('');
+  const [hwAssetTag, setHwAssetTag] = useState('');
+  const [hwCourierUrl, setHwCourierUrl] = useState('');
+  const [hwCourierProvider, setHwCourierProvider] = useState('');
+  const [hwReceiptFileName, setHwReceiptFileName] = useState('');
+  const [hwReceiptFileUrl, setHwReceiptFileUrl] = useState('');
+  const [hwMdmStatus, setHwMdmStatus] = useState<string>('pending_dispatch');
+  const [isSavingHardware, setIsSavingHardware] = useState(false);
 
   // Create Form State
   const [title, setTitle] = useState('');
@@ -51,13 +83,13 @@ export function Tasks() {
   const [dueDate, setDueDate] = useState('');
 
   // API Queries & Mutations
-  const { data: employeesData } = useEmployees({ limit: 100 });
-  const { data: tasksData, isLoading } = useTasks({
+  const { data: employeesData } = useEmployees({ limit: 1000 });
+  const { data: tasksData, isLoading, refetch } = useTasks({
     assignedToMe: activeTab === 'my',
     directReportsOnly: activeTab === 'direct_reports',
     isOverdue: activeTab === 'overdue' ? true : undefined,
     stage: selectedStage !== 'all' ? selectedStage : undefined,
-    category: categoryFilter !== 'all' ? categoryFilter : undefined,
+    category: activeTab === 'it_ops' ? 'it_setup' : (categoryFilter !== 'all' ? categoryFilter : undefined),
     priority: priorityFilter !== 'all' ? priorityFilter : undefined,
   });
 
@@ -67,7 +99,6 @@ export function Tasks() {
   const deleteTaskMutation = useDeleteTask();
 
   const employees = employeesData?.employees || [];
-  console.log("employees", employees);
   const tasks = tasksData?.tasks || [];
 
   const filteredTasks = tasks.filter((t) => {
@@ -75,7 +106,9 @@ export function Tasks() {
       const q = searchQuery.toLowerCase();
       return (
         t.title.toLowerCase().includes(q) ||
-        (t.description && t.description.toLowerCase().includes(q))
+        (t.description && t.description.toLowerCase().includes(q)) ||
+        (t.hardwareMetadata?.serialNumber && t.hardwareMetadata.serialNumber.toLowerCase().includes(q)) ||
+        (t.hardwareMetadata?.assetTag && t.hardwareMetadata.assetTag.toLowerCase().includes(q))
       );
     }
     return true;
@@ -92,6 +125,54 @@ export function Tasks() {
     startIndex,
     endIndex,
   } = usePagination({ data: filteredTasks, initialPageSize: 10 });
+
+  const handleOpenHardwareModal = (task: TaskItem) => {
+    setHardwareTask(task);
+    setHwDeviceType(task.hardwareMetadata?.deviceType || 'laptop');
+    setHwSerialNumber(task.hardwareMetadata?.serialNumber || '');
+    setHwAssetTag(task.hardwareMetadata?.assetTag || '');
+    setHwCourierUrl(task.hardwareMetadata?.courierTrackingUrl || '');
+    setHwCourierProvider(task.hardwareMetadata?.courierProvider || '');
+    setHwReceiptFileName(task.hardwareMetadata?.receiptAttachment?.fileName || '');
+    setHwReceiptFileUrl(task.hardwareMetadata?.receiptAttachment?.fileUrl || '');
+    setHwMdmStatus(task.hardwareMetadata?.mdmStatus || 'pending_dispatch');
+    setIsHardwareModalOpen(true);
+  };
+
+  const handleSaveHardware = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hardwareTask) return;
+    setIsSavingHardware(true);
+    try {
+      const targetId = hardwareTask.taskCode || hardwareTask._id;
+      const updated = await frontendTaskService.updateTaskHardware(targetId, {
+        deviceType: hwDeviceType as any,
+        serialNumber: hwSerialNumber.trim() || undefined,
+        assetTag: hwAssetTag.trim() || undefined,
+        courierTrackingUrl: hwCourierUrl.trim() || undefined,
+        courierProvider: hwCourierProvider.trim() || undefined,
+        mdmStatus: hwMdmStatus as any,
+      });
+
+      if (hwReceiptFileUrl.trim()) {
+        await frontendTaskService.attachHardwareReceipt(targetId, {
+          fileUrl: hwReceiptFileUrl.trim(),
+          fileName: hwReceiptFileName.trim() || 'hardware_receipt.pdf',
+        });
+      }
+
+      toast.success('Hardware provisioning details saved successfully');
+      setIsHardwareModalOpen(false);
+      refetch();
+      if (selectedTask?._id === hardwareTask._id) {
+        setSelectedTask(updated);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update hardware details');
+    } finally {
+      setIsSavingHardware(false);
+    }
+  };
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +239,15 @@ export function Tasks() {
         },
       }
     );
+  };
+
+  const handleRevokeVerification = async (taskId: string, reason: string, newStatus: 'revision_requested' | 'in_progress') => {
+    await updateStatusMutation.mutateAsync({
+      id: taskId,
+      status: newStatus as any,
+      note: `Revoked verification: ${reason}`,
+    });
+    refetch();
   };
 
   const handleAddComment = (e: React.FormEvent) => {
@@ -306,6 +396,18 @@ export function Tasks() {
             >
               Direct Reports
             </button>
+            <button
+              id="tab-it-ops"
+              data-testid="tab-it-ops"
+              onClick={() => setActiveTab('it_ops')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'it_ops'
+                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-semibold'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
+            >
+              <Laptop className="w-4 h-4" />
+              IT Hardware Queue
+            </button>
           </div>
 
           {/* Sub-filters Bar */}
@@ -439,6 +541,14 @@ export function Tasks() {
                           {getCategoryBadge(task.category)}
                           {getStageBadge(task.stage)}
                           {getPriorityBadge(task.priority)}
+                          <AutoVerificationBadge
+                            evidence={(task as any).autoVerification}
+                            status={task.status}
+                          />
+                          <TaskDependencyTree
+                            isLocked={(task as any).isLocked}
+                            lockReason={(task as any).lockReason}
+                          />
                           <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 rounded-full dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                             Assigned: {task.assignedToUserId?.profile?.firstName || 'User'} {task.assignedToUserId?.profile?.lastName || ''}
                           </span>
@@ -477,11 +587,58 @@ export function Tasks() {
                             </span>
                           )}
                         </div>
+
+                        {task.hardwareMetadata && (
+                          <div className="flex flex-wrap items-center gap-3 text-xs pt-1.5 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                            <span className="flex items-center gap-1 font-medium text-cyan-700 dark:text-cyan-300">
+                              <Laptop className="w-3.5 h-3.5" />
+                              {task.hardwareMetadata.deviceType?.toUpperCase() || 'HARDWARE'}
+                            </span>
+                            {task.hardwareMetadata.serialNumber && (
+                              <span className="text-slate-600 dark:text-slate-300">
+                                SN: <span className="font-mono">{task.hardwareMetadata.serialNumber}</span>
+                              </span>
+                            )}
+                            {task.hardwareMetadata.assetTag && (
+                              <span className="text-slate-600 dark:text-slate-300">
+                                Tag: <span className="font-mono">{task.hardwareMetadata.assetTag}</span>
+                              </span>
+                            )}
+                            {task.hardwareMetadata.mdmStatus && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">
+                                MDM: {task.hardwareMetadata.mdmStatus}
+                              </span>
+                            )}
+                            {task.hardwareMetadata.courierTrackingUrl && (
+                              <a
+                                href={task.hardwareMetadata.courierTrackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" /> Tracking
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between sm:justify-end gap-2 border-t sm:border-t-0 pt-3 sm:pt-0">
-                      {task.status !== 'verified' && (
+                      {(task.category === 'it_setup' || task.hardwareMetadata) && (
+                        <button
+                          id={`hardware-details-btn-${taskKey}`}
+                          data-testid={`hardware-details-btn-${taskKey}`}
+                          onClick={() => handleOpenHardwareModal(task)}
+                          className="px-3 py-1.5 text-xs font-medium bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:hover:bg-cyan-900 border border-cyan-200 dark:border-cyan-800 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                          title="Hardware Provisioning & MDM"
+                        >
+                          <Cpu className="w-3.5 h-3.5" />
+                          Hardware
+                        </button>
+                      )}
+
+                      {task.status !== 'verified' ? (
                         <button
                           id={`verify-task-btn-${taskKey}`}
                           onClick={() => handleVerifyTask(task)}
@@ -490,6 +647,19 @@ export function Tasks() {
                         >
                           <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                           Verify Task
+                        </button>
+                      ) : (
+                        <button
+                          id={`revoke-task-btn-${taskKey}`}
+                          onClick={() => {
+                            setRevocationTask(task);
+                            setIsRevocationModalOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-lg transition-all flex items-center gap-1"
+                          title="Revoke Verification (HITL Guardrail)"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Revoke
                         </button>
                       )}
 
@@ -582,6 +752,85 @@ export function Tasks() {
                   </span>
                 </div>
               </div>
+
+              {/* Hardware Provisioning Card */}
+              {(selectedTask.category === 'it_setup' || selectedTask.hardwareMetadata) && (
+                <div id="drawer-hardware-details-card" className="bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+                      <Cpu className="w-4 h-4 text-cyan-600" />
+                      Hardware Provisioning & MDM
+                    </h4>
+                    <button
+                      id="drawer-edit-hardware-btn"
+                      onClick={() => handleOpenHardwareModal(selectedTask)}
+                      className="px-2.5 py-1 text-xs font-medium bg-white dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900 transition-all cursor-pointer shadow-sm"
+                    >
+                      Update Details
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Device Type</span>
+                      <span className="font-semibold capitalize text-slate-700 dark:text-slate-200">
+                        {selectedTask.hardwareMetadata?.deviceType || 'Laptop'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">MDM Status</span>
+                      <span className="font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+                        {selectedTask.hardwareMetadata?.mdmStatus || 'pending_dispatch'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Serial Number</span>
+                      <span className="font-mono text-slate-700 dark:text-slate-200">
+                        {selectedTask.hardwareMetadata?.serialNumber || 'Not assigned'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Asset Tag</span>
+                      <span className="font-mono text-slate-700 dark:text-slate-200">
+                        {selectedTask.hardwareMetadata?.assetTag || 'Not assigned'}
+                      </span>
+                    </div>
+
+                    {selectedTask.hardwareMetadata?.courierTrackingUrl && (
+                      <div className="col-span-2">
+                        <span className="text-slate-400 block text-[11px]">Courier Tracking</span>
+                        <a
+                          href={selectedTask.hardwareMetadata.courierTrackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                        >
+                          {selectedTask.hardwareMetadata.courierProvider ? `${selectedTask.hardwareMetadata.courierProvider}: ` : ''}
+                          Track Package <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+
+                    {selectedTask.hardwareMetadata?.receiptAttachment && (
+                      <div className="col-span-2">
+                        <span className="text-slate-400 block text-[11px]">Receipt / Purchase Proof</span>
+                        <a
+                          href={selectedTask.hardwareMetadata.receiptAttachment.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                        >
+                          <FileText className="w-3 h-3" />
+                          {selectedTask.hardwareMetadata.receiptAttachment.fileName || 'View Receipt'}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               {selectedTask.description && (
@@ -708,37 +957,37 @@ export function Tasks() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium mb-1">Assign Responsible User *</label>
-                  <select
+                  <SearchableSelect
                     id="task-assignee-select"
                     required
                     value={assignedToUserId}
-                    onChange={(e) => setAssignedToUserId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    <option value="">Select Responsible Assignee</option>
-                    {employees.map((emp: any) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp?.firstName} {emp?.lastName} ({emp?.role || 'User'})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setAssignedToUserId(val)}
+                    placeholder="Search & select assignee..."
+                    searchPlaceholder="Search by name, role, email..."
+                    options={employees.map((emp: any) => ({
+                      value: emp.id,
+                      label: `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || emp.name || 'Unnamed Employee',
+                      sublabel: emp.email || emp.department,
+                      badge: emp?.role || 'User',
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block font-medium mb-1">Target Employee (Optional)</label>
-                  <select
+                  <SearchableSelect
                     id="task-target-employee-select"
+                    clearable
                     value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    <option value="">Select Onboarding Employee</option>
-                    {employees.map((emp: any) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp?.firstName} {emp?.lastName}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setEmployeeId(val)}
+                    placeholder="Search & select employee..."
+                    searchPlaceholder="Search by name, department..."
+                    options={employees.map((emp: any) => ({
+                      value: emp.id,
+                      label: `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || emp.name || 'Unnamed Employee',
+                      sublabel: emp.department ? `Dept: ${emp.department}` : emp.email,
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -824,6 +1073,189 @@ export function Tasks() {
           </div>
         </div>
       )}
+
+      {/* Hardware Provisioning & MDM Modal */}
+      {isHardwareModalOpen && hardwareTask && (
+        <div id="hardware-provisioning-modal" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+              <div className="flex items-center gap-2">
+                <Laptop className="w-5 h-5 text-cyan-600" />
+                <h3 className="text-lg font-bold">Hardware Provisioning & MDM</h3>
+              </div>
+              <button
+                onClick={() => setIsHardwareModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+              <span className="font-semibold block text-slate-700 dark:text-slate-200">Task: {hardwareTask.title}</span>
+              <span>Assignee: {hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin'} | Target: {hardwareTask.employeeId?.profile?.firstName || 'New Hire'}</span>
+            </div>
+
+            <form onSubmit={handleSaveHardware} className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium mb-1">Device Type</label>
+                  <select
+                    id="hw-device-type-select"
+                    value={hwDeviceType}
+                    onChange={(e) => setHwDeviceType(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+                  >
+                    <option value="laptop">Laptop</option>
+                    <option value="desktop">Desktop</option>
+                    <option value="mobile">Mobile</option>
+                    <option value="monitor">Monitor</option>
+                    <option value="peripherals">Peripherals</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium mb-1">MDM Enrollment Status</label>
+                  <select
+                    id="hw-mdm-status-select"
+                    value={hwMdmStatus}
+                    onChange={(e) => setHwMdmStatus(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+                  >
+                    <option value="pending_dispatch">Pending Dispatch</option>
+                    <option value="dispatched">Dispatched</option>
+                    <option value="enrolled">Enrolled</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium mb-1">Serial Number</label>
+                  <input
+                    id="hw-serial-input"
+                    type="text"
+                    placeholder="e.g. C02G41KSMD6T"
+                    value={hwSerialNumber}
+                    onChange={(e) => setHwSerialNumber(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium mb-1">Asset Tag</label>
+                  <input
+                    id="hw-asset-tag-input"
+                    type="text"
+                    placeholder="e.g. TAL-AST-9021"
+                    value={hwAssetTag}
+                    onChange={(e) => setHwAssetTag(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium mb-1">Courier Provider</label>
+                  <input
+                    id="hw-courier-provider-input"
+                    type="text"
+                    placeholder="e.g. FedEx / DHL / UPS"
+                    value={hwCourierProvider}
+                    onChange={(e) => setHwCourierProvider(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium mb-1">Tracking URL</label>
+                  <input
+                    id="hw-courier-url-input"
+                    type="url"
+                    placeholder="https://track.fedex.com/..."
+                    value={hwCourierUrl}
+                    onChange={(e) => setHwCourierUrl(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 dark:border-slate-700/60 pt-3 space-y-2">
+                <span className="block font-medium text-xs text-slate-700 dark:text-slate-300">
+                  Hardware Receipt / Purchase Invoice Attachment
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">File Name</label>
+                    <input
+                      id="hw-receipt-name-input"
+                      type="text"
+                      placeholder="e.g. invoice_macbook.pdf"
+                      value={hwReceiptFileName}
+                      onChange={(e) => setHwReceiptFileName(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">File URL / Cloud Storage Link</label>
+                    <input
+                      id="hw-receipt-url-input"
+                      type="url"
+                      placeholder="https://storage.example.com/receipts/..."
+                      value={hwReceiptFileUrl}
+                      onChange={(e) => setHwReceiptFileUrl(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-700">
+                <button
+                  id="cancel-hardware-btn"
+                  type="button"
+                  onClick={() => setIsHardwareModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="save-hardware-btn"
+                  type="submit"
+                  disabled={isSavingHardware}
+                  className="px-4 py-2 bg-cyan-600 text-white rounded-xl text-sm font-medium hover:bg-cyan-700 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  {isSavingHardware ? 'Saving...' : 'Save Hardware Details'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Task Revocation Modal (Prompt 05 HITL Guardrail) */}
+      <TaskRevocationModal
+        isOpen={isRevocationModalOpen}
+        onClose={() => {
+          setIsRevocationModalOpen(false);
+          setRevocationTask(null);
+        }}
+        task={
+          revocationTask
+            ? {
+                id: revocationTask.taskCode || revocationTask._id,
+                title: revocationTask.title,
+                status: revocationTask.status,
+                assignedToName: `${revocationTask.assignedToUserId?.profile?.firstName || ''} ${revocationTask.assignedToUserId?.profile?.lastName || ''}`.trim() || undefined,
+              }
+            : null
+        }
+        onConfirmRevocation={handleRevokeVerification}
+      />
     </div>
   );
 }

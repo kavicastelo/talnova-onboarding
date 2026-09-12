@@ -151,14 +151,22 @@ export const pwaService = {
 
     for (const [assignmentId, lessonIds] of Object.entries(byAssignment)) {
       try {
-        console.log(`[PWA Sync] Dispatching POST /api/v1/assignments/${assignmentId}/progress with completedLessonIds:`, lessonIds);
+        const assignmentItems = items.filter((it) => it.assignmentId === assignmentId);
+        const batchCompletions = assignmentItems.map((it) => ({
+          lessonId: it.lessonId,
+          completedAt: new Date(it.timestamp).toISOString(),
+          clientTransactionId: it.id,
+        }));
+
+        console.log(`[PWA Sync] Dispatching POST /api/v1/assignments/${assignmentId}/progress with ${batchCompletions.length} batch completions:`, batchCompletions);
         const response = await apiClient.post(`/assignments/${assignmentId}/progress`, {
           completedLessonIds: lessonIds,
+          batchCompletions,
         });
 
         if (response.status === 200) {
           syncedLessons.push(...lessonIds);
-          items.filter((it) => it.assignmentId === assignmentId).forEach((it) => syncedIds.push(it.id));
+          assignmentItems.forEach((it) => syncedIds.push(it.id));
         }
       } catch (err: any) {
         console.error(`[PWA Sync] Failed to synchronize progress for assignment ${assignmentId}:`, err);

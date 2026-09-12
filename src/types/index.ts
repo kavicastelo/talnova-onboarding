@@ -91,6 +91,9 @@ export interface Employee {
   payrollCategory?: string;
   employeeId?: string;
   onboardingState?: string;
+  legalHold?: boolean;
+  legalHoldReason?: string;
+  legalHoldPlacedAt?: string;
   rawUser?: any;
 }
 

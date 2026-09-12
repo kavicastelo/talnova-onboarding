@@ -14,6 +14,7 @@ export type Capability =
   | 'manage_workflows'
   | 'manage_integrations'
   | 'manage_sso'
+  | 'manage_it_ops'
   | 'ai_course_builder'
   | 'view_analytics'
   | 'view_super_admin';
@@ -33,6 +34,7 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'manage_workflows',
     'manage_integrations',
     'manage_sso',
+    'manage_it_ops',
     'ai_course_builder',
     'view_analytics',
     'view_super_admin',
@@ -51,6 +53,7 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'manage_workflows',
     'manage_integrations',
     'manage_sso',
+    'manage_it_ops',
     'ai_course_builder',
     'view_analytics',
   ],
@@ -68,8 +71,14 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'manage_workflows',
     'manage_integrations',
     'manage_sso',
+    'manage_it_ops',
     'ai_course_builder',
     'view_analytics',
+  ],
+  it_admin: [
+    'assign_task',
+    'manage_it_ops',
+    'manage_integrations',
   ],
   hr_admin: [
     'manage_employees',

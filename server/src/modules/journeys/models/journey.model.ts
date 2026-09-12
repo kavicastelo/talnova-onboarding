@@ -127,6 +127,7 @@ export interface IJourney extends Document {
     offsetDays: number;
     enforceGate?: boolean;
   };
+  isDefault?: boolean;
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   deletedAt?: Date;
@@ -279,6 +280,7 @@ const JourneySchema = new Schema<IJourney>(
       offsetDays: { type: Number, default: 7 },
       enforceGate: { type: Boolean, default: false },
     },
+    isDefault: { type: Boolean, default: false, index: true },
     createdBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
     deletedAt: { type: Date },

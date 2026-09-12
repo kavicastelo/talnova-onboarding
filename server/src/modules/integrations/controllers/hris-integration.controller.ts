@@ -142,7 +142,13 @@ export class HRISIntegrationController {
 
   handleWebhook = async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
-    const signature = (request.headers["x-signature"] || request.headers["x-hub-signature"]) as string;
+    const signature = (
+      request.headers["x-signature"] ||
+      request.headers["x-hub-signature"] ||
+      request.headers["x-signature-sha256"] ||
+      request.headers["x-bamboohr-signature"] ||
+      request.headers["x-workday-signature"]
+    ) as string;
     const body = request.body as any;
 
     const result = await this.service.processWebhookPayload(params.provider, signature || "", body);

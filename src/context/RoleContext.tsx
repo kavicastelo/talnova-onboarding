@@ -1,7 +1,7 @@
 import React, { useCallback, useState, createContext, useContext } from 'react';
 import { Capability, hasCapability } from '../utils/rbac';
 
-export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 'hr_admin';
+export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin';
 
 interface RoleContextValue {
   role: Role;
@@ -15,7 +15,7 @@ const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 export function RoleProvider({ children }: { children: React.ReactNode; }) {
   const [role, setRoleState] = useState<Role>(() => {
     const saved = localStorage.getItem('user_role');
-    if (saved === 'super_admin' || saved === 'admin' || saved === 'employee' || saved === 'manager' || saved === 'hr_admin' || saved === 'owner') {
+    if (saved === 'super_admin' || saved === 'admin' || saved === 'employee' || saved === 'manager' || saved === 'hr_admin' || saved === 'owner' || saved === 'it_admin') {
       return saved as Role;
     }
     return 'admin';

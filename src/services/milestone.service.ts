@@ -13,6 +13,11 @@ export interface MilestoneTemplate {
   targetDay: 30 | 60 | 90 | 180;
   goals: Array<{ _id?: string; title: string; description?: string }>;
   checkinQuestions: Array<{ _id?: string; question: string; type: 'text' | 'rating' | 'boolean'; required: boolean }>;
+  audience?: {
+    departmentNames?: string[];
+    jobTitleNames?: string[];
+    autoAssignNewHires?: boolean;
+  };
   createdAt: string;
 }
 
@@ -50,12 +55,32 @@ export interface EmployeeMilestone {
     performanceRating?: number;
     feedback?: string;
   };
+  submittedAt?: string;
+  sla?: {
+    reviewDeadline?: string | Date;
+    reminderSentCount?: number;
+    lastReminderSentAt?: string | Date;
+    delegatedToUserId?: string;
+    autoApprovalEligible?: boolean;
+    escalationState?: 'normal' | 'reminded' | 'escalated' | 'auto_approved';
+    blockersReported?: boolean;
+  };
+  aiSummary?: any;
 }
 
 export const milestoneService = {
   createTemplate: async (data: Partial<MilestoneTemplate>): Promise<MilestoneTemplate> => {
     const response = await apiClient.post<ApiResponse<MilestoneTemplate>>('/milestones/templates', data);
     return response.data.data;
+  },
+
+  updateTemplate: async (id: string, data: Partial<MilestoneTemplate>): Promise<MilestoneTemplate> => {
+    const response = await apiClient.put<ApiResponse<MilestoneTemplate>>(`/milestones/templates/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteTemplate: async (id: string): Promise<void> => {
+    await apiClient.delete(`/milestones/templates/${id}`);
   },
 
   listTemplates: async (): Promise<MilestoneTemplate[]> => {

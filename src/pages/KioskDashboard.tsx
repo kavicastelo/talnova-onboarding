@@ -21,7 +21,8 @@ import {
   Loader2,
   Copy,
   Check,
-  Key
+  Key,
+  Wrench
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -36,6 +37,7 @@ import {
 } from '../components/Dialog';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 import { kioskService } from '../features/kiosk/services/kiosk.service';
 import { KioskJourney } from '../types/kiosk/journey.types';
@@ -77,6 +79,12 @@ export function KioskDashboard() {
   const [generatingPairCode, setGeneratingPairCode] = useState(false);
   const [pairCodeCopied, setPairCodeCopied] = useState(false);
 
+  // Supervisor PIN States (Prompt 09 / UQ-01 frontline kiosk attestation)
+  const [supervisorPinModalOpen, setSupervisorPinModalOpen] = useState(false);
+  const [supervisorIdentifier, setSupervisorIdentifier] = useState('');
+  const [supervisorPin, setSupervisorPin] = useState('');
+  const [settingSupervisorPin, setSettingSupervisorPin] = useState(false);
+
   // Analytics states
   const [selectedJourneyId, setSelectedJourneyId] = useState<string>('');
   const [analyticsData, setAnalyticsData] = useState<KioskAnalyticsSummary | null>(null);
@@ -105,6 +113,30 @@ export function KioskDashboard() {
     setTerminalGuid('');
     setGeneratedPairCode(null);
     setPairCodeCopied(false);
+  };
+
+  const handleSaveSupervisorPin = async () => {
+    if (!supervisorIdentifier.trim()) {
+      toast.error('Please enter a supervisor User ID or email.');
+      return;
+    }
+    if (!/^\d{4}$/.test(supervisorPin.trim())) {
+      toast.error('Supervisor PIN must be exactly 4 numeric digits (e.g. 1234).');
+      return;
+    }
+
+    setSettingSupervisorPin(true);
+    try {
+      await kioskService.setSupervisorPin(supervisorIdentifier.trim(), supervisorPin.trim());
+      toast.success(`Supervisor PIN successfully configured for ${supervisorIdentifier}.`);
+      setSupervisorPinModalOpen(false);
+      setSupervisorIdentifier('');
+      setSupervisorPin('');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to configure supervisor PIN.');
+    } finally {
+      setSettingSupervisorPin(false);
+    }
   };
 
   const fetchData = async () => {
@@ -232,6 +264,17 @@ export function KioskDashboard() {
     }
   };
 
+  const handleToggleMaintenance = async (deviceId: string, currentStatus: string) => {
+    const isMaintenance = currentStatus === 'maintenance';
+    try {
+      const updated = await kioskService.toggleMaintenanceMode(deviceId, !isMaintenance);
+      setDevices((prev) => prev.map((d) => (d._id === deviceId ? updated : d)));
+      toast.success(`Terminal ${!isMaintenance ? 'placed in Maintenance Mode' : 'restored to Active Mode'}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update maintenance mode');
+    }
+  };
+
   // Render the Builder console view if an editing ID is selected
   if (editingJourneyId) {
     return (
@@ -271,6 +314,16 @@ export function KioskDashboard() {
           >
             <Tv className="w-4 h-4 text-indigo-600" />
             <span>Pair New Terminal</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSupervisorPinModalOpen(true)}
+            data-testid="supervisor-pin-btn"
+            className="flex items-center space-x-1.5 border-amber-200 text-amber-800 hover:bg-amber-50"
+          >
+            <Key className="w-4 h-4 text-amber-600" />
+            <span>Supervisor Witness PIN</span>
           </Button>
           <Button variant="default" size="sm" onClick={() => setCreateModalOpen(true)} className="flex items-center space-x-1">
             <Plus className="w-4 h-4" />
@@ -495,6 +548,7 @@ export function KioskDashboard() {
                 <div className="divide-y divide-slate-100">
                   {devicesPagination.paginatedData.map((device) => {
                     const linkedJourney = journeys.find(j => j._id === device.currentJourneyId);
+                    const isMaintenance = device.status === 'maintenance';
                     const isOnline = device.status === 'online';
                     
                     return (
@@ -503,18 +557,20 @@ export function KioskDashboard() {
                         {/* Name & Placement Details */}
                         <div className="space-y-1.5 max-w-sm">
                           <div className="flex items-center space-x-2">
-                            <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-md shadow-emerald-400/50' : 'bg-slate-300'}`} />
+                            <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-md shadow-emerald-400/50' : isMaintenance ? 'bg-amber-500 shadow-md shadow-amber-400/50' : 'bg-slate-300'}`} />
                             <h4 data-testid="terminal-name" className="font-bold text-slate-800 text-sm">{device.name}</h4>
                             <Badge
                               data-testid="device-status-badge"
-                              variant={isOnline ? 'default' : 'secondary'}
+                              variant={isOnline ? 'default' : isMaintenance ? 'outline' : 'secondary'}
                               className={`text-[9px] py-0 px-2 font-semibold ${
                                 isOnline
                                   ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
+                                  : isMaintenance
+                                  ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
                                   : 'bg-slate-100 text-slate-600'
                               }`}
                             >
-                              {isOnline ? 'Online / Paired' : 'Offline'}
+                              {isOnline ? 'Online / Paired' : isMaintenance ? 'Maintenance' : 'Offline'}
                             </Badge>
                           </div>
                           <p className="text-xs text-slate-500 flex items-center">
@@ -591,6 +647,19 @@ export function KioskDashboard() {
                         {/* Dispatch panel admin command actions */}
                         <div className="flex items-center space-x-2">
                           <button
+                            data-testid={`toggle-maintenance-${device._id}`}
+                            onClick={() => handleToggleMaintenance(device._id, device.status)}
+                            className={`px-2 py-1 bg-white border rounded text-[10px] font-semibold transition flex items-center space-x-1 ${
+                              device.status === 'maintenance'
+                                ? 'border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800'
+                            }`}
+                            title={device.status === 'maintenance' ? 'Resume device operation' : 'Put device in Maintenance Mode'}
+                          >
+                            <Wrench className="w-3 h-3" />
+                            <span>{device.status === 'maintenance' ? 'Exit Maint.' : 'Maintenance'}</span>
+                          </button>
+                          <button
                             onClick={() => handleDispatchCommand(device._id, 'refresh_cache')}
                             className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
                             title="Refresh cached local content"
@@ -641,15 +710,18 @@ export function KioskDashboard() {
               <h3 className="text-sm font-bold text-slate-800">Journey Performance Metrics</h3>
               <p className="text-xs text-slate-500">Analyze interactions, completion ratios, and language statistics.</p>
             </div>
-            <select
-              value={selectedJourneyId}
-              onChange={(e) => setSelectedJourneyId(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none"
-            >
-              {journeys.map(j => (
-                <option key={j._id} value={j._id}>{j.title}</option>
-              ))}
-            </select>
+            <div className="w-full sm:w-72">
+              <SearchableSelect
+                value={selectedJourneyId}
+                onChange={(val) => setSelectedJourneyId(val)}
+                placeholder="Select Journey..."
+                searchPlaceholder="Search journey..."
+                options={journeys.map(j => ({
+                  value: j._id,
+                  label: j.title,
+                }))}
+              />
+            </div>
           </div>
 
           {analyticsLoading ? (
@@ -835,16 +907,19 @@ export function KioskDashboard() {
             </p>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-600 uppercase">Kiosk Journey</label>
-              <select
+              <SearchableSelect
                 value={pairJourneyId}
-                onChange={(e) => setPairJourneyId(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="unpair">-- Unpair / Clear Current Content --</option>
-                {journeys.map(j => (
-                  <option key={j._id} value={j._id}>{j.title}</option>
-                ))}
-              </select>
+                onChange={(val) => setPairJourneyId(val)}
+                placeholder="Select Kiosk Journey..."
+                searchPlaceholder="Search journey..."
+                options={[
+                  { value: 'unpair', label: '-- Unpair / Clear Current Content --' },
+                  ...journeys.map(j => ({
+                    value: j._id,
+                    label: j.title,
+                  }))
+                ]}
+              />
             </div>
           </div>
           <DialogFooter className="flex justify-end gap-2">
@@ -956,6 +1031,79 @@ export function KioskDashboard() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supervisor PIN Configuration Modal (Prompt 09 §UQ-01) */}
+      <Dialog open={supervisorPinModalOpen} onOpenChange={setSupervisorPinModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Key className="w-5 h-5 text-amber-600" />
+              Configure Supervisor Witness PIN
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 space-y-1">
+              <div className="font-bold">Frontline Kiosk Witness Protocol (§UQ-01):</div>
+              <p className="text-[11px] leading-relaxed">
+                Frontline plant and warehouse workers frequently arrive before SSO corporate accounts are provisioned. Supervisors authenticate with their 4-digit PIN on the physical kiosk terminal to witness and legally co-sign safety declarations, PPE acknowledgments, and bank account verifications.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                Supervisor Employee ID or Email <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                value={supervisorIdentifier}
+                onChange={(e) => setSupervisorIdentifier(e.target.value)}
+                placeholder="e.g. sup-1049 or supervisor@company.com"
+                className="text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                  4-Digit Security PIN <span className="text-rose-500">*</span>
+                </label>
+                <span className="font-mono text-[10px] text-slate-400">Numeric digits only</span>
+              </div>
+              <Input
+                type="password"
+                maxLength={4}
+                value={supervisorPin}
+                onChange={(e) => setSupervisorPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                className="text-center tracking-widest font-mono text-base h-10 font-bold"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-3">
+            <Button
+              variant="outline"
+              onClick={() => setSupervisorPinModalOpen(false)}
+              disabled={settingSupervisorPin}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleSaveSupervisorPin}
+              disabled={settingSupervisorPin || !supervisorIdentifier.trim() || supervisorPin.length !== 4}
+            >
+              {settingSupervisorPin ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Saving PIN...
+                </>
+              ) : (
+                'Save Supervisor PIN'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

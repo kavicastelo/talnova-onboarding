@@ -54,22 +54,30 @@ export class NotificationService {
   async getPreferences(userId: string | mongoose.Types.ObjectId, orgId: string | mongoose.Types.ObjectId) {
     let prefs = await NotificationPreference.findOne({ userId, organizationId: orgId });
     if (!prefs) {
-      prefs = await NotificationPreference.create({
-        userId,
-        organizationId: orgId,
-        channels: { inApp: true, email: true },
-        categories: {
-          journeyAssigned: { inApp: true, email: true },
-          journeyOverdue: { inApp: true, email: true },
-          complianceDue: { inApp: true, email: true },
-          announcements: { inApp: true, email: true },
-          reminders: { inApp: true, email: true },
-        },
-        quietHours: { enabled: false },
-        frequency: "immediate",
-      });
+      try {
+        prefs = await NotificationPreference.create({
+          userId,
+          organizationId: orgId,
+          channels: { inApp: true, email: true },
+          categories: {
+            journeyAssigned: { inApp: true, email: true },
+            journeyOverdue: { inApp: true, email: true },
+            complianceDue: { inApp: true, email: true },
+            announcements: { inApp: true, email: true },
+            reminders: { inApp: true, email: true },
+          },
+          quietHours: { enabled: false },
+          frequency: "immediate",
+        });
+      } catch (err: any) {
+        if (err.code === 11000) {
+          prefs = await NotificationPreference.findOne({ userId, organizationId: orgId });
+        } else {
+          throw err;
+        }
+      }
     }
-    return prefs;
+    return prefs!;
   }
 
   async updatePreferences(
