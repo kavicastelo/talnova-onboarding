@@ -21,6 +21,7 @@ import { Milestones } from './pages/Milestones';
 import { BuddyProgram } from './pages/BuddyProgram';
 import { CalendarIntegration } from './pages/CalendarIntegration';
 import { HROperations } from './pages/HROperations';
+import { HROpsExceptions } from './pages/HROpsExceptions';
 import { Leaderboard } from './pages/Leaderboard';
 import { AIAssistant } from './pages/AIAssistant';
 import { AICourseBuilder } from './pages/AICourseBuilder';
@@ -85,6 +86,7 @@ export function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />
               <Route path="tasks" element={<Tasks />} />
+              <Route path="tasks/it-ops" element={<ProtectedRoute capability="manage_it_ops"><Tasks /></ProtectedRoute>} />
               <Route path="workflows" element={<ProtectedRoute capability="manage_workflows"><Workflows /></ProtectedRoute>} />
               <Route path="manager" element={<ProtectedRoute capability="view_team_ops"><ManagerDashboard /></ProtectedRoute>} />
               <Route path="documents" element={<Documents />} />
@@ -94,6 +96,7 @@ export function App() {
               <Route path="buddy" element={<BuddyProgram />} />
               <Route path="calendar" element={<CalendarIntegration />} />
               <Route path="hr-ops" element={<ProtectedRoute capability="view_hr_ops"><HROperations /></ProtectedRoute>} />
+              <Route path="hr-ops/exceptions" element={<ProtectedRoute capability="view_hr_ops"><HROpsExceptions /></ProtectedRoute>} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="ai-assistant" element={<AIAssistant />} />
               <Route path="ai-course-builder" element={<ProtectedRoute capability="ai_course_builder"><AICourseBuilder /></ProtectedRoute>} />

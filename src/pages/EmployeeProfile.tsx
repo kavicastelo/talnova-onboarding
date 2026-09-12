@@ -26,7 +26,8 @@ import {
   Lock,
   Settings,
   Phone,
-  Globe
+  Globe,
+  Scale
 } from 'lucide-react';
 import { 
   useEmployee, 
@@ -34,6 +35,7 @@ import {
   useChangeMyPassword, 
   useUpdateEmployee 
 } from '../hooks/useEmployees';
+import { employeeService } from '../services/employee.service';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useDepartments } from '../hooks/useSettings';
 import { uploadService } from '../services/upload.service';
@@ -45,6 +47,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter
 } from '../components/Dialog';
 import {
@@ -54,6 +57,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '../components/Select';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { toast } from 'sonner';
 import { getErrorMessage } from '../api/client';
 
@@ -91,6 +95,11 @@ export function EmployeeProfile() {
   const [adminPayrollCategory, setAdminPayrollCategory] = useState('');
   const [adminHireDate, setAdminHireDate] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+
+  // Legal Hold State (Prompt 10 §UQ-03)
+  const [legalHoldModalOpen, setLegalHoldModalOpen] = useState(false);
+  const [legalHoldReason, setLegalHoldReason] = useState('');
+  const [isUpdatingHold, setIsUpdatingHold] = useState(false);
 
   const isOwnProfile = id === 'me' || !id || (currentUser && employee && currentUser.id === employee.id);
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
@@ -225,6 +234,31 @@ export function EmployeeProfile() {
     }
   };
 
+  const handleToggleLegalHold = async () => {
+    if (!employee) return;
+    if (!legalHoldReason || legalHoldReason.trim().length < 10) {
+      toast.error('Audit Compliance Error: Legal hold justification must be at least 10 characters.');
+      return;
+    }
+
+    setIsUpdatingHold(true);
+    try {
+      const targetState = !employee.legalHold;
+      const res = await employeeService.setLegalHold(employee.id, {
+        legalHold: targetState,
+        reason: legalHoldReason.trim(),
+      });
+      toast.success(res.message || `Legal hold ${targetState ? 'placed' : 'released'} successfully.`);
+      setLegalHoldModalOpen(false);
+      setLegalHoldReason('');
+      refetch();
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsUpdatingHold(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto">
@@ -332,6 +366,11 @@ export function EmployeeProfile() {
                   }>
                   {employee.status}
                 </Badge>
+                {employee.legalHold && (
+                  <Badge className="bg-rose-600 text-white font-bold flex items-center gap-1 shadow-sm">
+                    <Scale className="w-3 h-3" /> LEGAL HOLD ACTIVE
+                  </Badge>
+                )}
               </div>
               <p className="text-lg text-muted-foreground capitalize">
                 {employee.designation || employee.role} • {employee.department}
@@ -378,6 +417,17 @@ export function EmployeeProfile() {
                 <>
                   <Button onClick={() => setEditEmployeeOpen(true)} className="flex items-center gap-2 w-full">
                     <Settings className="w-4 h-4" /> Manage Account
+                  </Button>
+                  <Button
+                    variant={employee.legalHold ? 'destructive' : 'outline'}
+                    onClick={() => {
+                      setLegalHoldReason(employee.legalHoldReason || '');
+                      setLegalHoldModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 w-full text-xs"
+                  >
+                    <Scale className="w-4 h-4" />
+                    {employee.legalHold ? 'Manage Legal Hold (Active)' : 'Place Legal Hold (SOC 2)'}
                   </Button>
                   <Button variant="outline" className="w-full">Message</Button>
                 </>
@@ -430,6 +480,45 @@ export function EmployeeProfile() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Legal Hold & Regulatory Compliance Card (Prompt 10 §UQ-03) */}
+          <Card className={`border-l-4 shadow-sm ${employee.legalHold ? 'border-l-rose-600 bg-rose-50/20' : 'border-l-indigo-500'}`}>
+            <CardHeader className="pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Scale className={`h-4 w-4 ${employee.legalHold ? 'text-rose-600' : 'text-indigo-600'}`} />
+                  Regulatory Compliance & Statutory Retention Policy (§UQ-03 / SOC 2 CC6.1)
+                </CardTitle>
+                {employee.legalHold ? (
+                  <Badge className="bg-rose-600 text-white text-[10px] font-bold w-fit">
+                    PURGE SUSPENDED (LEGAL HOLD ACTIVE)
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground w-fit">
+                    Standard 7-Year Retention Cadence
+                  </Badge>
+                )}
+              </div>
+              <CardDescription className="text-xs">
+                {employee.legalHold
+                  ? 'All signed compliance documents, SHA-256 cryptographic e-signature proofs, and onboarding audit trails are indefinitely frozen from automated purge.'
+                  : 'Governed by statutory corporate document lifecycle. Compliant with audit data retention policies.'}
+              </CardDescription>
+            </CardHeader>
+            {employee.legalHold && (
+              <CardContent className="pt-2 text-xs space-y-1.5">
+                <div className="p-2.5 rounded bg-background border text-muted-foreground">
+                  <span className="font-semibold text-foreground">Active Matter Justification:</span>{' '}
+                  {employee.legalHoldReason || 'Statutory litigation hold / audit preservation'}
+                </div>
+                {employee.legalHoldPlacedAt && (
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    Placed: {new Date(employee.legalHoldPlacedAt).toLocaleString()}
+                  </p>
+                )}
+              </CardContent>
+            )}
+          </Card>
 
           <h3 className="text-lg font-semibold mt-8 mb-4">Assigned Journeys</h3>
           {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
@@ -660,18 +749,17 @@ export function EmployeeProfile() {
 
             <div className="space-y-2">
               <Label htmlFor="adminDepartment">Department</Label>
-              <Select value={adminDeptId} onValueChange={setAdminDeptId}>
-                <SelectTrigger id="adminDepartment" className="w-full">
-                  <SelectValue placeholder="Select Department" />
-                </SelectTrigger>
-                <SelectContent className="z-[999]">
-                  {activeDepartments.map((d) => (
-                    <SelectItem key={d._id} value={d._id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                id="adminDepartment"
+                value={adminDeptId}
+                onChange={setAdminDeptId}
+                placeholder="Search & select department..."
+                searchPlaceholder="Search department..."
+                options={activeDepartments.map((d) => ({
+                  value: d._id,
+                  label: d.name,
+                }))}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -736,6 +824,78 @@ export function EmployeeProfile() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Legal Hold Confirmation Modal (Prompt 10 §UQ-03) */}
+      <Dialog open={legalHoldModalOpen} onOpenChange={setLegalHoldModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Scale className="h-5 w-5 text-rose-600" />
+              {employee.legalHold ? 'Release Legal Hold' : 'Place Statutory Legal Hold'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {employee.legalHold
+                ? 'Lifting this hold will resume standard statutory document retention and scheduled purge routines.'
+                : 'Placing a legal hold locks all e-signatures, cryptographic certificates, and audit logs from automated purge.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="p-3 bg-muted/40 rounded border space-y-1">
+              <div className="font-semibold text-foreground">{employee.name}</div>
+              <div className="text-muted-foreground">{employee.email} • {employee.department}</div>
+              <div className="text-[11px] font-mono text-indigo-600">ID: {employee.id}</div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="legalHoldReasonInput" className="font-bold text-muted-foreground uppercase tracking-wider text-xs">
+                  Regulatory / SOC 2 Justification <span className="text-rose-500">*</span>
+                </Label>
+                <span
+                  className={`font-mono text-[11px] ${
+                    legalHoldReason.trim().length >= 10 ? 'text-emerald-600 font-semibold' : 'text-rose-500'
+                  }`}
+                >
+                  {legalHoldReason.trim().length} / 10 min chars
+                </span>
+              </div>
+              <textarea
+                id="legalHoldReasonInput"
+                value={legalHoldReason}
+                onChange={(e) => setLegalHoldReason(e.target.value)}
+                placeholder="Enter formal legal matter name, court docket ID, or audit preservation order..."
+                className="w-full p-2.5 rounded-md border bg-background focus:ring-2 focus:ring-rose-500 min-h-[90px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-3">
+            <Button variant="outline" onClick={() => setLegalHoldModalOpen(false)} disabled={isUpdatingHold}>
+              Cancel
+            </Button>
+            <Button
+              className={
+                employee.legalHold
+                  ? 'bg-slate-700 hover:bg-slate-800 text-white'
+                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+              }
+              onClick={handleToggleLegalHold}
+              disabled={isUpdatingHold || legalHoldReason.trim().length < 10}
+            >
+              {isUpdatingHold ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" /> Updating Hold...
+                </>
+              ) : employee.legalHold ? (
+                'Confirm Release Hold'
+              ) : (
+                'Place Statutory Legal Hold'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

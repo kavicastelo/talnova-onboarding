@@ -7,15 +7,24 @@ import {
   UserCheck,
   Star,
   Plus,
-  Building2
+  Building2,
+  Pencil,
+  Trash2,
+  ListChecks,
+  FileQuestion,
+  Sparkles
 } from 'lucide-react';
 import {
   useMyMilestones,
   useTeamMilestones,
   useMilestoneTemplates,
+  useCreateMilestoneTemplate,
+  useUpdateMilestoneTemplate,
+  useDeleteMilestoneTemplate,
   useSubmitSelfCheckin,
   useSubmitManagerReview
 } from '../hooks/useMilestones';
+import { MilestoneTemplate } from '../services/milestone.service';
 import { useRole } from '../context/RoleContext';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/Card';
@@ -32,11 +41,14 @@ import {
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { MilestoneEscalationLadder } from '../components/milestones/MilestoneEscalationLadder';
+import { AIReflectionSummaryCard } from '../components/milestones/AIReflectionSummaryCard';
 
 export const Milestones: React.FC = () => {
   const { role, can } = useRole();
   const isAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
   const isManager = can('create_milestone') || can('assign_milestone');
+  const canManageTemplates = isAdmin || isManager;
 
   const [activeTab, setActiveTab] = useState<'my' | 'team' | 'templates'>(isManager ? 'team' : 'my');
 
@@ -44,6 +56,20 @@ export const Milestones: React.FC = () => {
   const [selectedMilestone, setSelectedMilestone] = useState<any>(null);
   const [isSelfCheckinOpen, setIsSelfCheckinOpen] = useState(false);
   const [isManagerReviewOpen, setIsManagerReviewOpen] = useState(false);
+
+  // Milestone Template Create / Edit Modal State
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MilestoneTemplate | null>(null);
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [templateTargetDay, setTemplateTargetDay] = useState<number>(30);
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [templateGoals, setTemplateGoals] = useState<Array<{ title: string; description: string }>>([
+    { title: '', description: '' },
+  ]);
+  const [templateQuestions, setTemplateQuestions] = useState<
+    Array<{ question: string; type: 'text' | 'rating' | 'boolean'; required: boolean }>
+  >([{ question: '', type: 'text', required: true }]);
+  const [templateAutoAssign, setTemplateAutoAssign] = useState(true);
 
   // Self Check-in Form
   const [confidenceRating, setConfidenceRating] = useState(5);
@@ -57,7 +83,11 @@ export const Milestones: React.FC = () => {
 
   const { data: myMilestones, isLoading: myLoading, refetch: refetchMy } = useMyMilestones();
   const { data: teamMilestones, isLoading: teamLoading, refetch: refetchTeam } = useTeamMilestones();
-  const { data: templates, isLoading: templatesLoading } = useMilestoneTemplates();
+  const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useMilestoneTemplates();
+
+  const createTemplateMutation = useCreateMilestoneTemplate();
+  const updateTemplateMutation = useUpdateMilestoneTemplate();
+  const deleteTemplateMutation = useDeleteMilestoneTemplate();
 
   const myPagination = usePagination({ data: myMilestones || [], initialPageSize: 6 });
   const teamPagination = usePagination({ data: teamMilestones || [], initialPageSize: 6 });
@@ -126,6 +156,105 @@ export const Milestones: React.FC = () => {
     );
   };
 
+  const handleOpenCreateTemplate = () => {
+    setEditingTemplate(null);
+    setTemplateTitle('');
+    setTemplateTargetDay(30);
+    setTemplateDescription('');
+    setTemplateGoals([{ title: '', description: '' }]);
+    setTemplateQuestions([{ question: '', type: 'text', required: true }]);
+    setTemplateAutoAssign(true);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleOpenEditTemplate = (t: MilestoneTemplate) => {
+    setEditingTemplate(t);
+    setTemplateTitle(t.title || '');
+    setTemplateTargetDay(t.targetDay || 30);
+    setTemplateDescription(t.description || '');
+    setTemplateGoals(
+      t.goals && t.goals.length > 0
+        ? t.goals.map((g) => ({ title: g.title || '', description: g.description || '' }))
+        : [{ title: '', description: '' }]
+    );
+    setTemplateQuestions(
+      t.checkinQuestions && t.checkinQuestions.length > 0
+        ? t.checkinQuestions.map((q) => ({ question: q.question || '', type: q.type || 'text', required: q.required ?? true }))
+        : [{ question: '', type: 'text', required: true }]
+    );
+    setTemplateAutoAssign(t.audience?.autoAssignNewHires ?? true);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleTemplateFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!templateTitle.trim()) {
+      toast.error('Template title cannot be empty.');
+      return;
+    }
+
+    const validGoals = templateGoals
+      .map((g) => ({ title: g.title.trim(), description: g.description?.trim() || '' }))
+      .filter((g) => g.title.length > 0);
+
+    const validQuestions = templateQuestions
+      .map((q) => ({ question: q.question.trim(), type: q.type, required: q.required }))
+      .filter((q) => q.question.length > 0);
+
+    const payload: Partial<MilestoneTemplate> = {
+      title: templateTitle.trim(),
+      targetDay: Number(templateTargetDay) as 30 | 60 | 90 | 180,
+      description: templateDescription.trim(),
+      goals: validGoals,
+      checkinQuestions: validQuestions,
+      audience: {
+        autoAssignNewHires: templateAutoAssign,
+      },
+    };
+
+    if (editingTemplate) {
+      updateTemplateMutation.mutate(
+        { id: editingTemplate._id, data: payload },
+        {
+          onSuccess: () => {
+            toast.success('Milestone template updated successfully!');
+            setIsTemplateModalOpen(false);
+            setEditingTemplate(null);
+            refetchTemplates();
+          },
+          onError: (err: any) => {
+            toast.error(err?.response?.data?.message || err?.message || 'Failed to update template');
+          },
+        }
+      );
+    } else {
+      createTemplateMutation.mutate(payload, {
+        onSuccess: () => {
+          toast.success('Milestone template created successfully!');
+          setIsTemplateModalOpen(false);
+          refetchTemplates();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to create template');
+        },
+      });
+    }
+  };
+
+  const handleDeleteTemplate = (id: string, title: string) => {
+    if (window.confirm(`Are you sure you want to delete the template "${title}"?`)) {
+      deleteTemplateMutation.mutate(id, {
+        onSuccess: () => {
+          toast.success('Milestone template deleted successfully!');
+          refetchTemplates();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to delete template');
+        },
+      });
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
@@ -139,12 +268,16 @@ export const Milestones: React.FC = () => {
             Track early onboarding progression, conduct structured self-evaluations, and receive manager performance reviews.
           </p>
         </div>
-        {isAdmin && (
+        {canManageTemplates && (
           <Button
+            id="create-milestone-template-header-btn"
             className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            onClick={() => toast.info('Program creation is configured via templates.')}
+            onClick={() => {
+              setActiveTab('templates');
+              handleOpenCreateTemplate();
+            }}
           >
-            <Plus className="h-4 w-4 mr-2" /> Add Milestone Program
+            <Plus className="h-4 w-4 mr-2" /> Create Milestone Template
           </Button>
         )}
       </div>
@@ -210,8 +343,9 @@ export const Milestones: React.FC = () => {
             <UserCheck className="h-4 w-4" /> Team Milestone Reviews ({teamMilestones?.length || 0})
           </button>
         )}
-        {isAdmin && (
+        {canManageTemplates && (
           <button
+            id="tab-milestone-templates"
             className={`py-3 px-6 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
               activeTab === 'templates'
                 ? 'border-indigo-600 text-indigo-600'
@@ -384,54 +518,87 @@ export const Milestones: React.FC = () => {
                       <div
                         key={m._id}
                         id={`milestone-card-${mid}`}
-                        className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/10 transition-colors"
+                        className="p-5 flex flex-col gap-4 hover:bg-muted/10 transition-colors"
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-sm">{empName}</h4>
-                            <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
-                              Day {m.targetDay}
-                            </Badge>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-sm">{empName}</h4>
+                              <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                                Day {m.targetDay}
+                              </Badge>
+                              {m.sla?.autoApprovalEligible && (
+                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                                  Auto-Approval Eligible
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {m.milestoneTitle} | Target Due: {new Date(m.dueDate).toLocaleDateString()}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {m.milestoneTitle} | Target Due: {new Date(m.dueDate).toLocaleDateString()}
-                          </p>
+
+                          <div className="flex items-center gap-3">
+                            {m.status === 'completed' || m.status === 'approved' ? (
+                              <Badge
+                                id={`badge-approved-${mid}`}
+                                variant="outline"
+                                className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium flex items-center gap-1"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Approved (Rating: {m.managerRating || m.managerReview?.performanceRating || 5}/5)
+                              </Badge>
+                            ) : m.status === 'revision_requested' ? (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+                                Revision Requested
+                              </Badge>
+                            ) : m.status === 'in_review' || m.status === 'pending_manager_review' ? (
+                              <Button
+                                id={`review-milestone-btn-${mid}`}
+                                size="sm"
+                                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center gap-1.5"
+                                onClick={() => {
+                                  setSelectedMilestone(m);
+                                  setManagerRating(5);
+                                  setApprovalStatus('approved');
+                                  const feedbackText = typeof m.aiSummary === 'string'
+                                    ? m.aiSummary
+                                    : m.aiSummary?.summary || 'Exceeded expectations on ramp-up. Completed initial project ahead of schedule.';
+                                  setManagerFeedback(feedbackText);
+                                  setIsManagerReviewOpen(true);
+                                }}
+                              >
+                                <UserCheck className="h-3.5 w-3.5" /> Review Milestone
+                              </Button>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                Self Check-in Pending
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          {m.status === 'completed' || m.status === 'approved' ? (
-                            <Badge
-                              id={`badge-approved-${mid}`}
-                              variant="outline"
-                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium flex items-center gap-1"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Approved (Rating: {m.managerRating || m.managerReview?.performanceRating || 5}/5)
-                            </Badge>
-                          ) : m.status === 'revision_requested' ? (
-                            <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                              Revision Requested
-                            </Badge>
-                          ) : m.status === 'in_review' || m.status === 'pending_manager_review' ? (
-                            <Button
-                              id={`review-milestone-btn-${mid}`}
-                              size="sm"
-                              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center gap-1.5"
-                              onClick={() => {
-                                setSelectedMilestone(m);
-                                setManagerRating(5);
-                                setApprovalStatus('approved');
-                                setManagerFeedback('Exceeded expectations on ramp-up. Completed initial project ahead of schedule.');
-                                setIsManagerReviewOpen(true);
-                              }}
-                            >
-                              <UserCheck className="h-3.5 w-3.5" /> Review Milestone
-                            </Button>
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground">
-                              Self Check-in Pending
-                            </Badge>
-                          )}
-                        </div>
+                        {/* Event-Driven Escalation Ladder & AI Briefing (Prompts 06) */}
+                        {(m.status === 'in_review' || m.status === 'pending_manager_review') && (
+                          <div className="space-y-3 pt-2 border-t border-border/50">
+                            <MilestoneEscalationLadder sla={m.sla} status={m.status} submittedAt={m.submittedAt} />
+                            {m.aiSummary && (
+                              <AIReflectionSummaryCard
+                                aiSummary={typeof m.aiSummary === 'string' ? { summary: m.aiSummary } : m.aiSummary}
+                                employeeName={empName}
+                                onQuickApprove={() => {
+                                  setSelectedMilestone(m);
+                                  setManagerRating(5);
+                                  setApprovalStatus('approved');
+                                  const feedbackText = typeof m.aiSummary === 'string'
+                                    ? m.aiSummary
+                                    : m.aiSummary?.summary || 'Approved via 1-click evaluation';
+                                  setManagerFeedback(feedbackText);
+                                  setIsManagerReviewOpen(true);
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -456,39 +623,169 @@ export const Milestones: React.FC = () => {
         </Card>
       )}
 
-      {/* Tab 3: Milestone Templates (Admin View) */}
-      {activeTab === 'templates' && isAdmin && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {templatesLoading ? (
-              <div className="col-span-full p-8 text-center text-muted-foreground">Loading templates...</div>
-            ) : (
-              templatesPagination.paginatedData.map((t) => (
-                <Card key={t._id}>
-                  <CardHeader>
-                    <Badge className="w-fit bg-indigo-600 text-white text-[10px]">Day {t.targetDay}</Badge>
-                    <CardTitle className="text-base font-semibold mt-2">{t.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-xs text-muted-foreground space-y-2">
-                    <div>Goals Count: {t.goals?.length || 0}</div>
-                    <div>Questions Count: {t.checkinQuestions?.length || 0}</div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+      {/* Tab 3: Milestone Templates Management */}
+      {activeTab === 'templates' && canManageTemplates && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/30 p-4 rounded-xl border">
+            <div>
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-indigo-600" />
+                Company Milestone Programs & Check-in Templates
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Define standard 30, 60, 90, or 180-day expectations, objectives, and reflection questionnaires for new hires.
+              </p>
+            </div>
+            <Button
+              id="create-milestone-template-btn"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
+              onClick={handleOpenCreateTemplate}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Create Template
+            </Button>
           </div>
 
-          <SimplePagination
-            currentPage={templatesPagination.page}
-            totalPages={templatesPagination.totalPages}
-            totalItems={templatesPagination.totalItems}
-            startIndex={templatesPagination.startIndex}
-            endIndex={templatesPagination.endIndex}
-            pageSize={templatesPagination.pageSize}
-            onPageChange={templatesPagination.setPage}
-            onPageSizeChange={templatesPagination.setPageSize}
-            itemLabel="templates"
-          />
+          {templatesLoading ? (
+            <div className="p-12 text-center text-muted-foreground">Loading templates...</div>
+          ) : (templates || []).length === 0 ? (
+            <div className="p-12 text-center border-2 border-dashed rounded-xl space-y-3">
+              <Building2 className="h-10 w-10 text-muted-foreground mx-auto" />
+              <h4 className="font-semibold">No milestone templates defined yet</h4>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Set up 30-day, 60-day, or 90-day milestone templates with goals and reflection questions to automate new hire onboarding reviews.
+              </p>
+              <Button
+                id="create-first-milestone-template-btn"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={handleOpenCreateTemplate}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Create First Template
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {templatesPagination.paginatedData.map((t) => (
+                  <Card key={t._id} className="hover:border-indigo-500/50 transition-all flex flex-col justify-between">
+                    <div>
+                      <CardHeader className="pb-3 border-b">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 text-xs">
+                            Day {t.targetDay}
+                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              id={`edit-template-btn-${t._id}`}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs font-medium"
+                              onClick={() => handleOpenEditTemplate(t)}
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                            </Button>
+                            <Button
+                              id={`delete-template-btn-${t._id}`}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteTemplate(t._id, t.title)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <CardTitle className="text-base font-semibold mt-2 line-clamp-1">{t.title}</CardTitle>
+                        {t.description && (
+                          <CardDescription className="text-xs line-clamp-2 mt-1">
+                            {t.description}
+                          </CardDescription>
+                        )}
+                      </CardHeader>
+
+                      <CardContent className="p-4 space-y-4 text-xs">
+                        {/* Goals summary */}
+                        <div>
+                          <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider flex items-center gap-1 mb-1.5">
+                            <ListChecks className="h-3.5 w-3.5 text-indigo-600" />
+                            Milestone Goals ({t.goals?.length || 0})
+                          </span>
+                          {t.goals && t.goals.length > 0 ? (
+                            <ul className="space-y-1">
+                              {t.goals.slice(0, 3).map((g: any, idx: number) => (
+                                <li key={idx} className="flex items-start gap-1.5 text-foreground/90">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="line-clamp-1">{g.title}</span>
+                                </li>
+                              ))}
+                              {t.goals.length > 3 && (
+                                <li className="text-[11px] text-muted-foreground italic pl-4.5">
+                                  +{t.goals.length - 3} more goals
+                                </li>
+                              )}
+                            </ul>
+                          ) : (
+                            <p className="text-muted-foreground italic">No goals defined</p>
+                          )}
+                        </div>
+
+                        {/* Check-in Questions summary */}
+                        <div>
+                          <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider flex items-center gap-1 mb-1.5">
+                            <FileQuestion className="h-3.5 w-3.5 text-indigo-600" />
+                            Check-In Questions ({t.checkinQuestions?.length || 0})
+                          </span>
+                          {t.checkinQuestions && t.checkinQuestions.length > 0 ? (
+                            <ul className="space-y-1">
+                              {t.checkinQuestions.slice(0, 2).map((q: any, idx: number) => (
+                                <li key={idx} className="flex items-start justify-between gap-2 text-foreground/90">
+                                  <span className="line-clamp-1">{q.question}</span>
+                                  <span className="text-[10px] bg-muted px-1.5 py-0.2 rounded shrink-0 uppercase">
+                                    {q.type}
+                                  </span>
+                                </li>
+                              ))}
+                              {t.checkinQuestions.length > 2 && (
+                                <li className="text-[11px] text-muted-foreground italic">
+                                  +{t.checkinQuestions.length - 2} more questions
+                                </li>
+                              )}
+                            </ul>
+                          ) : (
+                            <p className="text-muted-foreground italic">No questions defined</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </div>
+
+                    <div className="p-3 border-t bg-muted/10 rounded-b-xl flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>
+                        {t.audience?.autoAssignNewHires !== false ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                            <Sparkles className="h-3 w-3" /> Auto-assigned to new hires
+                          </span>
+                        ) : (
+                          <span>Manual assignment</span>
+                        )}
+                      </span>
+                      <span>Target: Day {t.targetDay}</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              <SimplePagination
+                currentPage={templatesPagination.page}
+                totalPages={templatesPagination.totalPages}
+                totalItems={templatesPagination.totalItems}
+                startIndex={templatesPagination.startIndex}
+                endIndex={templatesPagination.endIndex}
+                pageSize={templatesPagination.pageSize}
+                onPageChange={templatesPagination.setPage}
+                onPageSizeChange={templatesPagination.setPageSize}
+                itemLabel="templates"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -611,6 +908,19 @@ export const Milestones: React.FC = () => {
               )}
             </div>
 
+            {selectedMilestone?.aiSummary && (
+              <AIReflectionSummaryCard
+                aiSummary={selectedMilestone.aiSummary}
+                employeeName={selectedMilestone.employeeId?.profile?.firstName || 'Employee'}
+                onQuickApprove={() => {
+                  setApprovalStatus('approved');
+                  setManagerRating(5);
+                  setManagerFeedback(selectedMilestone.aiSummary?.summary || 'Approved with excellent feedback.');
+                  toast.success('1-click feedback populated from AI synthesis');
+                }}
+              />
+            )}
+
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Approval Status:</label>
               <select
@@ -667,6 +977,229 @@ export const Milestones: React.FC = () => {
               Approve & Sign Off
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Create / Edit Milestone Template */}
+      <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? 'Edit Milestone Template' : 'Create Milestone Template'}</DialogTitle>
+            <DialogDescription>
+              Define onboarding milestone expectations, goals, and self-reflection questionnaires.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleTemplateFormSubmit} className="space-y-5 py-2">
+            {/* Title & Target Day */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Template Title *</label>
+                <input
+                  id="template-title-input"
+                  required
+                  type="text"
+                  className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. Day 30 Fast-Start & Orientation"
+                  value={templateTitle}
+                  onChange={(e) => setTemplateTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Target Day *</label>
+                <select
+                  id="template-target-day-select"
+                  className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  value={templateTargetDay}
+                  onChange={(e) => setTemplateTargetDay(Number(e.target.value))}
+                >
+                  <option value={30}>Day 30</option>
+                  <option value={60}>Day 60</option>
+                  <option value={90}>Day 90</option>
+                  <option value={180}>Day 180</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Description / Summary</label>
+              <textarea
+                id="template-description-input"
+                className="w-full min-h-[70px] text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Overview of expectations and requirements for this onboarding phase..."
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Auto-assign toggle */}
+            <div className="flex items-center gap-2.5 p-3 border rounded-lg bg-muted/20">
+              <input
+                id="template-auto-assign-checkbox"
+                type="checkbox"
+                checked={templateAutoAssign}
+                onChange={(e) => setTemplateAutoAssign(e.target.checked)}
+                className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <label htmlFor="template-auto-assign-checkbox" className="text-xs font-medium cursor-pointer">
+                Automatically schedule and assign this milestone to all newly hired employees
+              </label>
+            </div>
+
+            {/* Key Goals / Objectives List */}
+            <div className="space-y-2.5 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                    <ListChecks className="h-4 w-4 text-indigo-600" />
+                    Key Goals & Objectives ({templateGoals.length})
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">Deliverables and achievements expected by this milestone.</p>
+                </div>
+                <Button
+                  id="add-template-goal-btn"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                  onClick={() => setTemplateGoals([...templateGoals, { title: '', description: '' }])}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Goal
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {templateGoals.map((goal, idx) => (
+                  <div key={idx} className="p-2.5 border rounded-lg bg-background flex items-start gap-2">
+                    <div className="flex-1 space-y-1.5">
+                      <input
+                        type="text"
+                        className="w-full text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder={`Goal #${idx + 1} Title (e.g. Complete core training & deliver first PR)`}
+                        value={goal.title}
+                        onChange={(e) => {
+                          const updated = [...templateGoals];
+                          updated[idx].title = e.target.value;
+                          setTemplateGoals(updated);
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="w-full text-[11px] p-1.5 border rounded bg-muted/20 focus:outline-none"
+                        placeholder="Optional description / success criteria"
+                        value={goal.description}
+                        onChange={(e) => {
+                          const updated = [...templateGoals];
+                          updated[idx].description = e.target.value;
+                          setTemplateGoals(updated);
+                        }}
+                      />
+                    </div>
+                    {templateGoals.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-destructive hover:bg-destructive/10"
+                        onClick={() => setTemplateGoals(templateGoals.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reflection / Check-in Questions List */}
+            <div className="space-y-2.5 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                    <FileQuestion className="h-4 w-4 text-indigo-600" />
+                    Check-in Reflection Questions ({templateQuestions.length})
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">Self-reflection questions the employee answers before manager review.</p>
+                </div>
+                <Button
+                  id="add-template-question-btn"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                  onClick={() => setTemplateQuestions([...templateQuestions, { question: '', type: 'text', required: true }])}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Question
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {templateQuestions.map((q, idx) => (
+                  <div key={idx} className="p-2.5 border rounded-lg bg-background flex items-start gap-2">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2">
+                      <input
+                        type="text"
+                        className="sm:col-span-3 text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder={`Question #${idx + 1} (e.g. What challenges did you encounter?)`}
+                        value={q.question}
+                        onChange={(e) => {
+                          const updated = [...templateQuestions];
+                          updated[idx].question = e.target.value;
+                          setTemplateQuestions(updated);
+                        }}
+                      />
+                      <select
+                        className="text-xs p-2 border rounded bg-background focus:outline-none"
+                        value={q.type}
+                        onChange={(e) => {
+                          const updated = [...templateQuestions];
+                          updated[idx].type = e.target.value as any;
+                          setTemplateQuestions(updated);
+                        }}
+                      >
+                        <option value="text">Text Response</option>
+                        <option value="rating">Rating (1-5)</option>
+                        <option value="boolean">Yes / No</option>
+                      </select>
+                    </div>
+                    {templateQuestions.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-destructive hover:bg-destructive/10"
+                        onClick={() => setTemplateQuestions(templateQuestions.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-3 border-t">
+              <Button type="button" variant="outline" onClick={() => setIsTemplateModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                id="save-milestone-template-btn"
+                type="submit"
+                disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+              >
+                {createTemplateMutation.isPending || updateTemplateMutation.isPending ? (
+                  'Saving...'
+                ) : editingTemplate ? (
+                  'Save Changes'
+                ) : (
+                  'Create Template'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

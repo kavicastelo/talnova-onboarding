@@ -32,6 +32,27 @@ export function useCreateMilestoneTemplate() {
   });
 }
 
+export function useUpdateMilestoneTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<MilestoneTemplate> }) =>
+      milestoneService.updateTemplate(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['milestoneTemplates'] });
+    },
+  });
+}
+
+export function useDeleteMilestoneTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => milestoneService.deleteTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['milestoneTemplates'] });
+    },
+  });
+}
+
 export function useAssignMilestone() {
   const queryClient = useQueryClient();
   return useMutation({

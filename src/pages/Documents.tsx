@@ -34,6 +34,7 @@ import {
 } from '../components/Dialog';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 
 export const Documents: React.FC = () => {
@@ -63,7 +64,7 @@ export const Documents: React.FC = () => {
 
   const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useDocumentTemplates();
   const { data: inbox, isLoading: inboxLoading } = useEmployeeDocumentInbox();
-  const { data: employeesData } = useEmployees({ page: 1, limit: 100 });
+  const { data: employeesData } = useEmployees({ page: 1, limit: 1000 });
   const { data: signatures, isLoading: signaturesLoading } = useTemplateSignatures(signaturesTemplate?._id || null);
 
   const createTemplateMutation = useCreateDocumentTemplate();
@@ -433,19 +434,21 @@ export const Documents: React.FC = () => {
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Category</label>
-              <select
+              <SearchableSelect
                 id="template-category-select"
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={newCategory}
-                onChange={(e: any) => setNewCategory(e.target.value)}
-              >
-                <option value="nda">Non-Disclosure Agreement (NDA)</option>
-                <option value="code_of_conduct">Code of Conduct</option>
-                <option value="offer_letter">Offer Letter</option>
-                <option value="handbook">Employee Handbook Acknowledgment</option>
-                <option value="direct_deposit">Direct Deposit Form</option>
-                <option value="custom">Custom Agreement / Security Policy</option>
-              </select>
+                onChange={(val: any) => setNewCategory(val)}
+                placeholder="Select category..."
+                searchPlaceholder="Search category..."
+                options={[
+                  { value: 'nda', label: 'Non-Disclosure Agreement (NDA)' },
+                  { value: 'code_of_conduct', label: 'Code of Conduct' },
+                  { value: 'offer_letter', label: 'Offer Letter' },
+                  { value: 'handbook', label: 'Employee Handbook Acknowledgment' },
+                  { value: 'direct_deposit', label: 'Direct Deposit Form' },
+                  { value: 'custom', label: 'Custom Agreement / Security Policy' },
+                ]}
+              />
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
@@ -610,19 +613,19 @@ export const Documents: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Employee</label>
-              <select
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Employee *</label>
+              <SearchableSelect
                 value={selectedEmpId}
-                onChange={(e) => setSelectedEmpId(e.target.value)}
-              >
-                <option value="">-- Select Employee --</option>
-                {employees.map((emp: any) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.email}) - {emp.department || 'General'}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedEmpId(val)}
+                placeholder="Search & select employee..."
+                searchPlaceholder="Search by name, email, department..."
+                options={employees.map((emp: any) => ({
+                  value: emp.id,
+                  label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                  sublabel: emp.email,
+                  badge: emp.department || 'General',
+                }))}
+              />
             </div>
           </div>
           <DialogFooter>

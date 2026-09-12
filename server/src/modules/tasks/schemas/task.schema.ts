@@ -10,13 +10,51 @@ export const createTaskSchema = z.object({
   stage: z.enum(["preboarding", "day_1", "week_1", "month_1", "custom"]).optional(),
   priority: z.enum(["low", "normal", "high", "critical"]).optional(),
   requiresVerification: z.boolean().optional(),
+  autoVerification: z
+    .object({
+      enabled: z.boolean().default(false),
+      ruleType: z.enum(["document_signed", "quiz_passed", "course_completed", "form_submitted"]).optional(),
+      linkedEntityId: z.string().optional(),
+      entityModel: z.enum(["DocumentTemplate", "Course", "Quiz"]).optional(),
+      minScorePercent: z.number().optional(),
+    })
+    .optional(),
   dueDate: z.string().optional(),
   relativeOffsetDays: z.number().optional(),
   prerequisiteTaskIds: z.array(z.string()).optional(),
+  hardwareMetadata: z
+    .object({
+      deviceType: z.enum(["laptop", "monitor", "mobile", "security_key", "peripherals"]).optional(),
+      serialNumber: z.string().optional(),
+      assetTag: z.string().optional(),
+      courierTrackingUrl: z.string().optional(),
+      courierProvider: z.string().optional(),
+      shipDate: z.string().optional(),
+      receiptAttachment: z
+        .object({
+          uploadId: z.string().optional(),
+          fileUrl: z.string().optional(),
+          fileName: z.string().optional(),
+          uploadedAt: z.string().optional(),
+        })
+        .optional(),
+      mdmStatus: z.enum(["pending_dispatch", "dispatched", "enrolled", "failed"]).optional(),
+      mdmExternalId: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const updateTaskStatusSchema = z.object({
-  status: z.enum(["pending", "in_progress", "completed", "verified", "overdue", "cancelled"]),
+  status: z.enum([
+    "pending",
+    "in_progress",
+    "completed",
+    "verified",
+    "overdue",
+    "cancelled",
+    "needs_review",
+    "revision_requested",
+  ]),
   note: z.string().optional(),
 });
 
@@ -40,4 +78,29 @@ export const getTasksQuerySchema = z.object({
   limit: z.string().optional(),
   sortBy: z.string().optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
+});
+
+export const updateHardwareMetadataSchema = z.object({
+  deviceType: z.enum(["laptop", "monitor", "mobile", "security_key", "peripherals"]).optional(),
+  serialNumber: z.string().optional(),
+  assetTag: z.string().optional(),
+  courierTrackingUrl: z.string().optional(),
+  courierProvider: z.string().optional(),
+  shipDate: z.string().optional(),
+  receiptAttachment: z
+    .object({
+      uploadId: z.string().optional(),
+      fileUrl: z.string().optional(),
+      fileName: z.string().optional(),
+      uploadedAt: z.string().optional(),
+    })
+    .optional(),
+  mdmStatus: z.enum(["pending_dispatch", "dispatched", "enrolled", "failed"]).optional(),
+  mdmExternalId: z.string().optional(),
+});
+
+export const attachHardwareReceiptSchema = z.object({
+  uploadId: z.string().optional(),
+  fileUrl: z.string().min(1, "fileUrl is required"),
+  fileName: z.string().min(1, "fileName is required"),
 });

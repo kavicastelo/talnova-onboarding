@@ -31,14 +31,30 @@ export class EventBus {
     };
   }
 
-  public async publish<T = any>(params: {
-    eventName: EventType;
-    organizationId: mongoose.Types.ObjectId | string;
-    actorId?: mongoose.Types.ObjectId | string;
-    entityId?: mongoose.Types.ObjectId | string;
-    payload: T;
-    correlationId?: string;
-  }): Promise<EventEnvelope<T>> {
+  public async publish<T = any>(
+    firstArg:
+      | EventType
+      | {
+          eventName: EventType;
+          organizationId: mongoose.Types.ObjectId | string;
+          actorId?: mongoose.Types.ObjectId | string;
+          entityId?: mongoose.Types.ObjectId | string;
+          payload: T;
+          correlationId?: string;
+        },
+    secondArg?: {
+      organizationId: mongoose.Types.ObjectId | string;
+      actorId?: mongoose.Types.ObjectId | string;
+      entityId?: mongoose.Types.ObjectId | string;
+      payload: T;
+      correlationId?: string;
+    }
+  ): Promise<EventEnvelope<T>> {
+    const params =
+      typeof firstArg === "string"
+        ? { eventName: firstArg, ...(secondArg as any) }
+        : firstArg;
+
     const envelope: EventEnvelope<T> = {
       eventId: crypto.randomUUID(),
       eventName: params.eventName,
@@ -53,6 +69,7 @@ export class EventBus {
 
     const subscribers = this.handlers.get(params.eventName);
     if (subscribers && subscribers.size > 0) {
+      let firstError: any = null;
       const promises = Array.from(subscribers).map(async (handler) => {
         try {
           await handler(envelope);
@@ -61,9 +78,13 @@ export class EventBus {
             `[EventBus] Error handling event ${params.eventName} (${envelope.eventId}):`,
             error
           );
+          if (!firstError) firstError = error;
         }
       });
       await Promise.allSettled(promises);
+      if (firstError) {
+        throw firstError;
+      }
     }
 
     return envelope;

@@ -8,10 +8,14 @@ export interface ISignatureData {
   ipAddress?: string;
   userAgent?: string;
   sha256Hash: string; // Cryptographic integrity checksum
+  supervisorWitnessId?: mongoose.Types.ObjectId;
+  kioskDeviceId?: mongoose.Types.ObjectId;
+  kioskSessionTokenRef?: string;
+  notes?: string;
 }
 
 export interface IDocumentAuditEntry {
-  action: "assigned" | "viewed" | "signed" | "declined";
+  action: "assigned" | "viewed" | "signed" | "declined" | "revoked";
   performedBy: mongoose.Types.ObjectId;
   timestamp: Date;
   ipAddress?: string;
@@ -26,7 +30,7 @@ export interface IDocumentAssignment extends Document {
   templateVersion: number;
   employeeId: mongoose.Types.ObjectId;
   assignedBy: mongoose.Types.ObjectId;
-  status: "pending" | "viewed" | "signed" | "declined" | "expired";
+  status: "pending" | "viewed" | "signed" | "declined" | "expired" | "revoked";
   assignedAt: Date;
   dueDate?: Date;
   signedAt?: Date;
@@ -34,6 +38,10 @@ export interface IDocumentAssignment extends Document {
   declineReason?: string;
   renderedContent?: string; // Content with interpolated user fields
   signatureData?: ISignatureData;
+  complianceRetention?: boolean;
+  archivedAt?: Date;
+  revokedAt?: Date;
+  revokedReason?: string;
   auditTrail: IDocumentAuditEntry[];
   isDeleted: boolean;
   createdAt: Date;
@@ -48,10 +56,14 @@ const SignatureDataSchema = new Schema({
   ipAddress: { type: String },
   userAgent: { type: String },
   sha256Hash: { type: String, required: true },
+  supervisorWitnessId: { type: Schema.Types.ObjectId, ref: "User" },
+  kioskDeviceId: { type: Schema.Types.ObjectId, ref: "KioskDevice" },
+  kioskSessionTokenRef: { type: String },
+  notes: { type: String },
 });
 
 const DocumentAuditEntrySchema = new Schema({
-  action: { type: String, enum: ["assigned", "viewed", "signed", "declined"], required: true },
+  action: { type: String, enum: ["assigned", "viewed", "signed", "declined", "revoked"], required: true },
   performedBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
   timestamp: { type: Date, required: true, default: Date.now },
   ipAddress: { type: String },
@@ -69,7 +81,7 @@ const DocumentAssignmentSchema = new Schema<IDocumentAssignment>(
     assignedBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     status: {
       type: String,
-      enum: ["pending", "viewed", "signed", "declined", "expired"],
+      enum: ["pending", "viewed", "signed", "declined", "expired", "revoked"],
       default: "pending",
     },
     assignedAt: { type: Date, required: true, default: Date.now },
@@ -79,6 +91,10 @@ const DocumentAssignmentSchema = new Schema<IDocumentAssignment>(
     declineReason: { type: String },
     renderedContent: { type: String },
     signatureData: { type: SignatureDataSchema },
+    complianceRetention: { type: Boolean, default: false },
+    archivedAt: { type: Date },
+    revokedAt: { type: Date },
+    revokedReason: { type: String },
     auditTrail: { type: [DocumentAuditEntrySchema], default: [] },
     isDeleted: { type: Boolean, default: false },
   },

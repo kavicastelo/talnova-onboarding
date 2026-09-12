@@ -35,6 +35,9 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
     payrollCategory: user.employment?.payrollCategory || '',
     employeeId: user.employment?.employeeId || user._id,
     onboardingState: user.employment?.onboardingState || 'active',
+    legalHold: !!user.compliance?.legalHold,
+    legalHoldReason: user.compliance?.legalHoldReason,
+    legalHoldPlacedAt: user.compliance?.legalHoldPlacedAt,
     rawUser: user
   };
 };
@@ -165,6 +168,14 @@ export const employeeService = {
 
   changeMyPassword: async (passwords: { oldPassword: string; newPassword: string }): Promise<void> => {
     await apiClient.patch('/employees/me/password', passwords);
+  },
+
+  setLegalHold: async (
+    id: string,
+    payload: { legalHold: boolean; reason: string }
+  ): Promise<{ success: boolean; message: string; legalHold: boolean; employee: any }> => {
+    const response = await apiClient.post<any>(`/employees/${id}/legal-hold`, payload);
+    return response.data;
   },
 
   importEmployees: async (users: Array<any>): Promise<{ successCount: number; failures: Array<{ email: string; reason: string }>; imported?: number; skipped?: number; errors?: any[] }> => {

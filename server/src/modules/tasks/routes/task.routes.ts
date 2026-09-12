@@ -8,6 +8,8 @@ import {
   updateTaskStatusSchema,
   addTaskCommentSchema,
   getTasksQuerySchema,
+  updateHardwareMetadataSchema,
+  attachHardwareReceiptSchema,
 } from "../schemas/task.schema.js";
 
 export async function taskRoutes(app: FastifyInstance) {
@@ -15,8 +17,13 @@ export async function taskRoutes(app: FastifyInstance) {
   const service = new TaskService(repository);
   const controller = new TaskController(service);
 
-  // Authenticate all routes
-  app.addHook("preHandler", authenticate);
+  // Authenticate all routes by default except public webhook callback
+  app.addHook("preHandler", async (request, reply) => {
+    if (request.url.includes("/mdm/callback")) {
+      return;
+    }
+    await authenticate(request, reply);
+  });
 
   // GET /api/v1/tasks
   app.get("/", { schema: { querystring: getTasksQuerySchema } }, controller.listTasks as any);
@@ -29,6 +36,18 @@ export async function taskRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/tasks/:id/status
   app.patch("/:id/status", { schema: { body: updateTaskStatusSchema } }, controller.updateStatus as any);
+
+  // PATCH /api/v1/tasks/:id/hardware (Prompt 08 Step 1.2)
+  app.patch("/:id/hardware", { schema: { body: updateHardwareMetadataSchema } }, controller.updateHardwareMetadata as any);
+
+  // POST /api/v1/tasks/:id/hardware/receipt (Prompt 08 Step 1.2)
+  app.post("/:id/hardware/receipt", { schema: { body: attachHardwareReceiptSchema } }, controller.attachHardwareReceipt as any);
+
+  // POST /api/v1/tasks/mdm/dispatch/:taskId (Prompt 08 Step 2.2)
+  app.post("/mdm/dispatch/:taskId", controller.dispatchMdmWebhook as any);
+
+  // POST /api/v1/tasks/mdm/callback (Prompt 08 Step 2.2 - Inbound MDM callback)
+  app.post("/mdm/callback", controller.handleMdmCallback as any);
 
   // POST /api/v1/tasks/:id/complete (PWA offline sync alias)
   app.post("/:id/complete", controller.completeTask as any);

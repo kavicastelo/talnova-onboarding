@@ -118,6 +118,34 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.pairDevice
   );
 
+  // POST /api/v1/kiosk/identify (Identify frontline worker via badgeId / nationalId and issue ephemeral session token)
+  app.post(
+    "/identify",
+    {
+      schema: {
+        body: z.object({
+          identifier: z.string().min(1, "Identifier (badgeId or nationalId) is required"),
+          kioskDeviceId: z.string().optional(),
+        }),
+      },
+    },
+    controller.identifyFrontlineWorker
+  );
+
+  // POST /api/v1/kiosk/supervisor/verify-pin (Verify supervisor 4-digit PIN for co-signature / touch override)
+  app.post(
+    "/supervisor/verify-pin",
+    {
+      schema: {
+        body: z.object({
+          supervisorIdentifier: z.string().min(1, "Supervisor email, badgeId, or userId is required"),
+          pin: z.string().length(4, "PIN must be exactly 4 digits"),
+        }),
+      },
+    },
+    controller.verifySupervisorPin
+  );
+
   // --- DEVICE AUTHORIZED ENDPOINTS ---
 
   // POST /api/v1/kiosk/devices/heartbeat (Device token heartbeat ping)
@@ -236,6 +264,33 @@ export async function kioskRoutes(app: FastifyInstance) {
 
     // GET /api/v1/kiosk/journeys/:id/analytics
     adminGroup.get("/journeys/:id/analytics", controller.getJourneyAnalyticsSummary);
+
+    // POST /api/v1/kiosk/supervisor/pin (Set or update supervisor 4-digit PIN)
+    adminGroup.post(
+      "/supervisor/pin",
+      {
+        schema: {
+          body: z.object({
+            supervisorId: z.string().min(1, "Supervisor ID is required"),
+            pin: z.string().length(4, "PIN must be exactly 4 digits"),
+          }),
+        },
+      },
+      controller.setSupervisorPin
+    );
+
+    // PATCH /api/v1/kiosk/devices/:id/maintenance (Toggle Maintenance Mode)
+    adminGroup.patch(
+      "/devices/:id/maintenance",
+      {
+        schema: {
+          body: z.object({
+            maintenance: z.boolean(),
+          }),
+        },
+      },
+      controller.toggleMaintenanceMode
+    );
   });
 }
 

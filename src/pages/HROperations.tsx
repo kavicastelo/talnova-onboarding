@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
+  AlertOctagon,
   Users,
   CheckCircle2,
   AlertTriangle,
@@ -36,9 +38,11 @@ import {
 } from '../components/Dialog';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 
 export const HROperations: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
@@ -234,6 +238,12 @@ export const HROperations: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            className="bg-rose-600 hover:bg-rose-700 text-white"
+            onClick={() => navigate('/hr-ops/exceptions')}
+          >
+            <AlertOctagon className="h-4 w-4 mr-2" /> Exception Workbench
+          </Button>
           <Button variant="outline" onClick={() => setIsReportModalOpen(true)}>
             <FileSpreadsheet className="h-4 w-4 mr-2" /> Compliance Audit Report
           </Button>
@@ -780,19 +790,19 @@ export const HROperations: React.FC = () => {
 
             {bulkAction === 'assign_journey' && (
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Select Learning Journey</label>
-                <select
-                  className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none"
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Select Learning Journey *</label>
+                <SearchableSelect
                   value={selectedJourneyId}
-                  onChange={(e: any) => setSelectedJourneyId(e.target.value)}
-                >
-                  <option value="">-- Select Journey --</option>
-                  {(journeys || []).map((j: any) => (
-                    <option key={j.id} value={j.id}>
-                      {j.title}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedJourneyId(val)}
+                  placeholder="Search & select journey..."
+                  searchPlaceholder="Search journey title, category..."
+                  options={(journeys || []).map((j: any) => ({
+                    value: j.id,
+                    label: j.title,
+                    sublabel: j.description || j.category,
+                    badge: j.category,
+                  }))}
+                />
               </div>
             )}
 

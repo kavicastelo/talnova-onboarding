@@ -9,6 +9,8 @@ import { KioskJourneySchema } from "../validation/journey.schema.js";
 import { KioskDeviceStatus } from "../types/common.types.js";
 import { KioskTelemetry } from "../types/device.types.js";
 import { KioskJourneyModel, IKioskJourney } from "../models/kiosk-journey.model.js";
+import KioskDeviceModel from "../models/kiosk-device.model.js";
+import User from "../../auth/models/user.model.js";
 
 export class KioskService {
   constructor(
@@ -16,10 +18,14 @@ export class KioskService {
     private readonly deviceRepo: KioskDeviceRepository,
     private readonly analyticsRepo: KioskAnalyticsRepository,
     private readonly securityService: KioskSecurityService,
-    private readonly jwt: {
+    private readonly jwt?: {
       sign: (payload: any, options?: any) => string;
     }
   ) {}
+
+  getDeviceRepo(): KioskDeviceRepository {
+    return this.deviceRepo;
+  }
 
   async createJourney(orgId: string, data: any, userId: string): Promise<IKioskJourney> {
     const journeyData = {
@@ -112,14 +118,16 @@ export class KioskService {
     }
 
     // Sign long-lived token for physical device (e.g. 10 years expiry)
-    const token = this.jwt.sign(
-      {
-        deviceId,
-        organizationId: orgId,
-        role: "kiosk_device"
-      },
-      { expiresIn: "3650d" }
-    );
+    const token = this.jwt
+      ? this.jwt.sign(
+          {
+            deviceId,
+            organizationId: orgId,
+            role: "kiosk_device",
+          },
+          { expiresIn: "3650d" }
+        )
+      : "";
 
     const tokenRef = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -302,6 +310,232 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
     return this.analyticsRepo.getSummary(orgId, journeyId, startDate, endDate);
+  }
+
+  /**
+   * Frontline worker identification and ephemeral session token generation (UQ-01 Resolution)
+   */
+  async identifyFrontlineWorker(orgId: string, identifier: string, kioskDeviceId?: string) {
+    if (!identifier || !identifier.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Worker identification code or badge is required");
+    }
+
+    const cleanId = identifier.trim();
+    const worker = await User.findOne({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+      $or: [
+        { "employment.badgeId": cleanId },
+        { "employment.employeeId": cleanId },
+        { "employment.nationalId": cleanId },
+        { "auth.email": cleanId.toLowerCase() },
+      ],
+    });
+
+    if (!worker) {
+      throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge or identity number.");
+    }
+
+    // Generate ephemeral 1-hour session token
+    let sessionToken: string;
+    const payload = {
+      userId: worker._id.toString(),
+      organizationId: orgId,
+      kioskDeviceId: kioskDeviceId || "standalone_terminal",
+      tempWorkerId: worker._id.toString(),
+      workerId: worker._id.toString(),
+      workerName: worker.profile.fullName || `${worker.profile.firstName} ${worker.profile.lastName}`.trim(),
+      role: "frontline_worker_kiosk",
+      scope: "kiosk_preboarding_execution",
+    };
+
+    if (this.jwt && typeof this.jwt.sign === "function") {
+      sessionToken = this.jwt.sign(payload, { expiresIn: "1h" });
+    } else {
+      // Fallback base64 signed token representation
+      const payloadStr = JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + 3600 });
+      const signature = crypto.createHmac("sha256", "talnova_kiosk_secret").update(payloadStr).digest("hex");
+      sessionToken = `${Buffer.from(payloadStr).toString("base64")}.${signature}`;
+    }
+
+    const pendingComplianceDocsCount = await mongoose.model("DocumentAssignment").countDocuments({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      employeeId: worker._id,
+      status: { $ne: "signed" },
+      isDeleted: false,
+    });
+
+    const workerObj = {
+      id: worker._id.toString(),
+      fullName: worker.profile.fullName || `${worker.profile.firstName} ${worker.profile.lastName}`.trim(),
+      firstName: worker.profile.firstName,
+      lastName: worker.profile.lastName,
+      employeeId: worker.employment?.employeeId,
+      badgeId: worker.employment?.badgeId,
+      nationalId: worker.employment?.nationalId,
+      department: worker.employment?.department || "Operations",
+      status: worker.employment?.status,
+    };
+
+    return {
+      success: true,
+      token: sessionToken,
+      sessionToken,
+      pendingComplianceDocsCount,
+      user: workerObj,
+      worker: workerObj,
+      expiresInSeconds: 3600,
+    };
+  }
+
+  /**
+   * Frontline supervisor PIN authorization verification (UQ-01 Resolution)
+   */
+  async verifySupervisorPin(orgId: string, supervisorIdentifier: string, pin: string) {
+    if (!supervisorIdentifier || !pin) {
+      throw new AppError(400, "BAD_REQUEST", "Supervisor identifier and 4-digit PIN are required");
+    }
+
+    const cleanId = supervisorIdentifier.trim();
+    const isHexObjectId = /^[0-9a-fA-F]{24}$/.test(cleanId);
+
+    const supervisor = await User.findOne({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+      "permissions.role": { $in: ["manager", "admin", "owner", "super_admin"] },
+      $or: [
+        ...(isHexObjectId ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : []),
+        { "auth.email": cleanId.toLowerCase() },
+        { "employment.employeeId": cleanId },
+        { "employment.badgeId": cleanId },
+      ],
+    });
+
+    if (!supervisor) {
+      throw new AppError(404, "SUPERVISOR_NOT_FOUND", "Authorized frontline supervisor record not found");
+    }
+
+    const pinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+    const stored = supervisor.security?.supervisorPinHash;
+    const isMatch = stored ? (stored === pinHash || stored === pin.trim()) : false;
+
+    if (!isMatch) {
+      throw new AppError(401, "INVALID_SUPERVISOR_PIN", "Invalid supervisor authorization PIN");
+    }
+
+    return {
+      success: true,
+      verified: true,
+      supervisor: {
+        id: supervisor._id.toString(),
+        fullName: supervisor.profile.fullName || `${supervisor.profile.firstName} ${supervisor.profile.lastName}`.trim(),
+        role: supervisor.permissions.role,
+        department: supervisor.employment?.department || "Operations",
+      },
+    };
+  }
+
+  /**
+   * Set / update supervisor 4-digit PIN
+   */
+  async setSupervisorPin(orgId: string, supervisorId: string, pin: string) {
+    if (!pin || pin.trim().length < 4) {
+      throw new AppError(400, "BAD_REQUEST", "Supervisor PIN must be at least 4 digits");
+    }
+
+    const pinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+    const supervisor = await User.findOneAndUpdate(
+      {
+        _id: new mongoose.Types.ObjectId(supervisorId),
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false,
+      },
+      {
+        $set: { "security.supervisorPinHash": pinHash },
+      },
+      { new: true }
+    );
+
+    if (!supervisor) {
+      throw new AppError(404, "NOT_FOUND", "Supervisor user not found");
+    }
+
+    return { success: true, message: "Supervisor PIN set successfully" };
+  }
+
+  /**
+   * Autonomous Kiosk Fleet Health Sentinel (Prompt 09 Step 3)
+   */
+  async scanKioskFleetHealth(orgId?: string) {
+    const threshold = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
+    const query: Record<string, any> = {
+      status: "online",
+      $or: [
+        { lastHeartbeatAt: { $lt: threshold } },
+        { lastHeartbeatAt: { $exists: false }, lastSeen: { $lt: threshold } },
+      ],
+    };
+
+    if (orgId) {
+      query.organizationId = new mongoose.Types.ObjectId(orgId);
+    }
+
+    const staleDevices = await KioskDeviceModel.find(query);
+    const flagged = [];
+
+    for (const device of staleDevices) {
+      (device as any).status = "offline";
+      await device.save();
+
+      try {
+        const NotificationModel = mongoose.model("Notification");
+        const admin = await User.findOne({
+          organizationId: device.organizationId,
+          "permissions.role": { $in: ["admin", "owner"] },
+          isDeleted: false,
+        });
+        if (admin) {
+          await NotificationModel.create({
+            organizationId: device.organizationId,
+            recipientUserId: admin._id,
+            type: "manager_alert",
+            channel: "in_app",
+            title: "Kiosk Terminal Offline Alert",
+            message: `Kiosk Terminal ${device.name} in ${device.location} has been offline for 30 minutes. Shift safety briefings may be impacted.`,
+            priority: "high",
+            status: "sent",
+            isRead: false,
+          });
+        }
+      } catch (e) {
+        console.warn("[KioskService] Error dispatching offline notification:", e);
+      }
+
+      flagged.push({
+        deviceId: device.deviceId,
+        name: device.name,
+        location: device.location,
+        lastHeartbeatAt: device.lastHeartbeatAt || device.lastSeen,
+      });
+    }
+
+    return {
+      scannedAt: new Date(),
+      offlineCount: flagged.length,
+      flaggedDevices: flagged,
+    };
+  }
+
+  /**
+   * Toggle Kiosk Device Maintenance Mode
+   */
+  async setDeviceMaintenanceMode(id: string, orgId: string, maintenance: boolean) {
+    const device = await this.deviceRepo.findByIdAndOrg(id, orgId);
+    if (!device) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+    const newStatus = maintenance ? "maintenance" : "online";
+    return this.deviceRepo.updateStatus(id, newStatus as any);
   }
 }
 

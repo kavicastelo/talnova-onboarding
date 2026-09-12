@@ -164,6 +164,26 @@ export class EmployeeController {
       },
     });
   };
+
+  setLegalHold = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+
+    const employee = await this.employeeService.setLegalHold(
+      user.organizationId,
+      params.id,
+      body.legalHold !== undefined ? !!body.legalHold : true,
+      body.reason,
+      user.userId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: `Legal hold ${employee.compliance?.legalHold ? "placed" : "released"} successfully`,
+      data: employee,
+    });
+  };
 }
 
 export default EmployeeController;

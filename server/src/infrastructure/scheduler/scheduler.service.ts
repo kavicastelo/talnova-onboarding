@@ -5,6 +5,14 @@ import Task from "../../modules/tasks/models/task.model.js";
 import eventBus from "../events/event-bus.js";
 import queueService from "../queue/queue.service.js";
 import outboxPublisherService from "../../modules/onboarding/services/outbox-publisher.service.js";
+import { VelocitySentinelService } from "../../modules/analytics/services/velocity-sentinel.service.js";
+import milestoneService from "../../modules/milestones/services/milestone.service.js";
+import buddyService from "../../modules/buddy/services/buddy.service.js";
+import KioskService from "../../modules/kiosk/services/kiosk.service.js";
+import KioskDeviceRepository from "../../modules/kiosk/repositories/kiosk-device.repository.js";
+import KioskJourneyRepository from "../../modules/kiosk/repositories/kiosk-journey.repository.js";
+import KioskAnalyticsRepository from "../../modules/kiosk/repositories/kiosk-analytics.repository.js";
+import KioskSecurityService from "../../modules/kiosk/services/kiosk-security.service.js";
 
 export class SchedulerService {
   private static instance: SchedulerService;
@@ -40,6 +48,29 @@ export class SchedulerService {
     });
     queueService.registerWorker("publish_onboarding_outbox", async () => {
       await outboxPublisherService.publishPending();
+    });
+    queueService.registerWorker("evaluate_onboarding_health_and_nudge", async (job) => {
+      const sentinel = new VelocitySentinelService();
+      if (job.data?.organizationId) {
+        await sentinel.scanOrganizationHealth(job.data.organizationId);
+      } else {
+        await sentinel.scanAllOrganizations();
+      }
+    });
+    queueService.registerWorker("scan_pending_milestone_reviews", async (job) => {
+      await milestoneService.scanPendingMilestoneReviews(job.data?.organizationId);
+    });
+    queueService.registerWorker("scan_buddy_coaching_nudges", async (job) => {
+      await buddyService.scanBuddyCoachingNudges(job.data?.organizationId);
+    });
+    queueService.registerWorker("scan_kiosk_fleet_health", async (job) => {
+      const kioskService = new KioskService(
+        new KioskJourneyRepository(),
+        new KioskDeviceRepository(),
+        new KioskAnalyticsRepository(),
+        new KioskSecurityService()
+      );
+      await kioskService.scanKioskFleetHealth(job.data?.organizationId);
     });
 
     this.timer = setInterval(async () => {
@@ -92,7 +123,43 @@ export class SchedulerService {
         { organizationId: orgId.toString() },
         {
           organizationId: orgId.toString(),
-          idempotencyKey: `scan_overdue_tasks_${new Date().toISOString().substring(0, 13)}`,
+          idempotencyKey: `scan_overdue_tasks_${new Date().toISOString().substring(0, 13)}_${orgId.toString()}`,
+        }
+      );
+
+      await queueService.enqueue(
+        "evaluate_onboarding_health_and_nudge",
+        { organizationId: orgId.toString() },
+        {
+          organizationId: orgId.toString(),
+          idempotencyKey: `scan_health_nudge_${new Date().toISOString().substring(0, 13)}_${orgId.toString()}`,
+        }
+      );
+
+      await queueService.enqueue(
+        "scan_pending_milestone_reviews",
+        { organizationId: orgId.toString() },
+        {
+          organizationId: orgId.toString(),
+          idempotencyKey: `scan_milestones_${new Date().toISOString().substring(0, 13)}_${orgId.toString()}`,
+        }
+      );
+
+      await queueService.enqueue(
+        "scan_buddy_coaching_nudges",
+        { organizationId: orgId.toString() },
+        {
+          organizationId: orgId.toString(),
+          idempotencyKey: `scan_buddy_nudges_${new Date().toISOString().substring(0, 13)}_${orgId.toString()}`,
+        }
+      );
+
+      await queueService.enqueue(
+        "scan_kiosk_fleet_health",
+        { organizationId: orgId.toString() },
+        {
+          organizationId: orgId.toString(),
+          idempotencyKey: `scan_kiosk_${new Date().toISOString().substring(0, 13)}_${orgId.toString()}`,
         }
       );
     }

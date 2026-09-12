@@ -24,6 +24,16 @@ export interface IManagerReview {
   feedback?: string;
 }
 
+export interface IMilestoneSLA {
+  reviewDeadline?: Date;
+  reminderSentCount: number;
+  lastReminderSentAt?: Date;
+  delegatedToUserId?: mongoose.Types.ObjectId;
+  autoApprovalEligible: boolean;
+  escalationState: "normal" | "reminded" | "escalated" | "auto_approved";
+  blockersReported?: boolean;
+}
+
 export interface IEmployeeMilestone extends Document {
   organizationId: mongoose.Types.ObjectId;
   templateId: mongoose.Types.ObjectId;
@@ -47,6 +57,9 @@ export interface IEmployeeMilestone extends Document {
   managerRating?: number;
   managerFeedback?: string;
   evaluatedAt?: Date;
+  sla?: IMilestoneSLA;
+  aiSummary?: string;
+  approvedBy?: mongoose.Types.ObjectId | string;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -110,6 +123,21 @@ const EmployeeMilestoneSchema = new Schema<IEmployeeMilestone>(
     ],
     employeeSelfCheck: { type: EmployeeSelfCheckSchema },
     managerReview: { type: ManagerReviewSchema },
+    sla: {
+      reviewDeadline: { type: Date },
+      reminderSentCount: { type: Number, default: 0 },
+      lastReminderSentAt: { type: Date },
+      delegatedToUserId: { type: Schema.Types.ObjectId, ref: "User" },
+      autoApprovalEligible: { type: Boolean, default: true },
+      escalationState: {
+        type: String,
+        enum: ["normal", "reminded", "escalated", "auto_approved"],
+        default: "normal",
+      },
+      blockersReported: { type: Boolean, default: false },
+    },
+    aiSummary: { type: String },
+    approvedBy: { type: Schema.Types.Mixed },
     isDeleted: { type: Boolean, default: false },
   },
   {
@@ -120,6 +148,7 @@ const EmployeeMilestoneSchema = new Schema<IEmployeeMilestone>(
 EmployeeMilestoneSchema.index({ organizationId: 1, employeeId: 1, status: 1 });
 EmployeeMilestoneSchema.index({ organizationId: 1, targetDay: 1 });
 EmployeeMilestoneSchema.index({ organizationId: 1, milestoneCode: 1 });
+EmployeeMilestoneSchema.index({ status: 1, "sla.reviewDeadline": 1 });
 
 export const EmployeeMilestone = mongoose.model<IEmployeeMilestone>("EmployeeMilestone", EmployeeMilestoneSchema);
 export const MilestonePlan = EmployeeMilestone;

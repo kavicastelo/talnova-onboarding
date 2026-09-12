@@ -239,9 +239,21 @@ export class DocumentService {
       type: "draw" | "type";
       signatureDataUrl?: string;
       signerName: string;
+      supervisorWitnessId?: string | mongoose.Types.ObjectId;
+      supervisorPin?: string;
+      kioskDeviceId?: string | mongoose.Types.ObjectId;
+      kioskSessionToken?: string;
     },
-    reqMetadata?: { ipAddress?: string; userAgent?: string }
+    reqMetadata?: { ipAddress?: string; userAgent?: string },
+    userRole?: string
   ) {
+    const isFrontlineKiosk = userRole === "frontline_worker_kiosk" || Boolean(payload.kioskSessionToken);
+    if (isFrontlineKiosk) {
+      if (!payload.supervisorWitnessId || !payload.supervisorPin) {
+        throw new AppError(403, "SUPERVISOR_PIN_REQUIRED", "Supervisor PIN authorization is required for frontline kiosk document execution (UQ-01).");
+      }
+    }
+
     const assignment = await DocumentAssignment.findOne({
       _id: new mongoose.Types.ObjectId(assignmentId),
       organizationId: new mongoose.Types.ObjectId(orgId),
@@ -257,9 +269,40 @@ export class DocumentService {
       throw new AppError(400, "ALREADY_SIGNED", "Document has already been signed");
     }
 
+    // Verify supervisor witness authorization if supervisorPin or kioskDeviceId is provided
+    let witnessUser: any = null;
+    if (payload.supervisorPin || payload.supervisorWitnessId) {
+      if (!payload.supervisorWitnessId) {
+        throw new AppError(400, "BAD_REQUEST", "supervisorWitnessId is required for supervisor authorization");
+      }
+      witnessUser = await User.findOne({
+        _id: new mongoose.Types.ObjectId(payload.supervisorWitnessId),
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false,
+        "permissions.role": { $in: ["manager", "admin", "owner", "super_admin"] },
+      });
+
+      if (!witnessUser) {
+        throw new AppError(404, "SUPERVISOR_NOT_FOUND", "Authorized supervisor witness not found");
+      }
+
+      if (payload.supervisorPin) {
+        const pinHash = crypto.createHash("sha256").update(payload.supervisorPin.trim()).digest("hex");
+        const stored = witnessUser.security?.supervisorPinHash;
+        const isMatch = stored ? (stored === pinHash || stored === payload.supervisorPin.trim()) : false;
+        if (!isMatch) {
+          throw new AppError(401, "INVALID_SUPERVISOR_PIN", "Invalid supervisor authorization PIN");
+        }
+      }
+    }
+
     const signedAt = new Date();
-    const rawDataToHash = `${assignment.renderedContent || ""}:${payload.signatureDataUrl || payload.signerName}:${signedAt.toISOString()}:${reqMetadata?.ipAddress || ""}`;
+    const rawDataToHash = `${assignment.renderedContent || ""}:${payload.signatureDataUrl || payload.signerName}:${signedAt.toISOString()}:${reqMetadata?.ipAddress || ""}:${witnessUser?._id || ""}`;
     const sha256Hash = crypto.createHash("sha256").update(rawDataToHash).digest("hex");
+
+    const witnessAuditText = witnessUser
+      ? `Authorized, witnessed & co-signed at frontline kiosk by supervisor witness: ${witnessUser.profile?.fullName || witnessUser.auth?.email} (Role: ${witnessUser.permissions.role}).`
+      : "";
 
     assignment.status = "signed";
     assignment.signedAt = signedAt;
@@ -271,6 +314,9 @@ export class DocumentService {
       ipAddress: reqMetadata?.ipAddress,
       userAgent: reqMetadata?.userAgent,
       sha256Hash,
+      supervisorWitnessId: witnessUser ? witnessUser._id : (payload.supervisorWitnessId ? new mongoose.Types.ObjectId(payload.supervisorWitnessId) : undefined),
+      kioskDeviceId: payload.kioskDeviceId ? new mongoose.Types.ObjectId(payload.kioskDeviceId) : undefined,
+      notes: witnessAuditText || undefined,
     };
 
     assignment.auditTrail.push({
@@ -279,7 +325,7 @@ export class DocumentService {
       timestamp: signedAt,
       ipAddress: reqMetadata?.ipAddress,
       userAgent: reqMetadata?.userAgent,
-      details: `E-Signature executed by ${payload.signerName}. Checksum SHA-256: ${sha256Hash.substring(0, 16)}...`,
+      details: `E-Signature executed by ${payload.signerName}.${witnessAuditText} Checksum SHA-256: ${sha256Hash.substring(0, 16)}...`,
     });
 
     await assignment.save();
@@ -296,6 +342,8 @@ export class DocumentService {
           templateId: assignment.templateId.toString(),
           templateTitle: assignment.templateTitle,
           employeeId: employeeId.toString(),
+          recipientUserId: employeeId.toString(),
+          signatureHash: sha256Hash,
         },
       });
     } catch (e) {
@@ -353,6 +401,55 @@ export class DocumentService {
     }
 
     return count;
+  }
+
+  /**
+   * Enforce UQ-03 Legal Compliance Retention and Document Revocation upon Employee Termination
+   */
+  async handleEmployeeTermination(
+    orgId: string | mongoose.Types.ObjectId,
+    employeeId: string | mongoose.Types.ObjectId
+  ): Promise<{ revokedCount: number; preservedCount: number; legalHoldProtected: boolean }> {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const empObjectId = new mongoose.Types.ObjectId(employeeId.toString());
+
+    const user = await User.findOne({ _id: empObjectId, organizationId: orgObjectId });
+    if (user?.compliance?.legalHold) {
+      return { revokedCount: 0, preservedCount: 0, legalHoldProtected: true };
+    }
+
+    const assignments = await DocumentAssignment.find({
+      organizationId: orgObjectId,
+      employeeId: empObjectId,
+      isDeleted: false,
+    });
+
+    let revokedCount = 0;
+    let preservedCount = 0;
+
+    for (const assignment of assignments) {
+      if (assignment.status === "pending" || assignment.status === "viewed") {
+        assignment.status = "revoked";
+        assignment.revokedAt = new Date();
+        assignment.revokedReason = "employee_terminated";
+        assignment.auditTrail.push({
+          action: "revoked",
+          performedBy: empObjectId,
+          timestamp: new Date(),
+          details: "Document assignment revoked due to employee termination prior to signature.",
+        });
+        await assignment.save();
+        revokedCount++;
+      } else if (assignment.status === "signed") {
+        // DO NOT DELETE OR MUTATE cryptographic signature data or rendered content
+        assignment.complianceRetention = true;
+        assignment.archivedAt = new Date();
+        await assignment.save();
+        preservedCount++;
+      }
+    }
+
+    return { revokedCount, preservedCount, legalHoldProtected: false };
   }
 }
 

@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '../components/Select';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { toast } from 'sonner';
 import { useRole } from '../context/RoleContext';
 
@@ -466,18 +467,16 @@ export function EmployeeDirectory() {
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Department</label>
-                  <Select value={department} onValueChange={setDepartment} className="w-full">
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {displayDepartments.map((deptName) => (
-                        <SelectItem key={deptName} value={deptName}>
-                          {deptName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={department}
+                    onChange={setDepartment}
+                    placeholder="Search & select department..."
+                    searchPlaceholder="Search department..."
+                    options={displayDepartments.map((deptName) => ({
+                      value: deptName,
+                      label: deptName,
+                    }))}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Date of Join</label>

@@ -23,6 +23,7 @@ import { useEmployees } from '../hooks/useEmployees';
 import { useDocumentTemplates } from '../hooks/useDocuments';
 import { WorkflowRuleItem, WorkflowAction, WorkflowCondition } from '../services/workflow.service';
 import { SimplePagination } from '../components/SimplePagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 
 export function Workflows() {
@@ -50,7 +51,7 @@ export function Workflows() {
   const { data: rules = [], isLoading: isLoadingRules } = useWorkflows(selectedTriggerFilter !== 'all' ? selectedTriggerFilter : undefined);
   const { data: logsData, isLoading: isLoadingLogs } = useWorkflowExecutions();
   const { data: journeys = [] } = useJourneys();
-  const { data: employeesData } = useEmployees({ limit: 100 });
+  const { data: employeesData } = useEmployees({ limit: 1000 });
   const { data: documentTemplates = [] } = useDocumentTemplates();
 
   const createWorkflowMutation = useCreateWorkflow();
@@ -695,22 +696,26 @@ export function Workflows() {
                     )}
 
                     {act.type === 'trigger_buddy' && (
-                      <select
+                      <SearchableSelect
+                        clearable
                         value={act.params.buddyUserId || ''}
-                        onChange={(e) => {
+                        onChange={(val) => {
                           const updated = [...actions];
-                          updated[idx].params = { ...updated[idx].params, buddyUserId: e.target.value };
+                          updated[idx].params = { ...updated[idx].params, buddyUserId: val };
                           setActions(updated);
                         }}
-                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
-                      >
-                        <option value="">Auto-Select Available Buddy in Organization</option>
-                        {employees.map((emp: any) => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.name} ({emp.department})
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Auto-Select Available Buddy or Search..."
+                        searchPlaceholder="Search buddy by name, department..."
+                        options={[
+                          { value: '', label: 'Auto-Select Available Buddy in Organization' },
+                          ...employees.map((emp: any) => ({
+                            value: emp.id,
+                            label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                            sublabel: emp.email,
+                            badge: emp.department || 'Employee',
+                          }))
+                        ]}
+                      />
                     )}
 
                     {act.type === 'trigger_webhook' && (
@@ -782,19 +787,19 @@ export function Workflows() {
             </p>
 
             <div>
-              <label className="block text-xs font-medium mb-1">Target Employee</label>
-              <select
+              <label className="block text-xs font-medium mb-1">Target Employee *</label>
+              <SearchableSelect
                 value={selectedTestUser}
-                onChange={(e) => setSelectedTestUser(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Select Target Employee</option>
-                {employees.map((emp: any) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp?.firstName} {emp?.lastName}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedTestUser(val)}
+                placeholder="Search & select target employee..."
+                searchPlaceholder="Search employee by name, email..."
+                options={employees.map((emp: any) => ({
+                  value: emp.id,
+                  label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                  sublabel: emp.email,
+                  badge: emp.department || 'Employee',
+                }))}
+              />
             </div>
 
             <div className="pt-3 flex justify-end gap-2">

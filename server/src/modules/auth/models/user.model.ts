@@ -6,6 +6,7 @@ export interface IUser extends Document {
     email: string;
     passwordHash: string;
     emailVerified: boolean;
+    authProvider?: "local" | "saml2" | "okta" | "azure_ad" | "google" | "oidc";
     lastLoginAt?: Date;
     passwordChangedAt?: Date;
   };
@@ -24,6 +25,8 @@ export interface IUser extends Document {
   };
   employment: {
     employeeId?: string;
+    badgeId?: string;
+    nationalId?: string;
     department?: string;
     departmentId?: mongoose.Types.ObjectId;
     teamId?: mongoose.Types.ObjectId;
@@ -34,13 +37,13 @@ export interface IUser extends Document {
     managerId?: mongoose.Types.ObjectId;
     employmentType: "full_time" | "part_time" | "contractor" | "intern";
     hireDate?: Date;
-    status: "invited" | "active" | "onboarding" | "inactive";
+    status: "invited" | "active" | "onboarding" | "inactive" | "on_leave" | "sick" | "terminated";
     onboardingState?: "not_started" | "active" | "paused" | "completed" | "archived";
     onboardingStateReason?: string;
     onboardingPausedAt?: Date;
   };
   permissions: {
-    role: "owner" | "admin" | "manager" | "employee" | "super_admin";
+    role: "owner" | "admin" | "manager" | "employee" | "super_admin" | "it_admin";
     customRoles: string[];
   };
   preferences: {
@@ -61,12 +64,21 @@ export interface IUser extends Document {
     lastPasswordReset?: Date;
     passwordResetToken?: string;
     passwordResetExpires?: Date;
+    supervisorPinHash?: string;
+  };
+  compliance?: {
+    legalHold?: boolean;
+    legalHoldReason?: string;
+    legalHoldPlacedAt?: Date;
+    legalHoldPlacedBy?: mongoose.Types.ObjectId;
   };
   createdBy?: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   isDeleted: boolean;
   deletedAt?: Date;
   deletedBy?: mongoose.Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -76,6 +88,11 @@ const UserSchema = new Schema<IUser>(
       email: { type: String, required: true, unique: true, lowercase: true, trim: true },
       passwordHash: { type: String, required: true },
       emailVerified: { type: Boolean, default: false },
+      authProvider: {
+        type: String,
+        enum: ["local", "saml2", "okta", "azure_ad", "google", "oidc"],
+        default: "local",
+      },
       lastLoginAt: { type: Date },
       passwordChangedAt: { type: Date },
     },
@@ -94,6 +111,8 @@ const UserSchema = new Schema<IUser>(
     },
     employment: {
       employeeId: { type: String },
+      badgeId: { type: String, trim: true },
+      nationalId: { type: String, trim: true },
       department: { type: String },
       departmentId: { type: Schema.Types.ObjectId },
       teamId: { type: Schema.Types.ObjectId },
@@ -110,7 +129,7 @@ const UserSchema = new Schema<IUser>(
       hireDate: { type: Date },
       status: {
         type: String,
-        enum: ["invited", "active", "onboarding", "inactive"],
+        enum: ["invited", "active", "onboarding", "inactive", "on_leave", "sick", "terminated"],
         default: "invited",
       },
       onboardingState: {
@@ -124,7 +143,7 @@ const UserSchema = new Schema<IUser>(
     permissions: {
       role: {
         type: String,
-        enum: ["owner", "admin", "manager", "employee", "super_admin"],
+        enum: ["owner", "admin", "manager", "employee", "super_admin", "it_admin"],
         default: "employee",
       },
       customRoles: { type: [String], default: [] },
@@ -147,6 +166,13 @@ const UserSchema = new Schema<IUser>(
       lastPasswordReset: { type: Date },
       passwordResetToken: { type: String },
       passwordResetExpires: { type: Date },
+      supervisorPinHash: { type: String },
+    },
+    compliance: {
+      legalHold: { type: Boolean, default: false },
+      legalHoldReason: { type: String },
+      legalHoldPlacedAt: { type: Date },
+      legalHoldPlacedBy: { type: Schema.Types.ObjectId, ref: "User" },
     },
     createdBy: { type: Schema.Types.ObjectId },
     updatedBy: { type: Schema.Types.ObjectId },
@@ -178,6 +204,8 @@ UserSchema.index({ isDeleted: 1 });
 UserSchema.index({ organizationId: 1, isDeleted: 1 });
 UserSchema.index({ organizationId: 1, "auth.email": 1 });
 UserSchema.index({ organizationId: 1, "permissions.role": 1 });
+UserSchema.index({ organizationId: 1, "employment.badgeId": 1 }, { sparse: true });
+UserSchema.index({ organizationId: 1, "employment.nationalId": 1 }, { sparse: true });
 
 /**
  * CANONICAL PERSISTENCE MODEL:

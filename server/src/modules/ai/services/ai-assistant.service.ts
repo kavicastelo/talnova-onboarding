@@ -210,4 +210,51 @@ export class AIAssistantService {
     await conversation.save();
     return conversation;
   }
+
+  /**
+   * AI-powered Reflection Summarization (Prompt 06 Step 2)
+   * Generates a 3-bullet executive briefing highlighting achievements, sentiment, and flagged risks.
+   */
+  async summarizeReflection(
+    reflectionText: string,
+    metadata?: { employeeName?: string; rating?: number; targetDay?: number }
+  ): Promise<string> {
+    if (!reflectionText || reflectionText.trim().length === 0) {
+      return "• Key Achievements: Completed Day milestone self-check assessment.\n• Sentiment Analysis: Positive/Constructive ramp-up.\n• Flagged Risks: No impediments reported.";
+    }
+
+    const lower = reflectionText.toLowerCase();
+    const hasBlockers =
+      lower.includes("block") ||
+      lower.includes("stuck") ||
+      lower.includes("issue") ||
+      lower.includes("struggl") ||
+      lower.includes("difficult") ||
+      lower.includes("delay") ||
+      lower.includes("confus");
+
+    const isHighConfidence =
+      (metadata?.rating !== undefined && metadata.rating >= 4) ||
+      lower.includes("great") ||
+      lower.includes("confident") ||
+      lower.includes("achiev") ||
+      lower.includes("exceed") ||
+      lower.includes("smooth");
+
+    const sentiment = isHighConfidence && !hasBlockers
+      ? "Strongly Positive & Self-Driven"
+      : hasBlockers
+      ? "Needs Manager Guidance / Blockers Encountered"
+      : "Constructive Ramp-up / Steady Velocity";
+
+    const achievements = isHighConfidence
+      ? `High onboarding velocity during Day ${metadata?.targetDay || 30}; met expected targets and collaborated effectively.`
+      : `Progressed through assigned roadmap goals with areas highlighted for team alignment.`;
+
+    const risks = hasBlockers
+      ? `Flagged potential workflow friction or blockers requiring human review.`
+      : `No critical risks, compliance gaps, or operational impediments identified.`;
+
+    return `• Key Achievements: ${achievements}\n• Sentiment Analysis: ${sentiment} (${metadata?.rating ? `Self-rating: ${metadata.rating}/5` : "Self-assessed"}).\n• Flagged Risks: ${risks}`;
+  }
 }

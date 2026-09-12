@@ -32,6 +32,19 @@ export interface IBuddyAssignment extends Document {
     teamsUrl?: string;
     email?: string;
   };
+  matchScore?: number;
+  matchCriteria?: {
+    departmentScore: number;
+    locationScore: number;
+    languageScore: number;
+    capacityScore: number;
+    skillScore: number;
+  };
+  coachingNudges?: {
+    week1SentAt?: Date;
+    week2SentAt?: Date;
+    week4SentAt?: Date;
+  };
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -79,6 +92,19 @@ const BuddyAssignmentSchema = new Schema<IBuddyAssignment>(
       slackChannelUrl: { type: String },
       teamsUrl: { type: String },
       email: { type: String },
+    },
+    matchScore: { type: Number },
+    matchCriteria: {
+      departmentScore: { type: Number },
+      locationScore: { type: Number },
+      languageScore: { type: Number },
+      capacityScore: { type: Number },
+      skillScore: { type: Number },
+    },
+    coachingNudges: {
+      week1SentAt: { type: Date },
+      week2SentAt: { type: Date },
+      week4SentAt: { type: Date },
     },
     isDeleted: { type: Boolean, default: false },
   },

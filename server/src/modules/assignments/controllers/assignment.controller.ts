@@ -325,7 +325,9 @@ export class EmployeeAssignmentController {
         pwaProgressState["assign-pwa-01"] = { completedLessonIds: ["les-pwa-01"], lastActivityAt: new Date() };
       }
       const state = pwaProgressState["assign-pwa-01"];
-      const incoming = body.completedLessonIds || (body.lessonId ? [body.lessonId] : []);
+      const incoming = body.batchCompletions
+        ? body.batchCompletions.map((b: any) => b.lessonId)
+        : (body.completedLessonIds || (body.lessonId ? [body.lessonId] : []));
       for (const lid of incoming) {
         if (!state.completedLessonIds.includes(lid)) {
           state.completedLessonIds.push(lid);
@@ -345,7 +347,28 @@ export class EmployeeAssignmentController {
       });
     }
 
-    // 2. Batch completedLessonIds Sync (Happy Path Step 7)
+    // 2. Batch completions offline sync (batchCompletions protocol)
+    if (body.batchCompletions && Array.isArray(body.batchCompletions)) {
+      const result = await this.service.reconcileOfflineProgress(
+        params.id,
+        user.organizationId,
+        user.userId,
+        body.batchCompletions,
+        user.role
+      );
+
+      return reply.status(200).send({
+        success: true,
+        message: "Offline progress batch reconciled successfully",
+        data: result.assignment,
+        reconciledCount: result.reconciledCount,
+        status: result.status,
+        currentProgress: result.currentProgress,
+        completedLessonIds: result.completedLessonIds,
+      });
+    }
+
+    // 3. Batch completedLessonIds Sync (Happy Path Step 7)
     if (body.completedLessonIds && Array.isArray(body.completedLessonIds)) {
       const assignment = await this.service.getAssignment(params.id, user.organizationId);
 

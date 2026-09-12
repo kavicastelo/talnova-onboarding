@@ -72,6 +72,12 @@ export async function employeeRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(["owner", "admin"])] },
     controller.deleteEmployee as any
   );
+
+  app.post(
+    "/:id/legal-hold",
+    { preHandler: [requireRole(["owner", "admin"])] },
+    controller.setLegalHold as any
+  );
 }
 
 export default employeeRoutes;

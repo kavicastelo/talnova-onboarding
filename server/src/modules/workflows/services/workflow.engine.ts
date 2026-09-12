@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import WorkflowRepository from "../repositories/workflow.repository.js";
-import { IWorkflowCondition, IWorkflowAction } from "../models/workflow-rule.model.js";
+import WorkflowRule, { IWorkflowCondition, IWorkflowAction, IWorkflowRule } from "../models/workflow-rule.model.js";
+import WorkflowExecutionLog from "../models/workflow-execution.model.js";
 import User from "../../auth/models/user.model.js";
 import Journey from "../../journeys/models/journey.model.js";
 import EmployeeAssignmentService from "../../assignments/services/assignment.service.js";
@@ -11,10 +12,26 @@ import NotificationService from "../../notifications/services/notification.servi
 import NotificationRepository from "../../notifications/repositories/notification.repository.js";
 import documentService from "../../documents/services/document.service.js";
 import buddyService from "../../buddy/services/buddy.service.js";
+import smartAssignmentService from "../../journeys/services/smart-assignment.service.js";
+import onboardingCaseService from "../../onboarding/services/onboarding-case.service.js";
+import queueService from "../../../infrastructure/queue/queue.service.js";
 
 const assignmentService = new EmployeeAssignmentService(new AssignmentRepository());
 const taskService = new TaskService(new TaskRepository());
 const notificationService = new NotificationService(new NotificationRepository());
+
+export interface ResolvedWorkflowCandidate {
+  _id: string | mongoose.Types.ObjectId;
+  name: string;
+  priorityIndex: number;
+  specificityScore: number;
+  updatedAt: Date;
+  actions: IWorkflowAction[];
+  createdBy: any;
+  sourceType: "custom_rule" | "journey_audience";
+  journeyId?: string | mongoose.Types.ObjectId;
+  ruleDoc?: any;
+}
 
 export class WorkflowEngine {
   private repository: WorkflowRepository;
@@ -32,11 +49,6 @@ export class WorkflowEngine {
     targetUserId: string | mongoose.Types.ObjectId,
     eventPayload: any = {}
   ): Promise<number> {
-    const rules = await this.repository.findRules(organizationId, triggerType, true);
-    if (!rules || rules.length === 0) {
-      return 0;
-    }
-
     const targetUser = await User.findOne({
       _id: targetUserId,
       organizationId,
@@ -47,27 +59,240 @@ export class WorkflowEngine {
       return 0;
     }
 
-    let executedCount = 0;
+    const matchedRules: ResolvedWorkflowCandidate[] = [];
 
-    for (const rule of rules) {
-      // 1. Evaluate Rule Conditions
+    // 1. Discover Custom Admin Rules
+    const customRules = await this.repository.findRules(organizationId, triggerType, true);
+    for (const rule of customRules) {
       const conditionsMatch = this.evaluateConditions(rule.conditions, targetUser, eventPayload);
-      if (!conditionsMatch) {
+      if (conditionsMatch) {
+        matchedRules.push({
+          _id: rule._id,
+          name: rule.name,
+          priorityIndex: rule.priority ?? 0,
+          specificityScore: rule.conditions?.length || 0,
+          updatedAt: rule.updatedAt || rule.createdAt || new Date(0),
+          actions: [...rule.actions],
+          createdBy: rule.createdBy,
+          sourceType: "custom_rule",
+          ruleDoc: rule,
+        });
+      }
+    }
+
+    // 2. Discover Journey Audience Rules (for user_created) as Virtual System Rules (Base Priority 50)
+    if (triggerType === "user_created") {
+      const audienceJourneys = await Journey.find({
+        organizationId,
+        "publishing.status": "published",
+        "audience.autoEnrollNewHires": true,
+        isDeleted: false,
+      });
+
+      for (const journey of audienceJourneys) {
+        const matchingUsers = await smartAssignmentService.findMatchingEmployees(
+          organizationId,
+          journey.audience
+        );
+        const isMatch = matchingUsers.some((u) => u._id.toString() === targetUserId.toString());
+        if (isMatch) {
+          let specificity = 0;
+          if (journey.audience?.departmentNames?.length || journey.audience?.departments?.length) specificity++;
+          if (journey.audience?.jobTitleNames?.length || journey.audience?.jobTitles?.length) specificity++;
+          if (journey.audience?.locations?.length) specificity++;
+          if (journey.audience?.employmentTypes?.length) specificity++;
+
+          matchedRules.push({
+            _id: journey._id,
+            name: `Audience Auto-Enroll: ${journey.title}`,
+            priorityIndex: 50,
+            specificityScore: specificity,
+            updatedAt: journey.updatedAt || journey.createdAt || new Date(0),
+            actions: [
+              {
+                type: "assign_journey",
+                params: {
+                  journeyId: journey._id.toString(),
+                  delayMinutes: 0,
+                },
+              },
+            ],
+            createdBy: journey.createdBy,
+            sourceType: "journey_audience",
+            journeyId: journey._id,
+            ruleDoc: journey,
+          });
+        }
+      }
+    }
+
+    // 3. Deterministic Arbitration Protocol (Resolving UQ-06)
+    matchedRules.sort((a, b) => {
+      // 1. priorityIndex DESC (highest priority evaluates first)
+      if (b.priorityIndex !== a.priorityIndex) {
+        return b.priorityIndex - a.priorityIndex;
+      }
+      // 2. Specificity Score DESC (department + role + location beats department alone)
+      if (b.specificityScore !== a.specificityScore) {
+        return b.specificityScore - a.specificityScore;
+      }
+      // 3. updatedAt DESC (most recently modified administrative rule wins)
+      const timeDiff = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      if (timeDiff !== 0) {
+        return timeDiff;
+      }
+      // 4. _id ASC (guaranteed deterministic tie-breaker)
+      return String(a._id).localeCompare(String(b._id));
+    });
+
+    // 4. Contradictory Assignment Arbitration (Single Journey Assignment)
+    const journeyAssigningRules = matchedRules.filter((r) =>
+      r.actions.some((a) => a.type === "assign_journey")
+    );
+
+    if (journeyAssigningRules.length > 1) {
+      const winningCandidate = journeyAssigningRules[0];
+      const suppressedCandidates = journeyAssigningRules.slice(1);
+
+      // Remove assign_journey action from all subordinate rules
+      for (const suppressed of suppressedCandidates) {
+        suppressed.actions = suppressed.actions.filter((a) => a.type !== "assign_journey");
+      }
+
+      // Record WORKFLOW_RULE_CONFLICT_ARBITRATED in AuditLog
+      try {
+        const AuditLog = mongoose.model("AuditLog");
+        await AuditLog.create({
+          organizationId: new mongoose.Types.ObjectId(organizationId),
+          actorUserId: targetUser._id,
+          actorType: "system",
+          eventCategory: "system",
+          eventType: "WORKFLOW_RULE_CONFLICT_ARBITRATED",
+          resourceType: "workflow_rule",
+          resourceId: mongoose.Types.ObjectId.isValid(winningCandidate._id)
+            ? new mongoose.Types.ObjectId(winningCandidate._id)
+            : undefined,
+          action: "assign",
+          description: `Deterministic arbitration selected rule "${winningCandidate.name}" (priority: ${winningCandidate.priorityIndex}, specificity: ${winningCandidate.specificityScore}) over suppressed rule(s): ${suppressedCandidates.map((r) => `"${r.name}"`).join(", ")}`,
+          metadata: {
+            winningRuleId: winningCandidate._id.toString(),
+            winningRuleName: winningCandidate.name,
+            suppressedRuleIds: suppressedCandidates.map((r) => r._id.toString()),
+            reason: "priority_and_specificity_precedence",
+          },
+          severity: "info",
+        });
+      } catch (auditErr) {
+        console.warn("[WorkflowEngine] Could not log arbitration audit entry:", auditErr);
+      }
+    }
+
+    // 5. Default Fallback (BR-WFK-003): If zero rules assign a journey, assign workspace default
+    let executedCount = 0;
+    let anyJourneyAssigned = matchedRules.some((r) =>
+      r.actions.some((a) => a.type === "assign_journey")
+    );
+
+    if (triggerType === "user_created" && !anyJourneyAssigned) {
+      const defaultJourney = await Journey.findOne({
+        organizationId,
+        isDefault: true,
+        "publishing.status": "published",
+        isDeleted: false,
+      });
+
+      if (defaultJourney) {
+        try {
+          await assignmentService.assignJourney(
+            organizationId,
+            targetUser._id,
+            defaultJourney._id,
+            defaultJourney.createdBy,
+            {
+              dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+              source: "workflow_engine",
+            }
+          );
+          anyJourneyAssigned = true;
+          executedCount++;
+        } catch (err: any) {
+          // Ignored if already assigned
+        }
+      }
+    }
+
+    // 6. Execute Action Pipeline for Matched Rules
+    for (const rule of matchedRules) {
+      if (rule.actions.length === 0) {
         continue;
       }
 
       executedCount++;
       const stepResults: any[] = [];
-      let overallStatus: "success" | "partial_failure" | "failed" | "pending_delay" = "success";
+      let overallStatus: "success" | "partial_failure" | "failed" | "paused_delay" = "success";
       let errorMsg: string | undefined = undefined;
+      let isDelayed = false;
 
-      // 2. Execute Action Pipeline
       for (let i = 0; i < rule.actions.length; i++) {
         const action = rule.actions[i];
         const stepIndex = i + 1;
 
+        if (action.type === "delay") {
+          const delayMinutes = action.params?.delayMinutes || 0;
+          const resumeAt = new Date(Date.now() + delayMinutes * 60 * 1000);
+
+          stepResults.push({
+            stepIndex,
+            actionType: "delay",
+            status: "delayed",
+            resultMessage: `Execution step delayed by ${delayMinutes} minutes until ${resumeAt.toISOString()}`,
+            executedAt: new Date(),
+          });
+
+          // Save WorkflowExecutionLog with paused_delay
+          const executionLog = await this.repository.createExecutionLog({
+            organizationId: new mongoose.Types.ObjectId(organizationId),
+            workflowRuleId: mongoose.Types.ObjectId.isValid(rule._id)
+              ? new mongoose.Types.ObjectId(rule._id)
+              : new mongoose.Types.ObjectId(),
+            triggerEvent: triggerType,
+            targetUserId: new mongoose.Types.ObjectId(targetUserId),
+            status: "paused_delay",
+            conditionsEvaluated: true,
+            stepResults,
+            nextStepIndex: i + 2, // 1-indexed next step to execute
+            resumeAt,
+            executedAt: new Date(),
+          });
+
+          // Enqueue scheduled resumption job in persistent queue
+          await queueService.enqueue(
+            "resume_delayed_workflow",
+            {
+              executionId: executionLog._id.toString(),
+              organizationId: organizationId.toString(),
+              resumeAt,
+            },
+            {
+              organizationId,
+              delayMs: delayMinutes * 60 * 1000,
+              availableAt: resumeAt,
+              idempotencyKey: `delayed_wf_${executionLog._id}_${stepIndex}`,
+            }
+          );
+
+          isDelayed = true;
+          break;
+        }
+
         try {
-          const res = await this.executeAction(action, organizationId, targetUser, rule.createdBy, eventPayload);
+          const res = await this.executeAction(
+            action,
+            organizationId,
+            targetUser,
+            rule.createdBy,
+            eventPayload
+          );
           stepResults.push({
             stepIndex,
             actionType: action.type,
@@ -80,6 +305,15 @@ export class WorkflowEngine {
             overallStatus = "partial_failure";
             errorMsg = res.message;
             console.error("[WorkflowEngine Step Failed]", res.message);
+
+            // If an unresolvable journey conflict occurred, pause the OnboardingCase
+            if (action.type === "assign_journey") {
+              await this.quarantineOnboardingCase(
+                organizationId,
+                targetUser._id,
+                res.message || "Journey assignment failed"
+              );
+            }
           }
         } catch (err: any) {
           errorMsg = err.message || "Action step failed";
@@ -92,25 +326,179 @@ export class WorkflowEngine {
             executedAt: new Date(),
           });
           overallStatus = "failed";
+
+          if (action.type === "assign_journey") {
+            await this.quarantineOnboardingCase(
+              organizationId,
+              targetUser._id,
+              errorMsg || "Action step failed"
+            );
+          }
         }
       }
 
-      // 3. Write Execution Audit Log
-      await this.repository.createExecutionLog({
-        organizationId: new mongoose.Types.ObjectId(organizationId),
-        workflowRuleId: rule._id as any,
-        triggerEvent: triggerType,
-        targetUserId: new mongoose.Types.ObjectId(targetUserId),
-        status: overallStatus,
-        conditionsEvaluated: true,
-        stepResults,
-        errorDetails: errorMsg,
-        executedAt: new Date(),
-        completedAt: new Date(),
-      });
+      if (!isDelayed) {
+        await this.repository.createExecutionLog({
+          organizationId: new mongoose.Types.ObjectId(organizationId),
+          workflowRuleId: mongoose.Types.ObjectId.isValid(rule._id)
+            ? new mongoose.Types.ObjectId(rule._id)
+            : new mongoose.Types.ObjectId(),
+          triggerEvent: triggerType,
+          targetUserId: new mongoose.Types.ObjectId(targetUserId),
+          status: overallStatus,
+          conditionsEvaluated: true,
+          stepResults,
+          errorDetails: errorMsg,
+          executedAt: new Date(),
+          completedAt: new Date(),
+        });
+      }
     }
 
     return executedCount;
+  }
+
+  /**
+   * Resumes a paused delayed workflow execution
+   */
+  async resumeDelayedExecution(executionId: string | mongoose.Types.ObjectId): Promise<boolean> {
+    const execution = await WorkflowExecutionLog.findById(executionId);
+    if (!execution || execution.status !== "paused_delay") {
+      return false;
+    }
+
+    const rule = await WorkflowRule.findById(execution.workflowRuleId);
+    if (!rule) {
+      execution.status = "failed";
+      execution.errorDetails = "Workflow rule not found during delayed resumption";
+      await execution.save();
+      return false;
+    }
+
+    const targetUser = await User.findById(execution.targetUserId);
+    if (!targetUser) {
+      execution.status = "failed";
+      execution.errorDetails = "Target user not found during delayed resumption";
+      await execution.save();
+      return false;
+    }
+
+    const startIndex = (execution.nextStepIndex || 1) - 1; // 0-based index
+    let overallStatus: "success" | "partial_failure" | "failed" | "paused_delay" = "success";
+    let errorMsg = execution.errorDetails;
+    let isDelayedAgain = false;
+
+    for (let i = startIndex; i < rule.actions.length; i++) {
+      const action = rule.actions[i];
+      const stepIndex = i + 1;
+
+      if (action.type === "delay") {
+        const delayMinutes = action.params?.delayMinutes || 0;
+        const resumeAt = new Date(Date.now() + delayMinutes * 60 * 1000);
+
+        execution.stepResults.push({
+          stepIndex,
+          actionType: "delay",
+          status: "delayed",
+          resultMessage: `Execution step delayed by ${delayMinutes} minutes until ${resumeAt.toISOString()}`,
+          executedAt: new Date(),
+        });
+
+        execution.status = "paused_delay";
+        execution.nextStepIndex = i + 2;
+        execution.resumeAt = resumeAt;
+        await execution.save();
+
+        await queueService.enqueue(
+          "resume_delayed_workflow",
+          {
+            executionId: execution._id.toString(),
+            organizationId: execution.organizationId.toString(),
+            resumeAt,
+          },
+          {
+            organizationId: execution.organizationId,
+            delayMs: delayMinutes * 60 * 1000,
+            availableAt: resumeAt,
+            idempotencyKey: `delayed_wf_${execution._id}_${stepIndex}`,
+          }
+        );
+
+        isDelayedAgain = true;
+        break;
+      }
+
+      try {
+        const res = await this.executeAction(
+          action,
+          execution.organizationId,
+          targetUser,
+          rule.createdBy,
+          {}
+        );
+        execution.stepResults.push({
+          stepIndex,
+          actionType: action.type,
+          status: res.status,
+          resultMessage: res.message,
+          outputData: res.output,
+          executedAt: new Date(),
+        });
+        if (res.status === "failed" && overallStatus !== "failed") {
+          overallStatus = "partial_failure";
+          errorMsg = res.message;
+        }
+      } catch (err: any) {
+        errorMsg = err.message || "Action step failed";
+        execution.stepResults.push({
+          stepIndex,
+          actionType: action.type,
+          status: "failed",
+          resultMessage: errorMsg,
+          executedAt: new Date(),
+        });
+        overallStatus = "failed";
+      }
+    }
+
+    if (!isDelayedAgain) {
+      execution.status = overallStatus;
+      execution.completedAt = new Date();
+      execution.errorDetails = errorMsg;
+      await execution.save();
+    }
+
+    return true;
+  }
+
+  /**
+   * Helper to quarantine an onboarding case to paused status upon unresolvable workflow conflict
+   */
+  private async quarantineOnboardingCase(
+    organizationId: string | mongoose.Types.ObjectId,
+    employeeId: string | mongoose.Types.ObjectId,
+    reason: string
+  ): Promise<void> {
+    try {
+      const OnboardingCase = mongoose.model("OnboardingCase");
+      const caseRecord = await OnboardingCase.findOne({
+        organizationId: new mongoose.Types.ObjectId(organizationId),
+        employeeId: new mongoose.Types.ObjectId(employeeId),
+        isDeleted: false,
+      });
+
+      if (caseRecord && caseRecord.state !== "paused") {
+        await onboardingCaseService.transition(
+          caseRecord._id.toString(),
+          organizationId.toString(),
+          "paused",
+          undefined,
+          `rule_conflict: ${reason}`
+        );
+      }
+    } catch (err) {
+      console.warn("[WorkflowEngine] Could not quarantine OnboardingCase:", err);
+    }
   }
 
   /**
@@ -200,6 +588,7 @@ export class WorkflowEngine {
             authorIdStr,
             {
               dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Default 14 days
+              source: "workflow_engine",
             }
           );
           return {
@@ -208,6 +597,12 @@ export class WorkflowEngine {
             output: assignment,
           };
         } catch (err: any) {
+          if (err.statusCode === 409 || err.message?.includes("already assigned")) {
+            return {
+              status: "skipped",
+              message: `Journey ${journeyId} is already assigned to ${targetUser.profile?.firstName}`,
+            };
+          }
           return {
             status: "failed",
             message: `Assign journey action failed: ${err.message}`,
@@ -220,77 +615,77 @@ export class WorkflowEngine {
           return { status: "failed", message: "taskTitle parameter missing for create_task action" };
         }
         try {
-          let assigneeUserId = targetUser._id.toString();
-          if (action.params.taskAssigneeRole === "manager" && targetUser.employment?.managerUserId) {
-            assigneeUserId = targetUser.employment.managerUserId.toString();
-          } else if (action.params.taskAssigneeRole === "hr" || action.params.taskAssigneeRole === "it") {
-            assigneeUserId = authorIdStr;
-          }
-
-          const newTask = await taskService.createTask(organizationId, authorIdStr, {
-            title: action.params.taskTitle,
-            description: action.params.taskDescription || `Automated workflow task for ${targetUser.profile?.firstName}`,
-            assignedToUserId: assigneeUserId,
+          const createdTask = await taskService.createTask(organizationId, authorIdStr, {
             employeeId: targetUser._id.toString(),
+            assignedToUserId: targetUser._id.toString(),
+            title: action.params.taskTitle,
+            description: action.params.taskDescription || "Automated task triggered by workflow",
             category: action.params.taskCategory || "general",
             stage: action.params.taskStage || "day_1",
-            priority: action.params.taskPriority || "normal",
-            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Default 3 days
+            priority: (action.params.taskPriority as any) || "normal",
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           });
-
           return {
             status: "success",
-            message: `Created task "${action.params.taskTitle}" assigned to user`,
-            output: newTask,
+            message: `Created task "${action.params.taskTitle}" for ${targetUser.profile?.firstName}`,
+            output: createdTask,
           };
         } catch (err: any) {
           return {
             status: "failed",
-            message: `Create task action failed: ${err.message}`,
+            message: `Task creation failed: ${err.message}`,
           };
         }
       }
 
       case "send_notification": {
+        if (!action.params.notificationTitle || !action.params.notificationMessage) {
+          return {
+            status: "failed",
+            message: "Missing title or message for send_notification action",
+          };
+        }
         try {
-          const title = action.params.notificationTitle || "Workflow Notification";
-          const message =
-            action.params.notificationMessage || `Hello ${targetUser.profile?.firstName}, you have an update.`;
-
-          const notification = await notificationService.createNotification({
-            organizationId: organizationId as any,
-            recipientUserId: targetUser._id as any,
+          const notif = await notificationService.createNotification({
+            organizationId,
+            recipientUserId: targetUser._id,
             type: "announcement",
             channel: action.params.notificationChannel || "in_app",
-            title,
-            message,
+            title: action.params.notificationTitle,
+            message: action.params.notificationMessage,
             priority: "medium",
           });
-
-          return { status: "success", message: `Sent notification: "${title}"`, output: notification };
+          return {
+            status: "success",
+            message: `Sent notification to ${targetUser.profile?.firstName}`,
+            output: notif,
+          };
         } catch (err: any) {
           return {
             status: "failed",
-            message: `Send notification action failed: ${err.message}`,
+            message: `Notification dispatch failed: ${err.message}`,
           };
         }
       }
 
       case "assign_document": {
         if (!action.params.documentTemplateId) {
-          return { status: "failed", message: "documentTemplateId parameter missing for assign_document action" };
+          return {
+            status: "failed",
+            message: "documentTemplateId parameter missing for assign_document action",
+          };
         }
         try {
-          const assignment = await documentService.assignDocument(
+          const docAssignment = await documentService.assignDocument(
             organizationId,
             action.params.documentTemplateId,
             targetUser._id,
-            authorUserId
+            authorIdStr
           );
           return {
             status: "success",
-            message: `Assigned document template to ${targetUser.profile?.firstName}`,
-            output: assignment,
+            message: `Assigned document ${action.params.documentTemplateId} to ${targetUser.profile?.firstName}`,
+            output: docAssignment,
           };
         } catch (err: any) {
           return {
@@ -307,7 +702,7 @@ export class WorkflowEngine {
               organizationId,
               targetUser._id,
               action.params.buddyUserId,
-              authorUserId
+              authorIdStr
             );
             return {
               status: "success",
@@ -375,7 +770,7 @@ export class WorkflowEngine {
       }
 
       case "delay": {
-        const delayMins = action.params.delayMinutes || 0;
+        const delayMins = action.params?.delayMinutes || 0;
         return {
           status: "delayed",
           message: `Execution step delayed by ${delayMins} minutes`,

@@ -27,6 +27,7 @@ export interface IMilestoneTemplate extends Document {
   };
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
+  autoApprovalEnabled?: boolean;
   isDeleted: boolean;
   deletedAt?: Date;
   createdAt: Date;
@@ -59,6 +60,7 @@ const MilestoneTemplateSchema = new Schema<IMilestoneTemplate>(
     },
     createdBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    autoApprovalEnabled: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date },
   },

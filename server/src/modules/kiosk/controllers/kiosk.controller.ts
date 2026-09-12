@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import mongoose from "mongoose";
 import { KioskService } from "../services/kiosk.service.js";
 import AppError from "../../../common/errors/app-error.js";
 import { KioskJourneyModel } from "../models/kiosk-journey.model.js";
@@ -287,6 +288,128 @@ export class KioskController {
       success: true,
       message: "Journey analytics summary retrieved successfully",
       data: summary
+    });
+  };
+
+  identifyFrontlineWorker = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    let orgId = body.organizationId || (request.user as any)?.organizationId || (request.headers["x-organization-id"] as string);
+    const identifier = body.identifier || body.badgeId || body.nationalId || body.employeeId || body.email;
+
+    if (!orgId && body.kioskDeviceId) {
+      const dev = await this.kioskService.getDeviceRepo().findById(body.kioskDeviceId);
+      if (dev?.organizationId) {
+        orgId = dev.organizationId.toString();
+      }
+    }
+
+    if (!orgId && identifier) {
+      const isHex = typeof identifier === "string" && /^[0-9a-fA-F]{24}$/.test(identifier);
+      const candidate = await mongoose.model("User").findOne({
+        $or: [
+          { "employment.badgeId": identifier },
+          { "employment.nationalId": identifier },
+          { "auth.email": identifier.toLowerCase() },
+          ...(isHex ? [{ _id: new mongoose.Types.ObjectId(identifier) }] : []),
+        ],
+        isDeleted: false,
+      });
+      if (candidate?.organizationId) {
+        orgId = candidate.organizationId.toString();
+      }
+    }
+
+    if (!orgId) {
+      if (identifier) {
+        throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge or identity number.");
+      }
+      throw new AppError(400, "BAD_REQUEST", "organizationId is required for frontline worker identification");
+    }
+
+    const result = await this.kioskService.identifyFrontlineWorker(
+      orgId,
+      identifier,
+      body.kioskDeviceId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Frontline worker identified successfully",
+      data: result,
+    });
+  };
+
+  verifySupervisorPin = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    let orgId = body.organizationId || (request.user as any)?.organizationId || (request.headers["x-organization-id"] as string);
+    const supId = body.supervisorIdentifier || body.supervisorId || body.email || body.employeeId || body.badgeId;
+
+    if (!orgId && supId) {
+      const isHexSup = typeof supId === "string" && /^[0-9a-fA-F]{24}$/.test(supId);
+      const candidate = await mongoose.model("User").findOne({
+        $or: [
+          { "employment.badgeId": supId },
+          { "auth.email": supId.toLowerCase() },
+          ...(isHexSup ? [{ _id: new mongoose.Types.ObjectId(supId) }] : []),
+        ],
+        isDeleted: false,
+      });
+      if (candidate?.organizationId) {
+        orgId = candidate.organizationId.toString();
+      }
+    }
+
+    if (!orgId) {
+      throw new AppError(400, "BAD_REQUEST", "organizationId is required for supervisor authorization");
+    }
+
+    const result = await this.kioskService.verifySupervisorPin(
+      orgId,
+      supId,
+      body.pin
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Supervisor PIN verified successfully",
+      data: result,
+    });
+  };
+
+  setSupervisorPin = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = (request.body as any) || {};
+    const targetUserId = body.supervisorId || user.userId;
+
+    const result = await this.kioskService.setSupervisorPin(
+      user.organizationId,
+      targetUserId,
+      body.pin
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Supervisor PIN set successfully",
+      data: result,
+    });
+  };
+
+  toggleMaintenanceMode = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+    const isMaintenance = body.maintenance !== undefined ? Boolean(body.maintenance) : true;
+
+    const device = await this.kioskService.setDeviceMaintenanceMode(
+      params.id,
+      user.organizationId,
+      isMaintenance
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: `Kiosk device maintenance mode ${isMaintenance ? "activated" : "deactivated"}`,
+      data: device,
     });
   };
 }
