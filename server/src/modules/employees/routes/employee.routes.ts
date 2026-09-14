@@ -10,6 +10,7 @@ import {
   inviteEmployeeSchema,
   updateEmployeeSchema,
   importEmployeesSchema,
+  validateBulkImportSchema,
 } from "../schemas/employee.schema.js";
 
 export async function employeeRoutes(app: FastifyInstance) {
@@ -41,6 +42,15 @@ export async function employeeRoutes(app: FastifyInstance) {
       schema: { body: inviteEmployeeSchema },
     },
     controller.inviteEmployee as any
+  );
+
+  app.post(
+    "/bulk/validate",
+    {
+      preHandler: [requireRole(["owner", "admin"])],
+      schema: { body: validateBulkImportSchema },
+    },
+    controller.validateBulkImport as any
   );
 
   app.post(

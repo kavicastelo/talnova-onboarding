@@ -78,6 +78,8 @@ export function App() {
               <Route path="kiosks" element={<ProtectedRoute capability="manage_organization"><KioskDashboard /></ProtectedRoute>} />
               <Route path="directory" element={<EmployeeDirectory />} />
               <Route path="directory/:id" element={<EmployeeProfile />} />
+              <Route path="profile" element={<EmployeeProfile />} />
+              <Route path="profile/:id" element={<EmployeeProfile />} />
               <Route path="employee" element={<EmployeeDashboard />} />
               <Route path="kb" element={<KnowledgeBase />} />
               <Route path="kb/:id" element={<KnowledgeBase />} />

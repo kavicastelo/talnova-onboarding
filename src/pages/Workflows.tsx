@@ -25,6 +25,14 @@ import { WorkflowRuleItem, WorkflowAction, WorkflowCondition } from '../services
 import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/Dialog';
 
 export function Workflows() {
   const [activeTab, setActiveTab] = useState<'rules' | 'logs'>('rules');
@@ -462,20 +470,20 @@ export function Workflows() {
       </div>
 
       {/* Interactive Workflow Builder Modal */}
-      {isBuilderOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Zap className="w-5 h-5 text-indigo-600" />
-                Configure Automated Workflow Rule
-              </h3>
-              <button onClick={() => setIsBuilderOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Zap className="w-5 h-5 text-indigo-600" />
+              Configure Automated Workflow Rule
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Define trigger events, evaluation filters, and downstream action steps.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateWorkflow} className="space-y-4 text-sm">
+          <form onSubmit={handleCreateWorkflow} className="flex flex-col flex-1 overflow-hidden">
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-sm">
               {validationError && (
                 <div
                   id="rule-validation-error"
@@ -486,7 +494,7 @@ export function Workflows() {
               )}
 
               <div>
-                <label className="block font-medium mb-1">Workflow Rule Title / Name *</label>
+                <label className="block font-medium mb-1 text-xs">Workflow Rule Title / Name *</label>
                 <input
                   id="rule-title-input"
                   type="text"
@@ -497,18 +505,18 @@ export function Workflows() {
                     setName(e.target.value);
                     if (validationError) setValidationError(null);
                   }}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-medium mb-1">Event Trigger *</label>
+                  <label className="block font-medium mb-1 text-xs">Event Trigger *</label>
                   <select
                     id="rule-trigger-select"
                     value={triggerType}
                     onChange={(e) => setTriggerType(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                   >
                     <option value="user_created">ON_USER_CREATED (New User Created / Hired)</option>
                     <option value="journey_completed">ON_JOURNEY_COMPLETED (Journey Completed)</option>
@@ -518,7 +526,7 @@ export function Workflows() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1">Priority (Higher runs first)</label>
+                  <label className="block font-medium mb-1 text-xs">Priority (Higher runs first)</label>
                   <input
                     id="rule-priority-input"
                     type="number"
@@ -526,7 +534,7 @@ export function Workflows() {
                     max="1000"
                     value={priority}
                     onChange={(e) => setPriority(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                   />
                 </div>
               </div>
@@ -541,7 +549,7 @@ export function Workflows() {
                     type="button"
                     id="add-condition-btn"
                     onClick={handleAddCondition}
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Condition
@@ -596,7 +604,7 @@ export function Workflows() {
                     <button
                       type="button"
                       onClick={() => handleRemoveCondition(idx)}
-                      className="p-1 text-slate-400 hover:text-red-600"
+                      className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -614,7 +622,7 @@ export function Workflows() {
                     type="button"
                     id="add-action-btn"
                     onClick={handleAddAction}
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Action Step
@@ -628,7 +636,7 @@ export function Workflows() {
                       <button
                         type="button"
                         onClick={() => handleRemoveAction(idx)}
-                        className="p-1 text-slate-400 hover:text-red-600"
+                        className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -748,81 +756,79 @@ export function Workflows() {
                   </div>
                 ))}
               </div>
-
-              <div className="pt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsBuilderOpen(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="save-activate-rule-btn"
-                  type="submit"
-                  disabled={createWorkflowMutation.isPending}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all"
-                >
-                  {createWorkflowMutation.isPending ? 'Saving...' : 'Save & Activate'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Test Run Trigger Modal */}
-      {testRunModalRule && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
-              <h3 className="text-lg font-bold">Trigger Workflow Test Run</h3>
-              <button onClick={() => setTestRunModalRule(null)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            <p className="text-xs text-slate-500">
-              Select a target employee to evaluate rule conditions and execute action steps for "{testRunModalRule.name}".
-            </p>
-
-            <div>
-              <label className="block text-xs font-medium mb-1">Target Employee *</label>
-              <SearchableSelect
-                value={selectedTestUser}
-                onChange={(val) => setSelectedTestUser(val)}
-                placeholder="Search & select target employee..."
-                searchPlaceholder="Search employee by name, email..."
-                options={employees.map((emp: any) => ({
-                  value: emp.id,
-                  label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
-                  sublabel: emp.email,
-                  badge: emp.department || 'Employee',
-                }))}
-              />
-            </div>
-
-            <div className="pt-3 flex justify-end gap-2">
+            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
               <button
                 type="button"
-                onClick={() => setTestRunModalRule(null)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium"
+                onClick={() => setIsBuilderOpen(false)}
+                className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleExecuteTestRun}
-                disabled={!selectedTestUser || triggerTestRunMutation.isPending}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all flex items-center gap-1"
+                id="save-activate-rule-btn"
+                type="submit"
+                disabled={createWorkflowMutation.isPending}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
               >
-                <Play className="w-3.5 h-3.5" />
-                {triggerTestRunMutation.isPending ? 'Running...' : 'Execute Test Run'}
+                {createWorkflowMutation.isPending ? 'Saving...' : 'Save & Activate'}
               </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Test Run Trigger Modal */}
+      <Dialog open={!!testRunModalRule} onOpenChange={(open) => { if (!open) setTestRunModalRule(null); }}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4 border-b border-border/60 bg-card">
+            <DialogTitle className="text-lg font-bold">Trigger Workflow Test Run</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Select a target employee to evaluate rule conditions and execute action steps for &quot;{testRunModalRule?.name}&quot;.
+            </DialogDescription>
+          </DialogHeader>
+
+          {testRunModalRule && (
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-xs">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-foreground">Target Employee *</label>
+                <SearchableSelect
+                  value={selectedTestUser}
+                  onChange={(val) => setSelectedTestUser(val)}
+                  placeholder="Search & select target employee..."
+                  searchPlaceholder="Search employee by name, email..."
+                  options={employees.map((emp: any) => ({
+                    value: emp.id,
+                    label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                    sublabel: emp.email,
+                    badge: emp.department || 'Employee',
+                  }))}
+                />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <button
+              type="button"
+              onClick={() => setTestRunModalRule(null)}
+              className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleExecuteTestRun}
+              disabled={!selectedTestUser || triggerTestRunMutation.isPending}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <Play className="w-3.5 h-3.5" />
+              {triggerTestRunMutation.isPending ? 'Running...' : 'Execute Test Run'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

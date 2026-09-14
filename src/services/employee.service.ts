@@ -178,13 +178,58 @@ export const employeeService = {
     return response.data;
   },
 
-  importEmployees: async (users: Array<any>): Promise<{ successCount: number; failures: Array<{ email: string; reason: string }>; imported?: number; skipped?: number; errors?: any[] }> => {
-    const response = await apiClient.post<any>('/employees/import', { users });
+  validateBulkImport: async (
+    users: Array<any>,
+    options?: { updateExisting?: boolean; triggerWorkflows?: boolean; autoAssignRoleChecklists?: boolean; sendInvites?: boolean }
+  ): Promise<{
+    totalRows: number;
+    validCount: number;
+    errorCount: number;
+    conflictCount: number;
+    warningCount: number;
+    willCreateCount: number;
+    willUpdateCount: number;
+    errors: Array<{ row: number; email: string; field: string; reason: string }>;
+    conflicts: Array<{ row: number; email: string; reason: string; existingUser?: any }>;
+    warnings: Array<{ row: number; email: string; field: string; message: string }>;
+    newDepartments: string[];
+  }> => {
+    const response = await apiClient.post<any>('/employees/bulk/validate', { users, options });
+    return response.data?.data || response.data;
+  },
+
+  importEmployees: async (
+    params: Array<any> | {
+      users: Array<any>;
+      options?: { updateExisting?: boolean; triggerWorkflows?: boolean; autoAssignRoleChecklists?: boolean; sendInvites?: boolean };
+    },
+    legacyOptions?: { updateExisting?: boolean; triggerWorkflows?: boolean; autoAssignRoleChecklists?: boolean; sendInvites?: boolean }
+  ): Promise<{
+    successCount: number;
+    updatedCount?: number;
+    failures: Array<{ email: string; reason: string }>;
+    imported?: number;
+    updated?: number;
+    skipped?: number;
+    errors?: any[];
+  }> => {
+    let users: any[];
+    let options: any;
+    if (Array.isArray(params)) {
+      users = params;
+      options = legacyOptions;
+    } else {
+      users = params.users;
+      options = params.options;
+    }
+    const response = await apiClient.post<any>('/employees/import', { users, options });
     const data = response.data?.data || response.data || {};
     return {
       successCount: data.successCount ?? response.data?.imported ?? 0,
+      updatedCount: data.updatedCount ?? response.data?.updated ?? 0,
       failures: data.failures ?? response.data?.errors ?? [],
       imported: response.data?.imported ?? data.imported ?? data.successCount ?? 0,
+      updated: response.data?.updated ?? data.updated ?? data.updatedCount ?? 0,
       skipped: response.data?.skipped ?? data.skipped ?? (data.failures ? data.failures.length : 0),
       errors: response.data?.errors ?? data.failures ?? [],
     };

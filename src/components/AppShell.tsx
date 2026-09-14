@@ -14,7 +14,7 @@ import {
   SidebarFooter,
   useSidebar
 } from './Sidebar';
-import { Avatar, AvatarFallback, AvatarImage } from './Avatar';
+import { EmployeeAvatar } from './EmployeeAvatar';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -240,11 +240,11 @@ export function AppShell() {
       if (settings.orgName) {
         document.title = `${settings.orgName} - Talnova Onboarding`;
       }
-      
+
       const primary = settings.primaryColor || '#4F46E5';
       document.documentElement.style.setProperty('--primary', primary);
       document.documentElement.style.setProperty('--sidebar-primary', primary);
-      
+
       const getContrastColor = (hexColor: string): string => {
         if (!hexColor || !hexColor.startsWith('#')) return 'oklch(0.985 0 0)';
         const hex = hexColor.replace('#', '');
@@ -255,7 +255,7 @@ export function AppShell() {
         const yiq = (r * 299 + g * 587 + b * 114) / 1000;
         return yiq >= 128 ? 'oklch(0.145 0 0)' : 'oklch(0.985 0 0)';
       };
-      
+
       const contrast = getContrastColor(primary);
       document.documentElement.style.setProperty('--primary-foreground', contrast);
       document.documentElement.style.setProperty('--sidebar-primary-foreground', contrast);
@@ -396,17 +396,14 @@ export function AppShell() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-sidebar-accent transition-colors">
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage src={user?.avatar || ''} />
-                      <AvatarFallback>
-                        {user?.name
-                          ? user.name
-                            .split(' ')
-                            .map((n: string) => n[0])
-                            .join('')
-                          : 'JD'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <EmployeeAvatar
+                      src={user?.avatar}
+                      name={user?.name}
+                      email={user?.email}
+                      userId={user?.id}
+                      size="sm"
+                      status="online"
+                    />
                     <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
                       <span className="truncate text-sm font-medium leading-tight">
                         {userLoading ? 'Loading...' : (user?.name || 'Jane Doe')}
@@ -430,7 +427,7 @@ export function AppShell() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button 
+              <Button
                 onClick={() => navigate('/login')}
                 className="w-full flex items-center justify-center gap-2"
                 variant="default"
@@ -450,7 +447,7 @@ export function AppShell() {
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link to="/" onClick={handleNavClick('/')}>Northwind Labs</Link>
+                        <Link to="/" onClick={handleNavClick('/')}>Talnova Labs</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     {segments.length === 0 && role === 'admin' &&
@@ -566,7 +563,7 @@ export function AppShell() {
 
                       <Bell className="h-5 w-5" />
                       {unreadCount > 0 && (
-                        <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                        <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
@@ -598,9 +595,8 @@ export function AppShell() {
                               if (!n.isRead) markReadMutation.mutate(n.id);
                               if (n.deepLink) navigate(n.deepLink);
                             }}
-                            className={`flex flex-col items-start gap-1 py-2 px-3 cursor-pointer ${
-                              !n.isRead ? 'bg-muted/50 font-medium' : 'opacity-70'
-                            }`}>
+                            className={`flex flex-col items-start gap-1 py-2 px-3 cursor-pointer ${!n.isRead ? 'bg-muted/50 font-medium' : 'opacity-70'
+                              }`}>
                             <div className="flex w-full items-center justify-between">
                               <span className="text-sm font-semibold leading-snug">{n.title}</span>
                               {!n.isRead && (

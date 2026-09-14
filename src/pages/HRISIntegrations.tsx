@@ -11,6 +11,14 @@ import { Input } from '../components/Input';
 import { Badge } from '../components/Badge';
 import { Skeleton } from '../components/Skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/Dialog';
+import {
   Workflow,
   Plus,
   RefreshCw,
@@ -384,76 +392,74 @@ export function HRISIntegrations() {
       )}
 
       {/* Connect Integration Modal */}
-      {isConnectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-background border rounded-lg p-6 space-y-5 shadow-xl animate-in zoom-in-95 duration-150">
+      <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+            <DialogTitle data-testid="connect-modal-title" className="text-lg font-bold text-foreground">
+              Connect {activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider.toUpperCase()}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Configure your API credentials to enable automated employee ingestion and workforce sync.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto max-h-[calc(85vh-140px)]">
             <div>
-              <h2 data-testid="connect-modal-title" className="text-lg font-bold text-foreground">
-                Connect {activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider.toUpperCase()}
-              </h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Configure your API credentials to enable automated employee ingestion and workforce sync.
-              </p>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="font-semibold text-muted-foreground block mb-1">Company Subdomain</label>
-                <div className="flex items-center">
-                  <Input
-                    data-testid="bamboohr-subdomain-input"
-                    placeholder="acmetest"
-                    value={subdomain}
-                    onChange={(e: any) => setSubdomain(e.target.value)}
-                    className="rounded-r-none"
-                  />
-                  <span className="bg-muted px-3 py-2 border border-l-0 rounded-r-md text-muted-foreground text-xs font-mono">
-                    .{activeProvider}.com
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-muted-foreground block mb-1">
-                  API Key / Secret Token <span className="text-red-500">*</span>
-                </label>
+              <label className="font-semibold text-muted-foreground block mb-1">Company Subdomain</label>
+              <div className="flex items-center">
                 <Input
-                  data-testid="bamboohr-apikey-input"
-                  type="password"
-                  placeholder="test_api_key_123"
-                  value={apiKey}
-                  onChange={(e: any) => {
-                    setApiKey(e.target.value);
-                    if (e.target.value.trim()) setApiKeyError('');
-                  }}
-                  className={apiKeyError ? 'border-red-500 focus-visible:ring-red-500 bg-red-50/20' : ''}
+                  data-testid="bamboohr-subdomain-input"
+                  placeholder="acmetest"
+                  value={subdomain}
+                  onChange={(e: any) => setSubdomain(e.target.value)}
+                  className="rounded-r-none"
                 />
-                {apiKeyError && (
-                  <div data-testid="bamboohr-apikey-error" className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5 font-medium">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                    <span>{apiKeyError}</span>
-                  </div>
-                )}
+                <span className="bg-muted px-3 py-2 border border-l-0 rounded-r-md text-muted-foreground text-xs font-mono">
+                  .{activeProvider}.com
+                </span>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={() => setIsConnectModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                data-testid="bamboohr-save-connect-btn"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                onClick={handleSaveAndConnect}
-                disabled={connectProviderMut.isPending}
-              >
-                {connectProviderMut.isPending ? 'Connecting...' : 'Save & Test Connection'}
-              </Button>
+            <div>
+              <label className="font-semibold text-muted-foreground block mb-1">
+                API Key / Secret Token <span className="text-red-500">*</span>
+              </label>
+              <Input
+                data-testid="bamboohr-apikey-input"
+                type="password"
+                placeholder="test_api_key_123"
+                value={apiKey}
+                onChange={(e: any) => {
+                  setApiKey(e.target.value);
+                  if (e.target.value.trim()) setApiKeyError('');
+                }}
+                className={apiKeyError ? 'border-red-500 focus-visible:ring-red-500 bg-red-50/20' : ''}
+              />
+              {apiKeyError && (
+                <div data-testid="bamboohr-apikey-error" className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5 font-medium">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{apiKeyError}</span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <Button variant="outline" size="sm" onClick={() => setIsConnectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              data-testid="bamboohr-save-connect-btn"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
+              onClick={handleSaveAndConnect}
+              disabled={connectProviderMut.isPending}
+            >
+              {connectProviderMut.isPending ? 'Connecting...' : 'Save & Test Connection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
