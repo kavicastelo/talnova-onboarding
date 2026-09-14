@@ -61,16 +61,27 @@ export const updateEmployeeSchema = z.object({
   hireDate: z.string().optional(),
 });
 
+export const bulkImportOptionsSchema = z.object({
+  triggerWorkflows: z.boolean().default(true),
+  autoAssignRoleChecklists: z.boolean().default(true),
+  sendInvites: z.boolean().default(false),
+  defaultJourneyId: z.string().optional().nullable(),
+  updateExisting: z.boolean().default(false),
+});
+
 export const importEmployeeRowSchema = z.object({
   email: z.string().email("Invalid email address"),
+  name: z.string().optional().nullable(),
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
   fullName: z.string().optional().nullable(),
   department: z.string().optional().nullable(),
   departmentId: z.string().optional().nullable(),
   jobTitle: z.string().optional().nullable(),
-  role: z.enum(["owner", "admin", "manager", "employee"]).optional().nullable(),
+  role: z.enum(["owner", "admin", "manager", "employee", "hr_admin", "it_admin"]).optional().nullable(),
   employeeId: z.string().optional().nullable(),
+  managerEmail: z.string().email("Invalid manager email").optional().nullable(),
+  managerEmployeeId: z.string().optional().nullable(),
   designation: z.string().optional().nullable(),
   payrollCategory: z.string().optional().nullable(),
   employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]).optional().nullable(),
@@ -78,9 +89,22 @@ export const importEmployeeRowSchema = z.object({
   phone: z.string().optional().nullable(),
   location: z.string().optional().nullable(),
   timezone: z.string().optional().nullable(),
+  customAttributes: z.record(z.any()).optional().nullable(),
+});
+
+export const validateBulkImportSchema = z.object({
+  users: z.array(z.record(z.any())).min(1, "At least one row must be provided"),
+  options: bulkImportOptionsSchema.optional().default({}),
 });
 
 export const importEmployeesSchema = z.object({
   users: z.array(importEmployeeRowSchema).min(1, "At least one employee must be provided"),
+  options: bulkImportOptionsSchema.optional().default({}),
 });
+
+export type ImportEmployeeRow = z.infer<typeof importEmployeeRowSchema>;
+export type BulkImportOptions = z.infer<typeof bulkImportOptionsSchema>;
+export type ImportEmployeesInput = z.infer<typeof importEmployeesSchema>;
+export type ValidateBulkImportInput = z.infer<typeof validateBulkImportSchema>;
+
 

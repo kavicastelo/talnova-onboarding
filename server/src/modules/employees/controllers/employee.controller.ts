@@ -140,25 +140,47 @@ export class EmployeeController {
     });
   };
 
+  validateBulkImport = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+    const users = body?.users || body?.employees || (Array.isArray(body) ? body : []);
+    const options = body?.options || {};
+    const result = await this.employeeService.validateBulkImport(
+      user.organizationId,
+      users,
+      options
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Validation completed",
+      data: result,
+    });
+  };
+
   importEmployees = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const body = request.body as any;
     const users = body?.users || body?.employees || (Array.isArray(body) ? body : []);
+    const options = body?.options || {};
     const result = await this.employeeService.bulkImportEmployees(
       user.organizationId,
       users,
-      user.userId
+      user.userId,
+      options
     );
 
     return reply.status(200).send({
       success: true,
       message: "Employees imported successfully",
       imported: result.successCount,
+      updated: result.updatedCount,
       skipped: result.failures.length,
       errors: result.failures,
       data: {
         ...result,
         imported: result.successCount,
+        updated: result.updatedCount,
         skipped: result.failures.length,
         errors: result.failures,
       },

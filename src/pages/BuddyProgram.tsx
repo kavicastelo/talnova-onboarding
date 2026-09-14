@@ -1142,18 +1142,18 @@ export const BuddyProgram: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Assign Buddy */}
+      {/* Modal: Pair Buddy & Mentee */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pair New Hire with Onboarding Buddy</DialogTitle>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4">
+            <DialogTitle>Pair Mentee with Onboarding Buddy</DialogTitle>
             <DialogDescription>Select an incoming direct report, choose an eligible buddy mentor, and attach a checklist.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
             {validationError && (
               <div
                 data-testid="buddy-validation-error"
-                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+                className="p-3 text-xs bg-destructive/15 text-destructive rounded-xl border border-destructive/20 flex items-center gap-2"
               >
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{validationError}</span>
@@ -1207,7 +1207,7 @@ export const BuddyProgram: React.FC = () => {
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Checklist Template *</label>
               <select
                 data-testid="checklist-template-select"
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+                className="w-full text-xs p-2.5 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
               >
@@ -1217,12 +1217,13 @@ export const BuddyProgram: React.FC = () => {
               </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <Button variant="outline" size="sm" onClick={() => setIsAssignModalOpen(false)}>
               Cancel
             </Button>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               onClick={handleAssignBuddy}
               data-testid="create-pairing-btn"
             >
@@ -1234,16 +1235,16 @@ export const BuddyProgram: React.FC = () => {
 
       {/* Modal: Log 1-on-1 Check-In */}
       <Dialog open={isCheckinModalOpen} onOpenChange={setIsCheckinModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4">
             <DialogTitle>Log 1-on-1 Buddy Check-In</DialogTitle>
             <DialogDescription>Record meeting notes, guidance provided, and mentee sentiment.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
             {checkinValidationError && (
               <div
                 data-testid="checkin-validation-error"
-                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+                className="p-3 text-xs bg-destructive/15 text-destructive rounded-xl border border-destructive/20 flex items-center gap-2"
               >
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{checkinValidationError}</span>
@@ -1254,7 +1255,7 @@ export const BuddyProgram: React.FC = () => {
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Mentee Sentiment *</label>
               <select
                 data-testid="checkin-sentiment-select"
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+                className="w-full text-xs p-2.5 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={checkinSentiment}
                 onChange={(e: any) => setCheckinSentiment(e.target.value)}
               >
@@ -1272,8 +1273,8 @@ export const BuddyProgram: React.FC = () => {
                     key={star}
                     type="button"
                     onClick={() => setCheckinRating(star)}
-                    className={`p-2 rounded border flex items-center justify-center transition-colors ${
-                      checkinRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600' : 'bg-background'
+                    className={`p-2 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                      checkinRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' : 'bg-background text-muted-foreground'
                     }`}
                   >
                     <Star className="h-4 w-4 fill-current" />
@@ -1286,7 +1287,7 @@ export const BuddyProgram: React.FC = () => {
               <label className="text-xs font-semibold text-muted-foreground block mb-1">1-on-1 Meeting Notes & Observations *</label>
               <textarea
                 data-testid="checkin-notes-textarea"
-                className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background"
+                className="w-full min-h-[90px] text-xs p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background text-foreground resize-none"
                 placeholder="Met for coffee. Mentee is settling in well and enjoying the codebase..."
                 value={checkinNotes}
                 onChange={(e) => {
@@ -1296,12 +1297,13 @@ export const BuddyProgram: React.FC = () => {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCheckinModalOpen(false)}>
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <Button variant="outline" size="sm" onClick={() => setIsCheckinModalOpen(false)}>
               Cancel
             </Button>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               onClick={handleLogCheckin}
               data-testid="submit-checkin-btn"
             >
@@ -1313,16 +1315,16 @@ export const BuddyProgram: React.FC = () => {
 
       {/* Modal: Become a Buddy */}
       <Dialog open={isRegisterModalOpen} onOpenChange={setIsRegisterModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4">
             <DialogTitle>{myBuddyProfile ? 'Edit Buddy Profile' : 'Join as an Onboarding Buddy'}</DialogTitle>
             <DialogDescription>Submit your mentorship bio, languages, technical skills, and mentee capacity.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
             {profileValidationError && (
               <div
                 data-testid="buddy-profile-error"
-                className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-md border border-red-200 flex items-center gap-2"
+                className="p-3 text-xs bg-destructive/15 text-destructive rounded-xl border border-destructive/20 flex items-center gap-2"
               >
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{profileValidationError}</span>
@@ -1333,7 +1335,7 @@ export const BuddyProgram: React.FC = () => {
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Bio & Mentorship Introduction *</label>
               <textarea
                 data-testid="buddy-bio-input"
-                className="w-full min-h-[80px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background"
+                className="w-full min-h-[80px] text-xs p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background text-foreground resize-none"
                 placeholder="Share your experience and how you can support new team members..."
                 value={buddyBio}
                 onChange={(e) => {
@@ -1352,6 +1354,7 @@ export const BuddyProgram: React.FC = () => {
                   setBuddySkills(e.target.value);
                   setProfileValidationError('');
                 }}
+                className="text-xs rounded-xl"
               />
             </div>
             <div>
@@ -1364,6 +1367,7 @@ export const BuddyProgram: React.FC = () => {
                   setBuddyLanguages(e.target.value);
                   setProfileValidationError('');
                 }}
+                className="text-xs rounded-xl"
               />
             </div>
             <div>
@@ -1378,6 +1382,7 @@ export const BuddyProgram: React.FC = () => {
                   setMaxMentees(parseInt(e.target.value, 10) || 0);
                   setProfileValidationError('');
                 }}
+                className="text-xs rounded-xl"
               />
             </div>
             <div className="flex items-center gap-2 pt-1">
@@ -1387,19 +1392,20 @@ export const BuddyProgram: React.FC = () => {
                 data-testid="buddy-availability-toggle"
                 checked={isAvailable}
                 onChange={(e) => setIsAvailable(e.target.checked)}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                className="rounded border-border text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
               />
-              <label htmlFor="buddy-is-available" className="text-xs font-medium cursor-pointer">
+              <label htmlFor="buddy-is-available" className="text-xs font-medium cursor-pointer text-foreground">
                 Available for new mentee pairings (uncheck if on vacation)
               </label>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRegisterModalOpen(false)}>
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <Button variant="outline" size="sm" onClick={() => setIsRegisterModalOpen(false)}>
               Cancel
             </Button>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               onClick={handleRegisterBuddyProfile}
               data-testid="save-profile-btn"
             >
@@ -1411,12 +1417,12 @@ export const BuddyProgram: React.FC = () => {
 
       {/* Modal: Add Custom Task */}
       <Dialog open={isCustomTaskModalOpen} onOpenChange={setIsCustomTaskModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4">
             <DialogTitle>Add Custom Task to Mentee Checklist</DialogTitle>
             <DialogDescription>Create an ad-hoc mentoring or cultural milestone for this mentee.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Task Title *</label>
               <Input
@@ -1424,13 +1430,14 @@ export const BuddyProgram: React.FC = () => {
                 placeholder="e.g. Schedule team lunch or review project goals"
                 value={customTaskTitle}
                 onChange={(e: any) => setCustomTaskTitle(e.target.value)}
+                className="text-xs rounded-xl"
               />
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Onboarding Stage</label>
               <select
                 data-testid="custom-task-stage-select"
-                className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
+                className="w-full text-xs p-2.5 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={customTaskStage}
                 onChange={(e: any) => setCustomTaskStage(e.target.value)}
               >
@@ -1440,12 +1447,13 @@ export const BuddyProgram: React.FC = () => {
               </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCustomTaskModalOpen(false)}>
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <Button variant="outline" size="sm" onClick={() => setIsCustomTaskModalOpen(false)}>
               Cancel
             </Button>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               onClick={handleAddCustomTask}
               data-testid="save-custom-task-btn"
             >

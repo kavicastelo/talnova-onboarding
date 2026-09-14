@@ -62,7 +62,7 @@ export function SuperAdminFinance() {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [newOrg, setNewOrg] = useState('Northwind Labs');
+  const [newOrg, setNewOrg] = useState('Talnova Labs');
   const [newAmount, setNewAmount] = useState('');
   const [newType, setNewType] = useState<'Invoice' | 'Receipt'>('Invoice');
   const [newStatus, setNewStatus] = useState<'Paid' | 'Pending' | 'Overdue'>('Pending');
@@ -86,7 +86,7 @@ export function SuperAdminFinance() {
 
       setShowModal(false);
       toast.success(`${newType} issued successfully.`);
-      
+
       // Reset Form
       setNewAmount('');
       setNewDesc('');
@@ -484,7 +484,7 @@ export function SuperAdminFinance() {
                           <td className="px-6 py-4">
                             <Badge className={
                               inv.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400' :
-                              inv.status === 'Pending' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'
+                                inv.status === 'Pending' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'
                             }>
                               {inv.status}
                             </Badge>
@@ -550,7 +550,7 @@ export function SuperAdminFinance() {
                   required
                   value={newOrg}
                   onChange={(e) => setNewOrg(e.target.value)}
-                  placeholder="Northwind Labs"
+                  placeholder="Talnova Labs"
                   className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2 px-3 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500"
                 />
               </div>

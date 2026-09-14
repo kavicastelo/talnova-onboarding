@@ -3,12 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription
 } from '../components/Card';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/Dialog';
 import {
   Search,
   Book,
@@ -664,66 +669,66 @@ export function KnowledgeBase() {
       )}
 
       {/* Quick Link Editor Modal */}
-      {isQlModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <Card className="w-full max-w-md bg-zinc-900 border border-zinc-800 text-white">
-            <CardHeader>
-              <CardTitle className="text-xl">
-                {editingQl ? 'Edit Quick Link' : 'Add Quick Link'}
-              </CardTitle>
-              <CardDescription>
-                Configure internal tools, support pages, or helpful links.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleSaveQl}>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-semibold mb-1 block">Title</label>
-                  <Input
-                    value={qlTitle}
-                    onChange={(e: any) => setQlTitle(e.target.value)}
-                    placeholder="e.g. IT Helpdesk"
-                    className="bg-zinc-950 border-zinc-800 text-zinc-200"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold mb-1 block">URL</label>
-                  <Input
-                    value={qlUrl}
-                    onChange={(e: any) => setQlUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="bg-zinc-950 border-zinc-800 text-zinc-200"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold mb-1 block">Icon Style</label>
-                  <select
-                    value={qlIcon}
-                    onChange={(e) => setQlIcon(e.target.value)}
-                    className="w-full h-10 px-3 border border-zinc-800 rounded-md bg-zinc-950 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  >
-                    <option value="Link">Link icon</option>
-                    <option value="HelpCircle">Question / Help</option>
-                    <option value="Users">Users / Directory</option>
-                    <option value="Book">Book / Library</option>
-                    <option value="Globe">Web / Globe</option>
-                  </select>
-                </div>
-              </CardContent>
-              <div className="flex justify-end gap-2 p-6 pt-0">
-                <Button variant="outline" type="button" onClick={() => setIsQlModalOpen(false)} className="border-zinc-800 text-zinc-400 hover:text-white">
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  Save Link
-                </Button>
+      <Dialog open={isQlModalOpen} onOpenChange={setIsQlModalOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+            <DialogTitle className="text-lg font-bold">
+              {editingQl ? 'Edit Quick Link' : 'Add Quick Link'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Configure internal tools, support pages, or helpful links.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveQl} className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto max-h-[calc(85vh-140px)]">
+              <div>
+                <label className="text-xs font-semibold mb-1 block text-foreground">Title</label>
+                <Input
+                  value={qlTitle}
+                  onChange={(e: any) => setQlTitle(e.target.value)}
+                  placeholder="e.g. IT Helpdesk"
+                  className="bg-background border-border text-foreground text-xs"
+                  required
+                />
               </div>
-            </form>
-          </Card>
-        </div>
-      )}
+              <div>
+                <label className="text-xs font-semibold mb-1 block text-foreground">URL</label>
+                <Input
+                  value={qlUrl}
+                  onChange={(e: any) => setQlUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="bg-background border-border text-foreground text-xs"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-1 block text-foreground">Icon Style</label>
+                <select
+                  value={qlIcon}
+                  onChange={(e) => setQlIcon(e.target.value)}
+                  className="w-full h-9 px-3 border border-border rounded-xl bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="Link">Link icon</option>
+                  <option value="HelpCircle">Question / Help</option>
+                  <option value="Users">Users / Directory</option>
+                  <option value="Book">Book / Library</option>
+                  <option value="Globe">Web / Globe</option>
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+              <Button variant="outline" size="sm" type="button" onClick={() => setIsQlModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" type="submit">
+                Save Link
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

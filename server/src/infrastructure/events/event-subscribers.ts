@@ -18,6 +18,7 @@ import Task from "../../modules/tasks/models/task.model.js";
 import TaskService from "../../modules/tasks/services/task.service.js";
 import TaskRepository from "../../modules/tasks/repositories/task.repository.js";
 import itHardwareService from "../../modules/tasks/services/it-hardware.service.js";
+import roleChecklistService from "../../modules/tasks/services/role-checklist.service.js";
 import mongoose from "mongoose";
 
 const notificationService = new NotificationService(new NotificationRepository());
@@ -272,6 +273,10 @@ export function registerEventSubscribers(): void {
         event.organizationId,
         event.actorId
       );
+      await roleChecklistService.autoAssignRoleChecklistsToNewHire(
+        event.organizationId,
+        event.actorId
+      ).catch((err) => console.warn("[EventSubscribers] Role checklist auto-assign error:", err));
     }
   };
 

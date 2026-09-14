@@ -33,7 +33,7 @@ export function MobileBottomNav() {
     },
     {
       title: 'Knowledge',
-      url: '/knowledge-base',
+      url: '/kb',
       icon: BookOpen,
     },
     {
@@ -52,11 +52,10 @@ export function MobileBottomNav() {
           <button
             key={item.title}
             onClick={() => navigate(item.url)}
-            className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-colors ${
-              isActive
+            className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-colors ${isActive
                 ? 'text-indigo-600 font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
-            }`}
+              }`}
           >
             <Icon className="h-5 w-5" />
             <span className="text-[10px] mt-0.5">{item.title}</span>

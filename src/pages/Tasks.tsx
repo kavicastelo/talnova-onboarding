@@ -8,22 +8,20 @@ import {
   User,
   Calendar,
   Shield,
-  X,
   Send,
-  Trash2,
   Check,
   Laptop,
   Cpu,
   ExternalLink,
   FileText,
   RotateCcw,
+  ListChecks,
 } from 'lucide-react';
 import {
   useTasks,
   useCreateTask,
   useUpdateTaskStatus,
   useAddTaskComment,
-  useDeleteTask,
 } from '../hooks/useTasks';
 import { useEmployees } from '../hooks/useEmployees';
 import { TaskItem, frontendTaskService } from '../services/task.service';
@@ -34,6 +32,22 @@ import { usePagination } from '../hooks/usePagination';
 import { AutoVerificationBadge } from '../components/tasks/AutoVerificationBadge';
 import { TaskDependencyTree } from '../components/tasks/TaskDependencyTree';
 import { TaskRevocationModal } from '../components/tasks/TaskRevocationModal';
+import { RoleChecklistManager } from '../components/tasks/RoleChecklistManager';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '../components/Dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter
+} from '../components/Sheet';
 
 export function Tasks() {
   const { can } = useRole();
@@ -44,7 +58,7 @@ export function Tasks() {
   const isItOpsRoute = location.pathname.includes('it-ops');
   const initialTab = (searchParams.get('tab') as any) === 'it_ops' || isItOpsRoute ? 'it_ops' : 'my';
 
-  const [activeTab, setActiveTab] = useState<'my' | 'assigned' | 'overdue' | 'all' | 'direct_reports' | 'it_ops'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'my' | 'assigned' | 'overdue' | 'all' | 'direct_reports' | 'it_ops' | 'templates'>(initialTab);
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -96,7 +110,6 @@ export function Tasks() {
   const createTaskMutation = useCreateTask();
   const updateStatusMutation = useUpdateTaskStatus();
   const addCommentMutation = useAddTaskComment();
-  const deleteTaskMutation = useDeleteTask();
 
   const employees = employeesData?.employees || [];
   const tasks = tasksData?.tasks || [];
@@ -408,69 +421,85 @@ export function Tasks() {
               <Laptop className="w-4 h-4" />
               IT Hardware Queue
             </button>
+            <button
+              id="tab-templates"
+              data-testid="tab-templates"
+              onClick={() => setActiveTab('templates')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'templates'
+                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-semibold'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
+            >
+              <ListChecks className="w-4 h-4" />
+              Checklist Templates
+            </button>
           </div>
 
           {/* Sub-filters Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+          {activeTab !== 'templates' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Stage Filter */}
+              <select
+                value={selectedStage}
+                onChange={(e) => setSelectedStage(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Stages</option>
+                <option value="preboarding">Preboarding</option>
+                <option value="day_1">Day 1</option>
+                <option value="week_1">Week 1</option>
+                <option value="month_1">Month 1</option>
+                <option value="custom">Custom</option>
+              </select>
+
+              {/* Category Filter */}
+              <select
+                id="category-filter-select"
+                data-testid="category-filter-select"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Categories</option>
+                <option value="it_setup">IT Setup</option>
+                <option value="hr_paperwork">HR Paperwork</option>
+                <option value="equipment">Equipment</option>
+                <option value="training">Training</option>
+                <option value="general">General</option>
+              </select>
+
+              {/* Priority Filter */}
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Priorities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
             </div>
-
-            {/* Stage Filter */}
-            <select
-              value={selectedStage}
-              onChange={(e) => setSelectedStage(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Stages</option>
-              <option value="preboarding">Preboarding</option>
-              <option value="day_1">Day 1</option>
-              <option value="week_1">Week 1</option>
-              <option value="month_1">Month 1</option>
-              <option value="custom">Custom</option>
-            </select>
-
-            {/* Category Filter */}
-            <select
-              id="category-filter-select"
-              data-testid="category-filter-select"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Categories</option>
-              <option value="it_setup">IT Setup</option>
-              <option value="hr_paperwork">HR Paperwork</option>
-              <option value="equipment">Equipment</option>
-              <option value="training">Training</option>
-              <option value="general">General</option>
-            </select>
-
-            {/* Priority Filter */}
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Priorities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="normal">Normal</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
+          )}
         </div>
 
-        {/* Task List Grid */}
-        {isLoading ? (
+        {/* Templates view or Task List Grid */}
+        {activeTab === 'templates' ? (
+          <RoleChecklistManager />
+        ) : isLoading ? (
           <div className="flex justify-center items-center py-16">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
@@ -670,14 +699,6 @@ export function Tasks() {
                       >
                         View Details
                       </button>
-
-                      <button
-                        onClick={() => deleteTaskMutation.mutate(task._id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all"
-                        title="Delete Task"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 );
@@ -700,26 +721,23 @@ export function Tasks() {
       </div>
 
       {/* Task Detail Drawer */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-xl bg-white dark:bg-slate-800 h-full p-6 overflow-y-auto shadow-2xl flex flex-col justify-between">
-            <div className="space-y-6">
+      <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+        {selectedTask && (
+          <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col justify-between overflow-hidden">
+            <div className="space-y-6 p-6 overflow-y-auto max-h-[calc(100vh-80px)]">
               {/* Drawer Header */}
-              <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
+              <div className="flex items-start justify-between border-b border-border/60 pb-4 pr-6">
                 <div>
                   <div className="flex items-center gap-2">
                     {getCategoryBadge(selectedTask.category)}
                     {getStageBadge(selectedTask.stage)}
                     {getPriorityBadge(selectedTask.priority)}
                   </div>
-                  <h2 className="text-xl font-bold mt-2">{selectedTask.title}</h2>
+                  <SheetTitle className="text-xl font-bold mt-2">{selectedTask.title}</SheetTitle>
+                  <SheetDescription className="text-xs text-muted-foreground mt-1">
+                    Onboarding operational task details and verification controls.
+                  </SheetDescription>
                 </div>
-                <button
-                  onClick={() => setSelectedTask(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
               {/* Task Attributes */}
@@ -884,53 +902,67 @@ export function Tasks() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-3">
-              {selectedTask.status === 'verified' ? (
-                <div id="drawer-badge-verified" className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-medium text-sm flex items-center justify-center gap-2">
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  Task Verified by Manager
-                </div>
-              ) : (
-                <button
-                  id="drawer-verify-task-btn"
-                  onClick={() => handleVerifyTask(selectedTask)}
-                  className="flex-1 py-2.5 rounded-xl font-medium text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Check className="w-4 h-4 stroke-[2.5]" />
-                  Verify Task
-                </button>
-              )}
+            {/* Sticky Action Footer */}
+            <SheetFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30 shrink-0">
+              <div className="flex items-center gap-2 w-full">
+                {/* HITL Guardrail: Revoke Verification if verified */}
+                {selectedTask.status === 'verified' && canManageTasks && (
+                  <button
+                    id="drawer-revoke-verification-btn"
+                    onClick={() => {
+                      setRevocationTask(selectedTask);
+                      setIsRevocationModalOpen(true);
+                    }}
+                    className="py-2.5 px-3 rounded-xl font-medium text-xs border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Revoke Verification
+                  </button>
+                )}
 
-              <button
-                id="drawer-toggle-complete-btn"
-                onClick={() => handleToggleComplete(selectedTask)}
-                className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${selectedTask.status === 'completed' || selectedTask.status === 'verified'
-                  ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                {/* Explicit Verification Action */}
+                {selectedTask.status !== 'verified' && canManageTasks && selectedTask.requiresVerification && (
+                  <button
+                    id="drawer-verify-task-btn"
+                    onClick={() => handleVerifyTask(selectedTask)}
+                    className="flex-1 py-2.5 rounded-xl font-medium text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    Verify Task
+                  </button>
+                )}
+
+                <button
+                  id="drawer-toggle-complete-btn"
+                  onClick={() => handleToggleComplete(selectedTask)}
+                  className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer shadow-sm ${
+                    selectedTask.status === 'completed' || selectedTask.status === 'verified'
+                      ? 'bg-muted text-foreground hover:bg-muted/80'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
                   }`}
-              >
-                {selectedTask.status === 'completed' || selectedTask.status === 'verified' ? 'Reopen Task' : 'Mark Task Complete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                >
+                  {selectedTask.status === 'completed' || selectedTask.status === 'verified' ? 'Reopen Task' : 'Mark Task Complete'}
+                </button>
+              </div>
+            </SheetFooter>
+          </SheetContent>
+        )}
+      </Sheet>
 
       {/* Create Task Modal */}
-      {isCreateModalOpen && (
-        <div id="create-task-modal" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
-              <h3 className="text-lg font-bold">Create Operational Task</h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent id="create-task-modal" className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4">
+            <DialogTitle className="text-lg font-bold">Create Operational Task</DialogTitle>
+            <DialogDescription>
+              Assign standard or customized onboarding tasks to responsible team members.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateTask} className="space-y-4 text-sm">
+          <form onSubmit={handleCreateTask} className="flex flex-col flex-1 overflow-hidden">
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-sm">
               <div>
-                <label className="block font-medium mb-1">Task Title *</label>
+                <label className="block font-medium mb-1 text-xs text-foreground">Task Title *</label>
                 <input
                   id="task-title-input"
                   type="text"
@@ -938,25 +970,25 @@ export function Tasks() {
                   placeholder="e.g. Set up laptop and IT permissions"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-medium mb-1">Instructions / Description</label>
+                <label className="block font-medium mb-1 text-xs text-foreground">Instructions / Description</label>
                 <textarea
                   id="task-desc-input"
                   rows={2}
                   placeholder="Additional guidance for responsible person..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium mb-1">Assign Responsible User *</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">Assign Responsible User *</label>
                   <SearchableSelect
                     id="task-assignee-select"
                     required
@@ -974,7 +1006,7 @@ export function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1">Target Employee (Optional)</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">Target Employee (Optional)</label>
                   <SearchableSelect
                     id="task-target-employee-select"
                     clearable
@@ -993,12 +1025,12 @@ export function Tasks() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-medium mb-1">Category</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">Category</label>
                   <select
                     id="task-category-select"
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
                     <option value="it_setup">IT Setup</option>
                     <option value="hr_paperwork">HR Paperwork</option>
@@ -1009,12 +1041,12 @@ export function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1">Stage</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">Stage</label>
                   <select
                     id="task-stage-select"
                     value={stage}
                     onChange={(e) => setStage(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
                     <option value="preboarding">Preboarding</option>
                     <option value="day_1">Day 1</option>
@@ -1025,12 +1057,12 @@ export function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1">Priority</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">Priority</label>
                   <select
                     id="task-priority-select"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
                     <option value="low">Low</option>
                     <option value="normal">Normal</option>
@@ -1041,185 +1073,188 @@ export function Tasks() {
               </div>
 
               <div>
-                <label className="block font-medium mb-1">Due Date</label>
+                <label className="block font-medium mb-1 text-xs text-foreground">Due Date</label>
                 <input
                   id="task-due-date-input"
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs"
                 />
               </div>
+            </div>
 
-              <div className="pt-3 flex justify-end gap-2">
-                <button
-                  id="cancel-create-task-btn"
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="submit-create-task-btn"
-                  type="submit"
-                  disabled={createTaskMutation.isPending}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all cursor-pointer"
-                >
-                  {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+              <button
+                id="cancel-create-task-btn"
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                id="submit-create-task-btn"
+                type="submit"
+                disabled={createTaskMutation.isPending}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
+              >
+                {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Hardware Provisioning & MDM Modal */}
-      {isHardwareModalOpen && hardwareTask && (
-        <div id="hardware-provisioning-modal" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
-              <div className="flex items-center gap-2">
-                <Laptop className="w-5 h-5 text-cyan-600" />
-                <h3 className="text-lg font-bold">Hardware Provisioning & MDM</h3>
+      <Dialog open={isHardwareModalOpen && !!hardwareTask} onOpenChange={setIsHardwareModalOpen}>
+        <DialogContent id="hardware-provisioning-modal" className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 shrink-0">
+                <Laptop className="h-5 w-5" />
               </div>
-              <button
-                onClick={() => setIsHardwareModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <DialogTitle className="text-lg font-bold">Hardware Provisioning & MDM</DialogTitle>
+                <DialogDescription>
+                  Configure asset tracking, MDM enrollment, and courier dispatch.
+                </DialogDescription>
+              </div>
             </div>
+          </DialogHeader>
 
-            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-              <span className="font-semibold block text-slate-700 dark:text-slate-200">Task: {hardwareTask.title}</span>
-              <span>Assignee: {hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin'} | Target: {hardwareTask.employeeId?.profile?.firstName || 'New Hire'}</span>
-            </div>
-
-            <form onSubmit={handleSaveHardware} className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium mb-1">Device Type</label>
-                  <select
-                    id="hw-device-type-select"
-                    value={hwDeviceType}
-                    onChange={(e) => setHwDeviceType(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
-                  >
-                    <option value="laptop">Laptop</option>
-                    <option value="desktop">Desktop</option>
-                    <option value="mobile">Mobile</option>
-                    <option value="monitor">Monitor</option>
-                    <option value="peripherals">Peripherals</option>
-                    <option value="other">Other</option>
-                  </select>
+          {hardwareTask && (
+            <form onSubmit={handleSaveHardware} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+                <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border/60 space-y-1">
+                  <span className="font-semibold block text-foreground">Task: {hardwareTask.title}</span>
+                  <span>Assignee: {hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin'} | Target: {hardwareTask.employeeId?.profile?.firstName || 'New Hire'}</span>
                 </div>
 
-                <div>
-                  <label className="block font-medium mb-1">MDM Enrollment Status</label>
-                  <select
-                    id="hw-mdm-status-select"
-                    value={hwMdmStatus}
-                    onChange={(e) => setHwMdmStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
-                  >
-                    <option value="pending_dispatch">Pending Dispatch</option>
-                    <option value="dispatched">Dispatched</option>
-                    <option value="enrolled">Enrolled</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="failed">Failed</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium mb-1">Serial Number</label>
-                  <input
-                    id="hw-serial-input"
-                    type="text"
-                    placeholder="e.g. C02G41KSMD6T"
-                    value={hwSerialNumber}
-                    onChange={(e) => setHwSerialNumber(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium mb-1">Asset Tag</label>
-                  <input
-                    id="hw-asset-tag-input"
-                    type="text"
-                    placeholder="e.g. TAL-AST-9021"
-                    value={hwAssetTag}
-                    onChange={(e) => setHwAssetTag(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium mb-1">Courier Provider</label>
-                  <input
-                    id="hw-courier-provider-input"
-                    type="text"
-                    placeholder="e.g. FedEx / DHL / UPS"
-                    value={hwCourierProvider}
-                    onChange={(e) => setHwCourierProvider(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium mb-1">Tracking URL</label>
-                  <input
-                    id="hw-courier-url-input"
-                    type="url"
-                    placeholder="https://track.fedex.com/..."
-                    value={hwCourierUrl}
-                    onChange={(e) => setHwCourierUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 dark:border-slate-700/60 pt-3 space-y-2">
-                <span className="block font-medium text-xs text-slate-700 dark:text-slate-300">
-                  Hardware Receipt / Purchase Invoice Attachment
-                </span>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">File Name</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Device Type</label>
+                    <select
+                      id="hw-device-type-select"
+                      value={hwDeviceType}
+                      onChange={(e) => setHwDeviceType(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
+                    >
+                      <option value="laptop">Laptop</option>
+                      <option value="desktop">Desktop</option>
+                      <option value="mobile">Mobile</option>
+                      <option value="monitor">Monitor</option>
+                      <option value="peripherals">Peripherals</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium mb-1 text-xs text-foreground">MDM Enrollment Status</label>
+                    <select
+                      id="hw-mdm-status-select"
+                      value={hwMdmStatus}
+                      onChange={(e) => setHwMdmStatus(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
+                    >
+                      <option value="pending_dispatch">Pending Dispatch</option>
+                      <option value="dispatched">Dispatched</option>
+                      <option value="enrolled">Enrolled</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="failed">Failed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Serial Number</label>
                     <input
-                      id="hw-receipt-name-input"
+                      id="hw-serial-input"
                       type="text"
-                      placeholder="e.g. invoice_macbook.pdf"
-                      value={hwReceiptFileName}
-                      onChange={(e) => setHwReceiptFileName(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="e.g. C02G41KSMD6T"
+                      value={hwSerialNumber}
+                      onChange={(e) => setHwSerialNumber(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">File URL / Cloud Storage Link</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Asset Tag</label>
                     <input
-                      id="hw-receipt-url-input"
-                      type="url"
-                      placeholder="https://storage.example.com/receipts/..."
-                      value={hwReceiptFileUrl}
-                      onChange={(e) => setHwReceiptFileUrl(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      id="hw-asset-tag-input"
+                      type="text"
+                      placeholder="e.g. TAL-AST-9021"
+                      value={hwAssetTag}
+                      onChange={(e) => setHwAssetTag(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Courier Provider</label>
+                    <input
+                      id="hw-courier-provider-input"
+                      type="text"
+                      placeholder="e.g. FedEx / DHL / UPS"
+                      value={hwCourierProvider}
+                      onChange={(e) => setHwCourierProvider(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Tracking URL</label>
+                    <input
+                      id="hw-courier-url-input"
+                      type="url"
+                      placeholder="https://track.fedex.com/..."
+                      value={hwCourierUrl}
+                      onChange={(e) => setHwCourierUrl(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-border/60 pt-3 space-y-2">
+                  <span className="block font-medium text-xs text-foreground">
+                    Hardware Receipt / Purchase Invoice Attachment
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">File Name</label>
+                      <input
+                        id="hw-receipt-name-input"
+                        type="text"
+                        placeholder="e.g. invoice_macbook.pdf"
+                        value={hwReceiptFileName}
+                        onChange={(e) => setHwReceiptFileName(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">File URL / Storage Link</label>
+                      <input
+                        id="hw-receipt-url-input"
+                        type="url"
+                        placeholder="https://storage.example.com/receipts/..."
+                        value={hwReceiptFileUrl}
+                        onChange={(e) => setHwReceiptFileUrl(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-700">
+              <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
                 <button
                   id="cancel-hardware-btn"
                   type="button"
                   onClick={() => setIsHardwareModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -1227,15 +1262,15 @@ export function Tasks() {
                   id="save-hardware-btn"
                   type="submit"
                   disabled={isSavingHardware}
-                  className="px-4 py-2 bg-cyan-600 text-white rounded-xl text-sm font-medium hover:bg-cyan-700 transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                 >
                   {isSavingHardware ? 'Saving...' : 'Save Hardware Details'}
                 </button>
-              </div>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Task Revocation Modal (Prompt 05 HITL Guardrail) */}
       <TaskRevocationModal

@@ -7,6 +7,7 @@ export * from './Alert';
 export * from './AlertDialog';
 export * from './AspectRatio';
 export * from './Avatar';
+export * from './EmployeeAvatar';
 export * from './Badge';
 export * from './Breadcrumb';
 export * from './Button';

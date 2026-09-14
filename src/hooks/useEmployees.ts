@@ -69,7 +69,8 @@ export function useChangeMyPassword() {
 export function useImportEmployees() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: employeeService.importEmployees,
+    mutationFn: (variables: Array<any> | { users: Array<any>; options?: any }) =>
+      employeeService.importEmployees(variables),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
     },

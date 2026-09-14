@@ -13,7 +13,7 @@ import { useEmployee } from '../hooks/useEmployees';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useWorkspaceSettings } from '../hooks/useSettings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/Dialog';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
@@ -37,6 +37,33 @@ export function Certificates() {
   });
 
   const isLoading = userLoading || employeeLoading || myCertsLoading;
+
+  // Merge digital certificates from backend API with local assigned journeys
+  const completedJourneys = useMemo(() => {
+    const apiCerts = (myCertsData || []).map((c: any) => ({
+      id: c.id || c._id,
+      title: c.journeyTitle || 'Employee Onboarding Journey',
+      status: 'Completed',
+      assignedAt: c.issueDate ? new Date(c.issueDate).toLocaleDateString() : new Date().toLocaleDateString(),
+      completionDate: c.completionDate ? new Date(c.completionDate).toLocaleDateString() : new Date().toLocaleDateString(),
+      recipientName: c.recipientName,
+      organizationName: c.organizationName,
+      certificate: {
+        issued: true,
+        issuedAt: c.issueDate,
+        certificateId: c.certificateNumber || c.certificateId || c.id,
+        sha256Signature: c.sha256Signature,
+      },
+    }));
+
+    const localCompleted = (employee?.assignedJourneys || []).filter(
+      (j) => j.status === 'Completed' && j.certificate?.issued && !apiCerts.some((c: any) => c.id === j.id || c.certificate.certificateId === j.certificate?.certificateId)
+    );
+
+    return [...apiCerts, ...localCompleted];
+  }, [myCertsData, employee?.assignedJourneys]);
+
+  const certsPagination = usePagination({ data: completedJourneys, initialPageSize: 6 });
 
   if (isLoading) {
     return (
@@ -62,31 +89,6 @@ export function Certificates() {
       </div>
     );
   }
-
-  // Merge digital certificates from backend API with local assigned journeys
-  const apiCerts = (myCertsData || []).map((c: any) => ({
-    id: c.id || c._id,
-    title: c.journeyTitle || 'Employee Onboarding Journey',
-    status: 'Completed',
-    assignedAt: c.issueDate ? new Date(c.issueDate).toLocaleDateString() : new Date().toLocaleDateString(),
-    completionDate: c.completionDate ? new Date(c.completionDate).toLocaleDateString() : new Date().toLocaleDateString(),
-    recipientName: c.recipientName,
-    organizationName: c.organizationName,
-    certificate: {
-      issued: true,
-      issuedAt: c.issueDate,
-      certificateId: c.certificateNumber || c.certificateId || c.id,
-      sha256Signature: c.sha256Signature,
-    },
-  }));
-
-  const localCompleted = (employee?.assignedJourneys || []).filter(
-    (j) => j.status === 'Completed' && j.certificate?.issued && !apiCerts.some((c: any) => c.id === j.id || c.certificate.certificateId === j.certificate?.certificateId)
-  );
-
-  const completedJourneys = [...apiCerts, ...localCompleted];
-
-  const certsPagination = usePagination({ data: completedJourneys, initialPageSize: 6 });
 
   if (isError) {
     return (
