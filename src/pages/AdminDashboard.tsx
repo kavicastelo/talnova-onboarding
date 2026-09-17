@@ -6,7 +6,20 @@ import {
   CardTitle
 } from
   '../components/Card';
-import { Users, BookOpen, CheckCircle2, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Users,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  RefreshCw,
+  UserPlus,
+  GraduationCap,
+  ShieldAlert,
+  AlertOctagon,
+  ArrowRight
+} from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -112,6 +125,73 @@ export function AdminDashboard() {
         <p className="text-muted-foreground">
           Overview of your organization's learning progress.
         </p>
+      </div>
+
+      {/* Onboarding Journey Launchpad */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Link
+          to="/directory"
+          className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-indigo-500/40 transition-all shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <UserPlus className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold flex items-center justify-between">
+              <span>Invite New Hire</span>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <p className="text-xs text-muted-foreground truncate">Add employee or bulk CSV</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/journeys"
+          className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-purple-500/40 transition-all shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <GraduationCap className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold flex items-center justify-between">
+              <span>Journey Templates</span>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <p className="text-xs text-muted-foreground truncate">Curricula & step builder</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/hr-ops"
+          className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-emerald-500/40 transition-all shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <ShieldAlert className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold flex items-center justify-between">
+              <span>HR Operations</span>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <p className="text-xs text-muted-foreground truncate">Handovers & graduation</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/hr-ops/exceptions"
+          className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-rose-500/40 transition-all shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <AlertOctagon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold flex items-center justify-between">
+              <span>Exceptions</span>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <p className="text-xs text-muted-foreground truncate">Quarantined cases & SLA</p>
+          </div>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

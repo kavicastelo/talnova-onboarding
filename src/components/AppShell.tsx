@@ -9,6 +9,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarTrigger,
   SidebarHeader,
   SidebarFooter,
@@ -53,6 +56,7 @@ import {
   HeartHandshake,
   Calendar,
   ShieldAlert,
+  AlertOctagon,
   Trophy,
   Bot,
   Wand2,
@@ -70,6 +74,8 @@ import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useWorkspaceSettings } from '../hooks/useSettings';
+import { useEmployeeDocumentInbox } from '../hooks/useDocuments';
+import { useOnboardingExceptions } from '../hooks/useOnboardingExceptions';
 import {
   useNotifications,
   useUnreadNotificationCount,
@@ -88,12 +94,31 @@ import {
   DialogTitle,
   DialogFooter
 } from './Dialog';
+
+interface NavSubItem {
+  title: string;
+  url: string;
+  icon?: React.ComponentType<{
+    className?: string;
+  }>;
+  badge?: string | number | null;
+  badgeVariant?: 'default' | 'destructive' | 'secondary' | 'outline';
+}
+
 interface NavItem {
   title: string;
   url: string;
   icon: React.ComponentType<{
     className?: string;
   }>;
+  badge?: string | number | null;
+  badgeVariant?: 'default' | 'destructive' | 'secondary' | 'outline';
+  subItems?: NavSubItem[];
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
 }
 function titleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -104,85 +129,233 @@ export function AppShell() {
   const { role, setRole } = useRole();
   const { t } = useTranslation('nav');
 
-  // Nav arrays computed inside component so they re-render on language change
-  const adminNav: NavItem[] = [
-    { title: t('items.dashboard'), url: '/', icon: LayoutDashboard },
-    { title: 'HR Operations', url: '/hr-ops', icon: ShieldAlert },
-    { title: 'Team Operations', url: '/manager', icon: UserCheck },
-    { title: 'Employee Directory', url: '/directory', icon: Users },
-    { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
-    { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
-    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
-    { title: 'Digital Documents', url: '/documents', icon: FileText },
-    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
-    { title: 'Workflows & Rules', url: '/workflows', icon: Workflow },
-    { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
-    { title: 'Kiosk Terminals', url: '/kiosks', icon: Tv },
-    { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
-    { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
-    { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
-    { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
-    { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
-    { title: 'Office Map', url: '/office-map', icon: MapPin },
-    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
-    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
-    { title: t('items.settings'), url: '/settings', icon: Settings },
+  const isEmployee = role === 'employee';
+  const isAdminOrOwner = role === 'admin' || role === 'owner' || role === 'hr_admin';
+
+  const { data: employeeDocInbox = [] } = useEmployeeDocumentInbox();
+  const pendingDocsCount = isEmployee
+    ? (employeeDocInbox || []).filter((d: any) => d.status === 'pending').length
+    : 0;
+
+  const { data: exceptionsData } = useOnboardingExceptions();
+  const exceptionsCount = isAdminOrOwner
+    ? (exceptionsData?.pagination?.total || exceptionsData?.data?.length || 0)
+    : 0;
+
+  // Semantic navigation sections by role
+  const adminNavSections: NavSection[] = [
+    {
+      label: 'Overview & Operations',
+      items: [
+        { title: t('items.dashboard') || 'Dashboard', url: '/', icon: LayoutDashboard },
+        {
+          title: 'HR Operations',
+          url: '/hr-ops',
+          icon: ShieldAlert,
+          subItems: [
+            {
+              title: 'Exceptions Workbench',
+              url: '/hr-ops/exceptions',
+              icon: AlertOctagon,
+              badge: exceptionsCount > 0 ? exceptionsCount : null,
+              badgeVariant: 'destructive',
+            },
+          ],
+        },
+        { title: 'Team Operations', url: '/manager', icon: UserCheck },
+      ],
+    },
+    {
+      label: 'People & Teams',
+      items: [
+        { title: 'Employee Directory', url: '/directory', icon: Users },
+        { title: 'Buddy Program', url: '/buddy', icon: HeartHandshake },
+        { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+      ],
+    },
+    {
+      label: 'Learning & Content',
+      items: [
+        { title: t('items.myLearning') || 'Journey Templates', url: '/journeys', icon: GraduationCap },
+        { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+      ],
+    },
+    {
+      label: 'Operations & Compliance',
+      items: [
+        { title: 'Digital Documents', url: '/documents', icon: FileText },
+        {
+          title: 'Tasks & Checklists',
+          url: '/tasks',
+          icon: CheckSquare,
+          subItems: [
+            { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop },
+          ],
+        },
+        { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
+        { title: 'Kiosk Terminals', url: '/kiosks', icon: Tv },
+      ],
+    },
+    {
+      label: 'System & Insights',
+      items: [
+        { title: t('items.analytics') || 'Analytics', url: '/analytics', icon: BarChart2 },
+        { title: 'Workflows & Rules', url: '/workflows', icon: Workflow },
+        { title: 'Office Map', url: '/office-map', icon: MapPin },
+        { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+        {
+          title: t('items.settings') || 'Settings',
+          url: '/settings',
+          icon: Settings,
+          subItems: [
+            { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
+            { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
+          ],
+        },
+      ],
+    },
   ];
 
-  const managerNav: NavItem[] = [
-    { title: 'Team Operations', url: '/manager', icon: UserCheck },
-    { title: 'Employee Directory', url: '/directory', icon: Users },
-    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
-    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
-    { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
-    { title: t('items.analytics'), url: '/analytics', icon: BarChart2 },
-    { title: 'Office Map', url: '/office-map', icon: MapPin },
-    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
+  const managerNavSections: NavSection[] = [
+    {
+      label: 'Team Supervision',
+      items: [
+        { title: 'Team Operations', url: '/manager', icon: UserCheck },
+        { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+        { title: 'Tasks & Verification', url: '/tasks', icon: CheckSquare },
+      ],
+    },
+    {
+      label: 'People & Mentorship',
+      items: [
+        { title: 'Employee Directory', url: '/directory', icon: Users },
+        { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+        { title: '1-on-1 Calendar', url: '/calendar', icon: Calendar },
+      ],
+    },
+    {
+      label: 'Insights & Tools',
+      items: [
+        { title: t('items.analytics') || 'Team Analytics', url: '/analytics', icon: BarChart2 },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: 'Office Map', url: '/office-map', icon: MapPin },
+        { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
+      ],
+    },
   ];
 
-  const employeeNav: NavItem[] = [
-    { title: 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard },
-    { title: t('items.myLearning'), url: '/journeys', icon: GraduationCap },
-    { title: 'Digital Documents', url: '/documents', icon: FileText },
-    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
-    { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
-    { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
-    { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
-    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
-    { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
-    { title: t('items.certificates'), url: '/certificates', icon: Award },
-    { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
-    { title: 'Office Map', url: '/office-map', icon: MapPin },
+  const employeeNavSections: NavSection[] = [
+    {
+      label: 'My Onboarding',
+      items: [
+        { title: 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard },
+        {
+          title: 'Required Documents',
+          url: '/documents',
+          icon: FileText,
+          badge: pendingDocsCount > 0 ? `${pendingDocsCount} pending` : null,
+          badgeVariant: 'destructive',
+        },
+        { title: 'Checklist Tasks', url: '/tasks', icon: CheckSquare },
+        { title: t('items.myLearning') || 'Learning Journeys', url: '/journeys', icon: GraduationCap },
+      ],
+    },
+    {
+      label: 'Support & Milestones',
+      items: [
+        { title: 'My Onboarding Buddy', url: '/buddy', icon: HeartHandshake },
+        { title: '30/60/90 Goals', url: '/milestones', icon: CalendarCheck },
+        { title: 'Schedule & Meetings', url: '/calendar', icon: Calendar },
+      ],
+    },
+    {
+      label: 'Workplace & Resources',
+      items: [
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: t('items.certificates') || 'Certificates', url: '/certificates', icon: Award },
+        { title: 'Office Map', url: '/office-map', icon: MapPin },
+        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+      ],
+    },
   ];
 
-  const superAdminNav: NavItem[] = [
-    { title: t('items.superAdminDashboard'), url: '/super-admin', icon: LayoutDashboard },
-    { title: t('items.organizations'), url: '/super-admin/organizations', icon: Users },
-    { title: t('items.finance'), url: '/super-admin/finance', icon: BarChart2 },
+  const itAdminNavSections: NavSection[] = [
+    {
+      label: 'Hardware & Provisioning',
+      items: [
+        { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop },
+        { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+      ],
+    },
+    {
+      label: 'Systems & Directory',
+      items: [
+        { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
+        { title: 'Employee Directory', url: '/directory', icon: Users },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: 'Office Map', url: '/office-map', icon: MapPin },
+      ],
+    },
   ];
 
-  const itAdminNav: NavItem[] = [
-    { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop },
-    { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
-    { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
-    { title: 'Employee Directory', url: '/directory', icon: Users },
-    { title: t('items.knowledgeBase'), url: '/kb', icon: BookOpen },
+  const superAdminNavSections: NavSection[] = [
+    {
+      label: 'Platform Management',
+      items: [
+        { title: t('items.superAdminDashboard') || 'Platform Dashboard', url: '/super-admin', icon: LayoutDashboard },
+        { title: t('items.organizations') || 'Organizations', url: '/super-admin/organizations', icon: Users },
+        { title: t('items.finance') || 'Finance & Billing', url: '/super-admin/finance', icon: BarChart2 },
+      ],
+    },
+  ];
+
+  const anonymousNavSections: NavSection[] = [
+    {
+      label: 'Public Resources',
+      items: [
+        { title: 'Knowledge Base', url: '/kb', icon: BookOpen },
+      ],
+    },
   ];
 
   const labelByPath: Record<string, string> = {
-    '': t('breadcrumb.dashboard'),
-    'super-admin': t('breadcrumb.superAdmin'),
-    organizations: t('breadcrumb.organizations'),
-    finance: t('breadcrumb.finance'),
-    journeys: t('breadcrumb.journeys'),
-    directory: t('breadcrumb.directory'),
-    analytics: t('breadcrumb.analytics'),
-    kb: t('breadcrumb.kb'),
-    settings: t('breadcrumb.settings'),
-    employee: t('breadcrumb.employee'),
-    course: t('breadcrumb.course'),
-    certificates: t('breadcrumb.certificates'),
+    '': t('breadcrumb.dashboard') || 'Dashboard',
+    'super-admin': t('breadcrumb.superAdmin') || 'Super Admin',
+    organizations: t('breadcrumb.organizations') || 'Organizations',
+    finance: t('breadcrumb.finance') || 'Finance & Billing',
+    journeys: t('breadcrumb.journeys') || 'Journey Templates',
+    directory: t('breadcrumb.directory') || 'Employee Directory',
+    analytics: t('breadcrumb.analytics') || 'Analytics',
+    kb: t('breadcrumb.kb') || 'Knowledge Base',
+    'knowledge-base': 'Knowledge Base',
+    slideshow: 'Policy Slideshow',
+    settings: t('breadcrumb.settings') || 'Settings',
+    sso: 'SSO & Identity',
+    integrations: 'HRIS Integrations',
+    employee: t('breadcrumb.employee') || 'Onboarding Roadmap',
+    course: t('breadcrumb.course') || 'Course Player',
+    certificates: t('breadcrumb.certificates') || 'Certificates',
     tasks: 'Tasks & Checklists',
+    'it-ops': 'IT Hardware Queue',
+    documents: 'Digital Documents',
+    sign: 'E-Signature',
+    milestones: '30/60/90 Milestones',
+    workflows: 'Workflows & Rules',
+    manager: 'Team Operations',
+    buddy: 'Buddy Support',
+    calendar: 'Calendar & Meetings',
+    'hr-ops': 'HR Operations',
+    exceptions: 'Exceptions & Holds',
+    leaderboard: 'Leaderboard',
+    'ai-assistant': 'AI Assistant',
+    'ai-course-builder': 'AI Course Builder',
+    'office-map': 'Office Map',
+    kiosks: 'Kiosk Terminals',
+    profile: 'Profile',
+    me: 'My Profile',
   };
   const { setOpen, isMobile } = useSidebar();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -287,17 +460,17 @@ export function AppShell() {
     }
   }, [userError, navigate, location.pathname, isAnonymousKb]);
 
-  const navItems = !hasToken
-    ? [{ title: 'Knowledge Base', url: '/kb', icon: BookOpen }]
+  const navSections = !hasToken
+    ? anonymousNavSections
     : role === 'super_admin'
-      ? superAdminNav
+      ? superAdminNavSections
       : role === 'it_admin'
-        ? itAdminNav
+        ? itAdminNavSections
         : role === 'admin' || role === 'owner' || role === 'hr_admin'
-          ? adminNav
+          ? adminNavSections
           : role === 'manager'
-            ? managerNav
-            : employeeNav;
+            ? managerNavSections
+            : employeeNavSections;
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {
@@ -360,35 +533,79 @@ export function AppShell() {
           </SidebarHeader>
 
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>
-                {role === 'super_admin' ? 'Platform Management' : role === 'admin' ? 'Workspace' : 'Learning'}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navItems.map((item) => {
-                    const isActive =
-                      item.url === '/' || item.url === '/employee' ?
-                        location.pathname === item.url :
-                        location.pathname.startsWith(item.url);
-                    return (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.title}>
+            {navSections.map((section) => (
+              <SidebarGroup key={section.label}>
+                <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+                  {section.label}
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {section.items.map((item) => {
+                      const hasSub = item.subItems && item.subItems.length > 0;
+                      const isSelfActive =
+                        item.url === '/' || item.url === '/employee'
+                          ? location.pathname === item.url
+                          : location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url + '/'));
+                      const isSubActive = !!hasSub && item.subItems!.some((sub) => location.pathname === sub.url || location.pathname.startsWith(sub.url + '/'));
 
-                          <Link to={item.url} onClick={handleNavClick(item.url)}>
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>);
+                      return (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isSelfActive || isSubActive}
+                            tooltip={item.title}>
+                            <Link to={item.url} onClick={handleNavClick(item.url)} className="flex items-center w-full">
+                              <item.icon className="h-4 w-4 shrink-0" />
+                              <span className="flex-1 truncate ml-2">{item.title}</span>
+                              {item.badge !== undefined && item.badge !== null && (
+                                <span
+                                  className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                    item.badgeVariant === 'destructive'
+                                      ? 'bg-destructive/15 text-destructive dark:bg-destructive/30'
+                                      : 'bg-primary/10 text-primary'
+                                  }`}
+                                >
+                                  {item.badge}
+                                </span>
+                              )}
+                            </Link>
+                          </SidebarMenuButton>
 
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+                          {hasSub && (
+                            <SidebarMenuSub>
+                              {item.subItems!.map((sub) => {
+                                const isThisSubActive = location.pathname === sub.url || location.pathname.startsWith(sub.url + '/');
+                                return (
+                                  <SidebarMenuSubItem key={sub.url}>
+                                    <SidebarMenuSubButton asChild isActive={isThisSubActive}>
+                                      <Link to={sub.url} onClick={handleNavClick(sub.url)} className="flex items-center w-full">
+                                        {sub.icon && <sub.icon className="h-3.5 w-3.5 shrink-0 mr-1.5" />}
+                                        <span className="flex-1 truncate">{sub.title}</span>
+                                        {sub.badge !== undefined && sub.badge !== null && (
+                                          <span
+                                            className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                              sub.badgeVariant === 'destructive'
+                                                ? 'bg-destructive/15 text-destructive dark:bg-destructive/30'
+                                                : 'bg-primary/10 text-primary'
+                                            }`}
+                                          >
+                                            {sub.badge}
+                                          </span>
+                                        )}
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                );
+                              })}
+                            </SidebarMenuSub>
+                          )}
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))}
           </SidebarContent>
 
           <SidebarFooter className="p-3">
