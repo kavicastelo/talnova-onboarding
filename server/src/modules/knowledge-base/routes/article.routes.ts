@@ -153,6 +153,40 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.archiveArticle as any
   );
+
+  // Knowledge Gap Routes
+  const { KnowledgeGapController } = await import("../controllers/knowledge-gap.controller.js");
+  const gapController = new KnowledgeGapController();
+
+  app.get(
+    "/gaps",
+    { preHandler: [authenticate, requireRole(["owner", "admin", "manager", "hr_admin"])] },
+    gapController.listGaps.bind(gapController) as any
+  );
+
+  app.post(
+    "/gaps/:id/quick-answer",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    gapController.resolveWithQuickAnswer.bind(gapController) as any
+  );
+
+  app.post(
+    "/gaps/:id/link-article",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    gapController.resolveWithArticle.bind(gapController) as any
+  );
+
+  app.post(
+    "/gaps/:id/dismiss",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    gapController.dismissGap.bind(gapController) as any
+  );
+
+  app.post(
+    "/reindex",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    gapController.reindexAll.bind(gapController) as any
+  );
 }
 
 export default knowledgeBaseRoutes;

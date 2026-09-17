@@ -16,9 +16,11 @@ import {
   useNotificationPreferences,
   useUpdateNotificationPreferences
 } from '../hooks/useNotifications';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight, Workflow } from 'lucide-react';
+import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight, Workflow, Sparkles, Mail } from 'lucide-react';
+import { AIIntegrationSettings } from '../components/settings/AIIntegrationSettings';
+import { EmailIntegrationSettings } from '../components/settings/EmailIntegrationSettings';
 import { Skeleton } from '../components/Skeleton';
 import { useTranslation } from 'react-i18next';
 import { uploadService } from '../services/upload.service';
@@ -28,6 +30,12 @@ import { useRole } from '../context/RoleContext';
 
 export function Settings() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'general';
+  const handleTabChange = (val: string) => {
+    setSearchParams({ tab: val });
+  };
+
   const { role } = useRole();
   const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
 
@@ -452,7 +460,7 @@ export function Settings() {
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
           <TabsTrigger value="general" data-testid="tab-general">{t('sections.workspace')}</TabsTrigger>
           <TabsTrigger value="branding" data-testid="tab-branding">{t('sections.branding')}</TabsTrigger>
@@ -460,6 +468,18 @@ export function Settings() {
           <TabsTrigger value="roles" data-testid="tab-security">{t('sections.security')}</TabsTrigger>
           <TabsTrigger value="notifications" data-testid="tab-notifications">{t('sections.notifications')}</TabsTrigger>
           <TabsTrigger value="certificates" data-testid="tab-certificates">Certificates</TabsTrigger>
+          {isOrgAdmin && (
+            <>
+              <TabsTrigger value="ai" data-testid="tab-ai">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
+                AI & Automation
+              </TabsTrigger>
+              <TabsTrigger value="email" data-testid="tab-email">
+                <Mail className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
+                Email Delivery
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -1273,6 +1293,17 @@ export function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isOrgAdmin && (
+          <>
+            <TabsContent value="ai" className="space-y-6">
+              <AIIntegrationSettings />
+            </TabsContent>
+            <TabsContent value="email" className="space-y-6">
+              <EmailIntegrationSettings />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );

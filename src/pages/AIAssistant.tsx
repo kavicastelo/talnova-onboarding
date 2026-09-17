@@ -19,7 +19,8 @@ import {
   BookOpen,
   ArrowRight,
   Plus,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from 'lucide-react';
 import {
   useAIChat,
@@ -27,10 +28,16 @@ import {
   useAIConversationById,
   useAIFeedback
 } from '../hooks/useAIAssistant';
+import { useOrganizationCapabilities } from '../hooks/useOrganizationCapabilities';
+import { useRole } from '../context/RoleContext';
 import { toast } from 'sonner';
 
 export function AIAssistant() {
   const navigate = useNavigate();
+  const { role } = useRole();
+  const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
+  const { isAIAvailable, aiReason } = useOrganizationCapabilities();
+
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(undefined);
   const [inputPrompt, setInputPrompt] = useState('');
 
@@ -105,6 +112,34 @@ export function AIAssistant() {
           <Plus className="h-4 w-4 mr-2" /> New Conversation Thread
         </Button>
       </div>
+
+      {!isAIAvailable && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm" data-testid="ai-capability-blocked-banner">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
+            <div>
+              <span className="font-semibold text-foreground">AI Integration Required: </span>
+              <span className="text-muted-foreground">
+                {aiReason || 'Your organization administrator has not configured an AI provider yet.'}
+              </span>
+            </div>
+          </div>
+          {isOrgAdmin ? (
+            <Button
+              size="sm"
+              onClick={() => navigate('/settings?tab=ai')}
+              className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              Configure AI Provider
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Please contact your workspace administrator to enable AI features.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Main Chat Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[680px]">
@@ -204,6 +239,14 @@ export function AIAssistant() {
                   >
                     <div data-testid={msg.sender === 'assistant' ? 'assistant-message-content' : undefined} className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
 
+                    {/* Knowledge Gap Notice */}
+                    {msg.sender === 'assistant' && msg.content.includes("flagged this as missing company information") && (
+                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 flex items-center gap-2 text-amber-700 dark:text-amber-400 text-[11px]" data-testid="ai-gap-badge">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                        <span>Knowledge gap logged. Workspace administrators have been notified to add this company policy.</span>
+                      </div>
+                    )}
+
                     {/* Citations / References */}
                     {msg.citations && msg.citations.length > 0 && (
                       <div className="pt-2 border-t border-border/40 space-y-1.5">
@@ -286,17 +329,18 @@ export function AIAssistant() {
           <div className="p-4 border-t bg-card flex gap-2 items-center">
             <Input
               data-testid="ai-prompt-input"
-              placeholder="Ask AI Onboarding Assistant a question..."
+              placeholder={isAIAvailable ? "Ask AI Onboarding Assistant a question..." : "AI integration required to send queries..."}
               value={inputPrompt}
               onChange={(e: any) => setInputPrompt(e.target.value)}
-              onKeyDown={(e: any) => e.key === 'Enter' && handleSendPrompt()}
+              onKeyDown={(e: any) => isAIAvailable && e.key === 'Enter' && handleSendPrompt()}
+              disabled={!isAIAvailable}
               className="flex-1"
             />
             <Button
               data-testid="ai-send-btn"
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={() => handleSendPrompt()}
-              disabled={chatMutation.isPending || !inputPrompt.trim()}
+              disabled={!isAIAvailable || chatMutation.isPending || !inputPrompt.trim()}
             >
               <Send className="h-4 w-4 mr-2" /> Send
             </Button>

@@ -33,7 +33,9 @@ import {
   MonitorPlay,
   CheckCircle2,
   Archive,
-  ArrowLeft
+  ArrowLeft,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import {
   useKbCategories,
@@ -48,6 +50,13 @@ import {
   useUpdateQuickLink,
   useDeleteQuickLink
 } from '../hooks/useKnowledgeBase';
+import {
+  useKnowledgeGaps,
+  useResolveGapWithQuickAnswer,
+  useDismissGap,
+  useTriggerReindex
+} from '../hooks/useKnowledgeGaps';
+import { Badge } from '../components/Badge';
 import { useRole } from '../context/RoleContext';
 import { toast } from 'sonner';
 import { CATEGORY_MAP } from '../services/knowledgeBase.service';
@@ -117,6 +126,47 @@ export function KnowledgeBase() {
   const [qlTitle, setQlTitle] = useState('');
   const [qlUrl, setQlUrl] = useState('');
   const [qlIcon, setQlIcon] = useState('Link');
+
+  // Admin Knowledge Gaps State
+  const [mainTab, setMainTab] = useState<'articles' | 'gaps'>('articles');
+  const [gapFilter, setGapFilter] = useState<'unresolved' | 'resolved' | 'all'>('unresolved');
+  const [quickAnswerModalOpen, setQuickAnswerModalOpen] = useState(false);
+  const [selectedGap, setSelectedGap] = useState<any>(null);
+  const [quickAnswerText, setQuickAnswerText] = useState('');
+
+  const { data: gapsData, isLoading: gapsLoading } = useKnowledgeGaps(
+    gapFilter === 'all' ? undefined : gapFilter
+  );
+  const gaps = gapsData?.data || [];
+  const unresolvedGapsCount = gaps.filter((g) => g.status === 'unresolved').length;
+
+  const resolveQuickAnswerMutation = useResolveGapWithQuickAnswer();
+  const dismissGapMutation = useDismissGap();
+  const triggerReindexMutation = useTriggerReindex();
+
+  const handleOpenQuickAnswer = (gap: any) => {
+    setSelectedGap(gap);
+    setQuickAnswerText(gap.resolutionNotes || '');
+    setQuickAnswerModalOpen(true);
+  };
+
+  const handleSaveQuickAnswer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGap || !quickAnswerText.trim()) return;
+    await resolveQuickAnswerMutation.mutateAsync({
+      gapId: selectedGap._id,
+      answer: quickAnswerText.trim(),
+    });
+    setQuickAnswerModalOpen(false);
+    setSelectedGap(null);
+  };
+
+  const handleCreateArticleFromGap = (gap: any) => {
+    handleStartCreate();
+    setArtTitle(gap.question);
+    setArtSummary(`Company policy and guidance regarding: ${gap.question}`);
+    setMainTab('articles');
+  };
 
   const handleRetry = () => {
     refetchCats();
@@ -501,80 +551,239 @@ export function KnowledgeBase() {
                 <MonitorPlay className="h-4 w-4" /> Live Slideshow Mode
               </Button>
               {isAdmin && (
-                <Button onClick={handleStartCreate} className="gap-1.5">
-                  <Plus className="h-4 w-4" /> New Article
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    data-testid="reindex-knowledge-btn"
+                    onClick={() => triggerReindexMutation.mutate()}
+                    disabled={triggerReindexMutation.isPending}
+                    className="gap-1.5"
+                  >
+                    <Sparkles className="h-4 w-4 text-indigo-500" />
+                    {triggerReindexMutation.isPending ? 'Indexing...' : 'Re-Index Knowledge'}
+                  </Button>
+                  <Button onClick={handleStartCreate} className="gap-1.5">
+                    <Plus className="h-4 w-4" /> New Article
+                  </Button>
+                </>
               )}
             </div>
           </div>
 
-          {/* Search box & Category Pills */}
-          <div className="space-y-4">
-            <div className="relative max-w-xl">
-              <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
-              <Input
-                data-testid="kb-search-input"
-                value={search}
-                onChange={(e: any) => setSearch(e.target.value)}
-                placeholder={t('searchPlaceholder')}
-                className="pl-12 h-12 text-base rounded-full bg-background border-muted-foreground/20"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
+          {/* Admin Navigation Tabs */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 border-b pb-2">
               <button
-                onClick={() => setSelectedCategory(undefined)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedCategory === undefined
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
+                onClick={() => setMainTab('articles')}
+                data-testid="kb-tab-articles"
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+                  mainTab === 'articles'
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/60'
+                }`}
               >
-                {t('categories')}
+                <Book className="h-4 w-4" /> Articles & Guidelines
               </button>
-              {(categories || []).map((cat) => (
-                <button
-                  key={cat.title}
-                  onClick={() => setSelectedCategory(cat.title)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedCategory === cat.title
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
-                >
-                  {cat.title} ({cat.count})
-                </button>
-              ))}
+              <button
+                onClick={() => setMainTab('gaps')}
+                data-testid="kb-tab-gaps"
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+                  mainTab === 'gaps'
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                <AlertCircle className="h-4 w-4 text-amber-500" /> Knowledge Gaps
+                {unresolvedGapsCount > 0 && (
+                  <Badge className="ml-1 px-1.5 py-0.2 text-[10px] bg-amber-500 text-white hover:bg-amber-600">
+                    {unresolvedGapsCount} missing
+                  </Badge>
+                )}
+              </button>
             </div>
-          </div>
+          )}
 
-          <div className="grid gap-8 md:grid-cols-3 pt-4">
-            {/* Articles List */}
-            <div className="md:col-span-2 space-y-4">
-              <h2 className="text-xl font-bold tracking-tight">{t('allArticles')}</h2>
-              <div className="space-y-3">
-                {!articles || articles.length === 0 ? (
-                  <div
-                    data-testid="no-articles-found"
-                    className="text-center py-12 text-sm text-muted-foreground border border-dashed rounded-lg"
-                  >
-                    {search ? "No articles found matching your query." : t('noArticles')}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {artPagination.paginatedData.map((article: any) => (
-                      <Card
-                        key={article.id}
-                        data-testid="article-card"
-                        onClick={() => handleOpenArticle(article)}
-                        className="hover:bg-muted/40 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
-                      >
-                        <CardContent className="p-5 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                              <FileText className="h-5 w-5 text-primary" />
+          {/* Knowledge Gaps Dashboard (Admin Only) */}
+          {mainTab === 'gaps' && isAdmin ? (
+            <div className="space-y-6" data-testid="knowledge-gaps-dashboard">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-card p-4 rounded-xl border">
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Missing Company Information Requests</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Questions asked by team members that could not be verified in official company documentation.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Filter:</span>
+                  {(['unresolved', 'resolved', 'all'] as const).map((filter) => (
+                    <Button
+                      key={filter}
+                      size="sm"
+                      variant={gapFilter === filter ? 'default' : 'outline'}
+                      className="text-xs h-7 capitalize"
+                      onClick={() => setGapFilter(filter)}
+                    >
+                      {filter}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {gapsLoading ? (
+                <div className="flex justify-center p-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : gaps.length === 0 ? (
+                <Card className="p-12 text-center border-dashed">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
+                  <h3 className="font-semibold text-base">No Knowledge Gaps Found</h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
+                    All employee questions asked to the AI Assistant have matched approved company documents, or existing gaps have been resolved.
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {gaps.map((gap: any) => (
+                    <Card key={gap._id} data-testid="knowledge-gap-card" className="p-4 border hover:border-border/80 transition-all">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-sm text-foreground">"{gap.question}"</span>
+                            <Badge variant="outline" className="text-xs font-semibold bg-indigo-500/10 text-indigo-600 border-indigo-500/20">
+                              {gap.occurrenceCount}x asked
+                            </Badge>
+                            <Badge
+                              className={`text-[10px] capitalize ${
+                                gap.status === 'resolved'
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                  : gap.status === 'dismissed'
+                                  ? 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20'
+                                  : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              }`}
+                            >
+                              {gap.status}
+                            </Badge>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> Last asked: {new Date(gap.lastAskedAt || gap.updatedAt).toLocaleDateString()}
+                            </span>
+                            {gap.category && <span>Category: {gap.category}</span>}
+                            {gap.requestedBy?.length > 0 && (
+                              <span>Requesters: {gap.requestedBy.length} team member(s)</span>
+                            )}
+                          </div>
+
+                          {gap.status === 'resolved' && gap.resolutionNotes && (
+                            <div className="mt-2 text-xs p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/15 text-foreground">
+                              <span className="font-semibold text-emerald-600 block mb-0.5">Approved Quick Answer:</span>
+                              {gap.resolutionNotes}
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 data-testid="article-title" className="font-semibold text-foreground">{article.title}</h3>
+                          )}
+                        </div>
+
+                        {gap.status === 'unresolved' && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              data-testid="resolve-quick-answer-btn"
+                              className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                              onClick={() => handleOpenQuickAnswer(gap)}
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Quick Answer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs"
+                              onClick={() => handleCreateArticleFromGap(gap)}
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1" /> Full Article
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                              onClick={() => dismissGapMutation.mutate(gap._id)}
+                            >
+                              Dismiss
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Search box & Category Pills */}
+              <div className="space-y-4">
+                <div className="relative max-w-xl">
+                  <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    data-testid="kb-search-input"
+                    value={search}
+                    onChange={(e: any) => setSearch(e.target.value)}
+                    placeholder={t('searchPlaceholder')}
+                    className="pl-12 h-12 text-base rounded-full bg-background border-muted-foreground/20"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedCategory(undefined)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedCategory === undefined
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                  >
+                    {t('categories')}
+                  </button>
+                  {(categories || []).map((cat) => (
+                    <button
+                      key={cat.title}
+                      onClick={() => setSelectedCategory(cat.title)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedCategory === cat.title
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                    >
+                      {cat.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grid Content: Articles (Left) + Quick Links (Right) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left 2 Cols: Articles List */}
+                <div className="lg:col-span-2 space-y-4">
+                  {articles && articles.length === 0 ? (
+                    <div className="text-center p-12 border border-dashed rounded-xl space-y-3">
+                      <HelpCircle className="h-10 w-10 text-muted-foreground mx-auto" />
+                      <h3 className="font-semibold text-lg">{t('noArticlesFound')}</h3>
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        {t('noArticlesDesc')}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {artPagination.paginatedData.map((article: any) => (
+                          <Card
+                            key={article.id}
+                            data-testid="article-card"
+                            onClick={() => handleOpenArticle(article)}
+                            className="p-5 hover:border-primary/50 transition-all cursor-pointer flex flex-col justify-between group hover:shadow-sm"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {article.category}
+                                </span>
                                 {isAdmin && (
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono capitalize ${article.publishingStatus === 'published' ? 'bg-green-500/10 text-green-500' :
                                       article.publishingStatus === 'archived' ? 'bg-amber-500/10 text-amber-500' :
@@ -584,89 +793,144 @@ export function KnowledgeBase() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground mt-0.5">
-                                {article.category} • {article.readTime} • {article.views} views
+                              <h3 className="font-bold text-base group-hover:text-primary transition-colors line-clamp-1">
+                                {article.title}
+                              </h3>
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                {article.summary || article.content}
                               </p>
                             </div>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-1" />
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    <SimplePagination
-                      currentPage={artPagination.page}
-                      totalPages={artPagination.totalPages}
-                      totalItems={artPagination.totalItems}
-                      startIndex={artPagination.startIndex}
-                      endIndex={artPagination.endIndex}
-                      pageSize={artPagination.pageSize}
-                      onPageChange={artPagination.setPage}
-                      onPageSizeChange={artPagination.setPageSize}
-                      itemLabel="articles"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Links Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold tracking-tight">{t('quickLinks')}</h2>
-                {isAdmin && (
-                  <Button variant="ghost" size="icon" onClick={() => handleOpenQlModal()}>
-                    <Plus className="h-4 w-4 text-primary" />
-                  </Button>
-                )}
-              </div>
-              <Card className="border shadow-sm">
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border">
-                    {!quickLinks || quickLinks.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-muted-foreground">
-                        No links configured.
-                      </div>
-                    ) : (
-                      quickLinks.map((link) => {
-                        const IconComp = iconMap[link.icon] || LinkIcon;
-                        return (
-                          <div
-                            key={link.id}
-                            className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors group"
-                          >
-                            <a
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 flex-1 text-left"
-                            >
-                              <IconComp className="h-5 w-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
-                              <span className="font-medium text-foreground hover:text-primary transition-colors">
-                                {link.title}
+                            <div className="flex items-center justify-between pt-4 mt-2 border-t text-xs text-muted-foreground">
+                              <span>{article.readTime}</span>
+                              <span className="flex items-center text-primary font-medium group-hover:translate-x-1 transition-transform">
+                                Read <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                               </span>
-                            </a>
-                            {isAdmin && (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenQlModal(link)} className="h-7 w-7">
-                                  <Edit2 className="h-3 w-3 text-muted-foreground" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDeleteQl(link.id)} className="h-7 w-7">
-                                  <Trash2 className="h-3 w-3 text-destructive" />
-                                </Button>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+
+                      {/* Articles Pagination */}
+                      {articles && articles.length > 6 && (
+                        <div className="pt-4">
+                          <SimplePagination
+                            currentPage={artPagination.page}
+                            totalPages={artPagination.totalPages}
+                            totalItems={artPagination.totalItems}
+                            onPageChange={artPagination.setPage}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Right Col: Quick Links */}
+                <div className="space-y-4">
+                  <Card className="border-border">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="font-bold text-base">{t('quickLinks')}</h2>
+                        {isAdmin && (
+                          <Button variant="ghost" size="sm" onClick={() => handleOpenQlModal()} className="h-8 gap-1 text-xs text-primary">
+                            <Plus className="h-3.5 w-3.5" /> Add
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {quickLinks && quickLinks.length === 0 ? (
+                          <div className="text-xs text-muted-foreground text-center py-4">No quick links available.</div>
+                        ) : (
+                          quickLinks?.map((link: any) => {
+                            const IconComponent = iconMap[link.icon] || LinkIcon;
+                            return (
+                              <div
+                                key={link.id}
+                                className="flex items-center justify-between p-2.5 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors group"
+                              >
+                                <a
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-3 text-xs font-medium text-foreground flex-1"
+                                >
+                                  <div className="p-1.5 rounded-md bg-muted text-muted-foreground group-hover:text-primary transition-colors">
+                                    <IconComponent className="h-4 w-4" />
+                                  </div>
+                                  <span className="truncate">{link.title}</span>
+                                </a>
+
+                                {isAdmin && (
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" onClick={() => handleOpenQlModal(link)} className="h-7 w-7">
+                                      <Edit2 className="h-3 w-3 text-muted-foreground" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteQl(link.id)} className="h-7 w-7">
+                                      <Trash2 className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
+
+      {/* Quick Answer Resolution Modal */}
+      <Dialog open={quickAnswerModalOpen} onOpenChange={setQuickAnswerModalOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-5 border-b bg-card">
+            <DialogTitle className="text-base font-bold">Provide Quick Answer</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Resolving: <span className="font-semibold text-foreground">"{selectedGap?.question}"</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveQuickAnswer} className="p-5 space-y-4 text-xs">
+            <div>
+              <label className="text-xs font-semibold mb-1 block text-foreground">
+                Authoritative Company Answer
+              </label>
+              <textarea
+                data-testid="quick-answer-textarea"
+                rows={4}
+                value={quickAnswerText}
+                onChange={(e) => setQuickAnswerText(e.target.value)}
+                placeholder="Enter official policy or answer (e.g. Business casual dress code, or 20 days annual leave...)"
+                className="w-full p-2.5 border rounded-lg bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                required
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                This answer will be immediately indexed into the knowledge retrieval vector store so the AI Assistant can answer future questions accurately.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button variant="outline" size="sm" type="button" onClick={() => setQuickAnswerModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                type="submit"
+                data-testid="submit-quick-answer-btn"
+                disabled={resolveQuickAnswerMutation.isPending || !quickAnswerText.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {resolveQuickAnswerMutation.isPending ? 'Publishing & Indexing...' : 'Publish & Train AI'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Link Editor Modal */}
       <Dialog open={isQlModalOpen} onOpenChange={setIsQlModalOpen}>

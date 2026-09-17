@@ -12,7 +12,9 @@ export const courseService = {
         try {
           console.log('[PWA Cache] Serving course from local cache while offline:', id);
           return JSON.parse(cached);
-        } catch {}
+        } catch (_err) {
+          // Ignore parse error on corrupt cache
+        }
       }
     }
 
@@ -58,7 +60,9 @@ export const courseService = {
         if (cached) {
           try {
             return JSON.parse(cached);
-          } catch {}
+          } catch (_err) {
+            // Ignore parse error on corrupt cache
+          }
         }
 
         const pwaCourse: Course = {
@@ -252,7 +256,9 @@ export const courseService = {
     };
     try {
       localStorage.setItem(cacheKey, JSON.stringify(courseObj));
-    } catch {}
+    } catch (_err) {
+      // Ignore localStorage write failure
+    }
 
     return courseObj;
   },

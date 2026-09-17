@@ -2,8 +2,11 @@ import mongoose from "mongoose";
 import AICourseDraft from "../models/ai-course-draft.model.js";
 import { Journey } from "../../journeys/models/journey.model.js";
 import Article from "../../knowledge-base/models/article.model.js";
+import OrganizationIntegrationService from "../../integrations/services/organization-integration.service.js";
 
 export class AICourseBuilderService {
+  private integrationService = new OrganizationIntegrationService();
+
   /**
    * Synthesize AI Onboarding Course & Journey Draft (AI-006, AI-007, AI-008)
    */
@@ -19,6 +22,9 @@ export class AICourseBuilderService {
     const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
     const userObjectId = new mongoose.Types.ObjectId(userId.toString());
 
+    // 0. Ensure organization AI capability is active or throw CAPABILITY_UNAVAILABLE
+    const activeClient = await this.integrationService.getActiveAIClient(orgId);
+
     // Retrieve grounding articles from tenant KB
     const groundedArticles = await Article.find({
       organizationId: orgObjectId,
@@ -26,12 +32,52 @@ export class AICourseBuilderService {
       isDeleted: { $ne: true },
     }).limit(2);
 
+    let modules: any[] = [];
+
+    // Synthesize using real configured AI provider
+    if (!activeClient.isFallbackMock) {
+      try {
+        const generatedModules = await activeClient.service.generateCourseCurriculum(
+          activeClient.config,
+          activeClient.secrets,
+          prompt,
+          targetRole,
+          department,
+          level,
+          moduleCount,
+          groundedArticles
+        );
+
+        if (Array.isArray(generatedModules) && generatedModules.length > 0) {
+          modules = generatedModules.map((m: any) => ({
+            moduleId: new mongoose.Types.ObjectId().toString(),
+            title: m.title || "Module",
+            description: m.description || "",
+            lessons: (m.lessons || []).map((l: any) => ({
+              lessonId: new mongoose.Types.ObjectId().toString(),
+              title: l.title || "Lesson",
+              content: l.content || "Lesson content",
+              durationMinutes: Number(l.durationMinutes) || 15,
+              quizQuestions: (l.quizQuestions || []).map((q: any) => ({
+                questionId: new mongoose.Types.ObjectId().toString(),
+                questionText: q.questionText || "Question",
+                options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ["True", "False"],
+                correctOptionIndex: Number(q.correctOptionIndex) || 0,
+                explanation: q.explanation || "Reference company policies.",
+              })),
+            })),
+          }));
+        }
+      } catch (err: any) {
+        console.warn("[AICourseBuilderService] Real LLM synthesis failed, falling back to heuristic template:", err.message);
+      }
+    }
+
     const isDataPrivacy = /privacy|gdpr|data security/i.test(prompt);
     const isHarassment = /harassment|equal opportunity|workplace conduct/i.test(prompt);
 
-    let modules: any[] = [];
-
-    if (isDataPrivacy) {
+    if (modules.length === 0) {
+      if (isDataPrivacy) {
       modules = [
         {
           moduleId: new mongoose.Types.ObjectId().toString(),
@@ -269,6 +315,7 @@ export class AICourseBuilderService {
         };
       });
     }
+  }
 
     const draft = await AICourseDraft.create({
       organizationId: orgObjectId,

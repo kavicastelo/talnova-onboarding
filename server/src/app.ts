@@ -38,6 +38,7 @@ import { documentRoutes } from "./modules/documents/routes/document.routes.js";
 import { milestoneRoutes } from "./modules/milestones/routes/milestone.routes.js";
 import { ssoRoutes } from "./modules/auth/routes/sso.routes.js";
 import { hrisIntegrationRoutes } from "./modules/integrations/routes/hris-integration.routes.js";
+import { organizationIntegrationRoutes } from "./modules/integrations/routes/organization-integration.routes.js";
 import { officeLocationRoutes } from "./modules/locations/routes/office-location.routes.js";
 import { buddyRoutes } from "./modules/buddy/routes/buddy.routes.js";
 import { calendarRoutes } from "./modules/calendar/routes/calendar.routes.js";
@@ -82,6 +83,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(ssoRoutes, { prefix: "/api/v1/auth/sso" });
   await app.register(hrisIntegrationRoutes, { prefix: "/api/v1/integrations" });
+  await app.register(organizationIntegrationRoutes, { prefix: "/api/v1/organizations/integrations" });
   await app.register(officeLocationRoutes, { prefix: "/api/v1/locations" });
   await app.register(organizationRoutes, { prefix: "/api/v1/organizations" });
   await app.register(employeeRoutes, { prefix: "/api/v1/employees" });

@@ -90,7 +90,9 @@ export const pwaService = {
         timestamp: record.timestamp,
       });
       localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(legacyQueue));
-    } catch {}
+    } catch (_err) {
+      // Ignore legacy localStorage write failure
+    }
 
     return record;
   },
@@ -182,7 +184,9 @@ export const pwaService = {
         for (const id of syncedIds) {
           store.delete(id);
         }
-      } catch {}
+      } catch (_err) {
+        // Ignore IndexedDB cleanup error
+      }
 
       // Clear legacy localStorage queue
       localStorage.removeItem(LEGACY_STORAGE_KEY);
