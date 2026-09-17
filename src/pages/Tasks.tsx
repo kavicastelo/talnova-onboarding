@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -59,6 +59,12 @@ export function Tasks() {
   const initialTab = (searchParams.get('tab') as any) === 'it_ops' || isItOpsRoute ? 'it_ops' : 'my';
 
   const [activeTab, setActiveTab] = useState<'my' | 'assigned' | 'overdue' | 'all' | 'direct_reports' | 'it_ops' | 'templates'>(initialTab);
+
+  useEffect(() => {
+    if (isItOpsRoute) {
+      setActiveTab('it_ops');
+    }
+  }, [isItOpsRoute]);
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');

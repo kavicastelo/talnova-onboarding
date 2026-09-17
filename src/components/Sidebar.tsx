@@ -384,24 +384,42 @@ export const SidebarMenuSubItem = React.forwardRef<HTMLLIElement, React.LiHTMLAt
 SidebarMenuSubItem.displayName = 'SidebarMenuSubItem';
 
 export interface SidebarMenuSubButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  asChild?: boolean;
   isActive?: boolean;
   size?: 'sm' | 'md';
 }
 
 export const SidebarMenuSubButton = React.forwardRef<HTMLAnchorElement, SidebarMenuSubButtonProps>(
-  ({ className, isActive = false, size = 'md', ...props }, ref) => (
-    <a
-      ref={ref}
-      data-slot="sidebar-menu-sub-button"
-      data-active={isActive || undefined}
-      data-size={size}
-      className={cn(
-        'flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[size=md]:text-sm data-[size=sm]:text-xs data-[active]:bg-sidebar-accent data-[active]:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
-        className
-      )}
-      {...props}
-    />
-  )
+  ({ className, asChild = false, isActive = false, size = 'md', ...props }, ref) => {
+    const classes = cn(
+      'flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[size=md]:text-sm data-[size=sm]:text-xs data-[active]:bg-sidebar-accent data-[active]:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
+      className
+    );
+
+    if (asChild) {
+      return (
+        <Slot
+          ref={ref as any}
+          data-slot="sidebar-menu-sub-button"
+          data-active={isActive || undefined}
+          data-size={size}
+          className={classes}
+          {...(props as any)}
+        />
+      );
+    }
+
+    return (
+      <a
+        ref={ref}
+        data-slot="sidebar-menu-sub-button"
+        data-active={isActive || undefined}
+        data-size={size}
+        className={classes}
+        {...props}
+      />
+    );
+  }
 );
 SidebarMenuSubButton.displayName = 'SidebarMenuSubButton';
 

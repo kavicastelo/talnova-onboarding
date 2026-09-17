@@ -18,7 +18,7 @@ import {
 } from '../hooks/useNotifications';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight } from 'lucide-react';
+import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight, Workflow } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
 import { useTranslation } from 'react-i18next';
 import { uploadService } from '../services/upload.service';
@@ -897,6 +897,28 @@ export function Settings() {
                 data-testid="btn-configure-sso"
               >
                 Configure SSO Settings <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-indigo-100 dark:border-indigo-950/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Workflow className="h-5 w-5 text-indigo-600" />
+                HRIS Marketplace & Data Sync
+              </CardTitle>
+              <CardDescription>
+                Connect BambooHR, Workday, or custom webhooks to synchronize employees, departments, and automated onboarding enrollments.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button
+                variant="outline"
+                className="border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium"
+                onClick={() => navigate('/settings/integrations')}
+                data-testid="btn-configure-integrations"
+              >
+                Configure HRIS Integrations <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </CardContent>
           </Card>

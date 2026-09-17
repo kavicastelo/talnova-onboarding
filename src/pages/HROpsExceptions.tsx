@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertOctagon,
   ShieldAlert,
@@ -12,7 +13,8 @@ import {
   Briefcase,
   AlertTriangle,
   History,
-  Search
+  Search,
+  ArrowLeft
 } from 'lucide-react';
 import { useOnboardingExceptions, useResolveException } from '../hooks/useOnboardingExceptions';
 import { useJourneys } from '../hooks/useJourneys';
@@ -171,6 +173,11 @@ export const HROpsExceptions: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/hr-ops">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to HR Operations
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Refresh Queue
           </Button>
