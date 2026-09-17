@@ -259,7 +259,9 @@ export function CourseViewer() {
           }
           localStorage.setItem(cacheKey, JSON.stringify(parsed));
         }
-      } catch {}
+      } catch (_err) {
+        // Ignore localStorage cache update failures in offline mode
+      }
 
       toast.info('Offline: Lesson marked as complete. Saved to IndexedDB offline queue.');
       return;

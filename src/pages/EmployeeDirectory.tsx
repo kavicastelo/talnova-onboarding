@@ -13,16 +13,17 @@ import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
 import { SimplePagination } from '../components/SimplePagination';
-import { Plus, Search, AlertCircle, RefreshCw, Upload } from 'lucide-react';
+import { Plus, Search, AlertCircle, RefreshCw, Upload, Mail } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee 
 } from '../hooks/useEmployees';
 import { useDepartments } from '../hooks/useSettings';
+import { useOrganizationCapabilities } from '../hooks/useOrganizationCapabilities';
 import { BulkImportWizard } from '../components/employees/BulkImportWizard';
 import { EmployeeAvatar } from '../components/EmployeeAvatar';
 import { Input } from '../components/Input';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -44,8 +45,11 @@ import { toast } from 'sonner';
 import { useRole } from '../context/RoleContext';
 
 export function EmployeeDirectory() {
-  const { can } = useRole();
+  const navigate = useNavigate();
+  const { can, role } = useRole();
   const canManage = can('manage_employees');
+  const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
+  const { isEmailAvailable, emailReason } = useOrganizationCapabilities();
   const [search, setSearch] = useState('');
   
   // Filtering States
@@ -164,6 +168,33 @@ export function EmployeeDirectory() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-3.5 p-5 sm:p-6 overflow-y-auto max-h-[calc(85vh-140px)] text-xs">
+                {!isEmailAvailable && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs flex flex-col gap-2" data-testid="email-capability-invite-banner">
+                    <div className="flex items-start gap-2">
+                      <Mail className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-semibold text-foreground">Email Delivery Not Configured: </span>
+                        <span className="text-muted-foreground">
+                          {emailReason || 'Your organization must configure email delivery before invitations can be dispatched.'}
+                        </span>
+                      </div>
+                    </div>
+                    {isOrgAdmin && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setDialogOpen(false);
+                          navigate('/settings?tab=email');
+                        }}
+                        className="w-fit text-xs h-7 border-amber-500/40 hover:bg-amber-500/20"
+                      >
+                        Configure Email in Settings
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <div className="grid gap-1.5">
                   <label className="text-xs font-semibold text-foreground">Full Name *</label>
                   <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Jane Doe" className="text-xs" />

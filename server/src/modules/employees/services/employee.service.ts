@@ -10,8 +10,10 @@ import eventBus from "../../../infrastructure/events/event-bus.js";
 import onboardingCaseService from "../../onboarding/services/onboarding-case.service.js";
 import OutboxEvent from "../../onboarding/models/outbox-event.model.js";
 import roleChecklistService from "../../tasks/services/role-checklist.service.js";
+import OrganizationIntegrationService from "../../integrations/services/organization-integration.service.js";
 
 export class EmployeeService {
+  private integrationService = new OrganizationIntegrationService();
   constructor(private readonly employeeRepository: EmployeeRepository) { }
 
   async getProfile(userId: string | mongoose.Types.ObjectId) {
@@ -181,9 +183,9 @@ export class EmployeeService {
     const org = await Organization.findById(orgId);
     const orgName = org?.name || "Talnova Workspace";
 
-    // Send invitation email using EmailService
-    const emailService = new EmailService();
-    await emailService.sendInvitationEmail(email, rawToken, orgName);
+    // Send invitation email using organization email service
+    const activeEmail = await this.integrationService.getActiveEmailClient(orgId);
+    await activeEmail.service.sendInvitationEmail(activeEmail.config, activeEmail.secrets, email, rawToken, orgName);
 
     // Publish USER_CREATED event to trigger workflows, auto-enrollment, documents, milestones, buddy, calendar
     await eventBus.publish({
@@ -875,8 +877,8 @@ export class EmployeeService {
                   },
                 }
               );
-              const emailService = new EmailService();
-              emailService.sendInvitationEmail(userDoc.auth.email, rawToken, org.name).catch((err) => {
+              const activeEmail = await this.integrationService.getActiveEmailClient(userDoc.organizationId);
+              activeEmail.service.sendInvitationEmail(activeEmail.config, activeEmail.secrets, userDoc.auth.email, rawToken, org.name).catch((err) => {
                 console.warn(`[EmployeeService] Failed to send invite email to ${userDoc.auth.email}:`, err);
               });
             } catch (invErr) {

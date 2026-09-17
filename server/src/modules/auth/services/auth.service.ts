@@ -207,8 +207,15 @@ export class AuthService {
       "security.passwordResetExpires": expires,
     } as any);
 
-    // Send email
-    await emailService.sendPasswordResetEmail(user.auth.email, rawToken);
+    // Send email using organization email integration if configured
+    try {
+      const { OrganizationIntegrationService } = await import("../../integrations/services/organization-integration.service.js");
+      const integrationService = new OrganizationIntegrationService();
+      const activeEmail = await integrationService.getActiveEmailClient(user.organizationId);
+      await activeEmail.service.sendPasswordResetEmail(activeEmail.config, activeEmail.secrets, user.auth.email, rawToken);
+    } catch {
+      await emailService.sendPasswordResetEmail(user.auth.email, rawToken);
+    }
   }
 
   /**

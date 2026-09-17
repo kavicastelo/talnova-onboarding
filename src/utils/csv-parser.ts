@@ -21,7 +21,7 @@ export function parseDelimitedText(text: string): ParsedCsvResult {
   }
 
   // 1. Strip UTF-8 BOM if present
-  let cleanText = text.replace(/^\uFEFF/, '');
+  const cleanText = text.replace(/^\uFEFF/, '');
 
   // 2. Auto-detect delimiter by analyzing the first few lines
   const delimiter = detectDelimiter(cleanText);

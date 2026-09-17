@@ -1,3 +1,4 @@
+/* eslint-env serviceworker */
 const CACHE_NAME = 'talnova-v1';
 const STATIC_ASSETS = [
   '/',
@@ -111,6 +112,6 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow(event.notification.data || '/')
+    self.clients.openWindow(event.notification.data || '/')
   );
 });

@@ -5,9 +5,14 @@ import KnowledgeBaseRepository, {
 } from "../repositories/article.repository.js";
 import AppError from "../../../common/errors/app-error.js";
 import mongoose from "mongoose";
+import KnowledgeIndexingService from "./knowledge-indexing.service.js";
 
 export class KnowledgeBaseService {
-  constructor(private readonly repository: KnowledgeBaseRepository) {}
+  private indexingService: KnowledgeIndexingService;
+
+  constructor(private readonly repository: KnowledgeBaseRepository) {
+    this.indexingService = new KnowledgeIndexingService();
+  }
 
   private slugify(text: string): string {
     return text
@@ -117,7 +122,11 @@ export class KnowledgeBaseService {
       isDeleted: false,
     };
 
-    return this.repository.create(newArticle as any);
+    const created = await this.repository.create(newArticle as any);
+    if (created.publishing?.status === "published") {
+      this.indexingService.indexArticle(created).catch(() => undefined);
+    }
+    return created;
   }
 
   async updateArticle(
@@ -177,7 +186,15 @@ export class KnowledgeBaseService {
 
     updateData.updatedBy = new mongoose.Types.ObjectId(userId);
 
-    return this.repository.update(id, updateData);
+    const updated = await this.repository.update(id, updateData);
+    if (updated) {
+      if (updated.publishing?.status === "published") {
+        this.indexingService.indexArticle(updated).catch(() => undefined);
+      } else {
+        this.indexingService.deindexArticle(orgId, id).catch(() => undefined);
+      }
+    }
+    return updated;
   }
 
   async deleteArticle(
@@ -187,7 +204,9 @@ export class KnowledgeBaseService {
     userContext: UserContext
   ) {
     await this.getArticle(id, orgId, userContext);
-    return this.repository.softDelete(id, userId);
+    const deleted = await this.repository.softDelete(id, userId);
+    this.indexingService.deindexArticle(orgId, id).catch(() => undefined);
+    return deleted;
   }
 
   async publishArticle(
@@ -209,10 +228,15 @@ export class KnowledgeBaseService {
       version,
     };
 
-    return this.repository.update(id, {
+    const published = await this.repository.update(id, {
       publishing,
       updatedBy: new mongoose.Types.ObjectId(userId),
     } as any);
+
+    if (published) {
+      this.indexingService.indexArticle(published).catch(() => undefined);
+    }
+    return published;
   }
 
   async archiveArticle(
@@ -228,10 +252,13 @@ export class KnowledgeBaseService {
       version: 1,
     };
 
-    return this.repository.update(id, {
+    const archived = await this.repository.update(id, {
       publishing,
       updatedBy: new mongoose.Types.ObjectId(userId),
     } as any);
+
+    this.indexingService.deindexArticle(orgId, id).catch(() => undefined);
+    return archived;
   }
 
   async getPopularArticles(

@@ -121,7 +121,8 @@ export class AIAssistantController {
       Number(body.moduleCount || body.modulesCount || body.modules || 3)
     );
 
-    return reply.status(200).send({
+    const statusCode = request.url.includes("course-builder") ? 201 : 200;
+    return reply.status(statusCode).send({
       success: true,
       message: "AI course draft generated successfully",
       data: draft,

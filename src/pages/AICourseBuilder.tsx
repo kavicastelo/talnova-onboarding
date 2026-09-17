@@ -34,11 +34,16 @@ import {
   useDeleteCourseDraft,
   useSaveCourseToLMS,
 } from '../hooks/useAICourseBuilder';
+import { useOrganizationCapabilities } from '../hooks/useOrganizationCapabilities';
+import { useRole } from '../context/RoleContext';
 import { AICourseDraftData } from '../services/ai-course.service';
 import { toast } from 'sonner';
 
 export function AICourseBuilder() {
   const navigate = useNavigate();
+  const { role } = useRole();
+  const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
+  const { isAIAvailable, aiReason } = useOrganizationCapabilities();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [prompt, setPrompt] = useState('');
@@ -250,6 +255,34 @@ export function AICourseBuilder() {
         </p>
       </div>
 
+      {!isAIAvailable && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm" data-testid="ai-capability-course-banner">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
+            <div>
+              <span className="font-semibold text-foreground">Course Synthesis Blocked: </span>
+              <span className="text-muted-foreground">
+                {aiReason || 'An AI provider integration must be configured for your organization before courses can be synthesized.'}
+              </span>
+            </div>
+          </div>
+          {isOrgAdmin ? (
+            <Button
+              size="sm"
+              onClick={() => navigate('/settings?tab=ai')}
+              className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              Configure AI in Settings
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Please contact your administrator to configure an AI provider.
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Prompt Generator Card */}
       <Card className="border border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 via-background to-background shadow-sm">
         <CardHeader>
@@ -344,9 +377,13 @@ export function AICourseBuilder() {
             data-testid="generate-course-btn"
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
             onClick={handleGenerate}
-            disabled={generateCourseMutation.isPending || !prompt.trim()}
+            disabled={!isAIAvailable || generateCourseMutation.isPending || !prompt.trim()}
           >
-            {generateCourseMutation.isPending ? (
+            {!isAIAvailable ? (
+              <>
+                <Wand2 className="h-4 w-4 mr-2" /> AI Configuration Required to Generate Course
+              </>
+            ) : generateCourseMutation.isPending ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Synthesizing Course & Quizzes...
               </>
