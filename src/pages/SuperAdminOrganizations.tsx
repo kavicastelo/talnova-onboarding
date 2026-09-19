@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, Edit, Eye } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { SimplePagination } from '../components/SimplePagination';
+import { SuperAdminShell } from '../components/super-admin/SuperAdminShell';
 import { toast } from 'sonner';
 import {
   useSuperAdminOrganizations,
@@ -14,6 +16,7 @@ import {
 import { OrganizationItem } from '../services/superAdmin.service';
 
 export function SuperAdminOrganizations() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -133,25 +136,24 @@ export function SuperAdminOrganizations() {
   const totalPages = data?.totalPages || 1;
 
   return (
-    <div className="space-y-6 text-slate-100 bg-[#0B0F19] -m-4 lg:-m-6 p-4 lg:p-6 min-h-full">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Manage Organizations</h1>
-          <p className="text-gray-400">Provision and configure tenant settings</p>
-        </div>
-        <Button 
+    <SuperAdminShell
+      title="Organizations & Tenants"
+      subtitle="Provision, configure quotas, and inspect cross-tenant customer workspaces"
+      actions={
+        <Button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
+          className="flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-3.5 py-2 shadow-lg shadow-indigo-500/20"
         >
-          <Plus className="h-4 w-4" />
-          New Organization
+          <Plus className="h-3.5 w-3.5" />
+          Provision Tenant
         </Button>
-      </div>
+      }
+    >
 
       {/* Filter and search bar */}
-      <div className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.01] p-3.5">
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
         <div className="relative flex-1">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
             <Search className="h-4 w-4" />
           </span>
           <input
@@ -162,29 +164,29 @@ export function SuperAdminOrganizations() {
               setPage(1); // Reset page to 1 on new search
             }}
             placeholder="Search organizations by name, slug, or email..."
-            className="block w-full rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none hover:border-white/20 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="block w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
       </div>
 
       {/* Table Section */}
       {isLoading ? (
-        <Card className="overflow-hidden border-white/5 bg-white/[0.01]">
+        <Card className="overflow-hidden border border-slate-200 bg-white shadow-sm rounded-xl">
           <div className="p-6 text-center animate-pulse space-y-4">
-            <div className="h-6 w-1/4 rounded bg-white/10" />
-            <div className="h-32 w-full rounded bg-white/5" />
+            <div className="h-6 w-1/4 rounded bg-slate-200" />
+            <div className="h-32 w-full rounded bg-slate-100" />
           </div>
         </Card>
       ) : isError ? (
-        <Card className="border-white/5 bg-white/[0.01] p-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400">
+        <Card className="border border-slate-200 bg-white shadow-sm rounded-xl p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
             <Ban className="h-6 w-6" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-white">Sync Failed</h3>
-          <p className="mt-2 text-sm text-gray-400">Could not sync organization details from API.</p>
+          <h3 className="mt-4 text-lg font-semibold text-slate-900">Sync Failed</h3>
+          <p className="mt-2 text-sm text-slate-600">Could not sync organization details from API.</p>
           <Button 
             onClick={() => refetch()} 
-            className="mt-4 flex mx-auto items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
+            className="mt-4 flex mx-auto items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <RefreshCw className="h-4 w-4" />
             Retry
@@ -192,10 +194,10 @@ export function SuperAdminOrganizations() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden border-white/5 bg-white/[0.01]">
+          <Card className="overflow-hidden border border-slate-200 bg-white shadow-sm rounded-xl">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-300">
-                <thead className="bg-white/[0.03] text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <table className="w-full text-left text-sm text-slate-700">
+                <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4">Organization</th>
                     <th className="px-6 py-4">Slug / Domain</th>
@@ -207,61 +209,70 @@ export function SuperAdminOrganizations() {
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-slate-100">
                   {orgs.map((org) => (
                     <tr
                       key={org.id}
                       id={`tenant-row-${org.slug || org.id}`}
                       data-testid={`tenant-row-${org.slug || org.id}`}
-                      className="hover:bg-white/[0.01] transition-colors"
+                      className="hover:bg-slate-50/70 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                             <Building2 className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="font-semibold text-white tenant-name-cell">{org.name}</div>
-                            <div className="text-xs text-gray-500">{org.supportEmail}</div>
+                            <div className="font-semibold text-slate-900 tenant-name-cell">{org.name}</div>
+                            <div className="text-xs text-slate-500">{org.supportEmail}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-mono text-xs text-gray-400">
+                      <td className="px-6 py-4 font-mono text-xs text-slate-600">
                         {org.domain || `${org.slug}.talnova.app`}
                       </td>
                       <td className="px-6 py-4">
                         <Badge className={
-                          org.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                          org.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }>
                           {org.status}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 font-medium text-white">
+                      <td className="px-6 py-4 font-medium">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          org.plan === 'Enterprise' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                          org.plan === 'Professional' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                          org.plan === 'Growth' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
-                          'bg-gray-500/10 text-gray-300 border border-gray-500/20'
+                          org.plan === 'Enterprise' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                          org.plan === 'Professional' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                          org.plan === 'Growth' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                          'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
                           {org.plan}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-mono text-xs text-indigo-300 seat-limit-cell">
+                      <td className="px-6 py-4 font-mono text-xs text-indigo-600 font-semibold seat-limit-cell">
                         {org.seatLimit || org.limits?.maxUsers || 50} seats
                       </td>
-                      <td className="px-6 py-4 text-gray-400">{org.usersCount}</td>
-                      <td className="px-6 py-4 text-gray-400">{org.createdAt}</td>
+                      <td className="px-6 py-4 text-slate-600">{org.usersCount}</td>
+                      <td className="px-6 py-4 text-slate-500">{org.createdAt}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/super-admin/organizations/${org.id}`)}
+                            className="gap-1 px-2.5 py-1 text-xs border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            360° View
+                          </Button>
                           <Button
                             id={`edit-tenant-btn-${org.slug || org.id}`}
                             variant="outline"
                             size="sm"
                             onClick={() => handleOpenEditModal(org)}
-                            className="gap-1.5 px-2.5 py-1 text-xs border-white/10 text-white hover:bg-white/10"
+                            className="gap-1.5 px-2.5 py-1 text-xs border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                           >
-                            <Edit className="h-3.5 w-3.5 text-indigo-400" />
-                            Edit Tenant
+                            <Edit className="h-3.5 w-3.5 text-slate-500" />
+                            Edit
                           </Button>
                           <Button
                             id={`suspend-tenant-btn-${org.slug || org.id}`}
@@ -269,7 +280,7 @@ export function SuperAdminOrganizations() {
                             size="sm"
                             disabled={toggleStatusMutation.isPending}
                             onClick={() => toggleOrgStatus(org.id, org.status)}
-                            className={`gap-1 px-2.5 ${org.status === 'Active' ? 'text-rose-400 hover:bg-rose-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
+                            className={`gap-1 px-2.5 ${org.status === 'Active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
                           >
                             {org.status === 'Active' ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
                             {org.status === 'Active' ? 'Suspend' : 'Activate'}
@@ -280,7 +291,7 @@ export function SuperAdminOrganizations() {
                   ))}
                   {orgs.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
                         No organizations matching filter criteria.
                       </td>
                     </tr>
@@ -312,52 +323,52 @@ export function SuperAdminOrganizations() {
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#0F131E] p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-4">Provision Workspace</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Provision Workspace</h3>
             <form onSubmit={handleCreateOrg} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">Organization Name</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Organization Name</label>
                 <input
                   type="text"
                   required
                   value={newOrgName}
                   onChange={(e) => autoGenerateSlug(e.target.value)}
                   placeholder="Acme Corp"
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2 px-3 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">Workspace URL Slug</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Workspace URL Slug</label>
                 <input
                   type="text"
                   required
                   value={newOrgSlug}
                   onChange={(e) => setNewOrgSlug(e.target.value)}
                   placeholder="acme-corp"
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2 px-3 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">Billing / Support Email</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Billing / Support Email</label>
                 <input
                   type="email"
                   required
                   value={newOrgEmail}
                   onChange={(e) => setNewOrgEmail(e.target.value)}
                   placeholder="billing@acme.com"
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2 px-3 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">Subscription Tier</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Subscription Tier</label>
                 <select
                   value={newOrgPlan}
                   onChange={(e) => setNewOrgPlan(e.target.value as any)}
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0F131E] py-2 px-3 text-sm text-white outline-none focus:border-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="Starter">Starter Plan</option>
                   <option value="Growth">Growth Plan</option>
@@ -365,19 +376,19 @@ export function SuperAdminOrganizations() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowModal(false)}
-                  className="rounded-lg border-white/10 bg-transparent text-white hover:bg-white/5"
+                  className="rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={createOrgMutation.isPending}
-                  className="rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
+                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                 >
                   {createOrgMutation.isPending ? 'Provisioning...' : 'Provision Org'}
                 </Button>
@@ -389,30 +400,30 @@ export function SuperAdminOrganizations() {
 
       {/* Edit Tenant Modal */}
       {showEditModal && editingOrg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" id="edit-tenant-modal">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0F131E] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" id="edit-tenant-modal">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-xl font-bold text-white">Edit Tenant</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{editingOrg.name} ({editingOrg.slug})</p>
+                <h3 className="text-xl font-bold text-slate-900">Edit Tenant</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{editingOrg.name} ({editingOrg.slug})</p>
               </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-white p-1"
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
                 ✕
               </button>
             </div>
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Subscription Plan Tier
                 </label>
                 <select
                   id="tenant-edit-plan-select"
                   value={editPlan}
                   onChange={(e) => setEditPlan(e.target.value as any)}
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-[#161B26] py-2.5 px-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="Starter">Starter</option>
                   <option value="Growth">Growth</option>
@@ -422,7 +433,7 @@ export function SuperAdminOrganizations() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Seat Quota / License Limit
                 </label>
                 <input
@@ -433,31 +444,31 @@ export function SuperAdminOrganizations() {
                   value={editSeatQuota}
                   onChange={(e) => setEditSeatQuota(e.target.value)}
                   placeholder="500"
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 px-3.5 text-sm text-white placeholder-gray-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3.5 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Tenant Status
                 </label>
                 <select
                   id="tenant-edit-status-select"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="mt-1 block w-full rounded-lg border border-white/10 bg-[#161B26] py-2.5 px-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="Active">Active</option>
                   <option value="Suspended">Suspended</option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-6">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowEditModal(false)}
-                  className="rounded-lg border-white/10 bg-transparent text-white hover:bg-white/5"
+                  className="rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                 >
                   Cancel
                 </Button>
@@ -474,6 +485,6 @@ export function SuperAdminOrganizations() {
           </div>
         </div>
       )}
-    </div>
+    </SuperAdminShell>
   );
 }

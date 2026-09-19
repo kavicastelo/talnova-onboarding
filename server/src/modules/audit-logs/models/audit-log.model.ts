@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IAuditLog extends Document {
-  organizationId: mongoose.Types.ObjectId;
+  organizationId?: mongoose.Types.ObjectId;
   actorUserId?: mongoose.Types.ObjectId;
   actorType: "user" | "system" | "api" | "scheduler";
   eventCategory:
@@ -12,7 +12,12 @@ export interface IAuditLog extends Document {
     | "content"
     | "organization"
     | "security"
-    | "system";
+    | "system"
+    | "finance"
+    | "ai"
+    | "infrastructure"
+    | "admin"
+    | "feature_flag";
   eventType: string;
   resourceType: string;
   resourceId?: mongoose.Types.ObjectId;
@@ -25,12 +30,17 @@ export interface IAuditLog extends Document {
     | "archive"
     | "restore"
     | "login"
-    | "logout";
+    | "logout"
+    | "export"
+    | "status_change";
   description: string;
   metadata?: {
     previousValue?: any;
     newValue?: any;
     changes?: Record<string, any>;
+    exportFilters?: Record<string, any>;
+    recordCount?: number;
+    reason?: string;
   };
   request?: {
     ipAddress?: string;
@@ -44,7 +54,7 @@ export interface IAuditLog extends Document {
 
 const AuditLogSchema = new Schema<IAuditLog>(
   {
-    organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
+    organizationId: { type: Schema.Types.ObjectId, required: false, ref: "Organization" },
     actorUserId: { type: Schema.Types.ObjectId, ref: "User" },
     actorType: {
       type: String,
@@ -62,6 +72,11 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "organization",
         "security",
         "system",
+        "finance",
+        "ai",
+        "infrastructure",
+        "admin",
+        "feature_flag",
       ],
       required: true,
     },
@@ -80,6 +95,8 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "restore",
         "login",
         "logout",
+        "export",
+        "status_change",
       ],
       required: true,
     },

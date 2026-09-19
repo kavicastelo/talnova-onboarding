@@ -80,6 +80,9 @@ export function requireRole(allowedRoles: string[]) {
     }
 
     const { role } = request.user as any;
+    if (role === "super_admin") {
+      return;
+    }
     if (!allowedRoles.includes(role)) {
       throw new AppError(
         403,

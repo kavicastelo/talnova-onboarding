@@ -63,7 +63,18 @@ import {
   KeyRound,
   MapPin,
   Tv,
-  Laptop
+  Laptop,
+  Server,
+  HardDrive,
+  Activity,
+  DollarSign,
+  AlertTriangle,
+  Layers,
+  CreditCard,
+  BarChart3,
+  Clock,
+  ToggleLeft,
+  FileSpreadsheet
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -132,12 +143,12 @@ export function AppShell() {
   const isEmployee = role === 'employee';
   const isAdminOrOwner = role === 'admin' || role === 'owner' || role === 'hr_admin';
 
-  const { data: employeeDocInbox = [] } = useEmployeeDocumentInbox();
+  const { data: employeeDocInbox = [] } = useEmployeeDocumentInbox({ enabled: isEmployee });
   const pendingDocsCount = isEmployee
     ? (employeeDocInbox || []).filter((d: any) => d.status === 'pending').length
     : 0;
 
-  const { data: exceptionsData } = useOnboardingExceptions();
+  const { data: exceptionsData } = useOnboardingExceptions(undefined, { enabled: isAdminOrOwner });
   const exceptionsCount = isAdminOrOwner
     ? (exceptionsData?.pagination?.total || exceptionsData?.data?.length || 0)
     : 0;
@@ -303,11 +314,75 @@ export function AppShell() {
 
   const superAdminNavSections: NavSection[] = [
     {
-      label: 'Platform Management',
+      label: 'Platform Control',
       items: [
-        { title: t('items.superAdminDashboard') || 'Platform Dashboard', url: '/super-admin', icon: LayoutDashboard },
+        { title: t('items.superAdminDashboard') || 'Command Center', url: '/super-admin', icon: LayoutDashboard },
+        { title: 'Alert Center', url: '/super-admin/alerts', icon: AlertTriangle },
+      ],
+    },
+    {
+      label: 'Tenants & Users',
+      items: [
         { title: t('items.organizations') || 'Organizations', url: '/super-admin/organizations', icon: Users },
-        { title: t('items.finance') || 'Finance & Billing', url: '/super-admin/finance', icon: BarChart2 },
+        {
+          title: 'Users & Access',
+          url: '/super-admin/users',
+          icon: UserCheck,
+          subItems: [
+            { title: 'User Directory', url: '/super-admin/users', icon: Users },
+            { title: 'Active Sessions', url: '/super-admin/users/sessions', icon: KeyRound },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Onboarding & Product',
+      items: [
+        { title: 'Onboarding Monitor', url: '/super-admin/onboarding', icon: GraduationCap },
+        { title: 'Feature Adoption', url: '/super-admin/product/features', icon: BarChart2 },
+        { title: 'Operations & Hardware', url: '/super-admin/tasks-ops', icon: CheckSquare },
+      ],
+    },
+    {
+      label: 'Platform Observability',
+      items: [
+        { title: 'Activity Explorer', url: '/super-admin/activity', icon: Clock },
+        { title: 'API Observability', url: '/super-admin/observability/api', icon: Activity },
+        { title: 'System Logs', url: '/super-admin/observability/logs', icon: FileText },
+        { title: 'Infrastructure & DB', url: '/super-admin/observability/infrastructure', icon: Server },
+        { title: 'AI Observability', url: '/super-admin/observability/ai', icon: Bot },
+        { title: 'Storage & Media', url: '/super-admin/observability/storage', icon: HardDrive },
+      ],
+    },
+    {
+      label: 'Internal Finance',
+      items: [
+        {
+          title: t('items.finance') || 'Finance & Billing',
+          url: '/super-admin/finance',
+          icon: DollarSign,
+          subItems: [
+            { title: 'Finance Overview', url: '/super-admin/finance', icon: DollarSign },
+            { title: 'Invoices & Receivables', url: '/super-admin/finance/invoices', icon: FileSpreadsheet },
+            { title: 'Payment Ledger', url: '/super-admin/finance/payments', icon: CreditCard },
+            { title: 'Expense Tracker', url: '/super-admin/finance/expenses', icon: BarChart3 },
+            { title: 'Customer Accounts', url: '/super-admin/finance/accounts', icon: Layers },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Audit & Governance',
+      items: [
+        { title: 'Audit & Security', url: '/super-admin/audit', icon: ShieldAlert },
+        { title: 'Reporting Center', url: '/super-admin/reports', icon: BarChart3 },
+      ],
+    },
+    {
+      label: 'Platform Settings',
+      items: [
+        { title: 'Feature Flags', url: '/super-admin/settings/flags', icon: ToggleLeft },
+        { title: 'Platform Settings', url: '/super-admin/settings/platform', icon: Settings },
       ],
     },
   ];
@@ -326,6 +401,27 @@ export function AppShell() {
     'super-admin': t('breadcrumb.superAdmin') || 'Super Admin',
     organizations: t('breadcrumb.organizations') || 'Organizations',
     finance: t('breadcrumb.finance') || 'Finance & Billing',
+    alerts: 'Alert Center',
+    users: 'Users Directory',
+    sessions: 'Active Sessions',
+    onboarding: 'Onboarding Monitor',
+    features: 'Feature Adoption',
+    'tasks-ops': 'Operations & Hardware',
+    activity: 'Activity Explorer',
+    observability: 'Observability',
+    api: 'API Observability',
+    logs: 'System Logs',
+    infrastructure: 'Infrastructure & DB',
+    ai: 'AI Observability',
+    storage: 'Storage & Media Assets',
+    invoices: 'Invoicing & Receivables',
+    payments: 'Payment Ledger',
+    expenses: 'Expense Tracker',
+    accounts: 'Customer Accounts',
+    audit: 'Audit & Security',
+    reports: 'Reporting Center',
+    flags: 'Feature Flags',
+    platform: 'Platform Settings',
     journeys: t('breadcrumb.journeys') || 'Journey Templates',
     directory: t('breadcrumb.directory') || 'Employee Directory',
     analytics: t('breadcrumb.analytics') || 'Analytics',

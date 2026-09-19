@@ -35,6 +35,21 @@ import { ResetPassword } from './pages/ResetPassword';
 import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { SuperAdminOrganizations } from './pages/SuperAdminOrganizations';
 import { SuperAdminFinance } from './pages/SuperAdminFinance';
+import { SuperAdminAlerts } from './pages/super-admin/SuperAdminAlerts';
+import { SuperAdminOrganization360 } from './pages/super-admin/SuperAdminOrganization360';
+import { SuperAdminUsers } from './pages/super-admin/SuperAdminUsers';
+import { SuperAdminUser360 } from './pages/super-admin/SuperAdminUser360';
+import { SuperAdminSessions } from './pages/super-admin/SuperAdminSessions';
+import { SuperAdminOnboarding } from './pages/super-admin/SuperAdminOnboarding';
+import { SuperAdminFeatures } from './pages/super-admin/SuperAdminFeatures';
+import { SuperAdminTasksOps } from './pages/super-admin/SuperAdminTasksOps';
+import { SuperAdminActivity } from './pages/super-admin/SuperAdminActivity';
+import { SuperAdminObservability } from './pages/super-admin/SuperAdminObservability';
+import { SuperAdminAudit } from './pages/super-admin/SuperAdminAudit';
+import { SuperAdminReports } from './pages/super-admin/SuperAdminReports';
+import { SuperAdminFeatureFlags } from './pages/super-admin/SuperAdminFeatureFlags';
+import { SuperAdminPlatformSettings } from './pages/super-admin/SuperAdminPlatformSettings';
+import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
 import { KioskPlayerPage } from './features/kiosk';
@@ -60,7 +75,8 @@ export function App() {
     <LocalizationProvider>
       <RoleProvider>
         <BrowserRouter>
-          <Routes>
+          <SuperAdminFilterProvider>
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -71,8 +87,31 @@ export function App() {
             <Route path="/" element={<SidebarProvider><AppShell /></SidebarProvider>}>
               <Route index element={<DashboardRedirect />} />
               <Route path="super-admin" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDashboard /></ProtectedRoute>} />
+              <Route path="super-admin/alerts" element={<ProtectedRoute capability="view_super_admin"><SuperAdminAlerts /></ProtectedRoute>} />
               <Route path="super-admin/organizations" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganizations /></ProtectedRoute>} />
+              <Route path="super-admin/organizations/:id" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganization360 /></ProtectedRoute>} />
+              <Route path="super-admin/users" element={<ProtectedRoute capability="view_super_admin"><SuperAdminUsers /></ProtectedRoute>} />
+              <Route path="super-admin/users/sessions" element={<ProtectedRoute capability="view_super_admin"><SuperAdminSessions /></ProtectedRoute>} />
+              <Route path="super-admin/users/:id" element={<ProtectedRoute capability="view_super_admin"><SuperAdminUser360 /></ProtectedRoute>} />
+              <Route path="super-admin/onboarding" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOnboarding /></ProtectedRoute>} />
+              <Route path="super-admin/product/features" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFeatures /></ProtectedRoute>} />
+              <Route path="super-admin/tasks-ops" element={<ProtectedRoute capability="view_super_admin"><SuperAdminTasksOps /></ProtectedRoute>} />
+              <Route path="super-admin/activity" element={<ProtectedRoute capability="view_super_admin"><SuperAdminActivity /></ProtectedRoute>} />
+              <Route path="super-admin/observability" element={<ProtectedRoute capability="view_super_admin"><SuperAdminObservability /></ProtectedRoute>} />
+              <Route path="super-admin/observability/api" element={<ProtectedRoute capability="view_super_admin"><SuperAdminObservability /></ProtectedRoute>} />
+              <Route path="super-admin/observability/logs" element={<ProtectedRoute capability="view_super_admin"><SuperAdminObservability /></ProtectedRoute>} />
+              <Route path="super-admin/observability/infrastructure" element={<ProtectedRoute capability="view_super_admin"><SuperAdminObservability /></ProtectedRoute>} />
+              <Route path="super-admin/observability/ai" element={<ProtectedRoute capability="view_super_admin"><SuperAdminObservability /></ProtectedRoute>} />
+              <Route path="super-admin/observability/storage" element={<ProtectedRoute capability="view_super_admin"><SuperAdminObservability /></ProtectedRoute>} />
               <Route path="super-admin/finance" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
+              <Route path="super-admin/finance/invoices" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
+              <Route path="super-admin/finance/payments" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
+              <Route path="super-admin/finance/expenses" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
+              <Route path="super-admin/finance/accounts" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
+              <Route path="super-admin/audit" element={<ProtectedRoute capability="view_super_admin"><SuperAdminAudit /></ProtectedRoute>} />
+              <Route path="super-admin/reports" element={<ProtectedRoute capability="view_super_admin"><SuperAdminReports /></ProtectedRoute>} />
+              <Route path="super-admin/settings/flags" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFeatureFlags /></ProtectedRoute>} />
+              <Route path="super-admin/settings/platform" element={<ProtectedRoute capability="view_super_admin"><SuperAdminPlatformSettings /></ProtectedRoute>} />
               <Route path="journeys" element={<JourneysList />} />
               <Route path="journeys/:id" element={<JourneyBuilder />} />
               <Route path="kiosks" element={<ProtectedRoute capability="manage_organization"><KioskDashboard /></ProtectedRoute>} />
@@ -117,6 +156,7 @@ export function App() {
             <Route path="/course/:id" element={<CourseViewer />} />
             <Route path="/kiosk/play/:id" element={<KioskPlayerPage />} />
           </Routes>
+          </SuperAdminFilterProvider>
         </BrowserRouter>
         <Toaster richColors closeButton position="top-right" />
       </RoleProvider>

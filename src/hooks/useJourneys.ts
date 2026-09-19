@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { journeyService } from '../services/journey.service';
 import { Journey } from '../types';
 
-export function useJourneys() {
+export function useJourneys(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['journeys'],
     queryFn: journeyService.getJourneys,
+    ...options,
   });
 }
 

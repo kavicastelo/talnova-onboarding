@@ -4,10 +4,11 @@ import onboardingService, {
   IResolutionRequest,
 } from '../services/onboarding.service';
 
-export function useOnboardingExceptions(filter?: IExceptionFilter) {
+export function useOnboardingExceptions(filter?: IExceptionFilter, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['onboardingExceptions', filter],
     queryFn: () => onboardingService.getExceptions(filter),
+    ...options,
   });
 }
 
