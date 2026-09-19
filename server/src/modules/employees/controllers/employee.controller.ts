@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { EmployeeService } from "../services/employee.service.js";
+import FeatureFlagService from "../../super-admin/services/feature-flag.service.js";
 
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
@@ -7,11 +8,17 @@ export class EmployeeController {
   getMe = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const profile = await this.employeeService.getProfile(user.userId);
+    const features = await FeatureFlagService.getAllResolvedFlags(user.organizationId, user.role);
+
+    const profileData = typeof (profile as any)?.toObject === "function" ? (profile as any).toObject() : profile;
 
     return reply.status(200).send({
       success: true,
       message: "Profile retrieved successfully",
-      data: profile,
+      data: {
+        ...profileData,
+        features,
+      },
     });
   };
 

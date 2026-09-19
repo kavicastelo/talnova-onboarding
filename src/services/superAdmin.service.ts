@@ -283,8 +283,18 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  toggleFeatureFlag: async (key: string, data: { enabled: boolean; rolloutPct?: number }): Promise<any> => {
+  updateFeatureFlag: async (key: string, data: any): Promise<any> => {
     const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/settings/flags/${key}`, data);
+    return response.data.data;
+  },
+
+  toggleFeatureFlag: async (key: string, data: { enabled?: boolean; isEnabled?: boolean; rolloutPct?: number; rolloutPercentage?: number; [k: string]: any }): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/settings/flags/${key}`, data);
+    return response.data.data;
+  },
+
+  createFeatureFlag: async (data: any): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/settings/flags', data);
     return response.data.data;
   },
 

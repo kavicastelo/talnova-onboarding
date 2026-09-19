@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import AppError from "../common/errors/app-error.js";
 import { Organization } from "../modules/organizations/models/organization.model.js";
+import FeatureFlagService from "../modules/super-admin/services/feature-flag.service.js";
 
 /**
  * Global authentication hook that verifies the JWT access token.
@@ -115,3 +116,25 @@ export async function verifyTenant(request: FastifyRequest, reply: FastifyReply)
     );
   }
 }
+
+/**
+ * Feature flag enforcement hook that checks whether a platform feature is enabled
+ * for the authenticated tenant organization and user role.
+ */
+export function requireFeatureFlag(flagKey: string) {
+  return async (request: FastifyRequest, _reply: FastifyReply) => {
+    const user = request.user as any;
+    const orgId = user?.organizationId;
+    const role = user?.role;
+
+    const enabled = await FeatureFlagService.isEnabled(flagKey, orgId, role);
+    if (!enabled) {
+      throw new AppError(
+        403,
+        "FEATURE_DISABLED",
+        `This feature is currently disabled by platform administration`
+      );
+    }
+  };
+}
+
