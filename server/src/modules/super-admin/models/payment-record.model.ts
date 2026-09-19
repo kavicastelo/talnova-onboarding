@@ -190,6 +190,7 @@ PaymentRecordSchema.pre("validate", function (next) {
 
 // Compound Indexes
 PaymentRecordSchema.index({ organizationId: 1, paymentDate: -1 });
+PaymentRecordSchema.index({ verificationStatus: 1, paymentDate: 1 });
 
 export const PaymentRecord = mongoose.model<IPaymentRecord>(
   "PaymentRecord",

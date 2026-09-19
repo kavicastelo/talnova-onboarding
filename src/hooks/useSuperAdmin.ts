@@ -373,3 +373,22 @@ export function useUpdateCustomerAccount() {
   });
 }
 
+export function useSuperAdminPlatformSettings() {
+  return useQuery({
+    queryKey: ['superAdminPlatformSettings'],
+    queryFn: () => superAdminService.getPlatformSettings(),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdatePlatformSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => superAdminService.updatePlatformSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminPlatformSettings'] });
+    },
+  });
+}
+
+

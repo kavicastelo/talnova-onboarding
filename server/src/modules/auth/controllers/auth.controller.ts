@@ -4,6 +4,7 @@ import AppError from "../../../common/errors/app-error.js";
 import { appConfig } from "../../../config/index.js";
 import { LoginInput } from "../schemas/login.schema.js";
 import EmailService from "../../../shared/email/email.service.js";
+import PlatformSetting from "../../super-admin/models/platform-setting.model.js";
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -17,6 +18,16 @@ export class AuthController {
     const deviceInfo = request.headers["user-agent"];
 
     const result = await this.authService.login(email, password, ipAddress, deviceInfo);
+
+    // Platform Maintenance Mode check: block non-super-admins
+    const platformSetting = await PlatformSetting.findOne({ singleton: true });
+    if (platformSetting?.maintenanceMode && result.user.role !== "super_admin") {
+      throw new AppError(
+        503,
+        "MAINTENANCE_MODE",
+        platformSetting.maintenanceMessage || "Talnova Onboarding is undergoing planned infrastructure maintenance."
+      );
+    }
 
     // Set refresh token cookie
     reply.setCookie("refreshToken", result.refreshToken, {
