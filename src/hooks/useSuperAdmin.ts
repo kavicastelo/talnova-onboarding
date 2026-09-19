@@ -88,6 +88,15 @@ export function useCreateInvoice() {
   });
 }
 
+export function useInvoiceDetail(id: string | null) {
+  return useQuery({
+    queryKey: ['superAdminInvoiceDetail', id],
+    queryFn: () => (id ? superAdminService.getInvoiceById(id) : null),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useSuperAdminFinance() {
   return useQuery({
     queryKey: ['superAdminFinance'],
@@ -318,6 +327,25 @@ export function useSuperAdminAlerts() {
     queryKey: ['superAdminAlerts'],
     queryFn: superAdminService.getAlerts,
     staleTime: 20 * 1000,
+  });
+}
+
+export function useSuperAdminCustomerAccounts(params?: { search?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['superAdminCustomerAccounts', params],
+    queryFn: () => superAdminService.getCustomerAccounts(params),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdateCustomerAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      superAdminService.updateCustomerAccount(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminCustomerAccounts'] });
+    },
   });
 }
 

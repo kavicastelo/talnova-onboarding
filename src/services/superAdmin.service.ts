@@ -50,15 +50,189 @@ export interface OrganizationItem {
   supportEmail: string;
 }
 
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+export type InvoiceLifecycleStatus =
+  | 'draft'
+  | 'issued'
+  | 'sent'
+  | 'partially_paid'
+  | 'paid'
+  | 'overdue'
+  | 'cancelled'
+  | 'written_off'
+  | 'Paid'
+  | 'Pending'
+  | 'Overdue';
+
 export interface InvoiceItem {
   id: string;
+  _id?: string;
   invoiceNo: string;
+  organizationId?: string;
+  customerName?: string;
   organization: string;
+  currency?: string;
+  issueDate?: string | Date;
+  dueDate: string | Date;
+  lineItems?: InvoiceLineItem[];
+  subtotal?: number;
+  discountAmount?: number;
+  taxAmount?: number;
+  totalAmount?: number;
   amount: number;
+  amountPaid?: number;
+  balanceDue?: number;
   type: 'Invoice' | 'Receipt';
-  status: 'Paid' | 'Pending' | 'Overdue';
-  dueDate: string;
+  status: InvoiceLifecycleStatus;
+  notes?: string;
   description: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PaymentRecordItem {
+  id: string;
+  _id?: string;
+  paymentNo: string;
+  receiptNo?: string;
+  invoiceId?: string;
+  invoiceNo?: string;
+  organizationId?: string;
+  organizationName: string;
+  amount: number;
+  currency?: string;
+  paymentMethod?: string;
+  method?: string;
+  referenceNumber?: string;
+  reference?: string;
+  verificationStatus?: 'verified' | 'pending_reconciliation' | 'rejected';
+  notes?: string;
+  paymentDate?: string;
+  recordedAt?: string;
+  recordedBy?: string;
+}
+
+export interface RecordPaymentPayload {
+  invoiceId?: string;
+  invoiceNo?: string;
+  organizationId?: string;
+  organizationName?: string;
+  amount: number;
+  paymentMethod?: string;
+  method?: string;
+  referenceNumber?: string;
+  reference?: string;
+  notes?: string;
+}
+
+export interface InvoiceDetailResponse {
+  invoice: InvoiceItem;
+  payments: PaymentRecordItem[];
+}
+
+export type ExpenseCategory =
+  | 'infrastructure'
+  | 'ai_compute'
+  | 'software_licenses'
+  | 'salaries'
+  | 'marketing'
+  | 'office'
+  | 'legal'
+  | 'other';
+
+export interface ExpenseRecordItem {
+  id: string;
+  _id?: string;
+  expenseNo: string;
+  category: ExpenseCategory;
+  vendor: string;
+  amount: number;
+  currency?: string;
+  expenseDate: string | Date;
+  incurredAt?: string | Date;
+  date?: string | Date;
+  description: string;
+  title?: string;
+  notes?: string;
+  isRecurring?: boolean;
+  receiptUrl?: string;
+  recordedBy?: string;
+}
+
+export interface RecordExpensePayload {
+  category: string;
+  vendor: string;
+  amount: number;
+  currency?: string;
+  description?: string;
+  title?: string;
+  notes?: string;
+  expenseDate?: string;
+  incurredAt?: string;
+  isRecurring?: boolean;
+  receiptUrl?: string;
+  organizationId?: string;
+}
+
+export interface ExpenseListResponse {
+  expenses: ExpenseRecordItem[];
+  totalExpenses: number;
+}
+
+export type CustomerAccountStatus = "good_standing" | "delinquent" | "credit_hold" | "vip";
+export type BillingCycle = "monthly" | "quarterly" | "annual";
+
+export interface BillingContact {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface CustomerAccountItem {
+  id: string;
+  _id?: string;
+  organizationId: any;
+  organization: {
+    id?: string;
+    _id?: string;
+    name: string;
+    slug: string;
+    domain?: string;
+    plan?: string;
+    status?: string;
+  };
+  accountStatus: CustomerAccountStatus;
+  billingCycle: BillingCycle;
+  preferredCurrency: string;
+  creditLimit: number;
+  billingContact: BillingContact;
+  commercialNotes?: string;
+  totalInvoiced?: number;
+  totalPaid?: number;
+  totalBalanceDue?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UpdateCustomerAccountPayload {
+  accountStatus?: CustomerAccountStatus;
+  billingCycle?: BillingCycle;
+  creditLimit?: number;
+  preferredCurrency?: string;
+  billingContact?: BillingContact;
+  commercialNotes?: string;
+}
+
+export interface CustomerAccountsResponse {
+  data: CustomerAccountItem[];
+  total: number;
 }
 
 export interface FinanceSummary {
@@ -195,7 +369,12 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  createInvoice: async (invoice: Omit<InvoiceItem, 'id' | 'invoiceNo' | 'dueDate'>): Promise<InvoiceItem> => {
+  getInvoiceById: async (id: string): Promise<InvoiceDetailResponse> => {
+    const response = await apiClient.get<ApiResponse<InvoiceDetailResponse>>(`/super-admin/invoices/${id}`);
+    return response.data.data;
+  },
+
+  createInvoice: async (invoice: any): Promise<InvoiceItem> => {
     const response = await apiClient.post<ApiResponse<InvoiceItem>>('/super-admin/invoices', invoice);
     return response.data.data;
   },
@@ -268,13 +447,23 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getExpenses: async (): Promise<any> => {
-    const response = await apiClient.get<ApiResponse<any>>('/super-admin/finance/expenses');
+  getExpenses: async (): Promise<ExpenseListResponse> => {
+    const response = await apiClient.get<ApiResponse<ExpenseListResponse>>('/super-admin/finance/expenses');
     return response.data.data;
   },
 
-  recordExpense: async (data: any): Promise<any> => {
-    const response = await apiClient.post<ApiResponse<any>>('/super-admin/finance/expenses', data);
+  recordExpense: async (data: RecordExpensePayload): Promise<ExpenseRecordItem> => {
+    const response = await apiClient.post<ApiResponse<ExpenseRecordItem>>('/super-admin/finance/expenses', data);
+    return response.data.data;
+  },
+
+  getCustomerAccounts: async (params?: { search?: string; status?: string }): Promise<CustomerAccountItem[]> => {
+    const response = await apiClient.get<ApiResponse<CustomerAccountItem[]>>('/super-admin/finance/accounts', { params });
+    return response.data.data;
+  },
+
+  updateCustomerAccount: async (id: string, data: UpdateCustomerAccountPayload): Promise<CustomerAccountItem> => {
+    const response = await apiClient.patch<ApiResponse<CustomerAccountItem>>(`/super-admin/finance/accounts/${id}`, data);
     return response.data.data;
   },
 

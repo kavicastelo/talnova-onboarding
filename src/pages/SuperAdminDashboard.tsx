@@ -265,29 +265,41 @@ function SuperAdminDashboardContent() {
         </Card>
 
         {/* KPI 6: Net Operating Result */}
-        <Card className="border-slate-200 bg-white shadow-sm p-4 relative overflow-hidden transition-all hover:border-teal-300 hover:shadow">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-semibold uppercase tracking-wider">Net Operating Result</span>
-            <div className="p-2 rounded-lg bg-teal-50 text-teal-600 border border-teal-100">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div>
-              <span className={`text-2xl lg:text-3xl font-bold font-mono ${
-                (stats?.netOperatingResult?.value ?? 0) >= 0 ? 'text-teal-600' : 'text-rose-600'
-              }`}>
-                ${(stats?.netOperatingResult?.value ?? 0).toLocaleString()}
-              </span>
-            </div>
-            <Badge className="bg-teal-50 text-teal-700 text-[11px] border border-teal-200">
-              Cash - Expense
-            </Badge>
-          </div>
-          <div className="mt-2 text-[11px] text-slate-500">
-            Reconciled accounting margin
-          </div>
-        </Card>
+        {(() => {
+          const netVal = stats?.netOperatingResult?.value ?? 0;
+          const isProfitable = netVal >= 0;
+          return (
+            <Card className={`border-slate-200 bg-white shadow-sm p-4 relative overflow-hidden transition-all ${
+              isProfitable ? 'hover:border-teal-300' : 'hover:border-rose-300'
+            } hover:shadow`}>
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider">Net Operating Result</span>
+                <div className={`p-2 rounded-lg border ${
+                  isProfitable ? 'bg-teal-50 text-teal-600 border-teal-100' : 'bg-rose-50 text-rose-600 border-rose-100'
+                }`}>
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <div>
+                  <span className={`text-2xl lg:text-3xl font-bold font-mono ${
+                    isProfitable ? 'text-teal-600' : 'text-rose-600'
+                  }`}>
+                    {netVal < 0 ? '-' : ''}${Math.abs(netVal).toLocaleString()}
+                  </span>
+                </div>
+                <Badge className={`${
+                  isProfitable ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                } text-[11px] border`}>
+                  {isProfitable ? 'Cash - Expense' : 'Operating Loss'}
+                </Badge>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                {isProfitable ? 'Reconciled accounting margin' : 'Operational expenditure exceeds collections'}
+              </div>
+            </Card>
+          );
+        })()}
 
         {/* KPI 7: Open Alerts */}
         <Card className="border-slate-200 bg-white shadow-sm p-4 relative overflow-hidden transition-all hover:border-amber-300 hover:shadow">
