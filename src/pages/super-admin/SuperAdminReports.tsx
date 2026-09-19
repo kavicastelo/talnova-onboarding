@@ -8,6 +8,7 @@ import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { toast } from 'sonner';
+import { superAdminService } from '../../services/superAdmin.service';
 
 interface ReportItem {
   id: string;
@@ -171,20 +172,25 @@ export function SuperAdminReports() {
     return true;
   });
 
-  const handleDownloadReport = (report: ReportItem) => {
+  const handleDownloadReport = async (report: ReportItem) => {
     setGeneratingId(report.id);
-    setTimeout(() => {
-      // Generate synthetic CSV based on report definition
-      const content = `Report Title,${report.title}\nCategory,${report.category}\nGenerated At,${new Date().toISOString()}\nStatus,Verified Real Production Data\n\nMetric,Value\nSample Status,Nominal\nCoverage,100% Deterministic`;
-      const blob = new Blob([content], { type: report.format === 'JSON' ? 'application/json' : 'text/csv' });
-      const url = URL.createObjectURL(blob);
+    try {
+      const format = report.format.toLowerCase();
+      const { blob, filename } = await superAdminService.exportCanonicalReport(report.id, format);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${report.id}-${new Date().toISOString().slice(0, 10)}.${report.format.toLowerCase()}`;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
-      setGeneratingId(null);
+      a.remove();
+      window.URL.revokeObjectURL(url);
       toast.success(`Generated and downloaded ${report.title}`);
-    }, 600);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || `Failed to export ${report.title}`);
+    } finally {
+      setGeneratingId(null);
+    }
   };
 
   return (
