@@ -284,8 +284,29 @@ export function useSuperAdminFeatureFlags() {
 export function useToggleFeatureFlag() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ key, data }: { key: string; data: { enabled: boolean; rolloutPct?: number } }) =>
+    mutationFn: ({ key, data }: { key: string; data: any }) =>
       superAdminService.toggleFeatureFlag(key, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminFeatureFlags'] });
+    },
+  });
+}
+
+export function useUpdateFeatureFlag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, data }: { key: string; data: any }) =>
+      superAdminService.updateFeatureFlag(key, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminFeatureFlags'] });
+    },
+  });
+}
+
+export function useCreateFeatureFlag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => superAdminService.createFeatureFlag(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['superAdminFeatureFlags'] });
     },

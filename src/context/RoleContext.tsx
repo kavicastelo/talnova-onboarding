@@ -1,5 +1,6 @@
-import React, { useCallback, useState, createContext, useContext } from 'react';
+import React, { useCallback, useState, useEffect, createContext, useContext } from 'react';
 import { Capability, hasCapability } from '../utils/rbac';
+import { apiClient } from '../api/client';
 
 export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin';
 
@@ -8,6 +9,9 @@ interface RoleContextValue {
   setRole: (role: Role) => void;
   toggleRole: () => void;
   can: (capability: Capability) => boolean;
+  features: Record<string, boolean>;
+  hasFeature: (flagKey: string) => boolean;
+  refreshFeatures: () => Promise<void>;
 }
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
@@ -20,6 +24,25 @@ export function RoleProvider({ children }: { children: React.ReactNode; }) {
     }
     return 'admin';
   });
+
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
+
+  const refreshFeatures = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      const res = await apiClient.get<any>('/auth/me').catch(() => apiClient.get<any>('/employees/me'));
+      if (res.data?.data?.features) {
+        setFeatures(res.data.data.features);
+      }
+    } catch {
+      // Non-fatal if unauthenticated
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshFeatures();
+  }, [refreshFeatures, role]);
 
   const setRole = useCallback((newRole: Role) => {
     localStorage.setItem('user_role', newRole);
@@ -37,6 +60,20 @@ export function RoleProvider({ children }: { children: React.ReactNode; }) {
 
   const can = useCallback((capability: Capability) => hasCapability(role, capability), [role]);
 
+  const hasFeature = useCallback(
+    (flagKey: string) => {
+      if (role === 'super_admin') {
+        return true;
+      }
+      if (features[flagKey] !== undefined) {
+        return Boolean(features[flagKey]);
+      }
+      // If feature is not explicitly mapped or loading, default to enabled
+      return true;
+    },
+    [features, role]
+  );
+
   return (
     <RoleContext.Provider
       value={{
@@ -44,6 +81,9 @@ export function RoleProvider({ children }: { children: React.ReactNode; }) {
         setRole,
         toggleRole,
         can,
+        features,
+        hasFeature,
+        refreshFeatures,
       }}>
       {children}
     </RoleContext.Provider>
@@ -54,4 +94,4 @@ export function useRole() {
   const ctx = useContext(RoleContext);
   if (!ctx) throw new Error('useRole must be used within a RoleProvider');
   return ctx;
-}
+}

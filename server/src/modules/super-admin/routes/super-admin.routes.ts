@@ -6,6 +6,8 @@ import Organization from "../../organizations/models/organization.model.js";
 import User from "../../auth/models/user.model.js";
 import AuditLog from "../../audit-logs/models/audit-log.model.js";
 import Invoice from "../models/invoice.model.js";
+import FeatureFlag from "../models/feature-flag.model.js";
+import FeatureFlagService from "../services/feature-flag.service.js";
 import Journey from "../../journeys/models/journey.model.js";
 import OnboardingCase from "../../onboarding/models/onboarding-case.model.js";
 import { Upload } from "../../uploads/models/upload.model.js";
@@ -1984,63 +1986,338 @@ export async function superAdminRoutes(app: FastifyInstance) {
     });
   });
 
-  // GET /settings/flags - Platform Feature Flags
-  app.get("/settings/flags", async (request, reply) => {
-    const defaultFlags = [
-      { key: "ai_course_builder", name: "AI Course Builder", description: "Enable generative AI curriculum creation with Gemini", enabled: true, rolloutPct: 100 },
-      { key: "sso_enforcement", name: "SAML & OIDC SSO", description: "Allow enterprise SAML/OIDC authentication", enabled: true, rolloutPct: 100 },
-      { key: "kiosk_mode", name: "Kiosk Display Terminals", description: "Public orientation terminal mode", enabled: true, rolloutPct: 100 },
-      { key: "advanced_hris_sync", name: "Real-time HRIS Webhooks", description: "Workday & BambooHR real-time worker synchronization", enabled: true, rolloutPct: 100 },
-      { key: "gamification_badges", name: "Gamification & Badges", description: "Award milestone achievements and learner leaderboard", enabled: true, rolloutPct: 100 }
-    ];
+  // Default Platform Feature Flags Baseline
+  const DEFAULT_PLATFORM_FLAGS = [
+    {
+      key: "ai_course_builder",
+      name: "AI Course Builder",
+      description: "Enable generative AI curriculum creation with Gemini",
+      isEnabled: true,
+      rolloutPercentage: 100,
+      targetAudience: "global",
+      environment: "all",
+    },
+    {
+      key: "sso_enforcement",
+      name: "SAML & OIDC SSO",
+      description: "Allow enterprise SAML/OIDC authentication",
+      isEnabled: true,
+      rolloutPercentage: 100,
+      targetAudience: "global",
+      environment: "all",
+    },
+    {
+      key: "kiosk_mode",
+      name: "Kiosk Display Terminals",
+      description: "Public orientation terminal mode",
+      isEnabled: true,
+      rolloutPercentage: 100,
+      targetAudience: "global",
+      environment: "all",
+    },
+    {
+      key: "advanced_hris_sync",
+      name: "Real-time HRIS Webhooks",
+      description: "Workday & BambooHR real-time worker synchronization",
+      isEnabled: true,
+      rolloutPercentage: 100,
+      targetAudience: "global",
+      environment: "all",
+    },
+    {
+      key: "gamification_badges",
+      name: "Gamification & Badges",
+      description: "Award milestone achievements and learner leaderboard",
+      isEnabled: true,
+      rolloutPercentage: 100,
+      targetAudience: "global",
+      environment: "all",
+    },
+  ];
 
+  async function syncDefaultFeatureFlags() {
     const db = mongoose.connection.db;
-    const flagsCol = db ? db.collection("platform_feature_flags") : null;
-    const dbFlags = flagsCol ? await flagsCol.find().toArray() : [];
+    if (db) {
+      try {
+        const rawCol = db.collection("platform_feature_flags");
+        const rawDocs = await rawCol.find().toArray();
+        if (rawDocs && rawDocs.length > 0) {
+          for (const raw of rawDocs) {
+            const rawKey = raw.key?.toLowerCase()?.trim();
+            if (rawKey) {
+              await FeatureFlag.updateOne(
+                { key: rawKey },
+                {
+                  $setOnInsert: {
+                    name: raw.name || rawKey,
+                    description: raw.description || `Platform flag ${rawKey}`,
+                    isEnabled: raw.enabled ?? false,
+                    rolloutPercentage: raw.rolloutPct ?? 100,
+                    targetAudience: "global",
+                    environment: "all",
+                    targetOrganizationIds: [],
+                    excludedOrganizationIds: [],
+                    targetRoles: [],
+                    isDeleted: false,
+                  },
+                },
+                { upsert: true }
+              );
+            }
+          }
+        }
+      } catch {
+        // Raw collection migration silent catch
+      }
+    }
 
-    const flagMap = new Map(dbFlags.map(f => [f.key, f]));
-    const resolvedFlags = defaultFlags.map(f => {
-      const override = flagMap.get(f.key);
-      return override ? { ...f, enabled: override.enabled, rolloutPct: override.rolloutPct ?? f.rolloutPct } : f;
-    });
+    // Ensure baseline default platform flags exist
+    for (const flag of DEFAULT_PLATFORM_FLAGS) {
+      await FeatureFlag.updateOne(
+        { key: flag.key },
+        {
+          $setOnInsert: {
+            ...flag,
+            targetOrganizationIds: [],
+            excludedOrganizationIds: [],
+            targetRoles: [],
+            isDeleted: false,
+          },
+        },
+        { upsert: true }
+      );
+    }
+  }
+
+  // GET /settings/flags - Platform Feature Flags with populated organization overrides
+  app.get("/settings/flags", async (_request, reply) => {
+    await syncDefaultFeatureFlags();
+
+    const flags = await FeatureFlag.find({ isDeleted: false })
+      .populate("targetOrganizationIds", "name slug")
+      .populate("excludedOrganizationIds", "name slug")
+      .sort({ key: 1 });
 
     return reply.status(200).send({
       success: true,
       message: "Feature flags retrieved",
-      data: resolvedFlags
+      data: flags.map((f) => f.toJSON()),
     });
   });
 
-  // PATCH /settings/flags/:key - Toggle Platform Feature Flag
-  app.patch("/settings/flags/:key", async (request, reply) => {
-    const { key } = request.params as any;
-    const { enabled, rolloutPct } = request.body as any;
+  // POST /settings/flags - Register Custom Feature Flag
+  app.post("/settings/flags", async (request, reply) => {
+    const body = (request.body as any) || {};
 
-    const db = mongoose.connection.db;
-    if (!db) {
-      throw new AppError(500, "DB_UNAVAILABLE", "Database handle unavailable");
+    const {
+      key,
+      name,
+      description,
+      isEnabled,
+      enabled,
+      environment = "all",
+      targetAudience = "global",
+      targetOrganizationIds = [],
+      excludedOrganizationIds = [],
+      targetRoles = [],
+      rolloutPercentage,
+      rolloutPct,
+    } = body;
+
+    if (!key || typeof key !== "string" || !key.trim()) {
+      throw new AppError(400, "VALIDATION_ERROR", "Feature flag 'key' is required");
+    }
+    if (!name || typeof name !== "string" || !name.trim()) {
+      throw new AppError(400, "VALIDATION_ERROR", "Feature flag 'name' is required");
+    }
+    if (!description || typeof description !== "string" || !description.trim()) {
+      throw new AppError(400, "VALIDATION_ERROR", "Feature flag 'description' is required");
     }
 
-    await db.collection("platform_feature_flags").updateOne(
-      { key },
-      { $set: { key, enabled: Boolean(enabled), rolloutPct: Number(rolloutPct) || 100, updatedAt: new Date() } },
-      { upsert: true }
-    );
+    const normalizedKey = key.trim().toLowerCase();
+
+    // Validate organization ObjectIds if provided
+    const allOrgIds = [...targetOrganizationIds, ...excludedOrganizationIds];
+    for (const id of allOrgIds) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError(400, "VALIDATION_ERROR", `Invalid organization ObjectId format: ${id}`);
+      }
+    }
+
+    const existing = await FeatureFlag.findOne({ key: normalizedKey, isDeleted: false });
+    if (existing) {
+      throw new AppError(409, "DUPLICATE_KEY", `Feature flag with key '${normalizedKey}' already exists`);
+    }
+
+    const effectiveRollout = rolloutPercentage ?? rolloutPct ?? 100;
+    const effectiveEnabled = isEnabled ?? enabled ?? false;
+
+    const newFlag = await FeatureFlag.create({
+      key: normalizedKey,
+      name: name.trim(),
+      description: description.trim(),
+      isEnabled: Boolean(effectiveEnabled),
+      environment,
+      targetAudience,
+      targetOrganizationIds: targetOrganizationIds.map((id: string) => new mongoose.Types.ObjectId(id)),
+      excludedOrganizationIds: excludedOrganizationIds.map((id: string) => new mongoose.Types.ObjectId(id)),
+      targetRoles,
+      rolloutPercentage: Math.max(0, Math.min(100, Number(effectiveRollout))),
+      isDeleted: false,
+    });
 
     await AuditLog.create({
       actorUserId: (request.user as any).userId,
       actorType: "user",
       eventCategory: "feature_flag",
-      eventType: "FLAG_TOGGLED",
+      eventType: "FLAG_UPDATED",
       resourceType: "FeatureFlag",
-      action: "update",
-      description: `Feature flag '${key}' updated to enabled=${enabled}`,
-      severity: "warning"
+      resourceId: newFlag._id,
+      action: "create",
+      description: `Feature flag '${normalizedKey}' registered`,
+      severity: "warning",
+      metadata: {
+        previousState: null,
+        newState: newFlag.toJSON(),
+        reason: body.reason || "Custom feature flag registered",
+      },
     });
+
+    FeatureFlagService.invalidateCache(normalizedKey);
+
+    return reply.status(201).send({
+      success: true,
+      message: `Feature flag ${normalizedKey} registered successfully`,
+      data: newFlag.toJSON(),
+    });
+  });
+
+  // PATCH /settings/flags/:key - Toggle Platform Feature Flag & Tenant Targeting Overrides
+  app.patch("/settings/flags/:key", async (request, reply) => {
+    const { key } = request.params as any;
+    const body = (request.body as any) || {};
+
+    const normalizedKey = (key || "").trim().toLowerCase();
+    let flag = await FeatureFlag.findOne({ key: normalizedKey, isDeleted: false });
+
+    if (!flag) {
+      const defaultFlag = DEFAULT_PLATFORM_FLAGS.find((f) => f.key === normalizedKey);
+      if (defaultFlag) {
+        flag = await FeatureFlag.create({
+          ...defaultFlag,
+          targetOrganizationIds: [],
+          excludedOrganizationIds: [],
+          targetRoles: [],
+          isDeleted: false,
+        });
+      } else {
+        throw new AppError(404, "FLAG_NOT_FOUND", `Feature flag '${key}' not found`);
+      }
+    }
+
+    const previousState = flag.toJSON();
+
+    // Validate organization ObjectIds if provided
+    if (body.targetOrganizationIds !== undefined) {
+      if (!Array.isArray(body.targetOrganizationIds)) {
+        throw new AppError(400, "VALIDATION_ERROR", "targetOrganizationIds must be an array");
+      }
+      for (const id of body.targetOrganizationIds) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+          throw new AppError(400, "VALIDATION_ERROR", `Invalid targetOrganizationId format: ${id}`);
+        }
+      }
+      flag.targetOrganizationIds = body.targetOrganizationIds.map((id: string) => new mongoose.Types.ObjectId(id));
+    }
+
+    if (body.excludedOrganizationIds !== undefined) {
+      if (!Array.isArray(body.excludedOrganizationIds)) {
+        throw new AppError(400, "VALIDATION_ERROR", "excludedOrganizationIds must be an array");
+      }
+      for (const id of body.excludedOrganizationIds) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+          throw new AppError(400, "VALIDATION_ERROR", `Invalid excludedOrganizationId format: ${id}`);
+        }
+      }
+      flag.excludedOrganizationIds = body.excludedOrganizationIds.map((id: string) => new mongoose.Types.ObjectId(id));
+    }
+
+    if (body.isEnabled !== undefined) {
+      flag.isEnabled = Boolean(body.isEnabled);
+    } else if (body.enabled !== undefined) {
+      flag.isEnabled = Boolean(body.enabled);
+    }
+
+    if (body.rolloutPercentage !== undefined) {
+      flag.rolloutPercentage = Math.max(0, Math.min(100, Number(body.rolloutPercentage)));
+    } else if (body.rolloutPct !== undefined) {
+      flag.rolloutPercentage = Math.max(0, Math.min(100, Number(body.rolloutPct)));
+    }
+
+    if (body.targetAudience !== undefined) {
+      flag.targetAudience = body.targetAudience;
+    }
+
+    if (body.targetRoles !== undefined && Array.isArray(body.targetRoles)) {
+      flag.targetRoles = body.targetRoles;
+    }
+
+    if (body.environment !== undefined) {
+      flag.environment = body.environment;
+    }
+
+    if (body.name !== undefined && typeof body.name === "string" && body.name.trim()) {
+      flag.name = body.name.trim();
+    }
+
+    if (body.description !== undefined && typeof body.description === "string" && body.description.trim()) {
+      flag.description = body.description.trim();
+    }
+
+    await flag.save();
+
+    await flag.populate([
+      { path: "targetOrganizationIds", select: "name slug" },
+      { path: "excludedOrganizationIds", select: "name slug" },
+    ]);
+
+    const newState = flag.toJSON();
+
+    await AuditLog.create({
+      actorUserId: (request.user as any).userId,
+      actorType: "user",
+      eventCategory: "feature_flag",
+      eventType: "FLAG_UPDATED",
+      resourceType: "FeatureFlag",
+      resourceId: flag._id,
+      action: "update",
+      description: `Feature flag '${flag.key}' updated`,
+      severity: "warning",
+      metadata: {
+        previousState: {
+          isEnabled: previousState.isEnabled,
+          rolloutPercentage: previousState.rolloutPercentage,
+          targetAudience: previousState.targetAudience,
+          targetOrganizationIds: previousState.targetOrganizationIds,
+          excludedOrganizationIds: previousState.excludedOrganizationIds,
+        },
+        newState: {
+          isEnabled: newState.isEnabled,
+          rolloutPercentage: newState.rolloutPercentage,
+          targetAudience: newState.targetAudience,
+          targetOrganizationIds: newState.targetOrganizationIds,
+          excludedOrganizationIds: newState.excludedOrganizationIds,
+        },
+        reason: body.reason || `Administrative update for ${flag.key}`,
+      },
+    });
+
+    FeatureFlagService.invalidateCache(normalizedKey);
 
     return reply.status(200).send({
       success: true,
-      message: `Feature flag ${key} updated successfully`
+      message: `Feature flag ${key} updated successfully`,
+      data: newState,
     });
   });
 

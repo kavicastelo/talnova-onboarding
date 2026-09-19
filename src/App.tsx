@@ -114,7 +114,7 @@ export function App() {
               <Route path="super-admin/settings/platform" element={<ProtectedRoute capability="view_super_admin"><SuperAdminPlatformSettings /></ProtectedRoute>} />
               <Route path="journeys" element={<JourneysList />} />
               <Route path="journeys/:id" element={<JourneyBuilder />} />
-              <Route path="kiosks" element={<ProtectedRoute capability="manage_organization"><KioskDashboard /></ProtectedRoute>} />
+              <Route path="kiosks" element={<ProtectedRoute capability="manage_organization" featureFlag="kiosk_mode"><KioskDashboard /></ProtectedRoute>} />
               <Route path="directory" element={<EmployeeDirectory />} />
               <Route path="directory/:id" element={<EmployeeProfile />} />
               <Route path="profile" element={<EmployeeProfile />} />
@@ -138,11 +138,11 @@ export function App() {
               <Route path="calendar" element={<CalendarIntegration />} />
               <Route path="hr-ops" element={<ProtectedRoute capability="view_hr_ops"><HROperations /></ProtectedRoute>} />
               <Route path="hr-ops/exceptions" element={<ProtectedRoute capability="view_hr_ops"><HROpsExceptions /></ProtectedRoute>} />
-              <Route path="leaderboard" element={<Leaderboard />} />
+              <Route path="leaderboard" element={<ProtectedRoute featureFlag="gamification_badges"><Leaderboard /></ProtectedRoute>} />
               <Route path="ai-assistant" element={<AIAssistant />} />
-              <Route path="ai-course-builder" element={<ProtectedRoute capability="ai_course_builder"><AICourseBuilder /></ProtectedRoute>} />
-              <Route path="settings/sso" element={<ProtectedRoute capability="manage_sso"><SSOSettings /></ProtectedRoute>} />
-              <Route path="settings/integrations" element={<ProtectedRoute capability="manage_integrations"><HRISIntegrations /></ProtectedRoute>} />
+              <Route path="ai-course-builder" element={<ProtectedRoute capability="ai_course_builder" featureFlag="ai_course_builder"><AICourseBuilder /></ProtectedRoute>} />
+              <Route path="settings/sso" element={<ProtectedRoute capability="manage_sso" featureFlag="sso_enforcement"><SSOSettings /></ProtectedRoute>} />
+              <Route path="settings/integrations" element={<ProtectedRoute capability="manage_integrations" featureFlag="advanced_hris_sync"><HRISIntegrations /></ProtectedRoute>} />
               <Route path="office-map" element={<OfficeMap />} />
               <Route
                 path="*"

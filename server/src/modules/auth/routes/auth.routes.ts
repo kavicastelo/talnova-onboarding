@@ -14,6 +14,7 @@ import { User } from "../models/user.model.js";
 import { Organization } from "../../organizations/models/organization.model.js";
 import { Journey } from "../../journeys/models/journey.model.js";
 import { EmailService } from "../../../shared/email/email.service.js";
+import FeatureFlagService from "../../super-admin/services/feature-flag.service.js";
 
 const registerSchema = z.object({
   orgName: z.string().min(1, "Organization name is required"),
@@ -260,6 +261,58 @@ export async function authRoutes(app: FastifyInstance) {
 
   // POST /api/v1/auth/refresh
   app.post("/refresh", controller.refresh);
+
+  // GET /api/v1/auth/me - Authenticated session bootstrap & resolved feature flags
+  app.get(
+    "/me",
+    {
+      onRequest: [authenticate],
+    },
+    async (request, reply) => {
+      const authUser = request.user as any;
+      if (!authUser || !authUser.userId) {
+        throw new AppError(401, "UNAUTHORIZED", "Please authenticate first");
+      }
+
+      const [user, org] = await Promise.all([
+        User.findById(authUser.userId),
+        authUser.organizationId ? Organization.findById(authUser.organizationId) : null,
+      ]);
+
+      if (!user || user.isDeleted) {
+        throw new AppError(404, "USER_NOT_FOUND", "Authenticated user profile not found");
+      }
+
+      const features = await FeatureFlagService.getAllResolvedFlags(
+        authUser.organizationId,
+        authUser.role
+      );
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            email: user.auth.email,
+            profile: user.profile,
+            employment: user.employment,
+            role: user.permissions?.role,
+            organizationId: user.organizationId,
+          },
+          organization: org
+            ? {
+                id: org._id,
+                name: org.name,
+                slug: org.slug,
+                plan: org.plan,
+                status: org.status,
+              }
+            : null,
+          features,
+        },
+      });
+    }
+  );
 
   // POST /api/v1/auth/logout
   app.post(

@@ -5,7 +5,7 @@ import { KioskJourneyRepository } from "../repositories/kiosk-journey.repository
 import { KioskDeviceRepository } from "../repositories/kiosk-device.repository.js";
 import { KioskAnalyticsRepository } from "../repositories/kiosk-analytics.repository.js";
 import { KioskSecurityService } from "../services/kiosk-security.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import { verifySignedUrl, verifyDeviceToken } from "../plugins/kiosk-auth.plugin.js";
 import {
   CreateKioskJourneySchema,
@@ -198,6 +198,7 @@ export async function kioskRoutes(app: FastifyInstance) {
   app.register(async (adminGroup) => {
     adminGroup.addHook("preHandler", authenticate);
     adminGroup.addHook("preHandler", requireRole(["owner", "admin"]));
+    adminGroup.addHook("preHandler", requireFeatureFlag("kiosk_mode"));
 
     // GET /api/v1/kiosk/journeys
     adminGroup.get("/journeys", controller.listJourneys);
