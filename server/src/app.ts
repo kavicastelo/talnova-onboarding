@@ -14,6 +14,7 @@ import registerSwagger from "./plugins/swagger.js";
 
 import registerRequestId from "./middleware/request-id.middleware.js";
 import registerLogging from "./middleware/logging.middleware.js";
+import maintenanceModeGuard from "./middleware/maintenance.middleware.js";
 import errorHandler from "./middleware/error.middleware.js";
 import setupZodValidation from "./common/validators/compiler.js";
 
@@ -75,6 +76,7 @@ export async function buildApp() {
   // Register global middleware hooks
   registerRequestId(app);
   registerLogging(app);
+  app.addHook("preHandler", maintenanceModeGuard);
 
   // Set global error handler
   app.setErrorHandler(errorHandler);

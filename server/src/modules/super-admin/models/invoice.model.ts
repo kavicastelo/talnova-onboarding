@@ -209,6 +209,11 @@ InvoiceSchema.pre("validate", function (next) {
     invoice.customerName = (invoice as any).organization;
   }
 
+  // Support legacy seed fixtures where organizationId was omitted
+  if (!invoice.organizationId) {
+    invoice.organizationId = new mongoose.Types.ObjectId();
+  }
+
   // Ensure line items amounts are computed
   if (Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0) {
     invoice.lineItems.forEach((item) => {
@@ -255,6 +260,7 @@ InvoiceSchema.pre("validate", function (next) {
 InvoiceSchema.index({ organizationId: 1, status: 1, isDeleted: 1 });
 InvoiceSchema.index({ dueDate: 1, balanceDue: 1 });
 InvoiceSchema.index({ organizationId: 1, isDeleted: 1 });
+InvoiceSchema.index({ status: 1, createdAt: 1 });
 
 export const Invoice = mongoose.model<IInvoice>("Invoice", InvoiceSchema);
 export default Invoice;

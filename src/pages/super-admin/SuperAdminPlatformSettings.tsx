@@ -1,29 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Lock,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { SuperAdminShell } from '../../components/super-admin/SuperAdminShell';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { toast } from 'sonner';
+import { useSuperAdminPlatformSettings, useUpdatePlatformSettings } from '../../hooks/useSuperAdmin';
 
 export function SuperAdminPlatformSettings() {
+  const { data: settings, isLoading } = useSuperAdminPlatformSettings();
+  const updateSettingsMutation = useUpdatePlatformSettings();
+
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState('Talnova Onboarding is undergoing planned infrastructure maintenance.');
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(60);
   const retentionDays = 2555; // 7 years locked by compliance
   const [enforceMfaAdmins, setEnforceMfaAdmins] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (settings) {
+      setMaintenanceMode(settings.maintenanceMode ?? false);
+      if (settings.maintenanceMessage) setMaintenanceMsg(settings.maintenanceMessage);
+      if (settings.sessionTimeoutMinutes) setSessionTimeoutMinutes(settings.sessionTimeoutMinutes);
+      if (settings.enforceMfaAdmins !== undefined) setEnforceMfaAdmins(settings.enforceMfaAdmins);
+    }
+  }, [settings]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      toast.success('Platform security & operational settings saved.');
-    }, 600);
+    if (sessionTimeoutMinutes < 5 || sessionTimeoutMinutes > 1440) {
+      toast.error('Session timeout must be between 5 and 1440 minutes.');
+      return;
+    }
+
+    try {
+      await updateSettingsMutation.mutateAsync({
+        maintenanceMode,
+        maintenanceMessage: maintenanceMsg,
+        sessionTimeoutMinutes,
+        enforceMfaAdmins,
+      });
+      toast.success('Platform security & operational settings saved successfully.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to save platform settings.');
+    }
   };
 
   return (
@@ -136,11 +160,15 @@ export function SuperAdminPlatformSettings() {
         <div className="flex justify-end">
           <Button
             type="submit"
-            disabled={isSaving}
+            disabled={updateSettingsMutation.isPending || isLoading}
             className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 shadow-sm"
           >
-            <Save className="w-4 h-4" />
-            {isSaving ? 'Saving Policies...' : 'Save Platform Policies'}
+            {updateSettingsMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {updateSettingsMutation.isPending ? 'Saving Policies...' : 'Save Platform Policies'}
           </Button>
         </div>
       </form>

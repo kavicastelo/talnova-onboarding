@@ -519,4 +519,23 @@ export const superAdminService = {
     const filename = match ? match[1] : `${reportId}.${format}`;
     return { blob: response.data, filename };
   },
+
+  getPlatformSettings: async (): Promise<PlatformSettingsItem> => {
+    const response = await apiClient.get<ApiResponse<PlatformSettingsItem>>('/super-admin/settings/platform');
+    return response.data.data;
+  },
+
+  updatePlatformSettings: async (data: Partial<PlatformSettingsItem>): Promise<PlatformSettingsItem> => {
+    const response = await apiClient.patch<ApiResponse<PlatformSettingsItem>>('/super-admin/settings/platform', data);
+    return response.data.data;
+  },
 };
+
+export interface PlatformSettingsItem {
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  sessionTimeoutMinutes: number;
+  enforceMfaAdmins: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
