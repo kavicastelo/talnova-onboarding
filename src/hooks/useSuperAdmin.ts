@@ -322,11 +322,35 @@ export function useCreateFeatureFlag() {
   });
 }
 
-export function useSuperAdminAlerts() {
+export function useSuperAdminAlerts(params?: {
+  status?: string;
+  severity?: string;
+  category?: string;
+  search?: string;
+}) {
   return useQuery({
-    queryKey: ['superAdminAlerts'],
-    queryFn: superAdminService.getAlerts,
-    staleTime: 20 * 1000,
+    queryKey: ['superAdminAlerts', params],
+    queryFn: () => superAdminService.getAlerts(params),
+    staleTime: 15 * 1000,
+  });
+}
+
+export function useUpdateAlertStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      status,
+      resolutionNotes,
+    }: {
+      id: string;
+      status: string;
+      resolutionNotes?: string;
+    }) => superAdminService.updateAlertStatus(id, status, resolutionNotes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminAlerts'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminStats'] });
+    },
   });
 }
 

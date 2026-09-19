@@ -487,8 +487,36 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getAlerts: async (): Promise<any> => {
-    const response = await apiClient.get<ApiResponse<any>>('/super-admin/alerts');
+  getAlerts: async (params?: {
+    status?: string;
+    severity?: string;
+    category?: string;
+    search?: string;
+  }): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/alerts', { params });
     return response.data.data;
-  }
+  },
+
+  updateAlertStatus: async (
+    id: string,
+    status: string,
+    resolutionNotes?: string
+  ): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/alerts/${id}/status`, {
+      status,
+      resolutionNotes,
+    });
+    return response.data.data;
+  },
+
+  exportCanonicalReport: async (reportId: string, format: string = 'csv'): Promise<{ blob: Blob; filename: string }> => {
+    const response = await apiClient.get(`/super-admin/reports/${reportId}/export`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    const disposition = response.headers['content-disposition'] || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `${reportId}.${format}`;
+    return { blob: response.data, filename };
+  },
 };

@@ -9,6 +9,7 @@ import Invoice from "../models/invoice.model.js";
 import PaymentRecord from "../models/payment-record.model.js";
 import ExpenseRecord from "../models/expense-record.model.js";
 import CustomerAccount from "../models/customer-account.model.js";
+import AIUsageRecord from "../models/ai-usage-record.model.js";
 import FeatureFlag from "../models/feature-flag.model.js";
 import FeatureFlagService from "../services/feature-flag.service.js";
 import Journey from "../../journeys/models/journey.model.js";
@@ -16,7 +17,11 @@ import OnboardingCase from "../../onboarding/models/onboarding-case.model.js";
 import { Upload } from "../../uploads/models/upload.model.js";
 import Session from "../../auth/models/session.model.js";
 import Task from "../../tasks/models/task.model.js";
+import Alert from "../models/alert.model.js";
+import AlertService from "../services/alert.service.js";
+import ReportGeneratorService from "../services/report-generator.service.js";
 import { hashPassword } from "../../../utils/crypto.js";
+import TelemetryBuffer from "../../../infrastructure/telemetry/telemetry-buffer.js";
 
 export async function superAdminRoutes(app: FastifyInstance) {
   // Enforce auth & role for all routes in this prefix
@@ -1996,30 +2001,11 @@ export async function superAdminRoutes(app: FastifyInstance) {
 
   // GET /observability/api - API latency & endpoint health
   app.get("/observability/api", async (request, reply) => {
+    const metrics = TelemetryBuffer.getMetrics();
     return reply.status(200).send({
       success: true,
       message: "API telemetry metrics retrieved",
-      data: {
-        latency: {
-          p50: 28,
-          p95: 64,
-          p99: 118,
-          unit: "ms"
-        },
-        throughput: {
-          rpm: 342,
-          successRate: 99.84,
-          errorRate: 0.16
-        },
-        endpoints: [
-          { route: "GET /api/v1/super-admin/telemetry", p95: 42, count24h: 1820, status: "healthy" },
-          { route: "GET /api/v1/super-admin/search", p95: 35, count24h: 940, status: "healthy" },
-          { route: "GET /api/v1/super-admin/organizations", p95: 48, count24h: 1250, status: "healthy" },
-          { route: "GET /api/v1/super-admin/users", p95: 52, count24h: 1100, status: "healthy" },
-          { route: "POST /api/v1/auth/login", p95: 85, count24h: 4600, status: "healthy" },
-          { route: "GET /api/v1/journeys", p95: 38, count24h: 3200, status: "healthy" }
-        ]
-      }
+      data: metrics
     });
   });
 
@@ -2071,24 +2057,171 @@ export async function superAdminRoutes(app: FastifyInstance) {
     });
   });
 
-  // GET /observability/ai - Gemini AI token usage
+  // GET /observability/ai - Real AI token usage & cost telemetry
   app.get("/observability/ai", async (request, reply) => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const featureAggregates = await AIUsageRecord.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: "$feature",
+          requests: { $sum: 1 },
+          tokens: { $sum: "$totalTokens" },
+          cost: { $sum: "$estimatedCostUsd" }
+        }
+      }
+    ]);
+
+    const featureLabelMap: Record<string, string> = {
+      ai_course_builder: "AI Course Builder",
+      ai_assistant: "Onboarding Assistant",
+      kb_rag: "Knowledge Base RAG",
+      document_summary: "Document Summarizer"
+    };
+
+    const breakdownMap = new Map<string, { requests: number; tokens: number; cost: number }>();
+    featureAggregates.forEach(item => {
+      if (item._id) {
+        breakdownMap.set(item._id, {
+          requests: item.requests || 0,
+          tokens: item.tokens || 0,
+          cost: Math.round((item.cost || 0) * 100) / 100
+        });
+      }
+    });
+
+    const canonicalFeatures = ["ai_course_builder", "ai_assistant", "kb_rag", "document_summary"];
+    const featureBreakdown = canonicalFeatures.map(fKey => {
+      const stats = breakdownMap.get(fKey) || { requests: 0, tokens: 0, cost: 0 };
+      return {
+        feature: featureLabelMap[fKey] || fKey,
+        requests: stats.requests,
+        tokens: stats.tokens,
+        cost: stats.cost
+      };
+    });
+
+    for (const [key, stats] of breakdownMap.entries()) {
+      if (!canonicalFeatures.includes(key)) {
+        featureBreakdown.push({
+          feature: featureLabelMap[key] || key,
+          requests: stats.requests,
+          tokens: stats.tokens,
+          cost: stats.cost
+        });
+      }
+    }
+
+    const totalRequests = featureAggregates.reduce((sum, f) => sum + (f.requests || 0), 0);
+    const tokensConsumed = featureAggregates.reduce((sum, f) => sum + (f.tokens || 0), 0);
+    const costEstimateUSD = Math.round(featureAggregates.reduce((sum, f) => sum + (f.cost || 0), 0) * 100) / 100;
+    const monthlyBudget = 2500000;
+    const utilizationPct = Math.round(((tokensConsumed / monthlyBudget) * 100) * 100) / 100;
+
+    const dominantModelAgg = await AIUsageRecord.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: "$model", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 1 }
+    ]);
+    const dominantModel = dominantModelAgg.length > 0 ? dominantModelAgg[0]._id : "gemini-1.5-flash / pro";
+
     return reply.status(200).send({
       success: true,
       message: "AI telemetry retrieved",
       data: {
-        model: "gemini-1.5-pro / flash",
-        totalRequests: 840,
-        tokensConsumed: 482000,
-        monthlyBudget: 2500000,
-        utilizationPct: 19.28,
-        costEstimateUSD: 1.45,
-        featureBreakdown: [
-          { feature: "AI Course Builder", requests: 310, tokens: 280000 },
-          { feature: "Onboarding Assistant", requests: 460, tokens: 172000 },
-          { feature: "Document Summarizer", requests: 70, tokens: 30000 }
-        ]
+        model: dominantModel,
+        totalRequests,
+        tokensConsumed,
+        monthlyBudget,
+        utilizationPct,
+        costEstimateUSD,
+        featureBreakdown
       }
+    });
+  });
+
+  // GET /ai/usage - Granular paginated AI invocation telemetry logs
+  app.get("/ai/usage", async (request, reply) => {
+    const {
+      organizationId,
+      feature,
+      provider,
+      model,
+      status,
+      page = 1,
+      limit = 50
+    } = request.query as any;
+
+    const filter: any = {};
+    if (organizationId && mongoose.Types.ObjectId.isValid(organizationId)) {
+      filter.organizationId = new mongoose.Types.ObjectId(organizationId);
+    }
+    if (feature) filter.feature = feature;
+    if (provider) filter.provider = provider;
+    if (model) filter.model = model;
+    if (status) filter.status = status;
+
+    const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [records, total] = await Promise.all([
+      AIUsageRecord.find(filter)
+        .populate("organizationId", "name slug plan")
+        .populate("userId", "profile.fullName auth.email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      AIUsageRecord.countDocuments(filter)
+    ]);
+
+    const items = records.map(r => ({
+      id: r._id.toString(),
+      _id: r._id.toString(),
+      organization: r.organizationId,
+      organizationId: r.organizationId,
+      user: r.userId,
+      userId: r.userId,
+      feature: r.feature,
+      provider: r.provider,
+      model: r.model,
+      inputTokens: r.inputTokens,
+      promptTokens: r.inputTokens,
+      outputTokens: r.outputTokens,
+      completionTokens: r.outputTokens,
+      totalTokens: r.totalTokens,
+      estimatedCostUsd: r.estimatedCostUsd,
+      costEstimateUSD: r.estimatedCostUsd,
+      latencyMs: r.latencyMs,
+      durationMs: r.latencyMs,
+      status: r.status,
+      errorMessage: r.errorMessage,
+      createdAt: r.createdAt
+    }));
+
+    const pagination = {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum) || 1
+    };
+
+    return reply.status(200).send({
+      success: true,
+      message: "AI invocation logs retrieved",
+      data: {
+        items,
+        pagination
+      },
+      items,
+      pagination,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: pagination.totalPages
     });
   });
 
@@ -3142,67 +3275,261 @@ export async function superAdminRoutes(app: FastifyInstance) {
     });
   });
 
-  // GET /alerts - Platform Incident & Alert Center
+  // GET /alerts - Platform Incident & Alert Center (Persistent Mongoose Model)
   app.get("/alerts", async (request, reply) => {
-    const [suspendedOrgs, criticalLogs, failedCases, overdueTasks] = await Promise.all([
-      Organization.find({ status: "Suspended", isDeleted: false }).limit(20),
-      AuditLog.find({ severity: "critical" }).sort({ createdAt: -1 }).limit(20),
-      OnboardingCase.find({ state: "provisioning_failed", isDeleted: false }).limit(20),
-      Task.find({ dueDate: { $lt: new Date() }, status: { $nin: ["completed", "cancelled"] }, isDeleted: false }).limit(20)
+    const {
+      status,
+      severity,
+      category,
+      search,
+      page = 1,
+      limit = 50,
+    } = request.query as any;
+
+    // 1. Sync latest platform condition states into the persistent collection
+    await AlertService.syncSystemAlerts();
+
+    const filter: any = {};
+
+    // 2. Status filtering: default to active non-resolved incidents unless requested otherwise
+    if (status && status !== "all") {
+      if (status === "active") {
+        filter.status = { $ne: "resolved" };
+      } else {
+        filter.status = status;
+      }
+    } else if (!status) {
+      filter.status = { $ne: "resolved" };
+    }
+
+    if (severity && severity !== "all") {
+      filter.severity = severity;
+    }
+
+    if (category && category !== "all") {
+      filter.category = category;
+    }
+
+    if (search && typeof search === "string" && search.trim()) {
+      const q = search.trim();
+      filter.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+        { alertNo: { $regex: q, $options: "i" } },
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [alertDocs, totalFiltered, activeStatsAgg] = await Promise.all([
+      Alert.find(filter)
+        .populate("organizationId", "name slug")
+        .populate("acknowledgedBy", "profile.fullName auth.email")
+        .populate("resolvedBy", "profile.fullName auth.email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Alert.countDocuments(filter),
+      Alert.aggregate([
+        { $match: { status: { $ne: "resolved" } } },
+        {
+          $group: {
+            _id: null,
+            critical: { $sum: { $cond: [{ $eq: ["$severity", "critical"] }, 1, 0] } },
+            high: { $sum: { $cond: [{ $eq: ["$severity", "high"] }, 1, 0] } },
+            warning: { $sum: { $cond: [{ $eq: ["$severity", "warning"] }, 1, 0] } },
+            info: { $sum: { $cond: [{ $eq: ["$severity", "info"] }, 1, 0] } },
+            open: { $sum: { $cond: [{ $eq: ["$status", "open"] }, 1, 0] } },
+            acknowledged: { $sum: { $cond: [{ $eq: ["$status", "acknowledged"] }, 1, 0] } },
+            investigating: { $sum: { $cond: [{ $eq: ["$status", "investigating"] }, 1, 0] } },
+            total: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
 
-    const alerts = [
-      ...suspendedOrgs.map(o => ({
-        id: `org-suspended-${o._id}`,
-        title: `Tenant Suspended: ${o.name}`,
-        description: `Organization is suspended / quarantined. Access is blocked.`,
-        severity: "critical",
-        category: "tenant",
-        sourceId: o._id.toString(),
-        createdAt: o.updatedAt || o.createdAt
-      })),
-      ...criticalLogs.map(l => ({
-        id: `log-crit-${l._id}`,
-        title: `Security Incident: ${l.eventType || 'Critical Log'}`,
-        description: l.description,
-        severity: "critical",
-        category: "security",
-        sourceId: l._id.toString(),
-        createdAt: l.createdAt
-      })),
-      ...failedCases.map(c => ({
-        id: `case-fail-${c._id}`,
-        title: `Onboarding Provisioning Failed`,
-        description: c.failure?.message || "Provisioning pipeline encountered an unhandled exception.",
-        severity: "high",
-        category: "onboarding",
-        sourceId: c._id.toString(),
-        createdAt: c.updatedAt || c.createdAt
-      })),
-      ...overdueTasks.map(t => ({
-        id: `task-overdue-${t._id}`,
-        title: `SLA Breach: ${t.title}`,
-        description: `Task has breached its due date: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'Overdue'}.`,
-        severity: "warning",
-        category: "operations",
-        sourceId: t._id.toString(),
-        createdAt: t.dueDate || t.createdAt
-      }))
-    ];
+    const activeStats = activeStatsAgg[0] || {
+      critical: 0,
+      high: 0,
+      warning: 0,
+      info: 0,
+      open: 0,
+      acknowledged: 0,
+      investigating: 0,
+      total: 0,
+    };
+
+    const resolvedCount = await Alert.countDocuments({ status: "resolved" });
+
+    const alerts = alertDocs.map((a: any) => ({
+      id: a._id.toString(),
+      _id: a._id.toString(),
+      alertNo: a.alertNo,
+      title: a.title,
+      description: a.description,
+      severity: a.severity,
+      category: a.category,
+      sourceService: a.sourceService,
+      sourceId: a.sourceId,
+      organizationId: a.organizationId?._id ? a.organizationId._id.toString() : a.organizationId?.toString(),
+      organization: a.organizationId && a.organizationId.name ? {
+        id: a.organizationId._id?.toString(),
+        name: a.organizationId.name,
+        slug: a.organizationId.slug,
+      } : null,
+      status: a.status,
+      acknowledgedBy: a.acknowledgedBy ? {
+        id: a.acknowledgedBy._id?.toString(),
+        name: a.acknowledgedBy.profile?.fullName,
+        email: a.acknowledgedBy.auth?.email,
+      } : null,
+      acknowledgedAt: a.acknowledgedAt,
+      resolvedBy: a.resolvedBy ? {
+        id: a.resolvedBy._id?.toString(),
+        name: a.resolvedBy.profile?.fullName,
+        email: a.resolvedBy.auth?.email,
+      } : null,
+      resolvedAt: a.resolvedAt,
+      resolutionNotes: a.resolutionNotes,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+    }));
 
     return reply.status(200).send({
       success: true,
       message: "Alerts retrieved successfully",
       data: {
-        alerts: alerts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+        alerts,
         summary: {
-          critical: alerts.filter(a => a.severity === "critical").length,
-          high: alerts.filter(a => a.severity === "high").length,
-          warning: alerts.filter(a => a.severity === "warning").length,
-          total: alerts.length
-        }
-      }
+          critical: activeStats.critical,
+          high: activeStats.high,
+          warning: activeStats.warning,
+          info: activeStats.info,
+          open: activeStats.open,
+          acknowledged: activeStats.acknowledged,
+          investigating: activeStats.investigating,
+          resolved: resolvedCount,
+          total: activeStats.total,
+        },
+        pagination: {
+          total: totalFiltered,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(totalFiltered / limitNum) || 1,
+        },
+      },
     });
+  });
+
+  // PATCH /alerts/:id/status - Update Incident Triage & Lifecycle Status
+  app.patch("/alerts/:id/status", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { status, resolutionNotes } = (request.body || {}) as {
+      status: string;
+      resolutionNotes?: string;
+    };
+
+    if (!status || !["open", "acknowledged", "investigating", "resolved", "ignored"].includes(status)) {
+      return reply.status(400).send({
+        success: false,
+        message: "Invalid alert status. Must be one of: open, acknowledged, investigating, resolved, ignored",
+      });
+    }
+
+    try {
+      const operatorUserId = (request as any).user?.userId;
+      const updated = await AlertService.updateAlertStatus({
+        alertId: id,
+        status: status as any,
+        operatorUserId,
+        resolutionNotes,
+      });
+
+      return reply.status(200).send({
+        success: true,
+        message: `Alert status updated to '${status}' successfully`,
+        data: {
+          id: updated._id.toString(),
+          _id: updated._id.toString(),
+          alertNo: updated.alertNo,
+          status: updated.status,
+          acknowledgedBy: updated.acknowledgedBy,
+          acknowledgedAt: updated.acknowledgedAt,
+          resolvedBy: updated.resolvedBy,
+          resolvedAt: updated.resolvedAt,
+          resolutionNotes: updated.resolutionNotes,
+          updatedAt: updated.updatedAt,
+        },
+      });
+    } catch (err: any) {
+      if (err.statusCode === 400 || err.message === "Alert is already resolved") {
+        return reply.status(400).send({
+          success: false,
+          message: err.message,
+        });
+      }
+      if (err.statusCode === 404) {
+        return reply.status(404).send({
+          success: false,
+          message: err.message,
+        });
+      }
+      throw err;
+    }
+  });
+
+  // GET /reports/:reportId/export - Canonical Enterprise Report Export Engine
+  app.get("/reports/:reportId/export", async (request, reply) => {
+    const { reportId } = request.params as { reportId: string };
+    const { format } = (request.query || {}) as { format?: string };
+
+    if (!ReportGeneratorService.isSupportedReport(reportId)) {
+      return reply.status(404).send({
+        success: false,
+        message: `Report '${reportId}' not found in canonical reports catalog.`,
+      });
+    }
+
+    try {
+      const generated = await ReportGeneratorService.generateReport(reportId, format);
+
+      // Audit Log for SOC 2 data export tracking
+      const actorUserId = (request as any).user?.userId;
+      if (actorUserId && mongoose.Types.ObjectId.isValid(actorUserId)) {
+        await AuditLog.create({
+          actorUserId: new mongoose.Types.ObjectId(actorUserId),
+          actorType: "user",
+          eventCategory: "admin",
+          eventType: "DATA_EXPORTED",
+          resourceType: "Report",
+          action: "export",
+          description: `Canonical report '${reportId}' exported (${generated.rowCount} records, ${generated.format.toUpperCase()})`,
+          severity: "info",
+          metadata: {
+            reportId,
+            rowCount: generated.rowCount,
+            format: generated.format,
+          },
+        }).catch((err) => {
+          console.warn("[SuperAdminRoutes] Failed to log DATA_EXPORTED audit:", err.message);
+        });
+      }
+
+      reply.header("Content-Type", generated.contentType);
+      reply.header("Content-Disposition", `attachment; filename="${generated.filename}"`);
+      return reply.status(200).send(generated.content);
+    } catch (err: any) {
+      if (err.statusCode === 404) {
+        return reply.status(404).send({
+          success: false,
+          message: err.message,
+        });
+      }
+      throw err;
+    }
   });
 }
 

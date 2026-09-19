@@ -137,7 +137,12 @@ CRITICAL RULES:
               { role: "system", content: systemPrompt },
               ...historyMessages,
               { role: "user", content: messageText },
-            ]
+            ],
+            {
+              organizationId: orgObjectId,
+              userId: userObjectId,
+              feature: "ai_assistant",
+            }
           );
         } catch (err: any) {
           console.warn("[AIAssistantService] AI provider call failed, falling back to grounded excerpt:", err.message);
