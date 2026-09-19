@@ -11,7 +11,6 @@ import {
   X,
   Check,
   Ban,
-  Filter,
   Globe,
   Users,
   Percent,

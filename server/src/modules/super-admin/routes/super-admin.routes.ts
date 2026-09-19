@@ -6,6 +6,9 @@ import Organization from "../../organizations/models/organization.model.js";
 import User from "../../auth/models/user.model.js";
 import AuditLog from "../../audit-logs/models/audit-log.model.js";
 import Invoice from "../models/invoice.model.js";
+import PaymentRecord from "../models/payment-record.model.js";
+import ExpenseRecord from "../models/expense-record.model.js";
+import CustomerAccount from "../models/customer-account.model.js";
 import FeatureFlag from "../models/feature-flag.model.js";
 import FeatureFlagService from "../services/feature-flag.service.js";
 import Journey from "../../journeys/models/journey.model.js";
@@ -69,10 +72,11 @@ export async function superAdminRoutes(app: FastifyInstance) {
         isDeleted: false,
         $or: [
           { invoiceNo: regex },
+          { customerName: regex },
           { organization: regex },
           { description: regex },
         ]
-      }).limit(limitNum).select("_id invoiceNo organization amount status dueDate organizationId")
+      }).limit(limitNum).select("_id invoiceNo customerName organization amount totalAmount balanceDue status dueDate organizationId")
     ]);
 
     return reply.status(200).send({
@@ -108,8 +112,9 @@ export async function superAdminRoutes(app: FastifyInstance) {
         invoices: invoices.map(i => ({
           id: i._id.toString(),
           invoiceNo: i.invoiceNo,
-          customerName: i.organization,
-          amount: i.amount,
+          customerName: (i as any).customerName || i.organization,
+          amount: (i as any).totalAmount ?? i.amount,
+          balanceDue: (i as any).balanceDue ?? ((i as any).status === "Paid" || (i as any).status === "paid" ? 0 : ((i as any).totalAmount ?? i.amount)),
           status: i.status,
           dueDate: i.dueDate,
           organizationId: i.organizationId?.toString(),
@@ -171,18 +176,18 @@ export async function superAdminRoutes(app: FastifyInstance) {
     const onboardingsDeltaStr = onboardingsDelta >= 0 ? `+${onboardingsDelta}` : `${onboardingsDelta}`;
 
     // 4. Cash Collected (Paid invoices)
-    const invoiceFilter: any = { status: "Paid", isDeleted: false, ...orgFilter };
+    const invoiceFilter: any = { status: { $in: ["Paid", "paid"] }, isDeleted: false, ...orgFilter };
     const currRevenueInvoices = await Invoice.find({
       ...invoiceFilter,
       createdAt: { $gte: thirtyDaysAgo }
     });
-    const currRevenue = currRevenueInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const currRevenue = currRevenueInvoices.reduce((sum, inv) => sum + (inv.totalAmount ?? inv.amount ?? 0), 0);
 
     const prevRevenueInvoices = await Invoice.find({
       ...invoiceFilter,
       createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
     });
-    const prevRevenue = prevRevenueInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const prevRevenue = prevRevenueInvoices.reduce((sum, inv) => sum + (inv.totalAmount ?? inv.amount ?? 0), 0);
 
     const revenueDeltaPct = prevRevenue > 0
       ? Math.round(((currRevenue - prevRevenue) / prevRevenue) * 100)
@@ -190,12 +195,40 @@ export async function superAdminRoutes(app: FastifyInstance) {
     const revenueDeltaStr = revenueDeltaPct >= 0 ? `+${revenueDeltaPct}%` : `${revenueDeltaPct}%`;
 
     const allPaidInvoices = await Invoice.find(invoiceFilter);
-    const totalPaidRevenue = allPaidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const totalPaidRevenue = allPaidInvoices.reduce((sum, inv) => sum + (inv.totalAmount ?? inv.amount ?? 0), 0);
     const cashCollected = totalPaidRevenue;
 
     // 5. Operating Expenses & Net Operating Result (deterministic internal accounting)
-    const operatingExpenses = 0; // Baseline deterministic; will sum expense_records when created
-    const netOperatingResult = cashCollected - operatingExpenses;
+    const expenseFilter: any = { isDeleted: { $ne: true } };
+    if (orgFilter.organizationId) {
+      expenseFilter.organizationId = orgFilter.organizationId;
+    }
+
+    const [currExpenseAgg, prevExpenseAgg, allExpenseAgg] = await Promise.all([
+      ExpenseRecord.aggregate([
+        { $match: { ...expenseFilter, expenseDate: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      ExpenseRecord.aggregate([
+        { $match: { ...expenseFilter, expenseDate: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      ExpenseRecord.aggregate([
+        { $match: expenseFilter },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ])
+    ]);
+
+    const currExpenses = Math.round(((currExpenseAgg[0]?.total || 0) + Number.EPSILON) * 100) / 100;
+    const prevExpenses = Math.round(((prevExpenseAgg[0]?.total || 0) + Number.EPSILON) * 100) / 100;
+    const operatingExpenses = Math.round(((allExpenseAgg[0]?.total || 0) + Number.EPSILON) * 100) / 100;
+
+    const expenseDeltaPct = prevExpenses > 0
+      ? Math.round(((currExpenses - prevExpenses) / prevExpenses) * 100)
+      : currExpenses > 0 ? 100 : 0;
+    const expenseDeltaStr = expenseDeltaPct >= 0 ? `+${expenseDeltaPct}%` : `${expenseDeltaPct}%`;
+
+    const netOperatingResult = Math.round((cashCollected - operatingExpenses + Number.EPSILON) * 100) / 100;
 
     // 6. Open Platform Alerts (High/Critical logs in last 24h)
     const auditFilter: any = orgFilter.organizationId ? { organizationId: orgFilter.organizationId } : {};
@@ -275,7 +308,7 @@ export async function superAdminRoutes(app: FastifyInstance) {
           },
           operatingExpenses: {
             value: operatingExpenses,
-            delta: "0%"
+            delta: expenseDeltaStr
           },
           netOperatingResult: {
             value: netOperatingResult,
@@ -522,6 +555,21 @@ export async function superAdminRoutes(app: FastifyInstance) {
     });
 
     await ownerUser.save();
+
+    // Automatically create initial CustomerAccount in good_standing
+    await CustomerAccount.create({
+      organizationId: orgId,
+      accountStatus: "good_standing",
+      billingCycle: "monthly",
+      preferredCurrency: "USD",
+      creditLimit: 0,
+      billingContact: {
+        name: ownerUser.profile?.fullName || `Admin ${name.trim()}`,
+        email: targetAdminEmail,
+        phone: "",
+        address: ""
+      }
+    });
 
     // Log the organization provisioning event
     await AuditLog.create({
@@ -1220,41 +1268,72 @@ export async function superAdminRoutes(app: FastifyInstance) {
 
   // GET /invoices
   app.get("/invoices", async (request, reply) => {
-    const { search, page = "1", limit = "10" } = request.query as any;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const { search, status, organizationId, page = "1", limit = "10" } = request.query as any;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
     const skip = (pageNum - 1) * limitNum;
 
     const filter: any = { isDeleted: false };
+    if (organizationId && mongoose.Types.ObjectId.isValid(organizationId)) {
+      filter.organizationId = new mongoose.Types.ObjectId(organizationId);
+    }
+    if (status && status !== "all") {
+      if (status === "Paid" || status === "paid") {
+        filter.status = { $in: ["Paid", "paid"] };
+      } else if (status === "Pending" || status === "pending") {
+        filter.status = { $in: ["Pending", "issued", "sent", "partially_paid"] };
+      } else if (status === "Overdue" || status === "overdue") {
+        filter.status = { $in: ["Overdue", "overdue"] };
+      } else {
+        filter.status = status;
+      }
+    }
     if (search) {
       filter.$or = [
         { invoiceNo: { $regex: search, $options: "i" } },
+        { customerName: { $regex: search, $options: "i" } },
         { organization: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } }
+        { description: { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } }
       ];
     }
 
-    const invoices = await Invoice.find(filter).skip(skip).limit(limitNum);
+    const invoices = await Invoice.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum);
     const total = await Invoice.countDocuments(filter);
 
-    // Sum summaries from DB
-    const allPaid = await Invoice.find({ status: "Paid", isDeleted: false });
-    const allPending = await Invoice.find({ status: "Pending", isDeleted: false });
-    const allOverdue = await Invoice.find({ status: "Overdue", isDeleted: false });
+    // Sum summaries from DB supporting both legacy and canonical statuses
+    const allPaid = await Invoice.find({ status: { $in: ["Paid", "paid"] }, isDeleted: false });
+    const allPending = await Invoice.find({ status: { $in: ["Pending", "issued", "sent", "partially_paid"] }, isDeleted: false });
+    const allOverdue = await Invoice.find({ status: { $in: ["Overdue", "overdue"] }, isDeleted: false });
 
-    const totalRevenue = allPaid.reduce((sum, inv) => sum + inv.amount, 0);
-    const pendingRevenue = allPending.reduce((sum, inv) => sum + inv.amount, 0);
-    const overdueRevenue = allOverdue.reduce((sum, inv) => sum + inv.amount, 0);
+    const totalRevenue = Math.round(allPaid.reduce((sum, inv) => sum + (inv.totalAmount ?? inv.amount ?? 0), 0) * 100) / 100;
+    const pendingRevenue = Math.round(allPending.reduce((sum, inv) => sum + (inv.balanceDue ?? inv.totalAmount ?? inv.amount ?? 0), 0) * 100) / 100;
+    const overdueRevenue = Math.round(allOverdue.reduce((sum, inv) => sum + (inv.balanceDue ?? inv.totalAmount ?? inv.amount ?? 0), 0) * 100) / 100;
 
     const mappedInvoices = invoices.map(inv => ({
       id: inv._id.toString(),
+      _id: inv._id.toString(),
       invoiceNo: inv.invoiceNo,
-      organization: inv.organization,
-      amount: inv.amount,
+      organizationId: inv.organizationId ? inv.organizationId.toString() : null,
+      customerName: inv.customerName || inv.organization,
+      organization: inv.customerName || inv.organization,
+      currency: inv.currency || "USD",
+      issueDate: inv.issueDate,
+      dueDate: inv.dueDate,
+      lineItems: inv.lineItems || [],
+      subtotal: inv.subtotal ?? inv.amount ?? 0,
+      discountAmount: inv.discountAmount || 0,
+      taxAmount: inv.taxAmount || 0,
+      totalAmount: inv.totalAmount ?? inv.amount ?? 0,
+      amount: inv.totalAmount ?? inv.amount ?? 0,
+      amountPaid: inv.amountPaid || 0,
+      balanceDue: inv.balanceDue ?? (inv.status === "Paid" || inv.status === "paid" ? 0 : (inv.totalAmount ?? inv.amount ?? 0)),
       type: inv.type,
       status: inv.status,
-      dueDate: inv.dueDate,
-      description: inv.description
+      notes: inv.notes,
+      description: inv.description,
+      createdAt: inv.createdAt,
+      updatedAt: inv.updatedAt,
     }));
 
     return reply.status(200).send({
@@ -1277,36 +1356,236 @@ export async function superAdminRoutes(app: FastifyInstance) {
     });
   });
 
+  // GET /invoices/:id - Return itemized invoice dossier and payment history
+  app.get("/invoices/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    let invoice = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      invoice = await Invoice.findOne({ _id: id, isDeleted: false });
+    }
+    if (!invoice) {
+      invoice = await Invoice.findOne({ invoiceNo: id.toUpperCase().trim(), isDeleted: false });
+    }
+
+    if (!invoice) {
+      throw new AppError(404, "NOT_FOUND", `Invoice '${id}' not found`);
+    }
+
+    const payments = await PaymentRecord.find({
+      $or: [
+        { invoiceId: invoice._id },
+        { invoiceNo: invoice.invoiceNo }
+      ],
+      isDeleted: { $ne: true }
+    }).sort({ paymentDate: -1, createdAt: -1 });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Invoice retrieved successfully",
+      data: {
+        invoice: {
+          id: invoice._id.toString(),
+          _id: invoice._id.toString(),
+          invoiceNo: invoice.invoiceNo,
+          organizationId: invoice.organizationId ? invoice.organizationId.toString() : null,
+          customerName: invoice.customerName || invoice.organization,
+          organization: invoice.customerName || invoice.organization,
+          currency: invoice.currency || "USD",
+          issueDate: invoice.issueDate,
+          dueDate: invoice.dueDate,
+          lineItems: invoice.lineItems || [],
+          subtotal: invoice.subtotal ?? invoice.amount ?? 0,
+          discountAmount: invoice.discountAmount || 0,
+          taxAmount: invoice.taxAmount || 0,
+          totalAmount: invoice.totalAmount ?? invoice.amount ?? 0,
+          amount: invoice.totalAmount ?? invoice.amount ?? 0,
+          amountPaid: invoice.amountPaid || 0,
+          balanceDue: invoice.balanceDue ?? (invoice.status === "Paid" || invoice.status === "paid" ? 0 : (invoice.totalAmount ?? invoice.amount ?? 0)),
+          type: invoice.type,
+          status: invoice.status,
+          notes: invoice.notes,
+          description: invoice.description,
+          createdBy: invoice.createdBy ? invoice.createdBy.toString() : null,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        },
+        payments: payments.map(p => ({
+          id: p._id.toString(),
+          receiptNo: p.paymentNo || (p as any).receiptNo || (p as any)._doc?.receiptNo,
+          paymentNo: p.paymentNo,
+          amount: p.amount,
+          method: p.paymentMethod || (p as any).method || (p as any)._doc?.method,
+          paymentMethod: p.paymentMethod || (p as any).method || (p as any)._doc?.method,
+          reference: p.referenceNumber || (p as any).reference || (p as any)._doc?.reference,
+          referenceNumber: p.referenceNumber || (p as any).reference || (p as any)._doc?.reference,
+          notes: p.notes,
+          recordedAt: p.paymentDate || (p as any).recordedAt || (p as any)._doc?.recordedAt,
+          paymentDate: p.paymentDate,
+          recordedBy: p.recordedByEmail || (p as any).recordedBy
+        }))
+      }
+    });
+  });
+
   // POST /invoices
   app.post("/invoices", async (request, reply) => {
-    const { organization, amount, type, status, description } = request.body as any;
+    const {
+      organizationId,
+      organization,
+      customerName,
+      currency = "USD",
+      issueDate,
+      dueDate,
+      lineItems,
+      discountAmount = 0,
+      taxAmount = 0,
+      amount,
+      type = "Invoice",
+      status = "issued",
+      notes,
+      description
+    } = request.body as any;
+
+    let custName = (customerName || organization || "").trim();
+    let targetOrgId = organizationId;
+
+    if (targetOrgId && mongoose.Types.ObjectId.isValid(targetOrgId)) {
+      targetOrgId = new mongoose.Types.ObjectId(targetOrgId);
+      if (!custName) {
+        const foundOrg = await Organization.findById(targetOrgId);
+        if (foundOrg) custName = foundOrg.name;
+      }
+    } else if (custName) {
+      const foundOrg = await Organization.findOne({
+        name: { $regex: new RegExp(`^${custName}$`, "i") },
+        isDeleted: false
+      });
+      if (foundOrg) {
+        targetOrgId = foundOrg._id;
+        custName = foundOrg.name;
+      } else {
+        const anyOrg = await Organization.findOne({ isDeleted: false });
+        if (anyOrg) {
+          targetOrgId = anyOrg._id;
+        } else {
+          throw new AppError(400, "BAD_REQUEST", "No active organization exists to associate with invoice");
+        }
+      }
+    } else {
+      throw new AppError(400, "BAD_REQUEST", "Customer organization name or organizationId is required");
+    }
+
+    // Line items validation
+    if (Array.isArray(lineItems) && lineItems.length === 0) {
+      throw new AppError(400, "INVALID_LINE_ITEMS", "Invoice must contain at least one line item");
+    }
+
+    let preparedLineItems: any[] = [];
+    if (Array.isArray(lineItems) && lineItems.length > 0) {
+      preparedLineItems = lineItems.map((item: any) => {
+        const desc = (item.description || "").trim();
+        if (!desc) {
+          throw new AppError(400, "INVALID_LINE_ITEMS", "Each line item must have a non-empty description");
+        }
+        const qty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
+        const unit = Number(item.unitPrice) >= 0 ? Number(item.unitPrice) : 0;
+        return {
+          description: desc,
+          quantity: qty,
+          unitPrice: Math.round((unit + Number.EPSILON) * 100) / 100,
+          amount: Math.round((qty * unit + Number.EPSILON) * 100) / 100,
+        };
+      });
+    } else if (amount !== undefined && amount !== null && Number(amount) >= 0) {
+      const parsedAmount = Math.round((Number(amount) + Number.EPSILON) * 100) / 100;
+      preparedLineItems = [
+        {
+          description: (description || "Professional Services & Platform Subscription").trim(),
+          quantity: 1,
+          unitPrice: parsedAmount,
+          amount: parsedAmount,
+        }
+      ];
+    } else {
+      throw new AppError(400, "INVALID_LINE_ITEMS", "Invoice must contain line items or a valid amount");
+    }
+
+    const parsedIssueDate = issueDate ? new Date(issueDate) : new Date();
+    const parsedDueDate = dueDate
+      ? new Date(dueDate)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    if (isNaN(parsedIssueDate.getTime())) {
+      throw new AppError(400, "INVALID_DATE", "Issue date is not a valid date");
+    }
+    if (isNaN(parsedDueDate.getTime())) {
+      throw new AppError(400, "INVALID_DATE", "Due date is not a valid date");
+    }
+
+    if (parsedDueDate.getTime() < parsedIssueDate.getTime()) {
+      throw new AppError(400, "INVALID_DUE_DATE", "Due date cannot be earlier than issue date");
+    }
 
     const count = await Invoice.countDocuments();
     const invoiceNo = `INV-${8890 + count}`;
 
     const newInvoice = new Invoice({
       invoiceNo,
-      organization,
-      amount: parseFloat(amount),
-      type,
-      status,
-      description,
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+      organizationId: targetOrgId,
+      customerName: custName,
+      currency: (currency || "USD").toUpperCase().trim(),
+      issueDate: parsedIssueDate,
+      dueDate: parsedDueDate,
+      lineItems: preparedLineItems,
+      discountAmount: Number(discountAmount) || 0,
+      taxAmount: Number(taxAmount) || 0,
+      type: type || "Invoice",
+      status: status || "issued",
+      notes: notes?.trim() || "",
+      description: description?.trim() || preparedLineItems[0]?.description || "",
+      createdBy: (request.user as any)?.userId ? new mongoose.Types.ObjectId((request.user as any).userId) : undefined
     });
 
     await newInvoice.save();
+
+    await AuditLog.create({
+      organizationId: targetOrgId,
+      actorUserId: (request.user as any).userId,
+      actorType: "user",
+      eventCategory: "finance",
+      eventType: "INVOICE_CREATED",
+      resourceType: "Invoice",
+      resourceId: newInvoice._id,
+      action: "create",
+      description: `Created invoice ${newInvoice.invoiceNo} for ${custName} (${newInvoice.currency} ${newInvoice.totalAmount}) with ${newInvoice.lineItems.length} line items`,
+      severity: "info"
+    });
 
     return reply.status(201).send({
       success: true,
       message: "Invoice created successfully",
       data: {
         id: newInvoice._id.toString(),
+        _id: newInvoice._id.toString(),
         invoiceNo: newInvoice.invoiceNo,
-        organization: newInvoice.organization,
-        amount: newInvoice.amount,
+        organizationId: newInvoice.organizationId.toString(),
+        customerName: newInvoice.customerName,
+        organization: newInvoice.customerName,
+        currency: newInvoice.currency,
+        issueDate: newInvoice.issueDate,
+        dueDate: newInvoice.dueDate,
+        lineItems: newInvoice.lineItems,
+        subtotal: newInvoice.subtotal,
+        discountAmount: newInvoice.discountAmount,
+        taxAmount: newInvoice.taxAmount,
+        totalAmount: newInvoice.totalAmount,
+        amount: newInvoice.totalAmount,
+        amountPaid: newInvoice.amountPaid,
+        balanceDue: newInvoice.balanceDue,
         type: newInvoice.type,
         status: newInvoice.status,
-        dueDate: newInvoice.dueDate,
+        notes: newInvoice.notes,
         description: newInvoice.description
       }
     });
@@ -1316,11 +1595,24 @@ export async function superAdminRoutes(app: FastifyInstance) {
   app.get("/invoices/export", async (request, reply) => {
     reply.header("Content-Type", "text/csv");
     reply.header("Content-Disposition", 'attachment; filename="billing-export.csv"');
-    
-    const invoices = await Invoice.find({ isDeleted: false });
-    let csv = "Invoice No,Organization,Amount,Type,Status,Due Date,Description\n";
+
+    const invoices = await Invoice.find({ isDeleted: false }).sort({ createdAt: -1 });
+    let csv = "Invoice No,Customer,Issue Date,Due Date,Currency,Subtotal,Discount,Tax,Total Amount,Amount Paid,Balance Due,Status,Type,Items Count,Notes\n";
     for (const inv of invoices) {
-      csv += `"${inv.invoiceNo}","${inv.organization}",${inv.amount},"${inv.type}","${inv.status}","${inv.dueDate}","${inv.description}"\n`;
+      const cust = (inv.customerName || inv.organization || "").replace(/"/g, '""');
+      const notes = (inv.notes || inv.description || "").replace(/"/g, '""');
+      const issue = inv.issueDate ? (inv.issueDate instanceof Date ? inv.issueDate.toISOString().split("T")[0] : String(inv.issueDate)) : "";
+      const due = inv.dueDate ? (inv.dueDate instanceof Date ? inv.dueDate.toISOString().split("T")[0] : String(inv.dueDate)) : "";
+      const itemsCount = Array.isArray(inv.lineItems) ? inv.lineItems.length : 1;
+      const subtotal = inv.subtotal ?? inv.amount ?? 0;
+      const discount = inv.discountAmount || 0;
+      const tax = inv.taxAmount || 0;
+      const total = inv.totalAmount ?? inv.amount ?? 0;
+      const paid = inv.amountPaid || 0;
+      const bal = inv.balanceDue ?? (inv.status === "Paid" || inv.status === "paid" ? 0 : total);
+      const curr = inv.currency || "USD";
+
+      csv += `"${inv.invoiceNo}","${cust}","${issue}","${due}","${curr}",${subtotal},${discount},${tax},${total},${paid},${bal},"${inv.status}","${inv.type}",${itemsCount},"${notes}"\n`;
     }
 
     return reply.status(200).send(csv);
@@ -1369,14 +1661,14 @@ export async function superAdminRoutes(app: FastifyInstance) {
     const totalArr = totalMrr * 12;
     const arpu = platformUsers > 0 ? Number((totalMrr / platformUsers).toFixed(2)) : 0;
 
-    // Invoices summary
-    const allPaid = await Invoice.find({ status: "Paid", isDeleted: false });
-    const allPending = await Invoice.find({ status: "Pending", isDeleted: false });
-    const allOverdue = await Invoice.find({ status: "Overdue", isDeleted: false });
+    // Invoices summary supporting both legacy and canonical statuses
+    const allPaid = await Invoice.find({ status: { $in: ["Paid", "paid"] }, isDeleted: false });
+    const allPending = await Invoice.find({ status: { $in: ["Pending", "issued", "sent", "partially_paid"] }, isDeleted: false });
+    const allOverdue = await Invoice.find({ status: { $in: ["Overdue", "overdue"] }, isDeleted: false });
 
-    const totalRevenue = allPaid.reduce((sum, inv) => sum + inv.amount, 0);
-    const pendingRevenue = allPending.reduce((sum, inv) => sum + inv.amount, 0);
-    const overdueRevenue = allOverdue.reduce((sum, inv) => sum + inv.amount, 0);
+    const totalRevenue = Math.round(allPaid.reduce((sum, inv) => sum + (inv.totalAmount ?? inv.amount ?? 0), 0) * 100) / 100;
+    const pendingRevenue = Math.round(allPending.reduce((sum, inv) => sum + (inv.balanceDue ?? inv.totalAmount ?? inv.amount ?? 0), 0) * 100) / 100;
+    const overdueRevenue = Math.round(allOverdue.reduce((sum, inv) => sum + (inv.balanceDue ?? inv.totalAmount ?? inv.amount ?? 0), 0) * 100) / 100;
 
     // Tier distribution breakdown with percentage and colors
     const TIER_COLORS: Record<string, string> = {
@@ -1830,11 +2122,13 @@ export async function superAdminRoutes(app: FastifyInstance) {
 
   // GET /finance/payments - Manual Payment receipts ledger
   app.get("/finance/payments", async (request, reply) => {
-    const db = mongoose.connection.db;
-    const paymentsCol = db ? db.collection("payment_records") : null;
-    const payments = paymentsCol ? await paymentsCol.find().sort({ recordedAt: -1 }).limit(100).toArray() : [];
+    const payments = await PaymentRecord.find({ isDeleted: { $ne: true } })
+      .sort({ paymentDate: -1, createdAt: -1 })
+      .limit(100);
 
-    const totalCollected = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalCollected = Math.round(
+      payments.reduce((sum, p) => sum + (p.amount || 0), 0) * 100
+    ) / 100;
 
     return reply.status(200).send({
       success: true,
@@ -1842,88 +2136,215 @@ export async function superAdminRoutes(app: FastifyInstance) {
       data: {
         payments: payments.map(p => ({
           id: p._id.toString(),
-          receiptNo: p.receiptNo || `REC-${p._id.toString().slice(-6).toUpperCase()}`,
+          _id: p._id.toString(),
+          paymentNo: p.paymentNo,
+          receiptNo: p.paymentNo || (p as any).receiptNo || (p as any)._doc?.receiptNo,
+          invoiceId: p.invoiceId ? p.invoiceId.toString() : null,
+          invoiceNo: p.invoiceNo,
+          organizationId: p.organizationId ? p.organizationId.toString() : null,
           organizationName: p.organizationName,
           amount: p.amount,
-          method: p.method || "Bank Wire (ACH)",
-          reference: p.reference || "WIRE-REF",
-          invoiceNo: p.invoiceNo,
-          recordedAt: p.recordedAt,
-          recordedBy: p.recordedBy || "Super Admin"
+          currency: p.currency || "USD",
+          method: p.paymentMethod || (p as any).method || (p as any)._doc?.method || "wire",
+          paymentMethod: p.paymentMethod || (p as any).method || (p as any)._doc?.method || "wire",
+          reference: p.referenceNumber || (p as any).reference || (p as any)._doc?.reference || "REF",
+          referenceNumber: p.referenceNumber || (p as any).reference || (p as any)._doc?.reference || "REF",
+          verificationStatus: p.verificationStatus || "verified",
+          notes: p.notes,
+          paymentDate: p.paymentDate,
+          recordedAt: p.paymentDate || (p as any).recordedAt || (p as any)._doc?.recordedAt,
+          recordedBy: p.recordedByEmail || (p as any).recordedBy || "Super Admin"
         })),
         totalCollected
       }
     });
   });
 
-  // POST /finance/payments - Record verified manual payment receipt
+  // POST /finance/payments - Record verified manual payment receipt with deterministic reconciliation
   app.post("/finance/payments", async (request, reply) => {
-    const { organizationName, organizationId, amount, method, reference, invoiceNo, notes } = request.body as any;
+    const {
+      invoiceId,
+      invoiceNo,
+      organizationName,
+      organizationId,
+      amount,
+      method,
+      paymentMethod,
+      reference,
+      referenceNumber,
+      notes
+    } = request.body as any;
 
-    let orgName = organizationName;
-    if (!orgName && organizationId && mongoose.Types.ObjectId.isValid(organizationId)) {
-      const foundOrg = await Organization.findById(organizationId);
-      orgName = foundOrg?.name || "Customer Organization";
+    let invoice = null;
+    if (invoiceId && mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await Invoice.findOne({ _id: invoiceId, isDeleted: false });
+    }
+    if (!invoice && invoiceNo && invoiceNo !== "N/A") {
+      invoice = await Invoice.findOne({ invoiceNo: invoiceNo.toUpperCase().trim(), isDeleted: false });
     }
 
-    if (!orgName || !amount || Number(amount) <= 0) {
-      throw new AppError(400, "BAD_REQUEST", "Organization name and positive amount required");
+    // If no explicit invoice was specified, check if an open invoice exists for this organization
+    if (!invoice && !invoiceId && (!invoiceNo || invoiceNo === "N/A")) {
+      const orgFilter: any = { status: { $in: ["issued", "sent", "partially_paid", "pending", "Pending"] }, isDeleted: false };
+      if (organizationId && mongoose.Types.ObjectId.isValid(organizationId)) {
+        orgFilter.organizationId = new mongoose.Types.ObjectId(organizationId);
+      }
+      if (orgFilter.organizationId) {
+        invoice = await Invoice.findOne(orgFilter).sort({ dueDate: 1, createdAt: 1 });
+      }
     }
 
-    const db = mongoose.connection.db;
-    if (!db) {
-      throw new AppError(500, "DB_UNAVAILABLE", "Database handle unavailable");
+    if (!invoice) {
+      if (invoiceId || (invoiceNo && invoiceNo !== "N/A")) {
+        throw new AppError(404, "NOT_FOUND", `Invoice '${invoiceId || invoiceNo}' not found`);
+      }
+      if (!organizationId && !organizationName) {
+        throw new AppError(400, "BAD_REQUEST", "Target organization or active invoice must be specified for payment recording");
+      }
     }
 
-    const receiptNo = `REC-${Date.now().toString().slice(-6)}`;
-    const paymentDoc = {
-      receiptNo,
-      organizationName: orgName.trim(),
-      organizationId: organizationId ? new mongoose.Types.ObjectId(organizationId) : null,
-      amount: Number(amount),
-      method: method || "Bank Wire",
-      reference: reference?.trim() || "REF-VERIFIED",
-      invoiceNo: invoiceNo?.trim() || "N/A",
-      notes: notes?.trim() || "",
-      recordedAt: new Date(),
-      recordedBy: (request.user as any)?.email || "Super Admin"
-    };
+    if (invoice && (invoice.status === "cancelled" || invoice.status === "written_off")) {
+      throw new AppError(400, "INVALID_INVOICE_STATUS", `Cannot record payment against ${invoice.status} invoice`);
+    }
 
-    await db.collection("payment_records").insertOne(paymentDoc);
+    const currentBalance = invoice
+      ? (invoice.balanceDue !== undefined
+          ? invoice.balanceDue
+          : (invoice.status === "Paid" || invoice.status === "paid" ? 0 : (invoice.totalAmount ?? invoice.amount ?? 0)))
+      : 0;
 
-    // If invoiceNo provided, mark invoice as Paid
-    if (invoiceNo && invoiceNo !== "N/A") {
-      await Invoice.findOneAndUpdate(
-        { invoiceNo: invoiceNo.trim() },
-        { $set: { status: "Paid" } }
+    if (invoice && (currentBalance <= 0 || invoice.status === "Paid" || invoice.status === "paid")) {
+      throw new AppError(400, "INVOICE_ALREADY_PAID", "Invoice is already fully paid");
+    }
+
+    const paymentAmount = Math.round((Number(amount) + Number.EPSILON) * 100) / 100;
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      throw new AppError(400, "BAD_REQUEST", "Payment amount must be a positive number");
+    }
+
+    if (invoice && paymentAmount > currentBalance) {
+      throw new AppError(
+        400,
+        "OVERPAYMENT_NOT_ALLOWED",
+        `Payment amount ($${paymentAmount.toFixed(2)}) exceeds invoice balance due ($${currentBalance.toFixed(2)})`
       );
     }
 
+    const refNo = (referenceNumber || reference || "").trim();
+    if (!refNo) {
+      throw new AppError(400, "BAD_REQUEST", "Transaction reference or wire reference number is required");
+    }
+
+    const rawMethod = (paymentMethod || method || "bank_transfer").toLowerCase();
+    let normalizedMethod: "bank_transfer" | "wire" | "check" | "manual_card" | "other" = "bank_transfer";
+    if (rawMethod.includes("wire")) normalizedMethod = "wire";
+    else if (rawMethod.includes("check")) normalizedMethod = "check";
+    else if (rawMethod.includes("card")) normalizedMethod = "manual_card";
+    else if (rawMethod.includes("ach") || rawMethod.includes("transfer") || rawMethod.includes("bank")) normalizedMethod = "bank_transfer";
+    else if (rawMethod === "other") normalizedMethod = "other";
+
+    let targetOrgId = invoice?.organizationId || (organizationId && mongoose.Types.ObjectId.isValid(organizationId) ? new mongoose.Types.ObjectId(organizationId) : null);
+    let orgName = invoice?.customerName || invoice?.organization || organizationName || "";
+
+    if (!orgName && targetOrgId) {
+      const foundOrg = await Organization.findById(targetOrgId);
+      orgName = foundOrg?.name || "Customer Organization";
+    }
+    if (!orgName) orgName = "Customer Organization";
+
+    // Atomically reconcile invoice if linked
+    const previousBalance = currentBalance;
+    let newBalance = 0;
+    if (invoice) {
+      invoice.amountPaid = Math.round(((invoice.amountPaid || 0) + paymentAmount + Number.EPSILON) * 100) / 100;
+      const total = invoice.totalAmount ?? invoice.amount ?? 0;
+      newBalance = Math.max(0, Math.round((total - invoice.amountPaid + Number.EPSILON) * 100) / 100);
+      invoice.balanceDue = newBalance;
+      invoice.status = newBalance <= 0 ? "paid" : "partially_paid";
+      await invoice.save();
+    }
+
+    // Generate canonical payment receipt number
+    const count = await PaymentRecord.countDocuments();
+    const paymentNo = `REC-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+
+    const paymentDoc = new PaymentRecord({
+      paymentNo,
+      invoiceId: invoice?._id,
+      invoiceNo: invoice?.invoiceNo || "N/A",
+      organizationId: targetOrgId,
+      organizationName: orgName,
+      amount: paymentAmount,
+      currency: invoice?.currency || "USD",
+      paymentDate: new Date(),
+      paymentMethod: normalizedMethod,
+      referenceNumber: refNo,
+      verificationStatus: "verified",
+      notes: notes?.trim() || "",
+      recordedBy: (request.user as any)?.userId ? new mongoose.Types.ObjectId((request.user as any).userId) : undefined,
+      recordedByEmail: (request.user as any)?.email || "Super Admin"
+    });
+
+    await paymentDoc.save();
+
     await AuditLog.create({
+      organizationId: targetOrgId,
       actorUserId: (request.user as any).userId,
       actorType: "user",
       eventCategory: "finance",
       eventType: "PAYMENT_RECORDED",
-      resourceType: "PaymentReceipt",
+      resourceType: "PaymentRecord",
+      resourceId: paymentDoc._id,
       action: "create",
-      description: `Manual payment receipt ${receiptNo} recorded: $${amount} from ${organizationName} via ${method}`,
-      severity: "info"
+      description: invoice
+        ? `Manual payment receipt ${paymentNo} recorded: $${paymentAmount.toFixed(2)} from ${orgName} against invoice ${invoice.invoiceNo} (Prev balance: $${previousBalance.toFixed(2)}, New balance: $${newBalance.toFixed(2)})`
+        : `Manual prepayment receipt ${paymentNo} recorded: $${paymentAmount.toFixed(2)} from ${orgName} (${refNo})`,
+      severity: "info",
+      metadata: {
+        invoiceNo: invoice?.invoiceNo || "N/A",
+        amount: paymentAmount,
+        previousBalance,
+        newBalance,
+        referenceNumber: refNo
+      }
     });
 
     return reply.status(201).send({
       success: true,
       message: "Payment receipt recorded successfully",
-      data: paymentDoc
+      data: {
+        id: paymentDoc._id.toString(),
+        _id: paymentDoc._id.toString(),
+        paymentNo: paymentDoc.paymentNo,
+        receiptNo: paymentDoc.paymentNo,
+        invoiceId: paymentDoc.invoiceId ? paymentDoc.invoiceId.toString() : null,
+        invoiceNo: paymentDoc.invoiceNo,
+        organizationId: paymentDoc.organizationId ? paymentDoc.organizationId.toString() : null,
+        organizationName: paymentDoc.organizationName,
+        amount: paymentDoc.amount,
+        currency: paymentDoc.currency,
+        paymentDate: paymentDoc.paymentDate,
+        recordedAt: paymentDoc.paymentDate,
+        paymentMethod: paymentDoc.paymentMethod,
+        method: paymentDoc.paymentMethod,
+        referenceNumber: paymentDoc.referenceNumber,
+        reference: paymentDoc.referenceNumber,
+        verificationStatus: paymentDoc.verificationStatus,
+        notes: paymentDoc.notes,
+        recordedBy: paymentDoc.recordedByEmail
+      }
     });
   });
 
   // GET /finance/expenses - Operating expense records
   app.get("/finance/expenses", async (request, reply) => {
-    const db = mongoose.connection.db;
-    const expensesCol = db ? db.collection("expense_records") : null;
-    const expenses = expensesCol ? await expensesCol.find().sort({ incurredAt: -1 }).limit(100).toArray() : [];
+    const expenses = await ExpenseRecord.find({ isDeleted: { $ne: true } })
+      .sort({ expenseDate: -1, createdAt: -1 })
+      .limit(100);
 
-    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalExpenses = Math.round(
+      expenses.reduce((sum, e) => sum + (e.amount || 0), 0) * 100
+    ) / 100;
 
     return reply.status(200).send({
       success: true,
@@ -1931,12 +2352,20 @@ export async function superAdminRoutes(app: FastifyInstance) {
       data: {
         expenses: expenses.map(e => ({
           id: e._id.toString(),
+          _id: e._id.toString(),
+          expenseNo: e.expenseNo,
           category: e.category,
           vendor: e.vendor,
           amount: e.amount,
-          incurredAt: e.incurredAt,
+          currency: e.currency || "USD",
+          expenseDate: e.expenseDate,
+          incurredAt: e.expenseDate,
+          date: e.expenseDate,
           description: e.description,
-          recordedBy: e.recordedBy || "Super Admin"
+          title: e.description,
+          notes: e.description,
+          isRecurring: e.isRecurring,
+          recordedBy: e.createdByEmail || (e as any).recordedBy || "Super Admin"
         })),
         totalExpenses
       }
@@ -1945,44 +2374,436 @@ export async function superAdminRoutes(app: FastifyInstance) {
 
   // POST /finance/expenses - Record manual operating expense
   app.post("/finance/expenses", async (request, reply) => {
-    const { category, vendor, amount, description, incurredAt } = request.body as any;
+    const {
+      category,
+      vendor,
+      amount,
+      currency = "USD",
+      description,
+      title,
+      notes,
+      expenseDate,
+      incurredAt,
+      isRecurring = false,
+      receiptUrl,
+      organizationId,
+    } = request.body as any;
 
-    if (!category || !vendor || !amount || Number(amount) <= 0) {
-      throw new AppError(400, "BAD_REQUEST", "Category, vendor, and valid amount required");
+    if (!category || typeof category !== "string" || !category.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Expense category is required");
     }
 
-    const db = mongoose.connection.db;
-    if (!db) {
-      throw new AppError(500, "DB_UNAVAILABLE", "Database handle unavailable");
+    if (!vendor || typeof vendor !== "string" || !vendor.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Expense vendor is required");
     }
 
-    const expenseDoc = {
-      category: category.trim(),
+    const numAmount = Math.round((Number(amount) + Number.EPSILON) * 100) / 100;
+    if (isNaN(numAmount) || numAmount <= 0) {
+      throw new AppError(400, "BAD_REQUEST", "Expense amount must be a positive number");
+    }
+
+    const desc = (description || title || notes || "").trim();
+    if (!desc) {
+      throw new AppError(400, "BAD_REQUEST", "Expense description or title is required");
+    }
+
+    // Normalize legacy categories if provided
+    let normalizedCategory = category.trim().toLowerCase();
+    if (normalizedCategory === "hosting" || normalizedCategory === "cloud") {
+      normalizedCategory = "infrastructure";
+    } else if (normalizedCategory === "ai" || normalizedCategory === "tokens") {
+      normalizedCategory = "ai_compute";
+    } else if (normalizedCategory === "tools" || normalizedCategory === "saas") {
+      normalizedCategory = "software_licenses";
+    } else if (normalizedCategory === "hardware") {
+      normalizedCategory = "office";
+    }
+
+    const VALID_CATEGORIES = [
+      "infrastructure",
+      "ai_compute",
+      "software_licenses",
+      "salaries",
+      "marketing",
+      "office",
+      "legal",
+      "other",
+    ];
+
+    if (!VALID_CATEGORIES.includes(normalizedCategory)) {
+      throw new AppError(400, "INVALID_CATEGORY", `Invalid expense category: '${category}'. Must be one of: ${VALID_CATEGORIES.join(", ")}`);
+    }
+
+    // Generate canonical expense number
+    const count = await ExpenseRecord.countDocuments();
+    const expenseNo = `EXP-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+
+    const dateVal = expenseDate ? new Date(expenseDate) : (incurredAt ? new Date(incurredAt) : new Date());
+
+    const expenseDoc = new ExpenseRecord({
+      expenseNo,
+      category: normalizedCategory,
       vendor: vendor.trim(),
-      amount: Number(amount),
-      description: description?.trim() || "",
-      incurredAt: incurredAt ? new Date(incurredAt) : new Date(),
-      createdAt: new Date(),
-      recordedBy: (request.user as any)?.email || "Super Admin"
-    };
+      amount: numAmount,
+      currency: (currency || "USD").toUpperCase().trim(),
+      expenseDate: dateVal,
+      description: desc,
+      organizationId: organizationId && mongoose.Types.ObjectId.isValid(organizationId) ? new mongoose.Types.ObjectId(organizationId) : undefined,
+      isRecurring: Boolean(isRecurring),
+      receiptUrl: receiptUrl?.trim() || undefined,
+      createdBy: (request.user as any)?.userId ? new mongoose.Types.ObjectId((request.user as any).userId) : undefined,
+      createdByEmail: (request.user as any)?.email || "Super Admin"
+    });
 
-    await db.collection("expense_records").insertOne(expenseDoc);
+    await expenseDoc.save();
 
     await AuditLog.create({
+      organizationId: expenseDoc.organizationId,
       actorUserId: (request.user as any).userId,
       actorType: "user",
       eventCategory: "finance",
       eventType: "EXPENSE_RECORDED",
       resourceType: "ExpenseRecord",
+      resourceId: expenseDoc._id,
       action: "create",
-      description: `Operating expense recorded: $${amount} for ${vendor} (${category})`,
-      severity: "info"
+      description: `Operating expense ${expenseNo} recorded: $${numAmount.toFixed(2)} for ${vendor.trim()} (${normalizedCategory})`,
+      severity: "info",
+      metadata: {
+        expenseNo: expenseDoc.expenseNo,
+        category: expenseDoc.category,
+        vendor: expenseDoc.vendor,
+        amount: numAmount,
+        description: desc
+      }
     });
 
     return reply.status(201).send({
       success: true,
       message: "Expense recorded successfully",
-      data: expenseDoc
+      data: {
+        id: expenseDoc._id.toString(),
+        _id: expenseDoc._id.toString(),
+        expenseNo: expenseDoc.expenseNo,
+        category: expenseDoc.category,
+        vendor: expenseDoc.vendor,
+        amount: expenseDoc.amount,
+        currency: expenseDoc.currency,
+        expenseDate: expenseDoc.expenseDate,
+        incurredAt: expenseDoc.expenseDate,
+        date: expenseDoc.expenseDate,
+        description: expenseDoc.description,
+        title: expenseDoc.description,
+        notes: expenseDoc.description,
+        isRecurring: expenseDoc.isRecurring,
+        receiptUrl: expenseDoc.receiptUrl,
+        recordedBy: expenseDoc.createdByEmail
+      }
+    });
+  });
+
+  // GET /finance/accounts - Customer account balances, billing tiers, and commercial terms
+  app.get("/finance/accounts", async (request, reply) => {
+    const { search, status } = request.query as any;
+
+    // 1. Fetch all active organizations
+    const orgs = await Organization.find({ isDeleted: { $ne: true } })
+      .select("_id name slug domain plan status supportEmail")
+      .lean();
+
+    // 2. Fetch or auto-create CustomerAccount for any missing organization
+    const orgIds = orgs.map(o => o._id);
+    const existingAccounts = await CustomerAccount.find({
+      organizationId: { $in: orgIds },
+      isDeleted: { $ne: true }
+    });
+
+    const accountMap = new Map<string, any>();
+    existingAccounts.forEach(acc => {
+      accountMap.set(acc.organizationId.toString(), acc);
+    });
+
+    // Auto-create CustomerAccount for any organization that lacks one
+    for (const org of orgs) {
+      const orgIdStr = org._id.toString();
+      if (!accountMap.has(orgIdStr)) {
+        const newAcc = await CustomerAccount.create({
+          organizationId: org._id,
+          accountStatus: "good_standing",
+          billingCycle: "monthly",
+          preferredCurrency: "USD",
+          creditLimit: 0,
+          billingContact: {
+            name: org.name,
+            email: org.supportEmail || "",
+            phone: "",
+            address: ""
+          }
+        });
+        accountMap.set(orgIdStr, newAcc);
+      }
+    }
+
+    // 3. Aggregate financial balance stats from Invoice collection
+    const invoiceAggregates = await Invoice.aggregate([
+      {
+        $match: {
+          isDeleted: { $ne: true },
+          status: { $ne: "Void" }
+        }
+      },
+      {
+        $group: {
+          _id: "$organizationId",
+          totalInvoiced: {
+            $sum: { $ifNull: ["$totalAmount", { $ifNull: ["$subtotal", 0] }] }
+          },
+          totalPaid: {
+            $sum: { $ifNull: ["$amountPaid", 0] }
+          },
+          totalBalanceDue: {
+            $sum: {
+              $ifNull: [
+                "$balanceDue",
+                {
+                  $subtract: [
+                    { $ifNull: ["$totalAmount", { $ifNull: ["$subtotal", 0] }] },
+                    { $ifNull: ["$amountPaid", 0] }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const invoiceStatsMap = new Map<string, { totalInvoiced: number; totalPaid: number; totalBalanceDue: number }>();
+    invoiceAggregates.forEach(inv => {
+      if (inv._id) {
+        invoiceStatsMap.set(inv._id.toString(), {
+          totalInvoiced: Math.round((Number(inv.totalInvoiced || 0) + Number.EPSILON) * 100) / 100,
+          totalPaid: Math.round((Number(inv.totalPaid || 0) + Number.EPSILON) * 100) / 100,
+          totalBalanceDue: Math.round((Number(inv.totalBalanceDue || 0) + Number.EPSILON) * 100) / 100
+        });
+      }
+    });
+
+    // 4. Assemble merged customer account records
+    let results = orgs.map(org => {
+      const orgIdStr = org._id.toString();
+      const acc = accountMap.get(orgIdStr);
+      const invStats = invoiceStatsMap.get(orgIdStr) || {
+        totalInvoiced: 0,
+        totalPaid: 0,
+        totalBalanceDue: 0
+      };
+
+      return {
+        id: acc._id.toString(),
+        _id: acc._id.toString(),
+        organizationId: {
+          id: org._id.toString(),
+          _id: org._id.toString(),
+          name: org.name,
+          slug: org.slug,
+          domain: org.domain,
+          plan: org.plan || "Enterprise",
+          status: org.status || "Active"
+        },
+        organization: {
+          id: org._id.toString(),
+          _id: org._id.toString(),
+          name: org.name,
+          slug: org.slug,
+          domain: org.domain,
+          plan: org.plan || "Enterprise",
+          status: org.status || "Active"
+        },
+        accountStatus: acc.accountStatus || "good_standing",
+        billingCycle: acc.billingCycle || "monthly",
+        preferredCurrency: acc.preferredCurrency || "USD",
+        creditLimit: acc.creditLimit || 0,
+        billingContact: acc.billingContact || {
+          name: org.name,
+          email: org.supportEmail || "",
+          phone: "",
+          address: ""
+        },
+        commercialNotes: acc.commercialNotes || "",
+        totalInvoiced: invStats.totalInvoiced,
+        totalPaid: invStats.totalPaid,
+        totalBalanceDue: invStats.totalBalanceDue,
+        createdAt: acc.createdAt,
+        updatedAt: acc.updatedAt
+      };
+    });
+
+    // 5. Apply filters
+    if (status && status !== "all") {
+      results = results.filter(r => r.accountStatus === status);
+    }
+
+    if (search && typeof search === "string" && search.trim()) {
+      const q = search.trim().toLowerCase();
+      results = results.filter(r =>
+        r.organization.name.toLowerCase().includes(q) ||
+        r.organization.slug.toLowerCase().includes(q) ||
+        (r.billingContact.name && r.billingContact.name.toLowerCase().includes(q)) ||
+        (r.billingContact.email && r.billingContact.email.toLowerCase().includes(q))
+      );
+    }
+
+    return reply.status(200).send({
+      success: true,
+      message: "Customer accounts retrieved successfully",
+      data: results,
+      total: results.length
+    });
+  });
+
+  // PATCH /finance/accounts/:id - Update customer account status, credit limit, or billing contact
+  app.patch("/finance/accounts/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const {
+      accountStatus,
+      billingCycle,
+      creditLimit,
+      preferredCurrency,
+      billingContact,
+      commercialNotes
+    } = request.body as any;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw new AppError(400, "BAD_REQUEST", "Invalid customer account or organization ID format");
+    }
+
+    const objectId = new mongoose.Types.ObjectId(id);
+
+    // Look up either by CustomerAccount _id or organizationId
+    let account = await CustomerAccount.findOne({
+      $or: [{ _id: objectId }, { organizationId: objectId }],
+      isDeleted: { $ne: true }
+    });
+
+    if (!account) {
+      // If organization exists, create CustomerAccount on-the-fly
+      const org = await Organization.findById(objectId);
+      if (org) {
+        account = await CustomerAccount.create({
+          organizationId: org._id,
+          accountStatus: "good_standing",
+          billingCycle: "monthly",
+          preferredCurrency: "USD",
+          creditLimit: 0,
+          billingContact: {
+            name: org.name,
+            email: org.supportEmail || "",
+            phone: "",
+            address: ""
+          }
+        });
+      } else {
+        throw new AppError(404, "NOT_FOUND", "Customer account not found");
+      }
+    }
+
+    const previousStatus = account.accountStatus;
+    const previousCreditLimit = account.creditLimit;
+
+    // Validation: accountStatus
+    if (accountStatus !== undefined) {
+      const VALID_STATUSES = ["good_standing", "delinquent", "credit_hold", "vip"];
+      if (!VALID_STATUSES.includes(accountStatus)) {
+        throw new AppError(
+          400,
+          "INVALID_STATUS",
+          `Invalid account status '${accountStatus}'. Must be one of: ${VALID_STATUSES.join(", ")}`
+        );
+      }
+      account.accountStatus = accountStatus;
+    }
+
+    // Validation: billingCycle
+    if (billingCycle !== undefined) {
+      const VALID_CYCLES = ["monthly", "quarterly", "annual"];
+      if (!VALID_CYCLES.includes(billingCycle)) {
+        throw new AppError(
+          400,
+          "INVALID_BILLING_CYCLE",
+          `Invalid billing cycle '${billingCycle}'. Must be one of: ${VALID_CYCLES.join(", ")}`
+        );
+      }
+      account.billingCycle = billingCycle;
+    }
+
+    // Validation: creditLimit
+    if (creditLimit !== undefined) {
+      const numLimit = Number(creditLimit);
+      if (isNaN(numLimit) || numLimit < 0) {
+        throw new AppError(400, "INVALID_CREDIT_LIMIT", "Credit limit must be a non-negative number");
+      }
+      account.creditLimit = Math.round(numLimit * 100) / 100;
+    }
+
+    // Validation: preferredCurrency
+    if (preferredCurrency !== undefined && typeof preferredCurrency === "string") {
+      account.preferredCurrency = preferredCurrency.trim().toUpperCase().slice(0, 3);
+    }
+
+    // Update billingContact
+    if (billingContact && typeof billingContact === "object") {
+      account.billingContact = {
+        name: billingContact.name !== undefined ? String(billingContact.name).trim() : account.billingContact?.name || "",
+        email: billingContact.email !== undefined ? String(billingContact.email).trim().toLowerCase() : account.billingContact?.email || "",
+        phone: billingContact.phone !== undefined ? String(billingContact.phone).trim() : account.billingContact?.phone || "",
+        address: billingContact.address !== undefined ? String(billingContact.address).trim() : account.billingContact?.address || ""
+      };
+    }
+
+    // Update commercialNotes
+    if (commercialNotes !== undefined) {
+      account.commercialNotes = String(commercialNotes).trim();
+    }
+
+    await account.save();
+
+    // Log the customer account update audit event
+    await AuditLog.create({
+      organizationId: account.organizationId,
+      actorUserId: (request.user as any).userId,
+      actorType: "user",
+      eventCategory: "finance",
+      eventType: "CUSTOMER_ACCOUNT_UPDATED",
+      resourceType: "CustomerAccount",
+      resourceId: account._id,
+      action: "update",
+      description: `Customer account updated for organization ${account.organizationId}: status=${account.accountStatus}, creditLimit=$${account.creditLimit}`,
+      severity: "info",
+      metadata: {
+        previousStatus,
+        newStatus: account.accountStatus,
+        previousCreditLimit,
+        newCreditLimit: account.creditLimit,
+        billingCycle: account.billingCycle
+      }
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Customer account updated successfully",
+      data: {
+        id: account._id.toString(),
+        _id: account._id.toString(),
+        organizationId: account.organizationId.toString(),
+        accountStatus: account.accountStatus,
+        billingCycle: account.billingCycle,
+        preferredCurrency: account.preferredCurrency,
+        creditLimit: account.creditLimit,
+        billingContact: account.billingContact,
+        commercialNotes: account.commercialNotes,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt
+      }
     });
   });
 
