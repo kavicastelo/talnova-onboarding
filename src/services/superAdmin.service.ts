@@ -3,16 +3,22 @@ import { ApiResponse, PaginatedResponse } from '../types';
 
 export interface SuperAdminTelemetry {
   stats: {
-    totalOrganizations: { value: number; delta: string };
-    platformUsers: { value: number; delta: string };
+    totalOrganizations: { value: number; active?: number; suspended?: number; delta: string };
+    platformUsers: { value: number; active?: number; delta: string };
+    activeOnboardings?: { value: number; delta?: string };
+    cashCollected?: { value: number; delta?: string };
+    operatingExpenses?: { value: number; delta?: string };
+    netOperatingResult?: { value: number; delta?: string };
+    openAlerts?: { value: number; critical?: number; high?: number };
+    systemHealth: { value: number; status: string; avgLatencyMs?: number };
     monthlyRevenue: { value: number; delta: string };
-    systemHealth: { value: number; status: string };
   };
   growthData: Array<{
     month: string;
     organizations: number;
     revenue: number;
     users: number;
+    onboardings?: number;
   }>;
 }
 
@@ -107,8 +113,8 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getTelemetry: async (): Promise<SuperAdminTelemetry> => {
-    const response = await apiClient.get<ApiResponse<SuperAdminTelemetry>>('/super-admin/telemetry');
+  getTelemetry: async (params?: { organizationId?: string; startDate?: string; endDate?: string }): Promise<SuperAdminTelemetry> => {
+    const response = await apiClient.get<ApiResponse<SuperAdminTelemetry>>('/super-admin/telemetry', { params });
     return response.data.data;
   },
 
@@ -144,6 +150,46 @@ export const superAdminService = {
     return response.data.data;
   },
 
+  getOrganization360: async (id: string): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>(`/super-admin/organizations/${id}/360`);
+    return response.data.data;
+  },
+
+  quarantineOrganization: async (id: string, reason?: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/organizations/${id}/quarantine`, { reason });
+    return response.data.data;
+  },
+
+  getUsers: async (params?: { search?: string; organizationId?: string; role?: string; status?: string; page?: number; limit?: number }): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/users', { params });
+    return response.data.data;
+  },
+
+  getUser360: async (id: string): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>(`/super-admin/users/${id}/360`);
+    return response.data.data;
+  },
+
+  updateUser: async (id: string, data: { role?: string; status?: string; unlock?: boolean }): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/users/${id}`, data);
+    return response.data.data;
+  },
+
+  forceLogoutUser: async (id: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/users/${id}/force-logout`);
+    return response.data.data;
+  },
+
+  getSessions: async (params?: { organizationId?: string; page?: number; limit?: number }): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/sessions', { params });
+    return response.data.data;
+  },
+
+  revokeSession: async (sessionId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/sessions/${sessionId}/revoke`);
+    return response.data.data;
+  },
+
   getInvoices: async (params?: { search?: string; page?: number; limit?: number }): Promise<{ invoices: PaginatedResponse<InvoiceItem>; summary: FinanceSummary }> => {
     const response = await apiClient.get<ApiResponse<{ invoices: PaginatedResponse<InvoiceItem>; summary: FinanceSummary }>>('/super-admin/invoices', { params });
     return response.data.data;
@@ -165,5 +211,85 @@ export const superAdminService = {
 
   exportFinance: async (): Promise<void> => {
     await apiClient.get('/super-admin/finance/export');
+  },
+
+  globalSearch: async (q: string): Promise<{
+    organizations: Array<{ _id: string; name: string; slug: string; domain?: string; plan: string; status: string }>;
+    users: Array<{ _id: string; profile: { fullName: string }; auth: { email: string }; permissions: { role: string }; employment?: { status: string; department?: string }; organizationId?: string }>;
+    journeys: Array<{ _id: string; title: string; status: string; version: number; organizationId?: string }>;
+    invoices: Array<{ _id: string; invoiceNo: string; organization: string; amount: number; status: string; dueDate?: string; organizationId?: string }>;
+  }> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/search', { params: { q } });
+    return response.data.data;
+  },
+
+  getOnboardingCases: async (params?: { organizationId?: string; state?: string; page?: number; limit?: number }): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/onboarding/cases', { params });
+    return response.data.data;
+  },
+
+  getTasksOps: async (params?: { organizationId?: string; status?: string; type?: string; page?: number; limit?: number }): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/tasks-ops', { params });
+    return response.data.data;
+  },
+
+  getActivityEvents: async (params?: { organizationId?: string; category?: string; severity?: string; search?: string; page?: number; limit?: number }): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/activity', { params });
+    return response.data.data;
+  },
+
+  getApiObservability: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/api');
+    return response.data.data;
+  },
+
+  getInfrastructureObservability: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/infrastructure');
+    return response.data.data;
+  },
+
+  getAIObservability: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/ai');
+    return response.data.data;
+  },
+
+  getStorageObservability: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/storage');
+    return response.data.data;
+  },
+
+  getPayments: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/finance/payments');
+    return response.data.data;
+  },
+
+  recordPayment: async (data: any): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/finance/payments', data);
+    return response.data.data;
+  },
+
+  getExpenses: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/finance/expenses');
+    return response.data.data;
+  },
+
+  recordExpense: async (data: any): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/finance/expenses', data);
+    return response.data.data;
+  },
+
+  getFeatureFlags: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/settings/flags');
+    return response.data.data;
+  },
+
+  toggleFeatureFlag: async (key: string, data: { enabled: boolean; rolloutPct?: number }): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/settings/flags/${key}`, data);
+    return response.data.data;
+  },
+
+  getAlerts: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/alerts');
+    return response.data.data;
   }
 };

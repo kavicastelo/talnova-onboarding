@@ -8,10 +8,11 @@ export function useDocumentTemplates() {
   });
 }
 
-export function useEmployeeDocumentInbox() {
+export function useEmployeeDocumentInbox(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['employeeDocumentInbox'],
     queryFn: () => documentService.getEmployeeInbox(),
+    ...options,
   });
 }
 
