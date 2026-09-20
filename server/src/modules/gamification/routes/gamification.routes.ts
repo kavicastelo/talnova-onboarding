@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { GamificationController } from "../controllers/gamification.controller.js";
 import { GamificationService } from "../services/gamification.service.js";
-import { authenticate } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 
 export async function gamificationRoutes(app: FastifyInstance) {
   const service = new GamificationService();
@@ -9,6 +9,7 @@ export async function gamificationRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("gamified_milestones"));
 
   // GET /api/v1/gamification/profile
   app.get("/profile", controller.getProfile as any);

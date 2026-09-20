@@ -16,8 +16,15 @@ interface RoleContextValue {
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 
-export function RoleProvider({ children }: { children: React.ReactNode; }) {
+interface RoleProviderProps {
+  children: React.ReactNode;
+  initialRole?: Role;
+  initialFeatures?: Record<string, boolean>;
+}
+
+export function RoleProvider({ children, initialRole, initialFeatures }: RoleProviderProps) {
   const [role, setRoleState] = useState<Role>(() => {
+    if (initialRole) return initialRole;
     const saved = localStorage.getItem('user_role');
     if (saved === 'super_admin' || saved === 'admin' || saved === 'employee' || saved === 'manager' || saved === 'hr_admin' || saved === 'owner' || saved === 'it_admin') {
       return saved as Role;
@@ -25,10 +32,11 @@ export function RoleProvider({ children }: { children: React.ReactNode; }) {
     return 'admin';
   });
 
-  const [features, setFeatures] = useState<Record<string, boolean>>({});
+  const [features, setFeatures] = useState<Record<string, boolean>>(initialFeatures || {});
 
   const refreshFeatures = useCallback(async () => {
     try {
+      if (initialFeatures && Object.keys(initialFeatures).length > 0) return;
       const token = localStorage.getItem('auth_token');
       if (!token) return;
       const res = await apiClient.get<any>('/auth/me').catch(() => apiClient.get<any>('/employees/me'));
@@ -38,7 +46,7 @@ export function RoleProvider({ children }: { children: React.ReactNode; }) {
     } catch {
       // Non-fatal if unauthenticated
     }
-  }, []);
+  }, [initialFeatures]);
 
   useEffect(() => {
     refreshFeatures();

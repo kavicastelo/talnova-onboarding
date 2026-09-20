@@ -509,7 +509,7 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  exportCanonicalReport: async (reportId: string, format: string = 'csv'): Promise<{ blob: Blob; filename: string }> => {
+  exportCanonicalReport: async (reportId: string, format = 'csv'): Promise<{ blob: Blob; filename: string }> => {
     const response = await apiClient.get(`/super-admin/reports/${reportId}/export`, {
       params: { format },
       responseType: 'blob',
@@ -527,6 +527,13 @@ export const superAdminService = {
 
   updatePlatformSettings: async (data: Partial<PlatformSettingsItem>): Promise<PlatformSettingsItem> => {
     const response = await apiClient.patch<ApiResponse<PlatformSettingsItem>>('/super-admin/settings/platform', data);
+    return response.data.data;
+  },
+
+  getFeatureAdoption: async (timeWindowDays = 30): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/analytics/feature-adoption', {
+      params: { timeWindowDays },
+    });
     return response.data.data;
   },
 };

@@ -10,7 +10,7 @@ import {
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2, Check } from 'lucide-react';
+import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2, Check, Bot, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
@@ -23,8 +23,10 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { useRole } from '../context/RoleContext';
 
 export function EmployeeDashboard() {
+  const { hasFeature } = useRole();
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { t } = useTranslation('dashboard');
   // Fetch current logged in employee's profile
@@ -157,7 +159,7 @@ export function EmployeeDashboard() {
 
   // State flags
   const isUnassignedNewUser = assignedJourneys.length === 0 && docInbox.length === 0 && (tasksData?.tasks || []).length === 0;
-  const isCoreRequirementsMet = pendingDocsCount === 0 && openTasksCount === 0 && (hasAssignedJourneys ? allJourneysCompleted : false);
+  const isCoreRequirementsMet = (!hasFeature('digital_signatures') || pendingDocsCount === 0) && openTasksCount === 0 && (hasAssignedJourneys ? allJourneysCompleted : false);
   const isOnboardingFullyCompleted = !isUnassignedNewUser && isCoreRequirementsMet && (isHandoverAcknowledged || employee.status === 'Active');
 
   // Lifecycle Stage Resolution:
@@ -179,7 +181,7 @@ export function EmployeeDashboard() {
     activeStageDescription = 'Your customized onboarding curriculum, compliance paperwork, and IT checklists are being assembled by HR & IT.';
     activeStageActionPath = '/directory';
     activeStageActionText = 'Explore Team Directory';
-  } else if (pendingDocsCount > 0) {
+  } else if (hasFeature('digital_signatures') && pendingDocsCount > 0) {
     currentStageIndex = 1;
     activeStageTitle = 'Stage 1: Compliance E-Signatures (Prerequisite)';
     activeStageDescription = 'Review and sign required legal & policy documents before proceeding with your training modules.';
@@ -261,12 +263,25 @@ export function EmployeeDashboard() {
               Your onboarding journey is 100% complete. Access your active workspace, knowledge base, and team tools below.
             </p>
           </div>
-          <Button variant="outline" asChild className="shrink-0">
-            <Link to="/certificates">
-              <Award className="mr-2 h-4 w-4 text-emerald-600" />
-              View Certificates ({employee.certificatesCount || 1})
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {hasFeature('onboarding_copilot') && (
+              <Button
+                id="btn-copilot-drawer-completed"
+                data-testid="btn-copilot-drawer"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2"
+                onClick={() => toast.info('Onboarding Copilot drawer activated')}
+              >
+                <Bot className="h-4 w-4" />
+                <span>Ask Copilot</span>
+              </Button>
+            )}
+            <Button variant="outline" asChild>
+              <Link to="/certificates">
+                <Award className="mr-2 h-4 w-4 text-emerald-600" />
+                View Certificates ({employee.certificatesCount || 1})
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Certificate Preview Card */}
@@ -307,7 +322,7 @@ export function EmployeeDashboard() {
         </Card>
 
         {/* Active Employee Quick Stats & Operational Hub */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-indigo-500/20">
             <CardHeader className="pb-2">
               <CardDescription className="text-xs uppercase font-semibold">Learning Modules</CardDescription>
@@ -318,39 +333,57 @@ export function EmployeeDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-emerald-500/10 via-background to-background border-emerald-500/20">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs uppercase font-semibold">Compliance State</CardDescription>
-              <CardTitle className="text-2xl font-bold text-emerald-600">Verified</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">All NDAs & policies signed</p>
-            </CardContent>
-          </Card>
+          {hasFeature('digital_signatures') && (
+            <Card data-testid="card-required-documents-active" className="bg-gradient-to-br from-emerald-500/10 via-background to-background border-emerald-500/20">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-semibold">Required Documents</CardDescription>
+                <CardTitle className="text-2xl font-bold text-emerald-600">Verified</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">All NDAs & policies signed</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="bg-gradient-to-br from-blue-500/10 via-background to-background border-blue-500/20">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs uppercase font-semibold">Onboarding Buddy</CardDescription>
-              <CardTitle className="text-2xl font-bold text-blue-600">
-                {buddyAssignment?.buddyUserId ? 'Connected' : 'Assigned'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Peer mentorship active</p>
-            </CardContent>
-          </Card>
+          {hasFeature('buddy_connection') && (
+            <Card data-testid="card-my-buddy-active" className="bg-gradient-to-br from-blue-500/10 via-background to-background border-blue-500/20">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-semibold">My Buddy</CardDescription>
+                <CardTitle className="text-2xl font-bold text-blue-600">
+                  {buddyAssignment?.buddyUserId ? 'Connected' : 'Assigned'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">Peer mentorship active</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="bg-gradient-to-br from-amber-500/10 via-background to-background border-amber-500/20">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs uppercase font-semibold">Performance Milestones</CardDescription>
-              <CardTitle className="text-2xl font-bold text-amber-600">
-                {milestones.length > 0 ? `${milestones.length} Active` : 'Day 30+'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Ongoing check-in reviews</p>
-            </CardContent>
-          </Card>
+          {hasFeature('milestone_ratings') && (
+            <Card className="bg-gradient-to-br from-amber-500/10 via-background to-background border-amber-500/20">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-semibold">Performance Milestones</CardDescription>
+                <CardTitle className="text-2xl font-bold text-amber-600">
+                  {milestones.length > 0 ? `${milestones.length} Active` : 'Day 30+'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">Ongoing check-in reviews</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasFeature('gamified_milestones') && (
+            <Card data-testid="widget-points-leaderboard-active" className="bg-gradient-to-br from-purple-500/10 via-background to-background border-purple-500/20">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-semibold">Points & Leaderboard</CardDescription>
+                <CardTitle className="text-2xl font-bold text-purple-600">350 XP</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">Rank #3 in cohort</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Operational Portals Quick Access Grid */}
@@ -389,22 +422,24 @@ export function EmployeeDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="hover:border-indigo-500 transition-all cursor-pointer">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Flag className="h-5 w-5 text-indigo-600" />
-                30/60/90 Day Milestones
-              </CardTitle>
-              <CardDescription>
-                Review your active 30-day, 60-day, and 90-day progress check-ins with your manager.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="secondary" className="w-full" asChild>
-                <Link to="/milestones">Open Milestones</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {hasFeature('milestone_ratings') && (
+            <Card className="hover:border-indigo-500 transition-all cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Flag className="h-5 w-5 text-indigo-600" />
+                  30/60/90 Day Milestones
+                </CardTitle>
+                <CardDescription>
+                  Review your active 30-day, 60-day, and 90-day progress check-ins with your manager.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="secondary" className="w-full" asChild>
+                  <Link to="/milestones">Open Milestones</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     );
@@ -413,18 +448,31 @@ export function EmployeeDashboard() {
   // --- RENDERING OPTION 2: GUIDED ONBOARDING JOURNEY ROADMAP (NEW HIRE & IN-PROGRESS) ---
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/20">
-            Guided Onboarding Roadmap • {isUnassignedNewUser ? 'Awaiting Assignments' : `Stage ${currentStageIndex} of 4 Active`}
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+              Guided Onboarding Roadmap • {isUnassignedNewUser ? 'Awaiting Assignments' : `Stage ${currentStageIndex} of 4 Active`}
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome to Northwind, {user?.name || 'Jane'}!
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Follow your step-by-step onboarding roadmap below to complete your setup, compliance, learning modules, and team integration.
+          </p>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Welcome to Northwind, {user?.name || 'Jane'}!
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Follow your step-by-step onboarding roadmap below to complete your setup, compliance, learning modules, and team integration.
-        </p>
+        {hasFeature('onboarding_copilot') && (
+          <Button
+            id="btn-copilot-drawer"
+            data-testid="btn-copilot-drawer"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-sm flex items-center gap-2"
+            onClick={() => toast.info('Onboarding Copilot drawer activated')}
+          >
+            <Bot className="h-4 w-4" />
+            <span>Ask Copilot</span>
+          </Button>
+        )}
       </div>
 
       {/* Hero Lifecycle Orchestrator Card */}
@@ -472,15 +520,17 @@ export function EmployeeDashboard() {
             </div>
           </div>
 
-          {/* 4-Step Visual Stepper Bar */}
+          {/* Visual Stepper Bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2">
-            <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 1 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
-              <div className="flex items-center gap-1.5 mb-1 font-bold">
-                <FileText className="h-4 w-4 text-indigo-600" />
-                <span>1. E-Signatures</span>
+            {hasFeature('digital_signatures') && (
+              <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 1 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
+                <div className="flex items-center gap-1.5 mb-1 font-bold">
+                  <FileText className="h-4 w-4 text-indigo-600" />
+                  <span>1. E-Signatures</span>
+                </div>
+                <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 ? '✓ Completed' : `${pendingDocsCount} Unsigned`}</p>
               </div>
-              <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 ? '✓ Completed' : `${pendingDocsCount} Unsigned`}</p>
-            </div>
+            )}
 
             <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 2 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
               <div className="flex items-center gap-1.5 mb-1 font-bold">
@@ -498,16 +548,49 @@ export function EmployeeDashboard() {
               <p className="text-muted-foreground">{hasAssignedJourneys ? (allJourneysCompleted ? '✓ Completed' : `${activeJourney?.progress || 0}% Done`) : '0 Assigned'}</p>
             </div>
 
-            <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 4 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
-              <div className="flex items-center gap-1.5 mb-1 font-bold">
-                <Users className="h-4 w-4 text-indigo-600" />
-                <span>4. Buddy & Milestones</span>
+            {(hasFeature('buddy_connection') || hasFeature('milestone_ratings')) && (
+              <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 4 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
+                <div className="flex items-center gap-1.5 mb-1 font-bold">
+                  <Users className="h-4 w-4 text-indigo-600" />
+                  <span>4. Buddy & Milestones</span>
+                </div>
+                <p className="text-muted-foreground">{isOnboardingFullyCompleted ? '✓ Handover Done' : (currentStageIndex === 4 ? 'Ready for Handover' : 'Upcoming')}</p>
               </div>
-              <p className="text-muted-foreground">{isOnboardingFullyCompleted ? '✓ Handover Done' : (currentStageIndex === 4 ? 'Ready for Handover' : 'Upcoming')}</p>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Points & Leaderboard Widget */}
+      {hasFeature('gamified_milestones') && (
+        <Card data-testid="widget-points-leaderboard" className="border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-background to-background">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                Points & Leaderboard
+              </CardTitle>
+              <CardDescription>
+                Earn points for completing compliance milestones and climb the onboarding leaderboard.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/leaderboard">View Leaderboard</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-bold text-amber-600">350</span>
+                <span className="text-xs text-muted-foreground uppercase font-semibold">XP Points</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Rank <span className="font-semibold text-foreground">#3</span> in current onboarding cohort
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Operational Onboarding Container Overview Cards */}
       <Card>
@@ -518,15 +601,17 @@ export function EmployeeDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-            <Link to="/documents" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">Compliance Docs</span>
-                <FileText className="h-4 w-4 text-indigo-600" />
-              </div>
-              <p className="text-xl font-bold">{pendingDocsCount} Unsigned</p>
-              <p className="text-xs text-muted-foreground mt-1">E-signature requirements</p>
-            </Link>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {hasFeature('digital_signatures') && (
+              <Link to="/documents" data-testid="card-required-documents" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">Required Documents</span>
+                  <FileText className="h-4 w-4 text-indigo-600" />
+                </div>
+                <p className="text-xl font-bold">{pendingDocsCount} Unsigned</p>
+                <p className="text-xs text-muted-foreground mt-1">E-signature requirements</p>
+              </Link>
+            )}
 
             <Link to="/tasks" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
@@ -537,23 +622,27 @@ export function EmployeeDashboard() {
               <p className="text-xs text-muted-foreground mt-1">Operational checklists</p>
             </Link>
 
-            <Link to="/buddy" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">Onboarding Buddy</span>
-                <Users className="h-4 w-4 text-indigo-600" />
-              </div>
-              <p className="text-xl font-bold">{buddyAssignment?.buddyUserId ? 'Paired' : 'Auto-Assign'}</p>
-              <p className="text-xs text-muted-foreground mt-1">Peer mentor support</p>
-            </Link>
+            {hasFeature('buddy_connection') && (
+              <Link to="/buddy" data-testid="card-my-buddy" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">My Buddy</span>
+                  <Users className="h-4 w-4 text-indigo-600" />
+                </div>
+                <p className="text-xl font-bold">{buddyAssignment?.buddyUserId ? 'Paired' : 'Auto-Assign'}</p>
+                <p className="text-xs text-muted-foreground mt-1">Peer mentor support</p>
+              </Link>
+            )}
 
-            <Link to="/milestones" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">30/60/90 Milestones</span>
-                <Flag className="h-4 w-4 text-indigo-600" />
-              </div>
-              <p className="text-xl font-bold">{milestones.length > 0 ? `${milestones.length} Active` : 'Schedule'}</p>
-              <p className="text-xs text-muted-foreground mt-1">Performance checkpoints</p>
-            </Link>
+            {hasFeature('milestone_ratings') && (
+              <Link to="/milestones" data-testid="card-milestones" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">30/60/90 Milestones</span>
+                  <Flag className="h-4 w-4 text-indigo-600" />
+                </div>
+                <p className="text-xl font-bold">{milestones.length > 0 ? `${milestones.length} Active` : 'Schedule'}</p>
+                <p className="text-xs text-muted-foreground mt-1">Performance checkpoints</p>
+              </Link>
+            )}
           </div>
         </CardContent>
       </Card>

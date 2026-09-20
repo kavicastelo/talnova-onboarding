@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { JourneyService } from "../services/journey.service.js";
 import { smartAssignmentService } from "../services/smart-assignment.service.js";
 import { advancedJourneyService } from "../services/advanced-journey.service.js";
+import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 import mongoose from "mongoose";
 
 export class JourneyController {
@@ -35,6 +36,18 @@ export class JourneyController {
         }
       }
     }
+
+    // Instrument feature telemetry (fire-and-forget)
+    FeatureTelemetryService.recordUsage({
+      featureKey: "lms_course_player",
+      organizationId: user.organizationId,
+      userId: user.userId || user.id,
+      userRole: user.role || "employee",
+      actionName: "VIEW_COURSE",
+      metadata: {
+        journeyId: params.id,
+      },
+    }).catch(() => {});
 
     return reply.status(200).send({
       success: true,

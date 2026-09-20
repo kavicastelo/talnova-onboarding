@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { SuperAdminService } from "../services/super-admin.service.js";
+import { featureTelemetryService } from "../services/feature-telemetry.service.js";
 
 export class SuperAdminController {
   constructor(private readonly superAdminService: SuperAdminService) {}
@@ -23,6 +24,17 @@ export class SuperAdminController {
     return reply.status(200).send({
       success: true,
       message: "Telemetry retrieved successfully",
+      data,
+    });
+  };
+
+  getFeatureAdoption = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { timeWindowDays = "30", featureKey } = request.query as any;
+    const days = parseInt(timeWindowDays, 10) || 30;
+    const data = await featureTelemetryService.getAdoptionSummary(days, featureKey);
+    return reply.status(200).send({
+      success: true,
+      message: "Feature adoption telemetry retrieved successfully",
       data,
     });
   };
@@ -129,6 +141,24 @@ export class SuperAdminController {
     return reply.status(200).send({
       success: true,
       message: "Tenant has been placed in quarantine",
+      data,
+    });
+  };
+
+  activateOrganization = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const { id } = request.params as any;
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.updateOrganizationStatus(
+      id,
+      "Active",
+      actorUserId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Tenant has been activated",
       data,
     });
   };

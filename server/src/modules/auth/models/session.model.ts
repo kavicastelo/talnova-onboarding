@@ -7,6 +7,7 @@ export interface ISession extends Document {
   deviceInfo?: string;
   ipAddress?: string;
   isValid: boolean;
+  revokedReason?: string;
   lastActivityAt: Date;
   expiresAt: Date;
 }
@@ -19,6 +20,7 @@ const SessionSchema = new Schema<ISession>(
     deviceInfo: { type: String },
     ipAddress: { type: String },
     isValid: { type: Boolean, default: true, required: true },
+    revokedReason: { type: String },
     lastActivityAt: { type: Date, default: Date.now, required: true },
     expiresAt: { type: Date, required: true },
   },

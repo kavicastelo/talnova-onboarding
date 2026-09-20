@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { AIAssistantService } from "../services/ai-assistant.service.js";
 import { AICourseBuilderService } from "../services/ai-course-builder.service.js";
+import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 
 export class AIAssistantController {
   constructor(
@@ -122,6 +123,21 @@ export class AIAssistantController {
     );
 
     const statusCode = request.url.includes("course-builder") ? 201 : 200;
+
+    // Instrument feature telemetry (fire-and-forget)
+    FeatureTelemetryService.recordUsage({
+      featureKey: "ai_course_builder",
+      organizationId: user.organizationId,
+      userId: user.userId || user.id,
+      userRole: user.role || "admin",
+      actionName: "GENERATE_AI_COURSE",
+      metadata: {
+        draftId: (draft as any)?._id || (draft as any)?.id,
+        level: body.level || body.difficulty,
+        department: body.department,
+      },
+    }).catch(() => {});
+
     return reply.status(statusCode).send({
       success: true,
       message: "AI course draft generated successfully",

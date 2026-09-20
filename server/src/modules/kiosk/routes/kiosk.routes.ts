@@ -45,6 +45,12 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.getJourney
   );
 
+  // GET /api/v1/kiosk/sessions/:id (Kiosk Session retrieval & telemetry)
+  app.get(
+    "/sessions/:id",
+    controller.getSession as any
+  );
+
   // GET /api/v1/kiosk/uploads/:id (Retrieve/stream public kiosk uploads via redirect)
   app.get(
     "/uploads/:id",

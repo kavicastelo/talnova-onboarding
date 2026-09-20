@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import TaskController from "../controllers/task.controller.js";
 import TaskService from "../services/task.service.js";
 import TaskRepository from "../repositories/task.repository.js";
-import { authenticate } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   createTaskSchema,
   updateTaskStatusSchema,
@@ -16,6 +16,7 @@ export async function taskRoutes(app: FastifyInstance) {
   const repository = new TaskRepository();
   const service = new TaskService(repository);
   const controller = new TaskController(service);
+  const checkFeatureFlag = requireFeatureFlag("checklist_tasks");
 
   // Authenticate all routes by default except public webhook callback
   app.addHook("preHandler", async (request, reply) => {
@@ -23,6 +24,7 @@ export async function taskRoutes(app: FastifyInstance) {
       return;
     }
     await authenticate(request, reply);
+    await checkFeatureFlag(request, reply);
   });
 
   // GET /api/v1/tasks

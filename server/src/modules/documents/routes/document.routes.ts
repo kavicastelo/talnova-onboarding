@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { DocumentController } from "../controllers/document.controller.js";
 import { DocumentService } from "../services/document.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   createTemplateSchema,
   updateTemplateSchema,
@@ -15,6 +15,7 @@ export async function documentRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("digital_signatures"));
 
   // Template Routes (Admin / Owner)
   app.post(

@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { BuddyController } from "../controllers/buddy.controller.js";
 import { BuddyService } from "../services/buddy.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   registerBuddySchema,
   assignBuddySchema,
@@ -16,6 +16,7 @@ export async function buddyRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("buddy_connection"));
 
   // Profile Registration & Discovery
   app.post(

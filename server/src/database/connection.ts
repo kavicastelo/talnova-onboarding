@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import dbConfig from "../config/database.config.js";
+import TenantStatusCache from "../infrastructure/cache/tenant-status.cache.js";
 
 export async function connectDatabase(log: any = console) {
   mongoose.connection.on("connecting", () => {
@@ -26,6 +27,8 @@ export async function connectDatabase(log: any = console) {
     await mongoose.connect(dbConfig.uri, {
       autoIndex: true, // Auto-build indexes in development; might disable in production later if needed
     });
+    // Hydrate TenantStatusCache with currently suspended organizations
+    await TenantStatusCache.init();
   } catch (error: any) {
     log.error(`❌ Failed to connect to MongoDB Atlas: ${error.message}`);
     throw error;

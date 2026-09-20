@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import AppError from "../common/errors/app-error.js";
-import { Organization } from "../modules/organizations/models/organization.model.js";
+import Organization from "../modules/organizations/models/organization.model.js";
+import TenantStatusCache from "../infrastructure/cache/tenant-status.cache.js";
 import FeatureFlagService from "../modules/super-admin/services/feature-flag.service.js";
 
 /**
@@ -13,18 +14,24 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   try {
     await request.jwtVerify();
 
-    // Check if organization is suspended
+    // Check if organization is suspended via in-memory cache (<5ms)
     const user = request.user as any;
-    if (user && user.organizationId) {
-      if (user.role !== "super_admin") {
-        const org = await Organization.findById(user.organizationId);
+    if (user && user.organizationId && user.role !== "super_admin") {
+      const orgIdStr = user.organizationId.toString();
+      let isSuspended = TenantStatusCache.isSuspended(orgIdStr);
+      if (!isSuspended) {
+        const org = await Organization.findById(user.organizationId, { status: 1 }).lean();
         if (org && org.status === "Suspended") {
-          throw new AppError(
-            403,
-            "FORBIDDEN",
-            "Your organization has been suspended. Access denied."
-          );
+          TenantStatusCache.addSuspended(orgIdStr);
+          isSuspended = true;
         }
+      }
+      if (isSuspended) {
+        throw new AppError(
+          403,
+          "ORGANIZATION_SUSPENDED",
+          "Your organization has been suspended. Please contact support."
+        );
       }
     }
   } catch (error: any) {
@@ -49,16 +56,22 @@ export async function optionalAuthenticate(request: FastifyRequest, reply: Fasti
     if (authHeader) {
       await request.jwtVerify();
       const user = request.user as any;
-      if (user && user.organizationId) {
-        if (user.role !== "super_admin") {
-          const org = await Organization.findById(user.organizationId);
+      if (user && user.organizationId && user.role !== "super_admin") {
+        const orgIdStr = user.organizationId.toString();
+        let isSuspended = TenantStatusCache.isSuspended(orgIdStr);
+        if (!isSuspended) {
+          const org = await Organization.findById(user.organizationId, { status: 1 }).lean();
           if (org && org.status === "Suspended") {
-            throw new AppError(
-              403,
-              "FORBIDDEN",
-              "Your organization has been suspended. Access denied."
-            );
+            TenantStatusCache.addSuspended(orgIdStr);
+            isSuspended = true;
           }
+        }
+        if (isSuspended) {
+          throw new AppError(
+            403,
+            "ORGANIZATION_SUSPENDED",
+            "Your organization has been suspended. Please contact support."
+          );
         }
       }
     }
@@ -127,12 +140,23 @@ export function requireFeatureFlag(flagKey: string) {
     const orgId = user?.organizationId;
     const role = user?.role;
 
+    if (role === "super_admin") {
+      return;
+    }
+
     const enabled = await FeatureFlagService.isEnabled(flagKey, orgId, role);
     if (!enabled) {
       throw new AppError(
         403,
         "FEATURE_DISABLED",
-        `This feature is currently disabled by platform administration`
+        `This feature is currently disabled by platform administration: The feature '${flagKey}' is currently disabled for your organization.`,
+        {
+          code: "FEATURE_DISABLED",
+          error: {
+            code: "FEATURE_DISABLED",
+            message: `The feature '${flagKey}' is currently disabled for your organization.`,
+          },
+        }
       );
     }
   };

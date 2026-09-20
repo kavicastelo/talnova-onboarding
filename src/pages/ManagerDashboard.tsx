@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   CheckCircle2,
@@ -11,7 +12,9 @@ import {
   Search,
   BookOpen,
   CheckSquare,
-  UserCheck
+  UserCheck,
+  Flag,
+  Calendar
 } from 'lucide-react';
 import {
   useManagerDashboard,
@@ -37,8 +40,10 @@ import {
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { useRole } from '../context/RoleContext';
 
 export const ManagerDashboard: React.FC = () => {
+  const { hasFeature } = useRole();
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useManagerDashboard();
   const { data: team, isLoading: teamLoading, refetch: refetchTeam } = useTeamDirectReports();
   const { refetch: refetchOverview } = useTeamOverview();
@@ -196,6 +201,68 @@ export const ManagerDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Manager Feature Quick Actions & Integrations */}
+      {(hasFeature('milestone_approval') || hasFeature('buddy_assignment') || hasFeature('calendar_integration')) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {hasFeature('milestone_approval') && (
+            <Card data-testid="card-milestone-approvals" className="border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-purple-600" />
+                  Milestone Approvals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Review 30-60-90 day check-ins, assess goal completion, and sign off ratings.
+                </p>
+                <Button size="sm" variant="outline" className="w-full" asChild>
+                  <Link to="/milestones">Review Milestone Approvals</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasFeature('buddy_assignment') && (
+            <Card data-testid="card-buddy-matching" className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  Buddy Matching
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Assign and pair senior team mentors to new hires for peer guidance.
+                </p>
+                <Button size="sm" variant="outline" className="w-full" asChild>
+                  <Link to="/buddy">Manage Buddy Matching</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasFeature('calendar_integration') && (
+            <Card data-testid="card-calendar-schedule" className="border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-emerald-600" />
+                  Calendar 1-on-1 Schedule
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Schedule recurring onboarding 1-on-1s and sync calendar milestones.
+                </p>
+                <Button size="sm" variant="outline" className="w-full" asChild>
+                  <Link to="/calendar">View 1-on-1 Schedule</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Direct Report Roster Table */}
       <Card>

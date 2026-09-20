@@ -8,6 +8,7 @@ import { Journey } from "../modules/journeys/models/journey.model.js";
 import { EmployeeAssignment } from "../modules/assignments/models/assignment.model.js";
 import { Upload } from "../modules/uploads/models/upload.model.js";
 import EmailService from "../shared/email/email.service.js";
+import TenantStatusCache from "../infrastructure/cache/tenant-status.cache.js";
 
 describe("Talnova Backend Integration Test Suite", () => {
   let app: any;
@@ -771,6 +772,7 @@ describe("Talnova Backend Integration Test Suite", () => {
     it("should prevent logins and API requests if the organization is suspended", async () => {
       // 1. Suspend Organization A
       await Organization.updateOne({ _id: orgAId }, { status: "Suspended" });
+      TenantStatusCache.addSuspended(orgAId.toString());
 
       // 2. Try to login
       const loginResponse = await app.inject({
@@ -801,6 +803,7 @@ describe("Talnova Backend Integration Test Suite", () => {
 
       // 4. Restore organization status
       await Organization.updateOne({ _id: orgAId }, { status: "Active" });
+      TenantStatusCache.removeSuspended(orgAId.toString());
     }, 20000);
   });
 });

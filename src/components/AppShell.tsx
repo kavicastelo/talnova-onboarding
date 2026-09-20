@@ -81,6 +81,7 @@ import { Button } from './Button';
 import { Badge } from './Badge';
 import { Toaster } from './Sonner';
 import { useRole, Role } from '../context/RoleContext';
+import { Capability } from '../utils/rbac';
 import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useCurrentUser } from '../hooks/useAuth';
@@ -106,7 +107,7 @@ import {
   DialogFooter
 } from './Dialog';
 
-interface NavSubItem {
+export interface NavSubItem {
   title: string;
   url: string;
   icon?: React.ComponentType<{
@@ -114,9 +115,11 @@ interface NavSubItem {
   }>;
   badge?: string | number | null;
   badgeVariant?: 'default' | 'destructive' | 'secondary' | 'outline';
+  featureFlag?: string;
+  capability?: Capability;
 }
 
-interface NavItem {
+export interface NavItem {
   title: string;
   url: string;
   icon: React.ComponentType<{
@@ -124,20 +127,49 @@ interface NavItem {
   }>;
   badge?: string | number | null;
   badgeVariant?: 'default' | 'destructive' | 'secondary' | 'outline';
+  featureFlag?: string;
+  capability?: Capability;
   subItems?: NavSubItem[];
 }
 
-interface NavSection {
+export interface NavSection {
   label: string;
   items: NavItem[];
 }
+
+export const filterNavSections = (
+  sections: NavSection[],
+  can: (capability: Capability) => boolean,
+  hasFeature: (flagKey: string) => boolean
+): NavSection[] => {
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items
+        .filter((item) => {
+          if (item.capability && !can(item.capability)) return false;
+          if (item.featureFlag && !hasFeature(item.featureFlag)) return false;
+          return true;
+        })
+        .map((item) => ({
+          ...item,
+          subItems: item.subItems?.filter((sub) => {
+            if (sub.capability && !can(sub.capability)) return false;
+            if (sub.featureFlag && !hasFeature(sub.featureFlag)) return false;
+            return true;
+          }),
+        })),
+    }))
+    .filter((section) => section.items.length > 0);
+};
+
 function titleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, setRole } = useRole();
+  const { role, setRole, can, hasFeature } = useRole();
   const { t } = useTranslation('nav');
 
   const isEmployee = role === 'employee';
@@ -163,24 +195,26 @@ export function AppShell() {
           title: 'HR Operations',
           url: '/hr-ops',
           icon: ShieldAlert,
+          capability: 'view_hr_ops',
           subItems: [
             {
               title: 'Exceptions Workbench',
               url: '/hr-ops/exceptions',
               icon: AlertOctagon,
+              capability: 'view_hr_ops',
               badge: exceptionsCount > 0 ? exceptionsCount : null,
               badgeVariant: 'destructive',
             },
           ],
         },
-        { title: 'Team Operations', url: '/manager', icon: UserCheck },
+        { title: 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
       ],
     },
     {
       label: 'People & Teams',
       items: [
-        { title: 'Employee Directory', url: '/directory', icon: Users },
-        { title: 'Buddy Program', url: '/buddy', icon: HeartHandshake },
+        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'manage_employees' },
+        { title: 'Buddy Program', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
         { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
       ],
     },
@@ -188,41 +222,42 @@ export function AppShell() {
       label: 'Learning & Content',
       items: [
         { title: t('items.myLearning') || 'Journey Templates', url: '/journeys', icon: GraduationCap },
-        { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2 },
+        { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2, featureFlag: 'ai_course_builder', capability: 'ai_course_builder' },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
       ],
     },
     {
       label: 'Operations & Compliance',
       items: [
-        { title: 'Digital Documents', url: '/documents', icon: FileText },
+        { title: 'Digital Documents', url: '/documents', icon: FileText, featureFlag: 'digital_signatures' },
         {
           title: 'Tasks & Checklists',
           url: '/tasks',
           icon: CheckSquare,
           subItems: [
-            { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop },
+            { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
           ],
         },
         { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
-        { title: 'Kiosk Terminals', url: '/kiosks', icon: Tv },
+        { title: 'Kiosk Terminals', url: '/kiosks', icon: Tv, featureFlag: 'kiosk_mode', capability: 'manage_organization' },
       ],
     },
     {
       label: 'System & Insights',
       items: [
-        { title: t('items.analytics') || 'Analytics', url: '/analytics', icon: BarChart2 },
-        { title: 'Workflows & Rules', url: '/workflows', icon: Workflow },
-        { title: 'Office Map', url: '/office-map', icon: MapPin },
+        { title: t('items.analytics') || 'Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
+        { title: 'Workflows & Rules', url: '/workflows', icon: Workflow, capability: 'manage_workflows' },
+        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
         { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
-        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
         {
           title: t('items.settings') || 'Settings',
           url: '/settings',
           icon: Settings,
+          capability: 'manage_organization',
           subItems: [
-            { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound },
-            { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
+            { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound, featureFlag: 'sso_enforcement', capability: 'manage_sso' },
+            { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
           ],
         },
       ],
@@ -233,7 +268,7 @@ export function AppShell() {
     {
       label: 'Team Supervision',
       items: [
-        { title: 'Team Operations', url: '/manager', icon: UserCheck },
+        { title: 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
         { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
         { title: 'Tasks & Verification', url: '/tasks', icon: CheckSquare },
       ],
@@ -242,16 +277,16 @@ export function AppShell() {
       label: 'People & Mentorship',
       items: [
         { title: 'Employee Directory', url: '/directory', icon: Users },
-        { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake },
+        { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
         { title: '1-on-1 Calendar', url: '/calendar', icon: Calendar },
       ],
     },
     {
       label: 'Insights & Tools',
       items: [
-        { title: t('items.analytics') || 'Team Analytics', url: '/analytics', icon: BarChart2 },
+        { title: t('items.analytics') || 'Team Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
-        { title: 'Office Map', url: '/office-map', icon: MapPin },
+        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
         { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
       ],
     },
@@ -266,6 +301,7 @@ export function AppShell() {
           title: 'Required Documents',
           url: '/documents',
           icon: FileText,
+          featureFlag: 'digital_signatures',
           badge: pendingDocsCount > 0 ? `${pendingDocsCount} pending` : null,
           badgeVariant: 'destructive',
         },
@@ -276,7 +312,7 @@ export function AppShell() {
     {
       label: 'Support & Milestones',
       items: [
-        { title: 'My Onboarding Buddy', url: '/buddy', icon: HeartHandshake },
+        { title: 'My Onboarding Buddy', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
         { title: '30/60/90 Goals', url: '/milestones', icon: CalendarCheck },
         { title: 'Schedule & Meetings', url: '/calendar', icon: Calendar },
       ],
@@ -287,8 +323,8 @@ export function AppShell() {
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
         { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
         { title: t('items.certificates') || 'Certificates', url: '/certificates', icon: Award },
-        { title: 'Office Map', url: '/office-map', icon: MapPin },
-        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
+        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
       ],
     },
   ];
@@ -297,17 +333,17 @@ export function AppShell() {
     {
       label: 'Hardware & Provisioning',
       items: [
-        { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop },
+        { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
         { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
       ],
     },
     {
       label: 'Systems & Directory',
       items: [
-        { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow },
+        { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
         { title: 'Employee Directory', url: '/directory', icon: Users },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
-        { title: 'Office Map', url: '/office-map', icon: MapPin },
+        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
       ],
     },
   ];
@@ -538,12 +574,12 @@ export function AppShell() {
   }, [settings]);
 
   const isAnonymousKb = location.pathname.startsWith('/kb') || location.pathname.startsWith('/knowledge-base');
-  const hasToken = !!localStorage.getItem('auth_token');
+  const hasToken = typeof localStorage !== 'undefined' ? !!localStorage.getItem('auth_token') : true;
 
   useEffect(() => {
     if (isAnonymousKb) return;
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (!token && typeof window !== 'undefined') {
       navigate('/login');
     }
   }, [navigate, location.pathname, isAnonymousKb]);
@@ -556,7 +592,7 @@ export function AppShell() {
     }
   }, [userError, navigate, location.pathname, isAnonymousKb]);
 
-  const navSections = !hasToken
+  const rawNavSections = !hasToken
     ? anonymousNavSections
     : role === 'super_admin'
       ? superAdminNavSections
@@ -567,6 +603,8 @@ export function AppShell() {
           : role === 'manager'
             ? managerNavSections
             : employeeNavSections;
+
+  const navSections = filterNavSections(rawNavSections, can, hasFeature);
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const switchRole = (next: Role) => {

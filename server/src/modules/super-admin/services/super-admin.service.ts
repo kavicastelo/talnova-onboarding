@@ -21,63 +21,9 @@ import ReportGeneratorService from "./report-generator.service.js";
 import PlatformSetting from "../models/platform-setting.model.js";
 import { hashPassword } from "../../../utils/crypto.js";
 import TelemetryBuffer from "../../../infrastructure/telemetry/telemetry-buffer.js";
-
-export const DEFAULT_PLATFORM_FLAGS = [
-  {
-    key: "ai_course_builder",
-    name: "AI Course Builder",
-    description: "Generates structured onboarding courses using LLM intelligence",
-    isEnabled: true,
-    rolloutPercentage: 100,
-    targetAudience: "global",
-    environment: "all",
-  },
-  {
-    key: "multi_org_switch",
-    name: "Multi-Org Switcher",
-    description: "Allows enterprise users to switch across multi-tenant workspaces",
-    isEnabled: true,
-    rolloutPercentage: 100,
-    targetAudience: "global",
-    environment: "all",
-  },
-  {
-    key: "advanced_reporting",
-    name: "Advanced Executive Reporting",
-    description: "Real-time streaming and export of compliance and audit reports",
-    isEnabled: true,
-    rolloutPercentage: 100,
-    targetAudience: "global",
-    environment: "all",
-  },
-  {
-    key: "scim_provisioning",
-    name: "Automated SCIM Directory Sync",
-    description: "Sync Okta, Azure AD, and Google Workspace identities via SCIM 2.0",
-    isEnabled: false,
-    rolloutPercentage: 0,
-    targetAudience: "internal",
-    environment: "all",
-  },
-  {
-    key: "onboarding_copilot",
-    name: "Onboarding AI Copilot",
-    description: "Autonomous virtual assistant guiding candidates through tasks",
-    isEnabled: true,
-    rolloutPercentage: 50,
-    targetAudience: "beta_tenants",
-    environment: "all",
-  },
-  {
-    key: "gamified_milestones",
-    name: "Gamification & Badges",
-    description: "Award milestone achievements and learner leaderboard",
-    isEnabled: true,
-    rolloutPercentage: 100,
-    targetAudience: "global",
-    environment: "all",
-  },
-];
+import TenantStatusCache from "../../../infrastructure/cache/tenant-status.cache.js";
+import { DEFAULT_PLATFORM_FLAGS, type IFeatureFlagSeed } from "../config/default-feature-flags.js";
+export { DEFAULT_PLATFORM_FLAGS, type IFeatureFlagSeed };
 
 export class SuperAdminService {
   // ---------------------------------------------------------------------------
@@ -836,14 +782,29 @@ export class SuperAdminService {
       throw new AppError(400, "BAD_REQUEST", "Invalid status value");
     }
 
+    const isObjId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjId
+      ? { _id: id, isDeleted: false }
+      : { slug: id.toLowerCase().trim(), isDeleted: false };
+
     const updated = await Organization.findOneAndUpdate(
-      { _id: id, isDeleted: false },
+      filter,
       { $set: { status } },
       { new: true }
     );
 
     if (!updated) {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
+    }
+
+    if (status === "Suspended") {
+      await Session.updateMany(
+        { organizationId: updated._id, isValid: true },
+        { $set: { isValid: false, revokedReason: "ORGANIZATION_QUARANTINED" } }
+      );
+      TenantStatusCache.addSuspended(updated._id.toString());
+    } else if (status === "Active") {
+      TenantStatusCache.removeSuspended(updated._id.toString());
     }
 
     // Log status toggle event
@@ -1183,6 +1144,15 @@ export class SuperAdminService {
     if (!org) {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
     }
+
+    // Invalidate all active sessions for this quarantined tenant immediately
+    await Session.updateMany(
+      { organizationId: org._id, isValid: true },
+      { $set: { isValid: false, revokedReason: "ORGANIZATION_QUARANTINED" } }
+    );
+
+    // Update in-memory TenantStatusCache for O(1) <5ms enforcement
+    TenantStatusCache.addSuspended(org._id.toString());
 
     await AuditLog.create({
       organizationId: org._id,
@@ -3731,10 +3701,10 @@ export class SuperAdminService {
     }
 
     // Ensure baseline default platform flags exist
-    for (const flag of DEFAULT_PLATFORM_FLAGS) {
-      await FeatureFlag.updateOne(
-        { key: flag.key },
-        {
+    const bulkOps = DEFAULT_PLATFORM_FLAGS.map((flag) => ({
+      updateOne: {
+        filter: { key: flag.key },
+        update: {
           $setOnInsert: {
             ...flag,
             targetOrganizationIds: [],
@@ -3743,9 +3713,10 @@ export class SuperAdminService {
             isDeleted: false,
           },
         },
-        { upsert: true }
-      );
-    }
+        upsert: true,
+      },
+    }));
+    await FeatureFlag.bulkWrite(bulkOps, { ordered: false });
   }
 
   async getFlags() {

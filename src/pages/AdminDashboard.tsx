@@ -18,7 +18,10 @@ import {
   GraduationCap,
   ShieldAlert,
   AlertOctagon,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  FileText,
+  Monitor
 } from 'lucide-react';
 import {
   Bar,
@@ -35,8 +38,10 @@ import { Button } from '../components/Button';
 import { useTranslation } from 'react-i18next';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { useRole } from '../context/RoleContext';
 
 export function AdminDashboard() {
+  const { hasFeature } = useRole();
   const { data: summary, isLoading, isError, error, refetch } = useDashboardSummary();
   const { t } = useTranslation('dashboard');
 
@@ -128,7 +133,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Onboarding Journey Launchpad */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <Link
           to="/directory"
           className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-indigo-500/40 transition-all shadow-xs"
@@ -145,6 +150,25 @@ export function AdminDashboard() {
           </div>
         </Link>
 
+        {hasFeature('ai_course_builder') && (
+          <Link
+            to="/journeys?ai=true"
+            data-testid="quick-action-ai-builder"
+            className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-violet-500/40 transition-all shadow-xs"
+          >
+            <div className="w-10 h-10 rounded-lg bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold flex items-center justify-between">
+                <span>Generate Course with AI</span>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">AI Course Builder</p>
+            </div>
+          </Link>
+        )}
+
         <Link
           to="/journeys"
           className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-purple-500/40 transition-all shadow-xs"
@@ -160,6 +184,44 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground truncate">Curricula & step builder</p>
           </div>
         </Link>
+
+        {hasFeature('digital_signatures') && (
+          <Link
+            to="/documents"
+            data-testid="widget-pending-documents"
+            className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-amber-500/40 transition-all shadow-xs"
+          >
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold flex items-center justify-between">
+                <span>Pending Documents</span>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">Required documents & signatures</p>
+            </div>
+          </Link>
+        )}
+
+        {hasFeature('kiosk_mode') && (
+          <Link
+            to="/kiosk"
+            data-testid="widget-kiosk-devices"
+            className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-cyan-500/40 transition-all shadow-xs"
+          >
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Monitor className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold flex items-center justify-between">
+                <span>Kiosk Device Summary</span>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">Terminal status & check-ins</p>
+            </div>
+          </Link>
+        )}
 
         <Link
           to="/hr-ops"

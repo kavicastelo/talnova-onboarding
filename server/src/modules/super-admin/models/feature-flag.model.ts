@@ -9,7 +9,7 @@ export interface IFeatureFlag extends Document {
   targetAudience: "global" | "organizations" | "roles" | "percentage";
   targetOrganizationIds: mongoose.Types.ObjectId[];
   excludedOrganizationIds: mongoose.Types.ObjectId[];
-  targetRoles: ("owner" | "admin" | "manager" | "employee" | "it_admin")[];
+  targetRoles: ("owner" | "admin" | "hr_admin" | "manager" | "employee" | "it_admin" | "super_admin")[];
   rolloutPercentage: number;
   isDeleted: boolean;
   createdAt: Date;
@@ -69,7 +69,7 @@ const FeatureFlagSchema = new Schema<IFeatureFlag>(
     targetRoles: [
       {
         type: String,
-        enum: ["owner", "admin", "manager", "employee", "it_admin"],
+        enum: ["owner", "admin", "hr_admin", "manager", "employee", "it_admin", "super_admin"],
       },
     ],
     rolloutPercentage: {
