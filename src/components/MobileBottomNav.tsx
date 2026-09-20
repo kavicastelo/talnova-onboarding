@@ -14,17 +14,26 @@ import {
   Menu
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
+import { Capability } from '../utils/rbac';
 import { useSidebar } from './Sidebar';
+
+export interface MobileNavItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  featureFlag?: string;
+  capability?: Capability;
+}
 
 export function MobileBottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role } = useRole();
+  const { role, can, hasFeature } = useRole();
   const { toggleSidebar } = useSidebar();
 
-  let navItems = [
+  let navItems: MobileNavItem[] = [
     { title: 'Home', url: '/', icon: LayoutDashboard },
-    { title: 'HR Ops', url: '/hr-ops', icon: ShieldAlert },
+    { title: 'HR Ops', url: '/hr-ops', icon: ShieldAlert, capability: 'view_hr_ops' },
     { title: 'Directory', url: '/directory', icon: Users },
     { title: 'Tasks', url: '/tasks', icon: CheckSquare },
   ];
@@ -32,23 +41,23 @@ export function MobileBottomNav() {
   if (role === 'employee') {
     navItems = [
       { title: 'Roadmap', url: '/employee', icon: LayoutDashboard },
-      { title: 'Documents', url: '/documents', icon: FileText },
+      { title: 'Documents', url: '/documents', icon: FileText, featureFlag: 'digital_signatures' },
       { title: 'Tasks', url: '/tasks', icon: CheckSquare },
       { title: 'Journeys', url: '/journeys', icon: GraduationCap },
     ];
   } else if (role === 'manager') {
     navItems = [
-      { title: 'Team Ops', url: '/manager', icon: UserCheck },
+      { title: 'Team Ops', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
       { title: 'Milestones', url: '/milestones', icon: CalendarCheck },
       { title: 'Tasks', url: '/tasks', icon: CheckSquare },
       { title: 'Directory', url: '/directory', icon: Users },
     ];
   } else if (role === 'it_admin') {
     navItems = [
-      { title: 'IT Queue', url: '/tasks/it-ops', icon: Laptop },
+      { title: 'IT Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
       { title: 'Tasks', url: '/tasks', icon: CheckSquare },
       { title: 'Directory', url: '/directory', icon: Users },
-      { title: 'Integrations', url: '/settings/integrations', icon: Workflow },
+      { title: 'Integrations', url: '/settings/integrations', icon: Workflow, capability: 'manage_integrations', featureFlag: 'advanced_hris_sync' },
     ];
   } else if (role === 'super_admin') {
     navItems = [
@@ -58,9 +67,15 @@ export function MobileBottomNav() {
     ];
   }
 
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.capability && !can(item.capability)) return false;
+    if (item.featureFlag && !hasFeature(item.featureFlag)) return false;
+    return true;
+  });
+
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t border-border px-2 py-1.5 flex justify-around items-center">
-      {navItems.map((item) => {
+      {filteredNavItems.map((item) => {
         const Icon = item.icon;
         const isActive = location.pathname === item.url;
         return (

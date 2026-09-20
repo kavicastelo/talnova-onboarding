@@ -112,38 +112,38 @@ export function App() {
               <Route path="super-admin/reports" element={<ProtectedRoute capability="view_super_admin"><SuperAdminReports /></ProtectedRoute>} />
               <Route path="super-admin/settings/flags" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFeatureFlags /></ProtectedRoute>} />
               <Route path="super-admin/settings/platform" element={<ProtectedRoute capability="view_super_admin"><SuperAdminPlatformSettings /></ProtectedRoute>} />
-              <Route path="journeys" element={<JourneysList />} />
-              <Route path="journeys/:id" element={<JourneyBuilder />} />
+              <Route path="journeys" element={<ProtectedRoute featureFlag="journey_templates"><JourneysList /></ProtectedRoute>} />
+              <Route path="journeys/:id" element={<ProtectedRoute featureFlag="journey_builder"><JourneyBuilder /></ProtectedRoute>} />
               <Route path="kiosks" element={<ProtectedRoute capability="manage_organization" featureFlag="kiosk_mode"><KioskDashboard /></ProtectedRoute>} />
               <Route path="directory" element={<EmployeeDirectory />} />
               <Route path="directory/:id" element={<EmployeeProfile />} />
               <Route path="profile" element={<EmployeeProfile />} />
               <Route path="profile/:id" element={<EmployeeProfile />} />
               <Route path="employee" element={<EmployeeDashboard />} />
-              <Route path="kb" element={<KnowledgeBase />} />
-              <Route path="kb/:id" element={<KnowledgeBase />} />
-              <Route path="knowledge-base/:id" element={<KnowledgeBase />} />
+              <Route path="kb" element={<ProtectedRoute featureFlag="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
+              <Route path="kb/:id" element={<ProtectedRoute featureFlag="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
+              <Route path="knowledge-base/:id" element={<ProtectedRoute featureFlag="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
               <Route path="analytics" element={<ProtectedRoute capability="view_analytics"><Analytics /></ProtectedRoute>} />
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />
-              <Route path="tasks" element={<Tasks />} />
-              <Route path="tasks/it-ops" element={<ProtectedRoute capability="manage_it_ops"><Tasks /></ProtectedRoute>} />
-              <Route path="workflows" element={<ProtectedRoute capability="manage_workflows"><Workflows /></ProtectedRoute>} />
+              <Route path="tasks" element={<ProtectedRoute featureFlag="checklist_tasks"><Tasks /></ProtectedRoute>} />
+              <Route path="tasks/it-ops" element={<ProtectedRoute capability="manage_it_ops" featureFlag="checklist_tasks"><Tasks /></ProtectedRoute>} />
+              <Route path="workflows" element={<ProtectedRoute capability="manage_workflows" featureFlag="workflow_rules"><Workflows /></ProtectedRoute>} />
               <Route path="manager" element={<ProtectedRoute capability="view_team_ops"><ManagerDashboard /></ProtectedRoute>} />
-              <Route path="documents" element={<Documents />} />
-              <Route path="documents/:id/sign" element={<DocumentSigner />} />
-              <Route path="documents/sign/:id" element={<DocumentSigner />} />
-              <Route path="milestones" element={<Milestones />} />
-              <Route path="buddy" element={<BuddyProgram />} />
-              <Route path="calendar" element={<CalendarIntegration />} />
+              <Route path="documents" element={<ProtectedRoute featureFlag="digital_signatures"><Documents /></ProtectedRoute>} />
+              <Route path="documents/:id/sign" element={<ProtectedRoute featureFlag="digital_signatures"><DocumentSigner /></ProtectedRoute>} />
+              <Route path="documents/sign/:id" element={<ProtectedRoute featureFlag="digital_signatures"><DocumentSigner /></ProtectedRoute>} />
+              <Route path="milestones" element={<ProtectedRoute featureFlag="milestone_ratings"><Milestones /></ProtectedRoute>} />
+              <Route path="buddy" element={<ProtectedRoute featureFlag="buddy_connection"><BuddyProgram /></ProtectedRoute>} />
+              <Route path="calendar" element={<ProtectedRoute featureFlag="calendar_integration"><CalendarIntegration /></ProtectedRoute>} />
               <Route path="hr-ops" element={<ProtectedRoute capability="view_hr_ops"><HROperations /></ProtectedRoute>} />
               <Route path="hr-ops/exceptions" element={<ProtectedRoute capability="view_hr_ops"><HROpsExceptions /></ProtectedRoute>} />
-              <Route path="leaderboard" element={<ProtectedRoute featureFlag="gamification_badges"><Leaderboard /></ProtectedRoute>} />
-              <Route path="ai-assistant" element={<AIAssistant />} />
+              <Route path="leaderboard" element={<ProtectedRoute featureFlag="gamified_milestones"><Leaderboard /></ProtectedRoute>} />
+              <Route path="ai-assistant" element={<ProtectedRoute featureFlag="ai_assistant"><AIAssistant /></ProtectedRoute>} />
               <Route path="ai-course-builder" element={<ProtectedRoute capability="ai_course_builder" featureFlag="ai_course_builder"><AICourseBuilder /></ProtectedRoute>} />
               <Route path="settings/sso" element={<ProtectedRoute capability="manage_sso" featureFlag="sso_enforcement"><SSOSettings /></ProtectedRoute>} />
               <Route path="settings/integrations" element={<ProtectedRoute capability="manage_integrations" featureFlag="advanced_hris_sync"><HRISIntegrations /></ProtectedRoute>} />
-              <Route path="office-map" element={<OfficeMap />} />
+              <Route path="office-map" element={<ProtectedRoute featureFlag="office_map"><OfficeMap /></ProtectedRoute>} />
               <Route
                 path="*"
                 element={

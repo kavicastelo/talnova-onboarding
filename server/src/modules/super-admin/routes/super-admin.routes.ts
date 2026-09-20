@@ -14,6 +14,7 @@ export async function superAdminRoutes(app: FastifyInstance) {
   // 1. Search & Telemetry
   app.get("/search", controller.searchGlobal);
   app.get("/telemetry", controller.getTelemetry);
+  app.get("/analytics/feature-adoption", controller.getFeatureAdoption);
   app.get("/activity-logs", controller.getActivityLogs);
   app.get("/stats", controller.getStats);
 
@@ -24,6 +25,7 @@ export async function superAdminRoutes(app: FastifyInstance) {
   app.patch("/organizations/:id", controller.updateOrganization);
   app.get("/organizations/:id/360", controller.getOrganization360);
   app.post("/organizations/:id/quarantine", controller.quarantineOrganization);
+  app.post("/organizations/:id/activate", controller.activateOrganization);
 
   // 3. Users & Sessions
   app.get("/users", controller.getUsers);

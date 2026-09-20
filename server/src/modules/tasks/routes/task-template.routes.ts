@@ -1,10 +1,11 @@
 import { FastifyInstance } from "fastify";
 import roleChecklistController from "../controllers/role-checklist.controller.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 
 export async function taskTemplateRoutes(app: FastifyInstance) {
   // All template management requires authentication
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("checklist_tasks"));
 
   // List templates
   app.get("/", roleChecklistController.listTemplates as any);

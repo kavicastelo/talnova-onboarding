@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { DocumentService } from "../services/document.service.js";
+import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) {}
@@ -131,6 +132,18 @@ export class DocumentController {
       reqMetadata,
       user.role || (user.scope ? "frontline_worker_kiosk" : undefined)
     );
+
+    // Instrument feature telemetry (fire-and-forget)
+    FeatureTelemetryService.recordUsage({
+      featureKey: "digital_signatures",
+      organizationId: user.organizationId,
+      userId: user.userId || user.id,
+      userRole: user.role || (user.scope ? "frontline_worker_kiosk" : "employee"),
+      actionName: "EXECUTE_SIGNATURE",
+      metadata: {
+        documentId: params.id,
+      },
+    }).catch(() => {});
 
     return reply.status(200).send({
       success: true,

@@ -69,6 +69,7 @@ interface PalettePage {
   icon: React.ComponentType<{ className?: string }>;
   keywords: string[];
   capability?: Capability;
+  featureFlag?: string;
   roles?: Role[];
 }
 
@@ -94,6 +95,7 @@ const pages: PalettePage[] = [
     category: 'My Onboarding',
     url: '/documents',
     icon: FileText,
+    featureFlag: 'digital_signatures',
     keywords: ['documents', 'sign', 'nda', 'handbook', 'compliance', 'legal'],
   },
   {
@@ -158,6 +160,7 @@ const pages: PalettePage[] = [
     category: 'People & Teams',
     url: '/buddy',
     icon: HeartHandshake,
+    featureFlag: 'buddy_connection',
     keywords: ['buddy', 'mentor', 'pairing', 'mentee', 'icebreaker', 'support'],
   },
   {
@@ -189,6 +192,7 @@ const pages: PalettePage[] = [
     url: '/ai-course-builder',
     icon: Wand2,
     capability: 'ai_course_builder',
+    featureFlag: 'ai_course_builder',
     keywords: ['ai course builder', 'generate course', 'pdf', 'docx', 'quiz', 'curriculum'],
   },
   {
@@ -219,6 +223,7 @@ const pages: PalettePage[] = [
     category: 'Workplace & Tools',
     url: '/office-map',
     icon: MapPin,
+    featureFlag: 'office_map',
     keywords: ['office map', 'floorplan', 'desks', 'rooms', 'amenities', 'cafeteria'],
   },
   {
@@ -226,6 +231,7 @@ const pages: PalettePage[] = [
     category: 'Workplace & Tools',
     url: '/leaderboard',
     icon: Trophy,
+    featureFlag: 'gamified_milestones',
     keywords: ['leaderboard', 'gamification', 'points', 'badges', 'ranks', 'achievements'],
   },
   {
@@ -234,6 +240,7 @@ const pages: PalettePage[] = [
     url: '/kiosks',
     icon: Tv,
     capability: 'manage_organization',
+    featureFlag: 'kiosk_mode',
     keywords: ['kiosks', 'frontline', 'sop', 'touch screen', 'pairing code', 'terminal'],
   },
 
@@ -268,6 +275,7 @@ const pages: PalettePage[] = [
     url: '/settings/sso',
     icon: KeyRound,
     capability: 'manage_sso',
+    featureFlag: 'sso_enforcement',
     keywords: ['sso', 'saml', 'oidc', 'identity', 'okta', 'azure ad', 'single sign-on'],
   },
   {
@@ -276,6 +284,7 @@ const pages: PalettePage[] = [
     url: '/settings/integrations',
     icon: Workflow,
     capability: 'manage_integrations',
+    featureFlag: 'advanced_hris_sync',
     keywords: ['hris', 'integrations', 'bamboohr', 'workday', 'marketplace', 'sync'],
   },
 
@@ -480,7 +489,7 @@ const pages: PalettePage[] = [
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
-  const { role, can } = useRole();
+  const { role, can, hasFeature } = useRole();
   const [searchQuery, setSearchQuery] = useState('');
   const [adminSearchResults, setAdminSearchResults] = useState<{
     organizations: any[];
@@ -532,6 +541,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   const allowedPages = pages.filter((p) => {
     if (p.capability && !can(p.capability)) return false;
+    if (p.featureFlag && !hasFeature(p.featureFlag)) return false;
     if (p.roles && !p.roles.includes(role)) return false;
     if (role === 'employee' && p.url === '/') return false;
     if (!q) return true;

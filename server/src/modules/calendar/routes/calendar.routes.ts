@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { CalendarController } from "../controllers/calendar.controller.js";
 import { CalendarService } from "../services/calendar.service.js";
-import { authenticate } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   connectCalendarSchema,
   createMeetingEventSchema,
@@ -20,6 +20,7 @@ export async function calendarRoutes(app: FastifyInstance) {
   // Authenticated Routes
   app.register(async (authApp) => {
     authApp.addHook("preHandler", authenticate);
+    authApp.addHook("preHandler", requireFeatureFlag("calendar_integration"));
 
     authApp.post("/connection", { schema: { body: connectCalendarSchema } }, controller.connectProvider as any);
     authApp.get("/connection", controller.getConnection as any);

@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { JourneyController } from "../controllers/journey.controller.js";
 import { JourneyService } from "../services/journey.service.js";
 import { JourneyRepository } from "../repositories/journey.repository.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import { extractLocale } from "../../../middleware/locale.middleware.js";
 import {
   createJourneySchema,
@@ -17,12 +17,16 @@ export async function journeyRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("journey_templates"));
 
   // GET /api/v1/journeys
   app.get("/", { preHandler: [extractLocale] }, controller.listJourneys as any);
 
   // GET /api/v1/journeys/:id
   app.get("/:id", { preHandler: [extractLocale] }, controller.getJourney as any);
+
+  // GET /api/v1/journeys/courses/:id
+  app.get("/courses/:id", { preHandler: [extractLocale] }, controller.getJourney as any);
 
   // POST /api/v1/journeys
   app.post(

@@ -40,8 +40,10 @@ import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
+import { useRole } from '../context/RoleContext';
 
 export const HROperations: React.FC = () => {
+  const { hasFeature } = useRole();
   const navigate = useNavigate();
   const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
@@ -259,7 +261,7 @@ export const HROperations: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card className="p-4 bg-card border shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground font-semibold">Active Onboardees</span>
@@ -278,32 +280,38 @@ export const HROperations: React.FC = () => {
           <p className="text-[11px] text-muted-foreground mt-1">Learning completion rate</p>
         </Card>
 
-        <Card className="p-4 bg-card border shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Pending Documents</span>
-            <FileText className="h-4 w-4 text-amber-600" />
-          </div>
-          <div className="text-2xl font-bold mt-2">{metrics?.pendingDocuments ?? '-'}</div>
-          <p className="text-[11px] text-muted-foreground mt-1">Awaiting signature</p>
-        </Card>
+        {hasFeature('digital_signatures') && (
+          <Card data-testid="kpi-pending-documents" className="p-4 bg-card border shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-semibold">Pending Documents</span>
+              <FileText className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="text-2xl font-bold mt-2">{metrics?.pendingDocuments ?? '-'}</div>
+            <p className="text-[11px] text-muted-foreground mt-1">Awaiting signature</p>
+          </Card>
+        )}
 
-        <Card className="p-4 bg-card border shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Overdue Milestones</span>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-          </div>
-          <div className="text-2xl font-bold mt-2">{metrics?.overdueMilestones ?? '-'}</div>
-          <p className="text-[11px] text-muted-foreground mt-1">Needs HR intervention</p>
-        </Card>
+        {(hasFeature('milestone_approval') || hasFeature('milestone_ratings')) && (
+          <Card data-testid="kpi-overdue-milestones" className="p-4 bg-card border shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-semibold">Overdue Milestones</span>
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+            </div>
+            <div className="text-2xl font-bold mt-2">{metrics?.overdueMilestones ?? '-'}</div>
+            <p className="text-[11px] text-muted-foreground mt-1">Needs HR intervention</p>
+          </Card>
+        )}
 
-        <Card className="p-4 bg-card border shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Unassigned Buddies</span>
-            <UserX className="h-4 w-4 text-purple-600" />
-          </div>
-          <div className="text-2xl font-bold mt-2">{metrics?.unassignedBuddiesCount ?? '-'}</div>
-          <p className="text-[11px] text-muted-foreground mt-1">Missing peer buddy</p>
-        </Card>
+        {(hasFeature('buddy_assignment') || hasFeature('buddy_connection')) && (
+          <Card data-testid="kpi-unassigned-buddies" className="p-4 bg-card border shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-semibold">Unassigned Buddies</span>
+              <UserX className="h-4 w-4 text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold mt-2">{metrics?.unassignedBuddiesCount ?? '-'}</div>
+            <p className="text-[11px] text-muted-foreground mt-1">Missing peer buddy</p>
+          </Card>
+        )}
       </div>
 
       {/* Exception & Escalation Queue */}

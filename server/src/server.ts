@@ -3,6 +3,7 @@ import { appConfig } from "./config/index.js";
 import { connectDatabase, disconnectDatabase } from "./database/connection.js";
 import registerEventSubscribers from "./infrastructure/events/event-subscribers.js";
 import schedulerService from "./infrastructure/scheduler/scheduler.service.js";
+import { SuperAdminService } from "./modules/super-admin/services/super-admin.service.js";
 
 async function start() {
   const app = await buildApp();
@@ -11,10 +12,14 @@ async function start() {
     // 1. Connect to Database
     await connectDatabase(app.log);
 
-    // 2. Register Event Subscribers
+    // 2. Seed Default Platform Feature Flags
+    const superAdminService = new SuperAdminService();
+    await superAdminService.syncDefaultFeatureFlags();
+
+    // 3. Register Event Subscribers
     registerEventSubscribers();
 
-    // 3. Start Background Scheduler Engine
+    // 4. Start Background Scheduler Engine
     schedulerService.start();
 
     // 4. Start Listening

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { superAdminService } from '../services/superAdmin.service';
+import { apiClient } from '../api/client';
 
 export function useSuperAdminStats() {
   return useQuery({
@@ -390,5 +391,21 @@ export function useUpdatePlatformSettings() {
     },
   });
 }
+
+export function useSuperAdminFeatureAdoption(timeWindowDays = 30) {
+  return useQuery({
+    queryKey: ['super-admin', 'feature-adoption', timeWindowDays],
+    queryFn: async () => {
+      const res = await apiClient.get('/super-admin/analytics/feature-adoption', {
+        params: { timeWindowDays },
+      });
+      return res.data?.data || res.data || [];
+    },
+    refetchInterval: 60000,
+  });
+}
+
+export const useFeatureAdoptionSummary = useSuperAdminFeatureAdoption;
+
 
 

@@ -44,6 +44,19 @@ interface OrganizationRef {
   slug?: string;
 }
 
+const formatRoleName = (role: string) => {
+  const roleNames: Record<string, string> = {
+    owner: 'Owner',
+    admin: 'Admin',
+    hr_admin: 'HR Admin',
+    manager: 'Manager',
+    employee: 'Employee',
+    it_admin: 'IT Admin',
+    super_admin: 'Super Admin',
+  };
+  return roleNames[role] || role.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
 export function SuperAdminFeatureFlags() {
   const { data: flags, isLoading, isError } = useSuperAdminFeatureFlags();
   const toggleMutation = useToggleFeatureFlag();
@@ -59,6 +72,7 @@ export function SuperAdminFeatureFlags() {
   const [targetAudience, setTargetAudience] = useState<string>('global');
   const [targetOrgIds, setTargetOrgIds] = useState<string[]>([]);
   const [excludedOrgIds, setExcludedOrgIds] = useState<string[]>([]);
+  const [targetRoles, setTargetRoles] = useState<string[]>([]);
   const [rolloutPercentage, setRolloutPercentage] = useState<number>(100);
   const [overrideReason, setOverrideReason] = useState<string>('');
   const [targetOrgSearch, setTargetOrgSearch] = useState<string>('');
@@ -71,6 +85,7 @@ export function SuperAdminFeatureFlags() {
   const [newDescription, setNewDescription] = useState('');
   const [newEnvironment, setNewEnvironment] = useState<'all' | 'production' | 'staging' | 'development'>('all');
   const [newAudience, setNewAudience] = useState<'global' | 'organizations' | 'roles' | 'percentage'>('global');
+  const [newTargetRoles, setNewTargetRoles] = useState<string[]>([]);
   const [newRollout, setNewRollout] = useState(100);
   const [newIsEnabled, setNewIsEnabled] = useState(false);
 
@@ -82,6 +97,7 @@ export function SuperAdminFeatureFlags() {
     const excluded = (flag.excludedOrganizationIds || []).map((o: any) => (typeof o === 'object' ? o._id || o.id : o));
     setTargetOrgIds(targets);
     setExcludedOrgIds(excluded);
+    setTargetRoles(flag.targetRoles || []);
     setRolloutPercentage(flag.rolloutPercentage ?? flag.rolloutPct ?? 100);
     setOverrideReason('');
     setTargetOrgSearch('');
@@ -99,6 +115,7 @@ export function SuperAdminFeatureFlags() {
           targetAudience,
           targetOrganizationIds: targetOrgIds,
           excludedOrganizationIds: excludedOrgIds,
+          targetRoles,
           rolloutPercentage: Number(rolloutPercentage),
           reason: overrideReason || `Tenant overrides updated by Super Admin`,
         },
@@ -151,6 +168,7 @@ export function SuperAdminFeatureFlags() {
         description: newDescription.trim(),
         environment: newEnvironment,
         targetAudience: newAudience,
+        targetRoles: newAudience === 'roles' ? newTargetRoles : [],
         rolloutPercentage: newRollout,
         isEnabled: newIsEnabled,
       });
@@ -161,6 +179,7 @@ export function SuperAdminFeatureFlags() {
       setNewDescription('');
       setNewRollout(100);
       setNewIsEnabled(false);
+      setNewTargetRoles([]);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to register feature flag');
     }
@@ -289,6 +308,14 @@ export function SuperAdminFeatureFlags() {
                               {excludedCount} Excluded
                             </Badge>
                           )}
+
+                          {/* Role Target Badges */}
+                          {flag.targetRoles && flag.targetRoles.length > 0 && (
+                            <Badge className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 font-medium">
+                              <Users className="w-3 h-3" />
+                              {`Roles: ${flag.targetRoles.map((r: string) => formatRoleName(r)).join(', ')}`}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-slate-600 mt-1">{flag.description}</p>
                       </div>
@@ -386,7 +413,7 @@ export function SuperAdminFeatureFlags() {
                   { id: 'global', label: 'Global Platform', icon: Globe },
                   { id: 'organizations', label: 'Targeted Tenants Only', icon: Building2 },
                   { id: 'percentage', label: 'Progressive Rollout %', icon: Percent },
-                  { id: 'roles', label: 'Role Restriced', icon: Users },
+                  { id: 'roles', label: 'Role Restricted', icon: Users },
                 ].map((aud) => {
                   const Icon = aud.icon;
                   const isSelected = targetAudience === aud.id;
@@ -394,6 +421,7 @@ export function SuperAdminFeatureFlags() {
                     <button
                       key={aud.id}
                       type="button"
+                      data-testid={`target-audience-${aud.id}`}
                       onClick={() => setTargetAudience(aud.id)}
                       className={`p-3 rounded-lg border text-left transition-all flex flex-col gap-1.5 ${
                         isSelected
@@ -408,6 +436,43 @@ export function SuperAdminFeatureFlags() {
                 })}
               </div>
             </div>
+
+            {/* Target User Roles (When targetAudience is 'roles') */}
+            {targetAudience === 'roles' && (
+              <div className="space-y-2 p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/30" data-testid="target-roles-group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-indigo-600" />
+                    <span className="text-xs font-semibold text-slate-900">Permitted User Roles</span>
+                  </div>
+                  <span className="text-[11px] text-slate-500">{targetRoles.length} selected</span>
+                </div>
+                <p className="text-[11px] text-slate-600">
+                  Select user roles permitted to access this feature when restricted by role.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                  {['owner', 'admin', 'hr_admin', 'manager', 'employee', 'it_admin'].map((role) => (
+                    <label
+                      key={role}
+                      className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer p-2.5 rounded-lg bg-white border border-slate-200 hover:border-indigo-300 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        value={role}
+                        checked={targetRoles.includes(role)}
+                        onChange={(e) => {
+                          if (e.target.checked) setTargetRoles([...targetRoles, role]);
+                          else setTargetRoles(targetRoles.filter((r) => r !== role));
+                        }}
+                        className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="font-medium">{formatRoleName(role)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Target Organizations (Whitelist) */}
             <div className="space-y-2 p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/30">
@@ -686,6 +751,36 @@ export function SuperAdminFeatureFlags() {
                   </select>
                 </div>
               </div>
+
+              {/* Role Checkboxes in Create Modal */}
+              {newAudience === 'roles' && (
+                <div className="space-y-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">Permitted User Roles</label>
+                    <span className="text-[11px] text-slate-500">{newTargetRoles.length} selected</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    {['owner', 'admin', 'hr_admin', 'manager', 'employee', 'it_admin'].map((role) => (
+                      <label
+                        key={role}
+                        className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer p-2 rounded bg-white border border-slate-200 hover:border-indigo-300 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          value={role}
+                          checked={newTargetRoles.includes(role)}
+                          onChange={(e) => {
+                            if (e.target.checked) setNewTargetRoles([...newTargetRoles, role]);
+                            else setNewTargetRoles(newTargetRoles.filter((r) => r !== role));
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
+                        />
+                        <span>{formatRoleName(role)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50">
                 <div>

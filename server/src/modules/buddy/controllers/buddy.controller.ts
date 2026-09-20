@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { BuddyService } from "../services/buddy.service.js";
+import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 
 export class BuddyController {
   constructor(private readonly buddyService: BuddyService) {}
@@ -93,6 +94,20 @@ export class BuddyController {
     );
 
     const assignmentObj = assignment.toObject ? assignment.toObject() : assignment;
+
+    // Instrument feature telemetry (fire-and-forget)
+    FeatureTelemetryService.recordUsage({
+      featureKey: "buddy_assignment",
+      organizationId: user.organizationId,
+      userId: user.userId || user.id,
+      userRole: user.role || "admin",
+      actionName: "ASSIGN_BUDDY",
+      metadata: {
+        newHireUserId,
+        buddyUserId,
+        templateName,
+      },
+    }).catch(() => {});
 
     return reply.status(201).send({
       success: true,

@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { MilestoneController } from "../controllers/milestone.controller.js";
 import { MilestoneService } from "../services/milestone.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   createMilestoneTemplateSchema,
   updateMilestoneTemplateSchema,
@@ -16,6 +16,7 @@ export async function milestoneRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("milestone_ratings"));
 
   // Template Management (Admin / Owner / HR Admin / Super Admin)
   app.post(

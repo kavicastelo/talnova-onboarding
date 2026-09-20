@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { KioskService } from "../services/kiosk.service.js";
 import AppError from "../../../common/errors/app-error.js";
 import { KioskJourneyModel } from "../models/kiosk-journey.model.js";
+import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 
 export class KioskController {
   constructor(private readonly kioskService: KioskService) {}
@@ -37,10 +38,63 @@ export class KioskController {
     }
     const params = request.params as any;
     const journey = await this.kioskService.getJourney(params.id, orgId);
+
+    // Instrument feature telemetry (fire-and-forget)
+    FeatureTelemetryService.recordUsage({
+      featureKey: "kiosk_mode",
+      organizationId: orgId,
+      userId: (request.user as any)?.userId,
+      userRole: (request.user as any)?.role || "frontline_worker_kiosk",
+      actionName: "PLAY_KIOSK_JOURNEY",
+      metadata: { journeyId: params.id },
+    }).catch(() => {});
+
     return reply.status(200).send({
       success: true,
       message: "Kiosk journey retrieved successfully",
       data: journey
+    });
+  };
+
+  getSession = async (request: FastifyRequest, reply: FastifyReply) => {
+    let user = request.user as any;
+    if (!user && request.headers.authorization) {
+      try {
+        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
+        user = (request.server as any).jwt.decode(token);
+      } catch {
+        // ignore
+      }
+    }
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || (request.query as any)?.organizationId;
+    const params = request.params as any;
+
+    let session: any = null;
+    try {
+      session = await mongoose.model("KioskAnalytics").findOne({
+        sessionId: params.id,
+        ...(orgId ? { organizationId: orgId } : {}),
+      });
+    } catch {
+      // ignore
+    }
+
+    const resolvedOrgId = orgId || session?.organizationId;
+    if (resolvedOrgId) {
+      await FeatureTelemetryService.recordUsage({
+        featureKey: "kiosk_mode",
+        organizationId: resolvedOrgId,
+        userId: user?.userId,
+        userRole: user?.role || "frontline_worker_kiosk",
+        actionName: "GET_KIOSK_SESSION",
+        metadata: { sessionId: params.id },
+      }).catch(() => {});
+    }
+
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk session retrieved successfully",
+      data: session || { sessionId: params.id, status: "active" },
     });
   };
 

@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { OfficeLocationController } from "../controllers/office-location.controller.js";
 import { OfficeLocationService } from "../services/office-location.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 
 export async function officeLocationRoutes(app: FastifyInstance) {
   const service = new OfficeLocationService();
@@ -10,8 +10,8 @@ export async function officeLocationRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
 
   // Office Map & Employee Location Guidance (LOC-004, UJ-OPS-002)
-  app.get("/office-map", controller.getOfficeMap as any);
-  app.get("/my-location", controller.getEmployeeGuidance as any);
+  app.get("/office-map", { preHandler: [requireFeatureFlag("office_map")] }, controller.getOfficeMap as any);
+  app.get("/my-location", { preHandler: [requireFeatureFlag("office_map")] }, controller.getEmployeeGuidance as any);
 
   // Location Management (LOC-001, LOC-002, LOC-003)
   app.get("/", controller.getLocations as any);

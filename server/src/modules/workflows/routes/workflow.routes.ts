@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import WorkflowController from "../controllers/workflow.controller.js";
 import WorkflowService from "../services/workflow.service.js";
 import WorkflowRepository from "../repositories/workflow.repository.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   createWorkflowRuleSchema,
   updateWorkflowRuleSchema,
@@ -18,6 +18,7 @@ export async function workflowRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
+  app.addHook("preHandler", requireFeatureFlag("workflow_rules"));
 
   const adminOnly = requireRole(["admin", "owner", "super_admin"]);
 
