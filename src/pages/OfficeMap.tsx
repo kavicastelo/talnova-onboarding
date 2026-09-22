@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../components/Dialog';
 import {
@@ -1010,7 +1011,7 @@ export function OfficeMap() {
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
         <DialogContent
           data-testid="map-editor-modal"
-          className="max-w-3xl max-h-[90vh] overflow-y-auto"
+          className="max-w-3xl"
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-600">
@@ -1024,7 +1025,8 @@ export function OfficeMap() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={editorTab} onValueChange={setEditorTab} className="mt-4">
+          <DialogBody className="space-y-4">
+            <Tabs value={editorTab} onValueChange={setEditorTab} className="w-full">
             <TabsList className="grid grid-cols-3 mb-4">
               <TabsTrigger value="details">Facility Details</TabsTrigger>
               <TabsTrigger value="access">Access & Wi-Fi</TabsTrigger>
@@ -1322,8 +1324,9 @@ export function OfficeMap() {
               )}
             </TabsContent>
           </Tabs>
+        </DialogBody>
 
-          <DialogFooter className="mt-6 flex justify-end gap-2">
+        <DialogFooter className="flex justify-end gap-2">
             <Button
               data-testid="cancel-map-btn"
               variant="outline"

@@ -29,6 +29,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -419,7 +420,8 @@ export function JourneysList() {
           <DialogHeader>
             <DialogTitle>Duplicate Journey</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+
+          <DialogBody className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">New Title</label>
               <Input
@@ -434,7 +436,8 @@ export function JourneysList() {
                 }}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
             <Button
@@ -452,9 +455,11 @@ export function JourneysList() {
           <DialogHeader>
             <DialogTitle>Archive Journey</DialogTitle>
           </DialogHeader>
-          <div className="py-4 text-sm text-muted-foreground">
+
+          <DialogBody className="text-sm text-muted-foreground">
             Are you sure you want to archive this journey? Enrolled employees will no longer be able to access it.
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
             <Button

@@ -11,12 +11,23 @@ export class EmployeeController {
     const features = await FeatureFlagService.getAllResolvedFlags(user.organizationId, user.role);
 
     const profileData = typeof (profile as any)?.toObject === "function" ? (profile as any).toObject() : profile;
+    const resolvedRole = profileData?.permissions?.role || user.role || "employee";
+    const userRoles = Array.from(
+      new Set([
+        resolvedRole,
+        ...(Array.isArray(profileData?.permissions?.roles) ? profileData.permissions.roles : []),
+        ...(Array.isArray(user?.roles) ? user.roles : []),
+      ].filter(Boolean))
+    );
+    const resolvedRoles = userRoles.length > 0 ? userRoles : [resolvedRole];
 
     return reply.status(200).send({
       success: true,
       message: "Profile retrieved successfully",
       data: {
         ...profileData,
+        role: resolvedRole,
+        roles: resolvedRoles,
         features,
       },
     });

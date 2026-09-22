@@ -12,7 +12,10 @@ export interface PublicCertificate {
   credentialId?: string;
   certificateId: string;
   certificate?: {
-    template: 'classic' | 'modern' | 'minimalist';
+    template: 'classic' | 'modern' | 'minimalist' | 'academic' | 'gradient' | 'executive' | string;
+    theme?: 'light' | 'dark';
+    accentColor?: string;
+    badgeStyle?: 'medal' | 'laurel' | 'shield' | 'crypto' | 'ribbon' | string;
     signatureUrl?: string;
     signatoryName?: string;
     signatoryTitle?: string;

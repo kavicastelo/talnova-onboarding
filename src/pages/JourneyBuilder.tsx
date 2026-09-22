@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import {
@@ -1918,7 +1919,8 @@ export function JourneyBuilder() {
           <DialogHeader>
             <DialogTitle>Add Module</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+
+          <DialogBody className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Module Title</label>
               <Input
@@ -1939,7 +1941,8 @@ export function JourneyBuilder() {
                 }}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
             <Button
@@ -1968,7 +1971,8 @@ export function JourneyBuilder() {
           <DialogHeader>
             <DialogTitle>Add Lesson</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+
+          <DialogBody className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Lesson Title</label>
               <Input
@@ -1999,7 +2003,8 @@ export function JourneyBuilder() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
             <Button
@@ -2047,11 +2052,13 @@ export function JourneyBuilder() {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
-          <div className="py-4 text-sm text-muted-foreground">
+
+          <DialogBody className="text-sm text-muted-foreground">
             {modals.type === 'confirm_delete_module'
               ? 'Are you sure you want to remove this module and all of its lessons? This action cannot be undone.'
               : 'Are you sure you want to remove this lesson? This action cannot be undone.'}
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
             <Button
@@ -2090,9 +2097,11 @@ export function JourneyBuilder() {
           <DialogHeader>
             <DialogTitle>Unsaved Changes</DialogTitle>
           </DialogHeader>
-          <div className="py-4 text-sm text-muted-foreground">
+
+          <DialogBody className="text-sm text-muted-foreground">
             You have unsaved changes in this journey. If you leave now, your progress will be lost. Are you sure you want to discard changes and leave?
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModals({ type: null })}>Stay</Button>
             <Button

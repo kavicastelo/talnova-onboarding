@@ -63,11 +63,17 @@ import { Toaster } from 'sonner';
 import './i18n';
 
 function DashboardRedirect() {
-  const { role } = useRole();
-  if (role === 'super_admin') return <SuperAdminDashboard />;
-  if (role === 'manager') return <ManagerDashboard />;
-  if (role === 'it_admin') return <Navigate to="/tasks/it-ops" replace />;
-  return role === 'admin' || role === 'owner' || role === 'hr_admin' ? <AdminDashboard /> : <EmployeeDashboard />;
+  const { role, roles, can } = useRole();
+  if (role === 'super_admin' && can('view_super_admin')) return <SuperAdminDashboard />;
+  if (role === 'manager' && can('view_team_ops')) return <ManagerDashboard />;
+  if (role === 'it_admin' && can('manage_it_ops')) return <Navigate to="/tasks/it-ops" replace />;
+  if ((role === 'admin' || role === 'owner') && can('manage_organization')) return <AdminDashboard />;
+  if (role === 'hr_admin' && can('view_hr_ops')) return <AdminDashboard />;
+
+  // Multi-role checks:
+  if (can('manage_organization')) return <AdminDashboard />;
+  if (can('view_team_ops') && !roles.includes('employee')) return <ManagerDashboard />;
+  return <EmployeeDashboard />;
 }
 
 export function App() {
@@ -80,6 +86,7 @@ export function App() {
             <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/accept-invite" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
@@ -87,6 +94,7 @@ export function App() {
 
             <Route path="/" element={<SidebarProvider><AppShell /></SidebarProvider>}>
               <Route index element={<DashboardRedirect />} />
+              <Route path="admin" element={<ProtectedRoute capability="manage_organization"><AdminDashboard /></ProtectedRoute>} />
               <Route path="super-admin" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDashboard /></ProtectedRoute>} />
               <Route path="super-admin/alerts" element={<ProtectedRoute capability="view_super_admin"><SuperAdminAlerts /></ProtectedRoute>} />
               <Route path="super-admin/organizations" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganizations /></ProtectedRoute>} />
@@ -116,8 +124,8 @@ export function App() {
               <Route path="journeys" element={<ProtectedRoute featureFlag="journey_templates"><JourneysList /></ProtectedRoute>} />
               <Route path="journeys/:id" element={<ProtectedRoute featureFlag="journey_builder"><JourneyBuilder /></ProtectedRoute>} />
               <Route path="kiosks" element={<ProtectedRoute capability="manage_organization" featureFlag="kiosk_mode"><KioskDashboard /></ProtectedRoute>} />
-              <Route path="directory" element={<EmployeeDirectory />} />
-              <Route path="directory/:id" element={<EmployeeProfile />} />
+              <Route path="directory" element={<ProtectedRoute capability="view_directory"><EmployeeDirectory /></ProtectedRoute>} />
+              <Route path="directory/:id" element={<ProtectedRoute capability="view_directory"><EmployeeProfile /></ProtectedRoute>} />
               <Route path="profile" element={<EmployeeProfile />} />
               <Route path="profile/:id" element={<EmployeeProfile />} />
               <Route path="employee" element={<EmployeeDashboard />} />
@@ -125,7 +133,7 @@ export function App() {
               <Route path="kb/:id" element={<ProtectedRoute featureFlag="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
               <Route path="knowledge-base/:id" element={<ProtectedRoute featureFlag="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
               <Route path="analytics" element={<ProtectedRoute capability="view_analytics"><Analytics /></ProtectedRoute>} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="settings" element={<ProtectedRoute capability="manage_organization"><Settings /></ProtectedRoute>} />
               <Route path="certificates" element={<Certificates />} />
               <Route path="tasks" element={<ProtectedRoute featureFlag="checklist_tasks"><Tasks /></ProtectedRoute>} />
               <Route path="tasks/it-ops" element={<ProtectedRoute capability="manage_it_ops" featureFlag="checklist_tasks"><Tasks /></ProtectedRoute>} />

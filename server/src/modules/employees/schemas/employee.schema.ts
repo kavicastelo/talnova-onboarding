@@ -45,7 +45,7 @@ export const inviteEmployeeSchema = z.object({
   designation: z.string().optional(),
   payrollCategory: z.string().optional(),
   managerId: z.string().optional(),
-  employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]),
+  employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]).default("full_time"),
   hireDate: z.string().optional(),
 });
 
@@ -61,6 +61,7 @@ export const updateEmployeeSchema = z.object({
   customRoles: z.array(z.string()).optional(),
   designation: z.string().optional(),
   payrollCategory: z.string().optional(),
+  employmentType: z.enum(["full_time", "part_time", "contractor", "intern"]).optional(),
   hireDate: z.string().optional(),
 });
 

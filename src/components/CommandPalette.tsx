@@ -576,7 +576,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 shadow-lg sm:max-w-xl max-h-[85vh] flex flex-col">
+      <DialogContent className="overflow-hidden p-0 shadow-lg sm:max-w-xl max-h-[85vh] flex flex-col" showCloseButton={false}>
         <DialogTitle className="sr-only">Command palette</DialogTitle>
         <Command className="[&_[cmdk-input-wrapper]]:border-b flex-1 flex flex-col min-h-0">
           <CommandInput

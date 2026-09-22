@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../Dialog';
 import { Button } from '../Button';
@@ -79,62 +80,64 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="p-3 rounded-lg border border-border/70 bg-muted/30 text-xs space-y-1">
-            <p className="font-semibold text-foreground truncate">{task.title}</p>
-            <p className="text-muted-foreground">Current Status: <span className="text-emerald-500 font-medium capitalize">{task.status}</span></p>
-            {task.assignedToName && (
-              <p className="text-muted-foreground">Assigned: {task.assignedToName}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">Target Status After Revocation</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setTargetStatus('revision_requested')}
-                className={`p-2.5 rounded-lg border text-left text-xs transition-colors ${
-                  targetStatus === 'revision_requested'
-                    ? 'border-primary bg-primary/10 text-primary font-medium'
-                    : 'border-border bg-background text-foreground'
-                }`}
-              >
-                Revision Requested
-              </button>
-              <button
-                type="button"
-                onClick={() => setTargetStatus('in_progress')}
-                className={`p-2.5 rounded-lg border text-left text-xs transition-colors ${
-                  targetStatus === 'in_progress'
-                    ? 'border-primary bg-primary/10 text-primary font-medium'
-                    : 'border-border bg-background text-foreground'
-                }`}
-              >
-                In Progress (Reset)
-              </button>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <DialogBody className="space-y-4">
+            <div className="p-3 rounded-lg border border-border/70 bg-muted/30 text-xs space-y-1">
+              <p className="font-semibold text-foreground truncate">{task.title}</p>
+              <p className="text-muted-foreground">Current Status: <span className="text-emerald-500 font-medium capitalize">{task.status}</span></p>
+              {task.assignedToName && (
+                <p className="text-muted-foreground">Assigned: {task.assignedToName}</p>
+              )}
             </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="revoke-reason" className="text-xs font-semibold text-foreground">
-              Audit Note & Reason <span className="text-destructive">*</span>
-            </Label>
-            <textarea
-              id="revoke-reason"
-              rows={3}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g., Code review PR showed missing unit tests; requires developer revision before sign-off..."
-              className="w-full text-xs p-2.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Target Status After Revocation</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetStatus('revision_requested')}
+                  className={`p-2.5 rounded-lg border text-left text-xs transition-colors ${
+                    targetStatus === 'revision_requested'
+                      ? 'border-primary bg-primary/10 text-primary font-medium'
+                      : 'border-border bg-background text-foreground'
+                  }`}
+                >
+                  Revision Requested
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetStatus('in_progress')}
+                  className={`p-2.5 rounded-lg border text-left text-xs transition-colors ${
+                    targetStatus === 'in_progress'
+                      ? 'border-primary bg-primary/10 text-primary font-medium'
+                      : 'border-border bg-background text-foreground'
+                  }`}
+                >
+                  In Progress (Reset)
+                </button>
+              </div>
+            </div>
 
-          {validationError && (
-            <p className="text-xs text-destructive font-medium">{validationError}</p>
-          )}
+            <div className="space-y-1.5">
+              <Label htmlFor="revoke-reason" className="text-xs font-semibold text-foreground">
+                Audit Note & Reason <span className="text-destructive">*</span>
+              </Label>
+              <textarea
+                id="revoke-reason"
+                rows={3}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g., Code review PR showed missing unit tests; requires developer revision before sign-off..."
+                className="w-full text-xs p-2.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+            </div>
 
-          <DialogFooter className="gap-2 pt-2 border-t border-border/60">
+            {validationError && (
+              <p className="text-xs text-destructive font-medium">{validationError}</p>
+            )}
+          </DialogBody>
+
+          <DialogFooter className="gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>

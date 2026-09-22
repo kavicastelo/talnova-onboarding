@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -1149,7 +1150,8 @@ export const BuddyProgram: React.FC = () => {
             <DialogTitle>Pair Mentee with Onboarding Buddy</DialogTitle>
             <DialogDescription>Select an incoming direct report, choose an eligible buddy mentor, and attach a checklist.</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+
+          <DialogBody className="space-y-4 text-sm">
             {validationError && (
               <div
                 data-testid="buddy-validation-error"
@@ -1216,7 +1218,8 @@ export const BuddyProgram: React.FC = () => {
                 <option value="Leadership & Executive Fast Track">Leadership & Executive Fast Track</option>
               </select>
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsAssignModalOpen(false)}>
               Cancel
@@ -1240,7 +1243,8 @@ export const BuddyProgram: React.FC = () => {
             <DialogTitle>Log 1-on-1 Buddy Check-In</DialogTitle>
             <DialogDescription>Record meeting notes, guidance provided, and mentee sentiment.</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+
+          <DialogBody className="space-y-4 text-sm">
             {checkinValidationError && (
               <div
                 data-testid="checkin-validation-error"
@@ -1296,7 +1300,8 @@ export const BuddyProgram: React.FC = () => {
                 }}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsCheckinModalOpen(false)}>
               Cancel
@@ -1320,7 +1325,8 @@ export const BuddyProgram: React.FC = () => {
             <DialogTitle>{myBuddyProfile ? 'Edit Buddy Profile' : 'Join as an Onboarding Buddy'}</DialogTitle>
             <DialogDescription>Submit your mentorship bio, languages, technical skills, and mentee capacity.</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+
+          <DialogBody className="space-y-4 text-sm">
             {profileValidationError && (
               <div
                 data-testid="buddy-profile-error"
@@ -1398,7 +1404,8 @@ export const BuddyProgram: React.FC = () => {
                 Available for new mentee pairings (uncheck if on vacation)
               </label>
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsRegisterModalOpen(false)}>
               Cancel
@@ -1422,7 +1429,8 @@ export const BuddyProgram: React.FC = () => {
             <DialogTitle>Add Custom Task to Mentee Checklist</DialogTitle>
             <DialogDescription>Create an ad-hoc mentoring or cultural milestone for this mentee.</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto p-5 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+
+          <DialogBody className="space-y-4 text-sm">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Task Title *</label>
               <Input
@@ -1446,7 +1454,8 @@ export const BuddyProgram: React.FC = () => {
                 <option value="month_1">Month 1</option>
               </select>
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsCustomTaskModalOpen(false)}>
               Cancel

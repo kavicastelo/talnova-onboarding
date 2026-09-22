@@ -18,9 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../components/Dialog';
-import { SearchableSelect } from '../components/SearchableSelect';
 import {
   ChevronLeft,
   Plus,
@@ -1709,7 +1709,7 @@ export function EmployeeProfile() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 py-2">
+              <DialogBody className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
                     Milestone Template *
@@ -1759,9 +1759,9 @@ export function EmployeeProfile() {
                     </div>
                   );
                 })()}
-              </div>
+              </DialogBody>
 
-              <DialogFooter className="pt-3 border-t">
+              <DialogFooter>
                 <Button variant="outline" onClick={() => setAssignMilestoneOpen(false)}>
                   Cancel
                 </Button>
@@ -1817,16 +1817,16 @@ export function EmployeeProfile() {
 
       {/* 1. Self Edit Profile Modal */}
       <Dialog open={editSelfOpen} onOpenChange={setEditSelfOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <DialogTitle className="text-lg font-bold">Edit Profile Details</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               Update your personal contact details and regional preferences.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveSelf} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[calc(85vh-140px)] text-xs">
+          <form onSubmit={handleSaveSelf} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <DialogBody className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-semibold mb-1 block">First Name</Label>
@@ -1852,9 +1852,9 @@ export function EmployeeProfile() {
                 <Label className="text-xs font-semibold mb-1 block">Timezone</Label>
                 <Input value={timezoneVal} onChange={(e) => setTimezoneVal(e.target.value)} placeholder="e.g. America/Los_Angeles" className="text-xs" />
               </div>
-            </div>
+            </DialogBody>
 
-            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditSelfOpen(false)}>
                 Cancel
               </Button>
@@ -1868,16 +1868,16 @@ export function EmployeeProfile() {
 
       {/* 2. Change Password Modal */}
       <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <DialogTitle className="text-lg font-bold">Change Password</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               Ensure your account is protected with a strong, unique password.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleChangePassword} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-5 sm:p-6 space-y-4 text-xs">
+          <form onSubmit={handleChangePassword} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <DialogBody className="space-y-4 text-xs">
               <div>
                 <Label className="text-xs font-semibold mb-1 block">Current Password</Label>
                 <Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} required className="text-xs" />
@@ -1892,9 +1892,9 @@ export function EmployeeProfile() {
                 <Label className="text-xs font-semibold mb-1 block">Confirm New Password</Label>
                 <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} className="text-xs" />
               </div>
-            </div>
+            </DialogBody>
 
-            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setChangePasswordOpen(false)}>
                 Cancel
               </Button>
@@ -1908,17 +1908,17 @@ export function EmployeeProfile() {
 
       {/* 3. Admin Manage Account Modal */}
       <Dialog open={editEmployeeOpen} onOpenChange={setEditEmployeeOpen}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden">
-          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
             <DialogTitle className="text-lg font-bold">Manage Employee Account</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               Administrative configuration of roles, departmental hierarchy, and employment status.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveEmployee} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[calc(85vh-140px)] text-xs">
-              <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSaveEmployee} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <DialogBody className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-semibold mb-1 block">First Name</Label>
                   <Input value={adminFirstName} onChange={(e) => setAdminFirstName(e.target.value)} required className="text-xs" />
@@ -1934,27 +1934,28 @@ export function EmployeeProfile() {
                 <Input value={adminDesignation} onChange={(e) => setAdminDesignation(e.target.value)} placeholder="e.g. Senior Frontend Engineer" className="text-xs" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-semibold mb-1 block">Department</Label>
-                  <SearchableSelect
+                  <select
                     value={adminDeptId}
-                    onChange={setAdminDeptId}
-                    placeholder="Select department..."
-                    searchPlaceholder="Search department..."
-                    options={activeDepartments.map((d) => ({
-                      value: d._id,
-                      label: d.name,
-                    }))}
-                  />
+                    onChange={(e) => setAdminDeptId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">Select Department</option>
+                    {activeDepartments.map((dept) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">System Role</Label>
+                  <Label className="text-xs font-semibold mb-1 block">Primary System Role</Label>
                   <select
                     value={adminRole}
-                    onChange={(e: any) => setAdminRole(e.target.value)}
-                    className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    onChange={(e) => setAdminRole(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
                     <option value="employee">Employee</option>
                     <option value="manager">Manager</option>
@@ -1966,72 +1967,22 @@ export function EmployeeProfile() {
                 </div>
               </div>
 
-              {/* Multi-Role Privilege Checkboxes */}
-              <div className="space-y-2 p-3 rounded-xl border bg-muted/20">
-                <Label className="text-xs font-semibold block">Additional Functional Roles</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={adminRoles.includes('it_admin') || adminRole === 'it_admin'}
-                      disabled={adminRole === 'it_admin'}
-                      onChange={() =>
-                        setAdminRoles((prev) =>
-                          prev.includes('it_admin') ? prev.filter((r) => r !== 'it_admin') : [...prev, 'it_admin']
-                        )
-                      }
-                      className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
-                    />
-                    <span>IT Admin</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={adminRoles.includes('hr_admin') || adminRole === 'hr_admin'}
-                      disabled={adminRole === 'hr_admin'}
-                      onChange={() =>
-                        setAdminRoles((prev) =>
-                          prev.includes('hr_admin') ? prev.filter((r) => r !== 'hr_admin') : [...prev, 'hr_admin']
-                        )
-                      }
-                      className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
-                    />
-                    <span>HR Admin</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={adminRoles.includes('manager') || adminRole === 'manager'}
-                      disabled={adminRole === 'manager'}
-                      onChange={() =>
-                        setAdminRoles((prev) =>
-                          prev.includes('manager') ? prev.filter((r) => r !== 'manager') : [...prev, 'manager']
-                        )
-                      }
-                      className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
-                    />
-                    <span>Manager</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Lifecycle Status</Label>
+                  <Label className="text-xs font-semibold mb-1 block">Employment Status</Label>
                   <select
                     value={adminStatus}
-                    onChange={(e: any) => setAdminStatus(e.target.value)}
-                    className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    onChange={(e) => setAdminStatus(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value="onboarding">Onboarding</option>
                     <option value="active">Active</option>
+                    <option value="onboarding">Onboarding</option>
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
-
                 <div>
                   <Label className="text-xs font-semibold mb-1 block">Payroll Category</Label>
-                  <Input value={adminPayrollCategory} onChange={(e) => setAdminPayrollCategory(e.target.value)} placeholder="Standard / Executive" className="text-xs" />
+                  <Input value={adminPayrollCategory} onChange={(e) => setAdminPayrollCategory(e.target.value)} placeholder="e.g. Salaried W2, Exempt" className="text-xs" />
                 </div>
               </div>
 
@@ -2039,9 +1990,9 @@ export function EmployeeProfile() {
                 <Label className="text-xs font-semibold mb-1 block">Hire / Effective Date</Label>
                 <Input type="date" value={adminHireDate} onChange={(e) => setAdminHireDate(e.target.value)} className="text-xs" />
               </div>
-            </div>
+            </DialogBody>
 
-            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditEmployeeOpen(false)}>
                 Cancel
               </Button>
@@ -2055,8 +2006,8 @@ export function EmployeeProfile() {
 
       {/* 4. Statutory Legal Hold (SOC-2 CC6.1) Modal */}
       <Dialog open={legalHoldModalOpen} onOpenChange={setLegalHoldModalOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600">
                 <Scale className="w-5 h-5" />
@@ -2072,7 +2023,7 @@ export function EmployeeProfile() {
             </div>
           </DialogHeader>
 
-          <div className="p-5 sm:p-6 space-y-4 text-xs">
+          <DialogBody className="space-y-4 text-xs">
             <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
               <p className="font-semibold text-foreground">Target Employee: {employee.name}</p>
               <p className="text-muted-foreground">
@@ -2096,9 +2047,9 @@ export function EmployeeProfile() {
               />
               <p className="text-[10px] text-muted-foreground mt-1">Must be at least 10 characters for audit logs.</p>
             </div>
-          </div>
+          </DialogBody>
 
-          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+          <DialogFooter>
             <Button type="button" variant="outline" size="sm" onClick={() => setLegalHoldModalOpen(false)}>
               Cancel
             </Button>

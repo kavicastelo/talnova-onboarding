@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../Dialog';
 import { Button } from '../Button';
@@ -303,7 +304,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
         </DialogHeader>
 
         {/* Wizard Body Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <DialogBody className="space-y-6">
           {/* STEP 1: Upload */}
           {currentStep === 'upload' && (
             <div className="space-y-6">
@@ -824,7 +825,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
               </div>
             </div>
           )}
-        </div>
+        </DialogBody>
 
         {/* Footer Navigation */}
         <DialogFooter className="p-4 border-t bg-muted/20 flex items-center justify-between">

@@ -187,9 +187,21 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Pre-save hook to populate full name and clean up strings
+// Pre-save hook to populate full name and ensure multi-role integrity
 UserSchema.pre<IUser>("validate", function (next) {
   this.profile.fullName = `${this.profile.firstName} ${this.profile.lastName}`.trim();
+  if (!this.permissions) {
+    this.permissions = { role: "employee", roles: ["employee"], customRoles: [] };
+  } else {
+    if (!this.permissions.role) {
+      this.permissions.role = "employee";
+    }
+    if (!Array.isArray(this.permissions.roles) || this.permissions.roles.length === 0) {
+      this.permissions.roles = [this.permissions.role];
+    } else if (!this.permissions.roles.includes(this.permissions.role)) {
+      this.permissions.roles.push(this.permissions.role);
+    }
+  }
   next();
 });
 

@@ -93,6 +93,7 @@ export const getTasksQuerySchema = z.object({
   category: z.string().optional(),
   priority: z.string().optional(),
   isOverdue: z.string().optional(),
+  isHardwareQueue: z.union([z.string(), z.boolean()]).optional(),
   page: z.string().optional(),
   limit: z.string().optional(),
   sortBy: z.string().optional(),

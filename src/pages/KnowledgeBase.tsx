@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../components/Dialog';
 import {
@@ -887,34 +888,36 @@ export function KnowledgeBase() {
 
       {/* Quick Answer Resolution Modal */}
       <Dialog open={quickAnswerModalOpen} onOpenChange={setQuickAnswerModalOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-5 border-b bg-card">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <DialogTitle className="text-base font-bold">Provide Quick Answer</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               Resolving: <span className="font-semibold text-foreground">"{selectedGap?.question}"</span>
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveQuickAnswer} className="p-5 space-y-4 text-xs">
-            <div>
-              <label className="text-xs font-semibold mb-1 block text-foreground">
-                Authoritative Company Answer
-              </label>
-              <textarea
-                data-testid="quick-answer-textarea"
-                rows={4}
-                value={quickAnswerText}
-                onChange={(e) => setQuickAnswerText(e.target.value)}
-                placeholder="Enter official policy or answer (e.g. Business casual dress code, or 20 days annual leave...)"
-                className="w-full p-2.5 border rounded-lg bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/40 focus:outline-none"
-                required
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                This answer will be immediately indexed into the knowledge retrieval vector store so the AI Assistant can answer future questions accurately.
-              </p>
-            </div>
+          <form onSubmit={handleSaveQuickAnswer} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <DialogBody className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold mb-1 block text-foreground">
+                  Authoritative Company Answer
+                </label>
+                <textarea
+                  data-testid="quick-answer-textarea"
+                  rows={4}
+                  value={quickAnswerText}
+                  onChange={(e) => setQuickAnswerText(e.target.value)}
+                  placeholder="Enter official policy or answer (e.g. Business casual dress code, or 20 days annual leave...)"
+                  className="w-full p-2.5 border rounded-lg bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  This answer will be immediately indexed into the knowledge retrieval vector store so the AI Assistant can answer future questions accurately.
+                </p>
+              </div>
+            </DialogBody>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter>
               <Button variant="outline" size="sm" type="button" onClick={() => setQuickAnswerModalOpen(false)}>
                 Cancel
               </Button>
@@ -934,8 +937,8 @@ export function KnowledgeBase() {
 
       {/* Quick Link Editor Modal */}
       <Dialog open={isQlModalOpen} onOpenChange={setIsQlModalOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <DialogTitle className="text-lg font-bold">
               {editingQl ? 'Edit Quick Link' : 'Add Quick Link'}
             </DialogTitle>
@@ -944,8 +947,8 @@ export function KnowledgeBase() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveQl} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto max-h-[calc(85vh-140px)]">
+          <form onSubmit={handleSaveQl} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block text-foreground">Title</label>
                 <Input
@@ -980,13 +983,13 @@ export function KnowledgeBase() {
                   <option value="Globe">Web / Globe</option>
                 </select>
               </div>
-            </div>
+            </DialogBody>
 
-            <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <DialogFooter>
               <Button variant="outline" size="sm" type="button" onClick={() => setIsQlModalOpen(false)}>
                 Cancel
               </Button>
-              <Button size="sm" type="submit">
+              <Button size="sm" type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
                 Save Link
               </Button>
             </DialogFooter>

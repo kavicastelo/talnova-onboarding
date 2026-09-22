@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -499,7 +500,8 @@ export const ManagerDashboard: React.FC = () => {
               Send an instant in-app alert to encourage your direct report to complete their pending onboarding tasks.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Custom Message (Optional)
@@ -511,7 +513,8 @@ export const ManagerDashboard: React.FC = () => {
                 onChange={(e) => setNudgeMsg(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsNudgeModalOpen(false)}>
               Cancel
@@ -538,7 +541,8 @@ export const ManagerDashboard: React.FC = () => {
               Formally approve and sign off on this employee's onboarding program.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Sign-Off Notes / Feedback
@@ -550,7 +554,8 @@ export const ManagerDashboard: React.FC = () => {
                 onChange={(e) => setSignOffNotes(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSignOffModalOpen(false)}>
               Cancel
@@ -568,7 +573,7 @@ export const ManagerDashboard: React.FC = () => {
 
       {/* Deep-Dive Employee Details Drawer / Modal */}
       <Dialog open={isDetailsDrawerOpen} onOpenChange={setIsDetailsDrawerOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-indigo-600" />
@@ -579,79 +584,81 @@ export const ManagerDashboard: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {detailsLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading employee deep-dive data...</div>
-          ) : (
-            <div className="space-y-6 py-2">
-              {/* Journeys Section */}
-              <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-600">
-                  <BookOpen className="h-4 w-4" /> Assigned Journeys ({empDetails?.assignments.length || 0})
-                </h4>
-                {empDetails?.assignments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No journeys assigned yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {empDetails?.assignments.map((a) => (
-                      <div key={a._id} className="p-3 border rounded-lg bg-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <div>
-                          <div className="font-medium text-sm">{a.journeyTitle} (v{a.journeyVersion})</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Assigned on {new Date(a.assignedAt).toLocaleDateString()} {a.dueDate ? `| Due ${new Date(a.dueDate).toLocaleDateString()}` : ''}
+          <DialogBody className="space-y-6">
+            {detailsLoading ? (
+              <div className="p-8 text-center text-muted-foreground">Loading employee deep-dive data...</div>
+            ) : (
+              <>
+                {/* Journeys Section */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-600">
+                    <BookOpen className="h-4 w-4" /> Assigned Journeys ({empDetails?.assignments.length || 0})
+                  </h4>
+                  {empDetails?.assignments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No journeys assigned yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {empDetails?.assignments.map((a) => (
+                        <div key={a._id} className="p-3 border rounded-lg bg-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                          <div>
+                            <div className="font-medium text-sm">{a.journeyTitle} (v{a.journeyVersion})</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Assigned on {new Date(a.assignedAt).toLocaleDateString()} {a.dueDate ? `| Due ${new Date(a.dueDate).toLocaleDateString()}` : ''}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <Progress value={a.progress?.completionPercentage || 0} className="h-2 w-28" />
+                            <span className="text-xs font-semibold w-10 text-right">
+                              {a.progress?.completionPercentage || 0}%
+                            </span>
+                            <Badge variant="outline" className="capitalize text-[10px]">
+                              {a.status}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                          <Progress value={a.progress?.completionPercentage || 0} className="h-2 w-28" />
-                          <span className="text-xs font-semibold w-10 text-right">
-                            {a.progress?.completionPercentage || 0}%
-                          </span>
-                          <Badge variant="outline" className="capitalize text-[10px]">
-                            {a.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-              {/* Tasks Section */}
-              <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-600">
-                  <CheckSquare className="h-4 w-4" /> Checklist Tasks ({empDetails?.tasks.length || 0})
-                </h4>
-                {empDetails?.tasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No standalone checklist tasks assigned yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {empDetails?.tasks.map((t) => (
-                      <div key={t._id} className="p-3 border rounded-lg bg-card flex justify-between items-center text-xs">
-                        <div>
-                          <span className="font-medium text-foreground">{t.title}</span>
-                          {t.category && <span className="ml-2 text-muted-foreground">({t.category})</span>}
+                {/* Tasks Section */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-600">
+                    <CheckSquare className="h-4 w-4" /> Checklist Tasks ({empDetails?.tasks.length || 0})
+                  </h4>
+                  {empDetails?.tasks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No standalone checklist tasks assigned yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {empDetails?.tasks.map((t) => (
+                        <div key={t._id} className="p-3 border rounded-lg bg-card flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-medium text-foreground">{t.title}</span>
+                            {t.category && <span className="ml-2 text-muted-foreground">({t.category})</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {t.dueDate && (
+                              <span className="text-muted-foreground">Due: {new Date(t.dueDate).toLocaleDateString()}</span>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className={
+                                t.status === 'completed'
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              }
+                            >
+                              {t.status}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {t.dueDate && (
-                            <span className="text-muted-foreground">Due: {new Date(t.dueDate).toLocaleDateString()}</span>
-                          )}
-                          <Badge
-                            variant="outline"
-                            className={
-                              t.status === 'completed'
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                            }
-                          >
-                            {t.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDetailsDrawerOpen(false)}>

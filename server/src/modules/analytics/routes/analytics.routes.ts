@@ -9,7 +9,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // Authenticate all routes
   app.addHook("preHandler", authenticate);
-  app.addHook("preHandler", requireRole(["owner", "admin", "manager"]));
+  app.addHook("preHandler", requireRole(["owner", "admin", "hr_admin", "manager"]));
 
   // GET /api/v1/analytics/overview (UJ-ADM-012)
   app.get("/overview", controller.getOverview as any);

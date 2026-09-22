@@ -63,6 +63,14 @@ export function EmailIntegrationSettings() {
   }, [config]);
 
   const handleTestConnection = () => {
+    if (testEmailRecipient.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(testEmailRecipient.trim())) {
+        toast.error('Please enter a valid email address for the test dispatch.');
+        return;
+      }
+    }
+
     setTestStatus(null);
     testMut.mutate(
       {
@@ -244,6 +252,33 @@ export function EmailIntegrationSettings() {
           {/* SMTP Specific Fields */}
           {provider === 'smtp' && (
             <div className="space-y-4 border rounded-lg p-4 bg-background/50">
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                <span className="text-xs font-medium text-muted-foreground">Quick SMTP Presets:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Microsoft 365', host: 'smtp.office365.com', port: '587', secure: false },
+                    { label: 'Google Workspace', host: 'smtp.gmail.com', port: '587', secure: false },
+                    { label: 'Amazon SES (US-East)', host: 'email-smtp.us-east-1.amazonaws.com', port: '587', secure: false },
+                    { label: 'Postmark', host: 'smtp.postmarkapp.com', port: '587', secure: false },
+                    { label: 'SendGrid SMTP', host: 'smtp.sendgrid.net', port: '587', secure: false },
+                  ].map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setHost(p.host);
+                        setPort(p.port);
+                        setSecure(p.secure);
+                      }}
+                      className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted/40 hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-sm font-medium">SMTP Host</label>
@@ -257,7 +292,15 @@ export function EmailIntegrationSettings() {
                   <label className="text-sm font-medium">Port</label>
                   <Input
                     value={port}
-                    onChange={(e: any) => setPort(e.target.value)}
+                    onChange={(e: any) => {
+                      const newPort = e.target.value;
+                      setPort(newPort);
+                      if (newPort === '465') {
+                        setSecure(true);
+                      } else if (newPort === '587' || newPort === '25') {
+                        setSecure(false);
+                      }
+                    }}
                     placeholder="587 or 465"
                   />
                 </div>

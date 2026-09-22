@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -190,9 +191,9 @@ export const DocumentSigner: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-2">
+          <DialogBody className="p-4 sm:p-6">
             <SignatureCanvas onSave={handleSignatureSubmit} />
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
@@ -208,20 +209,24 @@ export const DocumentSigner: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 max-h-[300px] overflow-y-auto">
-            {document.auditTrail.map((log, idx) => (
-              <div key={idx} className="p-3 border rounded-lg bg-card text-xs space-y-1">
-                <div className="flex justify-between items-center">
-                  <Badge variant="outline" className="capitalize font-semibold text-[10px]">
-                    {log.action}
-                  </Badge>
-                  <span className="text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</span>
+          <DialogBody className="space-y-3">
+            {document.auditTrail.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-xs">No audit events recorded yet.</p>
+            ) : (
+              document.auditTrail.map((log, idx) => (
+                <div key={idx} className="p-3 border rounded-lg bg-card text-xs space-y-1">
+                  <div className="flex justify-between items-center">
+                    <Badge variant="outline" className="capitalize font-semibold text-[10px]">
+                      {log.action}
+                    </Badge>
+                    <span className="text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</span>
+                  </div>
+                  {log.details && <p className="text-foreground font-medium">{log.details}</p>}
+                  {log.ipAddress && <p className="text-muted-foreground font-mono text-[10px]">IP: {log.ipAddress}</p>}
                 </div>
-                {log.details && <p className="text-slate-700 font-medium">{log.details}</p>}
-                {log.ipAddress && <p className="text-muted-foreground font-mono text-[10px]">IP: {log.ipAddress}</p>}
-              </div>
-            ))}
-          </div>
+              ))
+            )}
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAuditModalOpen(false)}>

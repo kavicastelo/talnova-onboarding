@@ -31,7 +31,7 @@ export async function employeeRoutes(app: FastifyInstance) {
   // Directory & Administration Routes
   app.get(
     "/",
-    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager", "it_admin"])] },
     controller.listEmployees as any
   );
 

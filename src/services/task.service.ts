@@ -91,6 +91,7 @@ export interface CreateTaskPayload {
   dueDate?: string;
   relativeOffsetDays?: number;
   prerequisiteTaskIds?: string[];
+  hardwareMetadata?: TaskItem['hardwareMetadata'];
 }
 
 export interface TaskListQuery {
@@ -104,6 +105,7 @@ export interface TaskListQuery {
   category?: string;
   priority?: string;
   isOverdue?: boolean;
+  isHardwareQueue?: boolean;
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -123,6 +125,7 @@ export class FrontendTaskService {
       if (params.category) query.append("category", params.category);
       if (params.priority) query.append("priority", params.priority);
       if (params.isOverdue) query.append("isOverdue", "true");
+      if (params.isHardwareQueue) query.append("isHardwareQueue", "true");
       if (params.page) query.append("page", params.page.toString());
       if (params.limit) query.append("limit", params.limit.toString());
       if (params.sortBy) query.append("sortBy", params.sortBy);

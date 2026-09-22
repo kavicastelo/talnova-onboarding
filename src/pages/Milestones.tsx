@@ -14,7 +14,8 @@ import {
   FileQuestion,
   Sparkles,
   Search,
-  UserPlus
+  UserPlus,
+  HelpCircle
 } from 'lucide-react';
 import {
   useMyMilestones,
@@ -41,6 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -933,7 +935,8 @@ export const Milestones: React.FC = () => {
             <DialogTitle>Day {selectedMilestone?.targetDay} Milestone Evaluation</DialogTitle>
             <DialogDescription>Evaluate your progress, select your confidence rating, and submit reflections for your manager.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-2">Check-off Completed Goals:</label>
               <div className="space-y-2">
@@ -984,7 +987,8 @@ export const Milestones: React.FC = () => {
                 onChange={(e) => setSelfComments(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSelfCheckinOpen(false)}>
               Cancel
@@ -1009,7 +1013,8 @@ export const Milestones: React.FC = () => {
               Review direct report's self-assessment and record manager sign-off.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             {/* Direct Report Submission Inspection Card */}
             <div id="employee-submitted-section" className="p-3.5 border rounded-lg bg-muted/20 space-y-2.5 text-xs">
               <div className="flex justify-between items-center">
@@ -1101,7 +1106,8 @@ export const Milestones: React.FC = () => {
                 onChange={(e) => setManagerFeedback(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsManagerReviewOpen(false)}>
               Cancel
@@ -1119,7 +1125,7 @@ export const Milestones: React.FC = () => {
 
       {/* Modal: Create / Edit Milestone Template */}
       <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingTemplate ? 'Edit Milestone Template' : 'Create Milestone Template'}</DialogTitle>
             <DialogDescription>
@@ -1127,105 +1133,119 @@ export const Milestones: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleTemplateFormSubmit} className="space-y-5 py-2">
-            {/* Title & Target Day */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Template Title *</label>
-                <input
-                  id="template-title-input"
-                  required
-                  type="text"
-                  className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  placeholder="e.g. Day 30 Fast-Start & Orientation"
-                  value={templateTitle}
-                  onChange={(e) => setTemplateTitle(e.target.value)}
+          <form onSubmit={handleTemplateFormSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <DialogBody className="space-y-5">
+              {/* Title & Target Day */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Template Title *</label>
+                  <input
+                    id="template-title-input"
+                    required
+                    type="text"
+                    className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="e.g. Day 30 Fast-Start & Orientation"
+                    value={templateTitle}
+                    onChange={(e) => setTemplateTitle(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Target Day *</label>
+                  <select
+                    id="template-target-day-select"
+                    className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    value={templateTargetDay}
+                    onChange={(e) => setTemplateTargetDay(Number(e.target.value))}
+                  >
+                    <option value={30}>Day 30</option>
+                    <option value={60}>Day 60</option>
+                    <option value={90}>Day 90</option>
+                    <option value={180}>Day 180</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Description / Summary</label>
+                <textarea
+                  id="template-description-input"
+                  className="w-full min-h-[70px] text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="Overview of expectations and requirements for this onboarding phase..."
+                  value={templateDescription}
+                  onChange={(e) => setTemplateDescription(e.target.value)}
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Target Day *</label>
-                <select
-                  id="template-target-day-select"
-                  className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  value={templateTargetDay}
-                  onChange={(e) => setTemplateTargetDay(Number(e.target.value))}
-                >
-                  <option value={30}>Day 30</option>
-                  <option value={60}>Day 60</option>
-                  <option value={90}>Day 90</option>
-                  <option value={180}>Day 180</option>
-                </select>
+              {/* Auto-assign toggle */}
+              <div className="flex items-center gap-2.5 p-3 border rounded-lg bg-muted/20">
+                <input
+                  id="template-auto-assign-checkbox"
+                  type="checkbox"
+                  checked={templateAutoAssign}
+                  onChange={(e) => setTemplateAutoAssign(e.target.checked)}
+                  className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="template-auto-assign-checkbox" className="text-xs font-medium cursor-pointer">
+                  Automatically schedule and assign this milestone to all newly hired employees
+                </label>
               </div>
-            </div>
 
-            {/* Description */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Description / Summary</label>
-              <textarea
-                id="template-description-input"
-                className="w-full min-h-[70px] text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Overview of expectations and requirements for this onboarding phase..."
-                value={templateDescription}
-                onChange={(e) => setTemplateDescription(e.target.value)}
-              />
-            </div>
-
-            {/* Auto-assign toggle */}
-            <div className="flex items-center gap-2.5 p-3 border rounded-lg bg-muted/20">
-              <input
-                id="template-auto-assign-checkbox"
-                type="checkbox"
-                checked={templateAutoAssign}
-                onChange={(e) => setTemplateAutoAssign(e.target.checked)}
-                className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              />
-              <label htmlFor="template-auto-assign-checkbox" className="text-xs font-medium cursor-pointer">
-                Automatically schedule and assign this milestone to all newly hired employees
-              </label>
-            </div>
-
-            {/* Key Goals / Objectives List */}
-            <div className="space-y-2.5 pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                    <ListChecks className="h-4 w-4 text-indigo-600" />
-                    Key Goals & Objectives ({templateGoals.length})
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground">Deliverables and achievements expected by this milestone.</p>
+              {/* Key Goals / Objectives List */}
+              <div className="space-y-2.5 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                      <ListChecks className="h-4 w-4 text-indigo-600" />
+                      Key Goals & Objectives ({templateGoals.length})
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">Deliverables and achievements expected by this milestone.</p>
+                  </div>
+                  <Button
+                    id="add-template-goal-btn"
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setTemplateGoals([...templateGoals, { title: '', description: '' }])}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Goal
+                  </Button>
                 </div>
-                <Button
-                  id="add-template-goal-btn"
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8"
-                  onClick={() => setTemplateGoals([...templateGoals, { title: '', description: '' }])}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Goal
-                </Button>
-              </div>
 
-              <div className="space-y-2">
-                {templateGoals.map((goal, idx) => (
-                  <div key={idx} className="p-2.5 border rounded-lg bg-background flex items-start gap-2">
-                    <div className="flex-1 space-y-1.5">
+                <div className="space-y-2">
+                  {templateGoals.map((goal, idx) => (
+                    <div key={idx} className="p-2.5 border rounded-lg bg-background space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground w-6">#{idx + 1}</span>
+                        <input
+                          type="text"
+                          className="flex-1 text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder="Goal title (e.g. Complete architecture onboarding deep-dive)"
+                          value={goal.title}
+                          onChange={(e) => {
+                            const updated = [...templateGoals];
+                            updated[idx].title = e.target.value;
+                            setTemplateGoals(updated);
+                          }}
+                        />
+                        {templateGoals.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-destructive hover:bg-destructive/10"
+                            onClick={() => setTemplateGoals(templateGoals.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                       <input
                         type="text"
-                        className="w-full text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder={`Goal #${idx + 1} Title (e.g. Complete core training & deliver first PR)`}
-                        value={goal.title}
-                        onChange={(e) => {
-                          const updated = [...templateGoals];
-                          updated[idx].title = e.target.value;
-                          setTemplateGoals(updated);
-                        }}
-                      />
-                      <input
-                        type="text"
-                        className="w-full text-[11px] p-1.5 border rounded bg-muted/20 focus:outline-none"
-                        placeholder="Optional description / success criteria"
+                        className="w-full text-xs p-1.5 text-muted-foreground border-dashed border rounded bg-muted/10 focus:outline-none"
+                        placeholder="Optional description / acceptance criteria..."
                         value={goal.description}
                         onChange={(e) => {
                           const updated = [...templateGoals];
@@ -1234,88 +1254,77 @@ export const Milestones: React.FC = () => {
                         }}
                       />
                     </div>
-                    {templateGoals.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-destructive hover:bg-destructive/10"
-                        onClick={() => setTemplateGoals(templateGoals.filter((_, i) => i !== idx))}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Reflection / Check-in Questions List */}
-            <div className="space-y-2.5 pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                    <FileQuestion className="h-4 w-4 text-indigo-600" />
-                    Check-in Reflection Questions ({templateQuestions.length})
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground">Self-reflection questions the employee answers before manager review.</p>
+                  ))}
                 </div>
-                <Button
-                  id="add-template-question-btn"
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8"
-                  onClick={() => setTemplateQuestions([...templateQuestions, { question: '', type: 'text', required: true }])}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Question
-                </Button>
               </div>
 
-              <div className="space-y-2">
-                {templateQuestions.map((q, idx) => (
-                  <div key={idx} className="p-2.5 border rounded-lg bg-background flex items-start gap-2">
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2">
-                      <input
-                        type="text"
-                        className="sm:col-span-3 text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder={`Question #${idx + 1} (e.g. What challenges did you encounter?)`}
-                        value={q.question}
-                        onChange={(e) => {
-                          const updated = [...templateQuestions];
-                          updated[idx].question = e.target.value;
-                          setTemplateQuestions(updated);
-                        }}
-                      />
-                      <select
-                        className="text-xs p-2 border rounded bg-background focus:outline-none"
-                        value={q.type}
-                        onChange={(e) => {
-                          const updated = [...templateQuestions];
-                          updated[idx].type = e.target.value as any;
-                          setTemplateQuestions(updated);
-                        }}
-                      >
-                        <option value="text">Text Response</option>
-                        <option value="rating">Rating (1-5)</option>
-                        <option value="boolean">Yes / No</option>
-                      </select>
-                    </div>
-                    {templateQuestions.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-destructive hover:bg-destructive/10"
-                        onClick={() => setTemplateQuestions(templateQuestions.filter((_, i) => i !== idx))}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+              {/* Self-Reflection Questionnaire Builder */}
+              <div className="space-y-2.5 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                      <HelpCircle className="h-4 w-4 text-indigo-600" />
+                      Employee Check-In Questionnaire ({templateQuestions.length})
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">Self-reflection questions the employee answers before manager review.</p>
                   </div>
-                ))}
+                  <Button
+                    id="add-template-question-btn"
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setTemplateQuestions([...templateQuestions, { question: '', type: 'text', required: true }])}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Question
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {templateQuestions.map((q, idx) => (
+                    <div key={idx} className="p-2.5 border rounded-lg bg-background flex items-start gap-2">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2">
+                        <input
+                          type="text"
+                          className="sm:col-span-3 text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder={`Question #${idx + 1} (e.g. What challenges did you encounter?)`}
+                          value={q.question}
+                          onChange={(e) => {
+                            const updated = [...templateQuestions];
+                            updated[idx].question = e.target.value;
+                            setTemplateQuestions(updated);
+                          }}
+                        />
+                        <select
+                          className="text-xs p-2 border rounded bg-background focus:outline-none"
+                          value={q.type}
+                          onChange={(e) => {
+                            const updated = [...templateQuestions];
+                            updated[idx].type = e.target.value as any;
+                            setTemplateQuestions(updated);
+                          }}
+                        >
+                          <option value="text">Text Response</option>
+                          <option value="rating">Rating (1-5)</option>
+                          <option value="boolean">Yes / No</option>
+                        </select>
+                      </div>
+                      {templateQuestions.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-destructive hover:bg-destructive/10"
+                          onClick={() => setTemplateQuestions(templateQuestions.filter((_, i) => i !== idx))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter className="pt-3 border-t">
               <Button type="button" variant="outline" onClick={() => setIsTemplateModalOpen(false)}>
@@ -1353,7 +1362,7 @@ export const Milestones: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <DialogBody className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
                 Target Employee *
@@ -1418,14 +1427,14 @@ export const Milestones: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-border/50 font-semibold">
                     <span className="text-indigo-600 dark:text-indigo-400">Projected Due Date:</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">{projectedDueDate.toLocaleDateString()}</span>
+                    <span className="font-mono text-foreground">{projectedDueDate.toLocaleDateString()}</span>
                   </div>
                 </div>
               );
             })()}
-          </div>
+          </DialogBody>
 
-          <DialogFooter className="pt-3 border-t">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
               Cancel
             </Button>
@@ -1445,4 +1454,3 @@ export const Milestones: React.FC = () => {
 };
 
 export default Milestones;
-

@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../../components/Dialog';
 import {
@@ -389,7 +390,7 @@ export function SuperAdminFeatureFlags() {
 
       {/* MODAL 1: Organization Overrides Modal */}
       <Dialog open={isOverrideModalOpen} onOpenChange={setIsOverrideModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-indigo-600" />
@@ -404,7 +405,7 @@ export function SuperAdminFeatureFlags() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-3">
+          <DialogBody className="space-y-6">
             {/* Target Audience Mode */}
             <div>
               <label className="text-xs font-semibold text-slate-700 block mb-1.5">Target Audience Strategy</label>
@@ -490,7 +491,7 @@ export function SuperAdminFeatureFlags() {
               {/* Tag Pills */}
               <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-lg bg-white border border-slate-200">
                 {targetOrgIds.length === 0 ? (
-                  <span className="text-xs text-slate-400 italic">No tenant organizations explicitly targeted</span>
+                  <span className="text-xs text-slate-400 italic">No tenant organizations explicitly whitelisted</span>
                 ) : (
                   targetOrgIds.map((id) => (
                     <span
@@ -516,7 +517,7 @@ export function SuperAdminFeatureFlags() {
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search organization to target..."
+                  placeholder="Search organization to whitelist..."
                   value={targetOrgSearch}
                   onChange={(e) => setTargetOrgSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
@@ -653,7 +654,7 @@ export function SuperAdminFeatureFlags() {
                 className="text-xs"
               />
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -678,8 +679,8 @@ export function SuperAdminFeatureFlags() {
 
       {/* MODAL 2: Register Custom Feature Flag Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={handleCreateFlag}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+          <form onSubmit={handleCreateFlag} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogHeader>
               <DialogTitle>Register Custom Platform Feature Flag</DialogTitle>
               <DialogDescription>
@@ -687,7 +688,7 @@ export function SuperAdminFeatureFlags() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-3">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Key (Identifier) *</label>
                 <Input
@@ -722,7 +723,7 @@ export function SuperAdminFeatureFlags() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Environment</label>
                   <select
@@ -794,7 +795,7 @@ export function SuperAdminFeatureFlags() {
                   className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
                 />
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button

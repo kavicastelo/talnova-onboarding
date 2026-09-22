@@ -107,7 +107,7 @@ export class EmployeeService {
       designation?: string;
       payrollCategory?: string;
       managerId?: string;
-      employmentType: "full_time" | "part_time" | "contractor" | "intern";
+      employmentType?: "full_time" | "part_time" | "contractor" | "intern";
       hireDate?: string | Date;
     },
     invitedBy: string | mongoose.Types.ObjectId
@@ -150,7 +150,7 @@ export class EmployeeService {
         designation: invitationData.designation,
         payrollCategory: invitationData.payrollCategory,
         managerId: invitationData.managerId && mongoose.Types.ObjectId.isValid(invitationData.managerId) ? new mongoose.Types.ObjectId(invitationData.managerId) : undefined,
-        employmentType: invitationData.employmentType,
+        employmentType: invitationData.employmentType || "full_time",
         hireDate: invitationData.hireDate ? new Date(invitationData.hireDate) : new Date(),
         status: "invited" as const,
       },
@@ -272,6 +272,7 @@ export class EmployeeService {
       updateObj["profile.title"] = updateData.designation;
     }
     if (updateData.payrollCategory !== undefined) updateObj["employment.payrollCategory"] = updateData.payrollCategory;
+    if ((updateData as any).employmentType !== undefined) updateObj["employment.employmentType"] = (updateData as any).employmentType;
     if (updateData.hireDate !== undefined) {
       updateObj["employment.hireDate"] = updateData.hireDate ? new Date(updateData.hireDate) : null;
     }

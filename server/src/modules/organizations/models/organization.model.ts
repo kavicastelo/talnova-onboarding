@@ -93,7 +93,10 @@ export interface IOrganization extends Document {
     completionRate: number;
   };
   certificate?: {
-    template: "classic" | "modern" | "minimalist";
+    template: "classic" | "modern" | "minimalist" | "academic" | "gradient" | "executive";
+    theme?: "light" | "dark";
+    accentColor?: string;
+    badgeStyle?: "medal" | "laurel" | "shield" | "crypto" | "ribbon";
     signatureUrl?: string;
     signatoryName?: string;
     signatoryTitle?: string;
@@ -213,7 +216,10 @@ const OrganizationSchema = new Schema<IOrganization>(
       completionRate: { type: Number, default: 0 },
     },
     certificate: {
-      template: { type: String, enum: ["classic", "modern", "minimalist"], default: "classic" },
+      template: { type: String, enum: ["classic", "modern", "minimalist", "academic", "gradient", "executive"], default: "classic" },
+      theme: { type: String, enum: ["light", "dark"], default: "light" },
+      accentColor: { type: String },
+      badgeStyle: { type: String, enum: ["medal", "laurel", "shield", "crypto", "ribbon"], default: "medal" },
       signatureUrl: { type: String },
       signatoryName: { type: String },
       signatoryTitle: { type: String },

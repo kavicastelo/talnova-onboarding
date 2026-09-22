@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../Dialog';
 import { Button } from '../Button';
@@ -254,7 +255,7 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <DialogBody className="space-y-6">
           {/* Section 1: Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5 sm:col-span-2">
@@ -518,7 +519,7 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
               ))}
             </div>
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter className="p-4 border-t bg-muted/20 flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
