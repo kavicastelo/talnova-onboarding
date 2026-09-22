@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ShieldCheck,
   Copy,
@@ -30,6 +31,7 @@ export const AutoVerificationBadge: React.FC<AutoVerificationBadgeProps> = ({
   status,
   onRevoke: _onRevoke,
 }) => {
+  const { t } = useTranslation(['tasks', 'common']);
   const [copied, setCopied] = useState(false);
 
   if (!evidence?.enabled && status !== 'verified') {
@@ -45,7 +47,7 @@ export const AutoVerificationBadge: React.FC<AutoVerificationBadgeProps> = ({
     if (!hash) return;
     navigator.clipboard.writeText(hash);
     setCopied(true);
-    toast.success('SHA-256 signature hash copied to clipboard');
+    toast.success(t('autoVerification.copiedHashToast', { defaultValue: 'SHA-256 signature hash copied to clipboard' }));
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -57,7 +59,7 @@ export const AutoVerificationBadge: React.FC<AutoVerificationBadgeProps> = ({
             <TooltipTrigger asChild>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 cursor-help">
                 <ShieldCheck className="h-3 w-3" />
-                <span>Auto-Verified</span>
+                <span>{t('autoVerification.badgeAutoVerified', { defaultValue: 'Auto-Verified' })}</span>
                 {isQuiz && evidence.quizScorePercent !== undefined && (
                   <span className="font-semibold">({evidence.quizScorePercent}%)</span>
                 )}
@@ -66,15 +68,20 @@ export const AutoVerificationBadge: React.FC<AutoVerificationBadgeProps> = ({
             <TooltipContent className="max-w-xs text-xs space-y-1 p-2.5">
               <p className="font-semibold text-emerald-500 flex items-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Cryptographically Confirmed
+                {t('autoVerification.cryptoConfirmed', { defaultValue: 'Cryptographically Confirmed' })}
               </p>
               <p className="text-muted-foreground text-[11px]">
                 {evidence?.evidenceNote ||
-                  `Verified by ${evidence?.verifiedBy || 'system.autonomous.sentinel'} on completion event.`}
+                  t('autoVerification.verifiedBy', {
+                    by: evidence?.verifiedBy || 'system.autonomous.sentinel',
+                    defaultValue: 'Verified by {{by}} on completion event.'
+                  })}
               </p>
               {hash && (
                 <div className="pt-1 mt-1 border-t border-border flex items-center justify-between gap-1 text-[10px] font-mono text-muted-foreground">
-                  <span className="truncate">Hash: {hash.slice(0, 16)}...</span>
+                  <span className="truncate">
+                    {t('autoVerification.hashLabel', { hash: hash.slice(0, 16), defaultValue: `Hash: ${hash.slice(0, 16)}...` })}
+                  </span>
                   <button
                     onClick={handleCopyHash}
                     className="hover:text-foreground text-primary shrink-0"
@@ -88,7 +95,7 @@ export const AutoVerificationBadge: React.FC<AutoVerificationBadgeProps> = ({
         ) : (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
             <Sparkles className="h-3 w-3" />
-            <span>Autonomous Sentinel Ready</span>
+            <span>{t('autoVerification.sentinelReady', { defaultValue: 'Autonomous Sentinel Ready' })}</span>
           </span>
         )}
       </div>

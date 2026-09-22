@@ -1,8 +1,15 @@
 {
   "list": {
     "title": "Perehdytyspolut",
+    "myJourneysTitle": "Omat perehdytyspolkuni",
+    "subtitleAdmin": "Hallinnoi ja seuraa työntekijöiden perehdytyspolkuja, vaiheportteja ja automaattisia määrityksiä.",
+    "subtitleEmployee": "Seuraa ja suorita sinulle määritettyjä perehdytyspolkuja.",
     "createNew": "Luo perehdytyspolku",
     "searchPlaceholder": "Hae perehdytyspolkuja…",
+    "tabs": {
+      "templates": "Perehdytyspohjat",
+      "autonomous": "Automaattinen reititys"
+    },
     "columns": {
       "title": "Otsikko",
       "status": "Tila",
@@ -11,21 +18,526 @@
       "lastUpdated": "Viimeksi päivitetty",
       "actions": "Toiminnot"
     },
+    "actions": {
+      "edit": "Muokkaa",
+      "duplicate": "Monista",
+      "archive": "Arkistoi"
+    },
+    "copySuffix": "Kopio",
+    "itemLabel": "perehdytyspolkua",
     "empty": "Perehdytyspolkuja ei löytynyt. Luo ensimmäinen perehdytyspolkusi.",
     "filterAll": "Kaikki",
     "filterActive": "Aktiiviset",
     "filterDraft": "Luonnokset",
-    "filterArchived": "Arkistoidut"
+    "filterArchived": "Arkistoidut",
+    "error": {
+      "title": "Perehdytyspolkujen lataus epäonnistui",
+      "default": "Tapahtui virhe.",
+      "retry": "Yritä uudelleen"
+    },
+    "duplicateModal": {
+      "title": "Monista perehdytyspolku",
+      "newTitle": "Uusi otsikko",
+      "placeholder": "esim. Engineering Onboarding (Kopio)",
+      "cancel": "Peruuta",
+      "duplicating": "Monistetaan...",
+      "duplicateBtn": "Monista"
+    },
+    "archiveModal": {
+      "title": "Arkistoi perehdytyspolku",
+      "description": "Haluatko varmasti arkistoida tämän polun? Rekisteröidyt työntekijät eivät enää pääse siihen käsiksi.",
+      "cancel": "Peruuta",
+      "archiving": "Arkistoidaan...",
+      "archiveBtn": "Arkistoi"
+    },
+    "toasts": {
+      "duplicateSuccess": "Perehdytyspolku monistettu onnistuneesti",
+      "duplicateFailed": "Perehdytyspolun monistaminen epäonnistui",
+      "archiveSuccess": "Perehdytyspolku arkistoitu onnistuneesti",
+      "archiveFailed": "Perehdytyspolun arkistointi epäonnistui",
+      "overrideSuccess": "Manuaalinen ohitus otettu käyttöön: määritetty kohteeseen {{title}}"
+    }
   },
   "builder": {
-    "title": "Perehdytyspolun rakentaja",
+    "title": "Polun rakentaja",
     "addModule": "Lisää moduuli",
     "addLesson": "Lisää oppitunti",
-    "settings": "Perehdytyspolun asetukset",
-    "publish": "Julkaise perehdytyspolku",
-    "saveDraft": "Tallenna luonnoksena",
+    "settings": "Polun asetukset",
+    "publish": "Julkaise polku",
+    "saveDraft": "Tallenna luonnos",
     "unsavedWarning": "Sinulla on tallentamattomia muutoksia.",
-    "publishSuccess": "Perehdytyspolku julkaistiin onnistuneesti.",
-    "saveSuccess": "Perehdytyspolku tallennettiin."
+    "publishSuccess": "Polku julkaistu onnistuneesti.",
+    "saveSuccess": "Polku tallennettu.",
+    "header": {
+      "newJourneyFallback": "Uusi polku",
+      "defaultTitleFallback": "Tekninen perehdytys",
+      "statusActive": "Aktiivinen",
+      "statusDraft": "Luonnos",
+      "unsavedChanges": "● Tallentamattomia muutoksia",
+      "notSavedYet": "Ei vielä tallennettu",
+      "draftSaved": "✓ Luonnos tallennettu",
+      "saveDraft": "Tallenna luonnos",
+      "savingDraft": "Tallennetaan...",
+      "publishJourney": "Julkaise polku",
+      "publishing": "Julkaistaan...",
+      "finish": "Valmis",
+      "finishExit": "Valmis ja poistu",
+      "saveAndNext": "Tallenna ja seuraava",
+      "saveAndPublish": "Tallenna ja julkaise polku",
+      "backTooltip": "Takaisin polkuihin"
+    },
+    "tabs": {
+      "settings": "1. Asetukset",
+      "builder": "2. Rakenne",
+      "assignments": "3. Määritykset"
+    },
+    "settingsTab": {
+      "title": "Polun asetukset",
+      "generalTitle": "Yleiset tiedot",
+      "journeyTitleLabel": "Polun otsikko",
+      "descriptionLabel": "Kuvaus",
+      "categoryLabel": "Kategoria",
+      "categoryPlaceholder": "Valitse kategoria",
+      "categorySearchPlaceholder": "Etsi kategoriaa...",
+      "rulesTitle": "Oppimissäännöt ja rajoitukset",
+      "sequentialTitle": "Vaadi peräkkäinen suoritus",
+      "sequentialDesc": "Työntekijöiden on suoritettava oppitunnit järjestyksessä.",
+      "skipTitle": "Salli oppituntien ohittaminen",
+      "skipDesc": "Sallii käyttäjien ohittaa oppitunteja merkitsemättä niitä suoritetuiksi.",
+      "retakesTitle": "Salli uudelleenyritykset",
+      "retakesDesc": "Sallii käyttäjien uusia kyselyt useita kertoja.",
+      "maxRetakesLabel": "Sallitut uudelleenyritykset enintään",
+      "certificateTitle": "Sertifikaattiasetukset",
+      "awardCertificateTitle": "Myönnä sertifikaatti suorituksesta",
+      "awardCertificateDesc": "Luo todennettu todistus, kun kaikki moduulit on suoritettu.",
+      "passingScoreLabel": "Läpäisyrajavaatimus (%)",
+      "saveDraftBtn": "Tallenna luonnos",
+      "saveNextBtn": "Tallenna ja seuraava"
+    },
+    "curriculum": {
+      "outlineTitle": "Opetussuunnitelma",
+      "emptyOutline": "Lisää ensimmäinen moduulisi aloittaaksesi opetussuunnitelman rakentamisen.",
+      "addModuleTooltip": "Lisää moduuli",
+      "addLessonTooltip": "Lisää oppitunti",
+      "removeModuleTooltip": "Poista moduuli",
+      "removeLessonTooltip": "Poista oppitunti",
+      "backToCurriculum": "Takaisin opetussuunnitelmaan",
+      "lessonSubheader": "{{type}} -oppitunti • {{duration}}",
+      "selectLessonPrompt": "Valitse oppitunti opetussuunnitelman sivupalkista muokataksesi sisältöä.",
+      "lessonTypes": {
+        "article": "Artikkeli",
+        "video": "Video",
+        "quiz": "Kysely",
+        "pdf": "PDF-asiakirja",
+        "document": "MS Office -asiakirja (Word/Excel)",
+        "audio": "Äänentoistin",
+        "image": "Kuvankatselu",
+        "task": "Tehtävän kuittaus"
+      },
+      "videoEditor": {
+        "title": "Videon lähde",
+        "uploadTitle": "Lataa videotiedosto",
+        "uploadDesc": "Lataa MP4-, WebM- tai Ogg-videotiedosto.",
+        "chooseFile": "Valitse tiedosto",
+        "uploadingPercent": "Ladataan ({{percent}} %)",
+        "embedTitle": "Upota videon URL",
+        "embedDesc": "Liitä YouTube-, Vimeo- tai suora MP4-linkki.",
+        "embedPlaceholder": "https://example.com/video.mp4",
+        "previewTitle": "Videon esikatselu"
+      },
+      "articleEditor": {
+        "editTab": "Muokkaa",
+        "previewTab": "Esikatselu",
+        "bold": "Lihavointi",
+        "italic": "Kursivointi",
+        "header": "Otsikko",
+        "code": "Koodi",
+        "list": "Luettelo",
+        "uploadMedia": "Lataa kuva/tiedosto",
+        "markdownPlaceholder": "Kirjoita sisältösi tähän Markdown-muodossa...",
+        "emptyMarkdown": "Sisältöä ei ole vielä kirjoitettu. Lisää tekstiä editorilla."
+      },
+      "fileEditor": {
+        "sourceTitle": "{{type}} -tiedoston lähde",
+        "uploadTitle": "Lataa tiedosto",
+        "uploadPdfDesc": "Lataa PDF-asiakirja.",
+        "uploadDocDesc": "Lataa Word-, Excel- tai PowerPoint-asiakirja.",
+        "uploadAudioDesc": "Lataa MP3-, WAV- tai M4A-äänitiedosto.",
+        "uploadImageDesc": "Lataa PNG-, JPG-, JPEG- tai SVG-kuva.",
+        "chooseFile": "Valitse tiedosto",
+        "uploadingPercent": "Ladataan ({{percent}} %)",
+        "urlTitle": "Tiedoston URL",
+        "urlDesc": "Tai liitä julkinen linkki tiedostoon.",
+        "urlPlaceholder": "https://example.com/tiedosto",
+        "previewTitle": "Esikatselu / nykyinen linkki",
+        "openNewTab": "Avaa uudessa välilehdessä",
+        "pdfLivePreview": "PDF-asiakirjan reaaliaikainen esikatselu",
+        "fullScreen": "Koko näyttö"
+      },
+      "quizEditor": {
+        "title": "Kyselyn kysymykset",
+        "desc": "Lisää monivalintakysymyksiä työntekijöillesi.",
+        "addQuestion": "Lisää kysymys",
+        "emptyQuestions": "Kysymyksiä ei ole vielä lisätty. Aloita napsauttamalla \"Lisää kysymys\".",
+        "questionNumber": "Kysymys {{number}}",
+        "typeLabel": "Tyyppi:",
+        "types": {
+          "singleChoice": "Yksittäisvalinta",
+          "multipleChoice": "Monivalinta",
+          "trueFalse": "Totta / tarua"
+        },
+        "pointsLabel": "Pisteet:",
+        "removeQuestion": "Poista kysymys",
+        "questionTextLabel": "Kysymysteksti",
+        "questionPlaceholder": "esim. Mikä on keskeinen asiakasarvolupauksemme?",
+        "optionsLabel": "Vaihtoehdot",
+        "multipleChoiceHint": "Valitse oikeat vastaukset valintaruuduilla",
+        "singleChoiceHint": "Valitse oikea vastaus valintapainikkeilla",
+        "trueFalseHint": "Valitse oikea vastaus (totta tai tarua)",
+        "optionPlaceholder": "Vaihtoehto {{number}}",
+        "addOption": "Lisää vaihtoehto"
+      },
+      "lessonSidebar": {
+        "title": "Oppitunnin asetukset",
+        "estimatedTime": "Arvioitu aika",
+        "minutesLabel": "minuuttia",
+        "completionRule": "Suoritussääntö",
+        "completionRules": {
+          "video": "Katso 90 % videosta",
+          "button": "Napsauta valmis-painiketta",
+          "quiz": "Läpäise liitetty kysely"
+        },
+        "lessonDescLabel": "Oppitunnin kuvaus",
+        "lessonDescPlaceholder": "Lisää lyhyt yhteenveto tai tekstitys tälle oppitunnille..."
+      }
+    },
+    "assignmentsTab": {
+      "draftWarningTitle": "Julkaisu vaaditaan",
+      "draftWarningDesc": "Tämä polku on tällä hetkellä luonnos. Työntekijät eivät voi tarkastella tai ottaa itse käyttöön luonnospolkuja. Sinun on ensin julkaistava tämä polku aktivoidaksesi julkisen pääsyn tai määritysten seurannan.",
+      "visibility": {
+        "title": "Pääsyn näkyvyys",
+        "publicTitle": "Julkinen pääsy",
+        "publicDesc": "Kuka tahansa organisaation jäsen voi löytää ja ilmoittautua tälle polulle kojelaudaltaan.",
+        "restrictedTitle": "Rajoitettu",
+        "restrictedDesc": "Vain ylläpitäjän erikseen määräämät työntekijät voivat käyttää tätä polkua.",
+        "activeBadge": "Aktiivinen"
+      },
+      "bulk": {
+        "title": "Työntekijöiden joukkomääritys",
+        "desc": "Etsi, suodata osastoittain, valitse useita työntekijöitä ja määritä tämä polku suuressa mittakaavassa (tukee yli 10 000 työntekijää).",
+        "assignSelectedBtn": "Määritä {{count}} valittua {{label}}",
+        "employeeSingle": "työntekijä",
+        "employeePlural": "työntekijää",
+        "searchPlaceholder": "Etsi työntekijöitä nimen, sähköpostin, osaston mukaan...",
+        "allDepartments": "Kaikki osastot",
+        "searchDeptPlaceholder": "Etsi osastoa...",
+        "pageSizeOption": "{{size}} sivulla",
+        "selectPage": "Valitse sivu ({{count}})",
+        "selectAllMatched": "Valitse kaikki vastaavat ({{count}})",
+        "clearSelection": "Tyhjennä valinta",
+        "selectedCount": "{{count}} valittu",
+        "tableHeaders": {
+          "employee": "Työntekijä",
+          "department": "Osasto",
+          "role": "Rooli",
+          "status": "Tila"
+        },
+        "noEmployeesFound": "Hakuehtoja vastaavia työntekijöitä ei löytynyt.",
+        "assignedBadge": "Määritetty",
+        "availableBadge": "Saatavilla",
+        "itemLabel": "työntekijää"
+      },
+      "enrollments": {
+        "titlePublic": "Ilmoittautumiset ja edistyminen",
+        "titleRestricted": "Määritetyt työntekijät",
+        "personCount": "{{count}} henkilö",
+        "personCount_other": "{{count}} henkilöä",
+        "emptyTitle": "Ei vielä aktiivisia edistymislokeja.",
+        "emptyPublicDesc": "Julkiset polut näyttävät edistymislokit täällä, kun työntekijät ilmoittautuvat ja aloittavat oppimisen.",
+        "emptyRestrictedDesc": "Määritä tämä polku yllä oleville työntekijöille aloittaaksesi heidän edistymisensä seurannan.",
+        "tableHeaders": {
+          "employee": "Työntekijä",
+          "status": "Tila",
+          "progress": "Edistyminen",
+          "assignedDate": "Määrityspäivä",
+          "actions": "Toiminnot"
+        },
+        "statusCompleted": "Suoritettu",
+        "statusInProgress": "Käynnissä",
+        "statusAssigned": "Määritetty",
+        "statusOverdue": "Myöhässä",
+        "issuedBadge": "Myönnetty",
+        "viewCertificate": "Näytä",
+        "issueCertificateBtn": "Myönnä sertifikaatti",
+        "issuingCertificate": "Myönnetään...",
+        "itemLabel": "määritykset",
+        "prevBuilderBtn": "Edellinen: Rakenne",
+        "savePublishBtn": "Tallenna ja julkaise polku",
+        "finishExitBtn": "Valmis ja poistu"
+      }
+    },
+    "modals": {
+      "addModule": {
+        "title": "Lisää moduuli",
+        "label": "Moduulin otsikko",
+        "placeholder": "esim. Aloitus",
+        "cancel": "Peruuta",
+        "confirm": "Lisää moduuli"
+      },
+      "addLesson": {
+        "title": "Lisää oppitunti",
+        "titleLabel": "Oppitunnin otsikko",
+        "titlePlaceholder": "esim. Gitin perusteet",
+        "typeLabel": "Oppitunnin tyyppi",
+        "cancel": "Peruuta",
+        "confirm": "Lisää oppitunti"
+      },
+      "confirmDelete": {
+        "title": "Vahvista poisto",
+        "moduleDesc": "Haluatko varmasti poistaa tämän moduulin ja kaikki sen oppitunnit? Tätä toimintoa ei voi kumota.",
+        "lessonDesc": "Haluatko varmasti poistaa tämän oppitunnin? Tätä toimintoa ei voi kumota.",
+        "cancel": "Peruuta",
+        "confirm": "Poista"
+      },
+      "unsavedChanges": {
+        "title": "Tallentamattomia muutoksia",
+        "desc": "Sinulla on tallentamattomia muutoksia tässä polussa. Jos poistut nyt, edistymisesi menetetään. Haluatko varmasti hylätä muutokset ja poistua?",
+        "stay": "Jää",
+        "discard": "Hylkää ja poistu"
+      }
+    },
+    "error": {
+      "title": "Polun rakentajan lataus epäonnistui",
+      "fallback": "Pyydettyjä polun tietoja ei voitu noutaa.",
+      "retry": "Yritä uudelleen"
+    },
+    "toasts": {
+      "draftSaved": "Polun luonnos tallennettu!",
+      "draftSavedSuccess": "Luonnos tallennettu onnistuneesti!",
+      "publishedSuccess": "Polku julkaistu onnistuneesti!",
+      "publishFailed": "Polun julkaiseminen epäonnistui.",
+      "fileUploaded": "Tiedosto ladattu onnistuneesti!",
+      "uploadFailed": "Tiedoston lataus epäonnistui.",
+      "accessUpdated": "Käyttöoikeuskäytäntö päivitetty arvoon {{policy}}.",
+      "accessUpdateFailed": "Käyttöoikeuskäytännön päivitys epäonnistui.",
+      "policyPublic": "Julkinen",
+      "policyRestricted": "Rajoitettu",
+      "selectEmployeeRequired": "Valitse vähintään yksi työntekijä.",
+      "saveJourneyFirst": "Tallenna polku ensin.",
+      "bulkAssignedSuccess": "Polku määritetty onnistuneesti {{count}} työntekijälle!",
+      "bulkAssignFailed": "Polun joukkomääritys epäonnistui.",
+      "certificateIssuedSuccess": "Sertifikaatti myönnetty onnistuneesti!",
+      "certificateIssueFailed": "Sertifikaatin myöntäminen epäonnistui"
+    }
+  },
+  "aiBuilder": {
+    "title": "Tekoälypohjainen kurssi- ja perehdytysrakentaja",
+    "subtitle": "Luo yrityksen tietoon perustuva kattava perehdytysopetussuunnitelma, oppituntien sisältö ja kokeet yhdellä klikkauksella ihmisen tarkistettavaksi.",
+    "banner": {
+      "blockedLabel": "Kurssin muodostaminen estetty: ",
+      "defaultReason": "Organisaatiollesi on määritettävä tekoälyintegraatio ennen kuin kursseja voidaan muodostaa.",
+      "configureBtn": "Määritä tekoäly asetuksissa",
+      "contactAdmin": "Ota yhteyttä ylläpitäjään tekoälypalveluntarjoajan määrittämiseksi."
+    },
+    "generator": {
+      "cardTitle": "Tekoälypohjainen perehdytyksen opetussuunnitelmageneraattori",
+      "cardDesc": "Syötä rooli, aihe tai lataa käytäntöasiakirja jäsennellyn oppimiskurssin muodostamiseksi.",
+      "topicLabel": "Perehdytysaihe, käytäntöasiakirja tai kehotus",
+      "attachedFile": "Liitetty: {{name}}",
+      "uploadFile": "Lataa käytäntötiedosto",
+      "promptPlaceholder": "esim. Yrityksen tietosuoja ja GDPR-ohjeet vuodelle 2026",
+      "targetRole": "Kohderooli",
+      "rolePlaceholder": "esim. Kaikki työntekijät",
+      "department": "Osasto",
+      "deptPlaceholder": "esim. Vaatimustenmukaisuus",
+      "courseLevel": "Kurssitaso",
+      "levels": {
+        "beginner": "Aloittelija",
+        "intermediate": "Keskitaso",
+        "advanced": "Edistynyt"
+      },
+      "modules": "Moduulit",
+      "moduleOption": "{{count}} moduulia",
+      "btnBlocked": "Kurssin luominen vaatii tekoälymääritelmän",
+      "btnSynthesizing": "Muodostetaan kurssia ja kokeita...",
+      "btnGenerate": "Luo kurssiluonnos"
+    },
+    "editor": {
+      "title": "Kurssiluonnoksen esikatselu ja muokkain",
+      "subtitle": "Tarkista luotu opintosuunnitelma, muokkaa moduulien otsikoita ja tallenna kurssi suoraan LMS-järjestelmään.",
+      "savingToLMS": "Tallennetaan kurssia...",
+      "saveToLMS": "Tallenna kurssi LMS-järjestelmään",
+      "approveAndPublish": "Hyväksy ja julkaise",
+      "modulesGenerated": "{{count}} moduulia luotu",
+      "moduleIndex": "Moduuli {{index}}:",
+      "saveModuleTitle": "Tallenna",
+      "editModuleTitle": "Muokkaa moduulin otsikkoa",
+      "regenerateBtn": "Luo uudelleen",
+      "minsDuration": "{{minutes}} min",
+      "quizAssessment": "Koe-arviointi ({{count}} kysymystä):",
+      "correctOption": "✓ (Oikein)"
+    },
+    "queue": {
+      "title": "Kaikkien kurssiluonnosten jono",
+      "empty": "Aiempia kurssiluonnoksia ei löytynyt.",
+      "modulesBadge": "{{count}} moduulia"
+    },
+    "toasts": {
+      "attachedDoc": "Liitetty asiakirja: {{name}}",
+      "promptRequired": "Anna kurssikehote tai lataa käytäntöasiakirja.",
+      "generatedSuccess": "Tekoäly loi kurssiluonnoksen \"{{title}}\"!",
+      "generateFailed": "Tekoälykurssiluonnoksen luominen epäonnistui",
+      "moduleTitleUpdated": "Moduulin {{index}} otsikko päivitetty muotoon \"{{title}}\"",
+      "noDraftToSave": "Tallennettavaa kurssiluonnosta ei ole",
+      "courseSavedSuccess": "Kurssi tallennettu onnistuneesti",
+      "saveCourseFailed": "Kurssin tallennus LMS-järjestelmään epäonnistui",
+      "publishedSuccess": "Kurssiluonnos julkaistu aktiivisiin perehdytyspolkuihin!",
+      "publishFailed": "Luonnoksen julkaiseminen perehdytyspolkuihin epäonnistui",
+      "moduleRegenerated": "Moduulin sisältö luotu uudelleen tekoälyllä!",
+      "draftDeleted": "Kurssiluonnos poistettu."
+    }
+  },
+  "certificates": {
+    "title": "Omat sertifikaatit",
+    "subtitle": "Tarkastele, lataa ja jaa suorittamiesi perehdytyspolkujen vahvistettuja digitaalisia todistuksia.",
+    "verifiedCredential": "Vahvistettu todistus",
+    "issuedDate": "Myönnetty: {{date}}",
+    "na": "Ei saatavilla",
+    "credentialId": "Todistuksen tunniste:",
+    "viewAndDownload": "Näytä ja lataa sertifikaatti",
+    "verifyPublicLink": "Vahvista julkinen linkki",
+    "copyLink": "Kopioi linkki",
+    "shareLinkedIn": "Jaa LinkedInissä",
+    "itemLabel": "sertifikaattia",
+    "fallbackJourneyTitle": "Työntekijän perehdytyspolku",
+    "error": {
+      "title": "Sertifikaattien lataaminen epäonnistui",
+      "desc": "Sertifikaattejasi ei voitu ladata.",
+      "retry": "Yritä uudelleen"
+    },
+    "empty": {
+      "title": "Sertifikaatteja ei löytynyt",
+      "desc": "Suorita mikä tahansa sinulle määritetyistä koulutus- tai perehdytyspoluista saadaksesi vahvistetun suoritustodistuksen.",
+      "goToDashboard": "Siirry koontinäyttöön"
+    },
+    "modal": {
+      "title": "Näytä sertifikaatti",
+      "fallbackRecipient": "Matti Meikäläinen",
+      "fallbackJourney": "Yleinen perehdytys",
+      "fallbackOrg": "Talnova",
+      "close": "Sulje",
+      "downloadPrint": "Lataa / tulosta sertifikaatti"
+    },
+    "toasts": {
+      "linkedInOpened": "LinkedIn-jakolinkki avattu!",
+      "copiedLink": "Sertifikaattilinkki kopioitu leikepöydälle!"
+    },
+    "publicViewer": {
+      "verifying": "Vahvistetaan digitaalista todistusta...",
+      "invalidTitle": "Virheellinen tai kumottu todistus",
+      "invalidDesc": "Pyydettyä sertifikaattia ei löytynyt, tai myöntävä organisaatio on saattanut kumota sen.",
+      "goToOnboarding": "Siirry Talnova Onboardingiin",
+      "verifiedAuthentic": "Vahvistettu aito todistus",
+      "printLocalCopy": "Jaa / tulosta paikallinen kopio",
+      "notFound": "Sertifikaatteja ei löytynyt"
+    }
+  },
+  "viewer": {
+    "translating": "Käännetään...",
+    "complianceGateWarning": "Pakolliset vaatimustenmukaisuusasiakirjat on allekirjoitettava ennen LMS-kurssien käyttöä.",
+    "complianceGateLessonWarning": "Pakolliset vaatimustenmukaisuusasiakirjat on allekirjoitettava ennen oppituntien suorittamista.",
+    "complianceGateQuizWarning": "Pakolliset vaatimustenmukaisuusasiakirjat on allekirjoitettava ennen kokeiden lähettämistä.",
+    "complianceBanner": {
+      "title": "Vaatimustenmukaisuuden edellytys aktiivinen:",
+      "desc": "Sinulla on {{count}} allekirjoittamatonta yrityskäytännön edellyttämää vaatimustenmukaisuussopimusta ennen oppituntien suorittamista.",
+      "signBtn": "Allekirjoita vaadittu asiakirja"
+    },
+    "offlineSync": {
+      "reconnecting": "Yhdistetään uudelleen verkkoon...",
+      "syncedCount": "Online: Synkronoitu {{count}} oppitunti(a) palvelimelle.",
+      "markedOffline": "Offline: Oppitunti merkitty suoritetuksi. Tallennettu IndexedDB-offline-jonoon.",
+      "savedOfflineQueue": "Tallennettu IndexedDB-offline-jonoon. Edistyminen synkronoidaan, kun yhteys palautuu.",
+      "offlineToggle": "⚡ Offline (Klikkaa synkronoidaksesi verkkoon)",
+      "onlineToggle": "📶 Online (Klikkaa siirtyäksesi offline-tilaan)",
+      "toggleTitle": "Vaihda PWA-verkon offline/online-simulaatiota",
+      "offlineSimulated": "Verkko asetettu offline-tilaan (DevTools Offline)."
+    },
+    "toasts": {
+      "lessonCompletedAuto": "Oppitunti suoritettu automaattisesti!",
+      "moduleNotFound": "Moduulikontekstia ei löytynyt.",
+      "quizPassed": "Onnittelut! Läpäisit kokeen tuloksella {{score}} %!",
+      "quizFailed": "Sait {{score}} %, mikä alittaa läpäisyrajan {{passingScore}} %.",
+      "quizSubmitFailed": "Kokeen lähettäminen epäonnistui.",
+      "updateCompletionFailed": "Oppitunnin suorituksen päivittäminen epäonnistui"
+    },
+    "error": {
+      "title": "Kurssin lataus epäonnistui",
+      "desc": "Kurssin opintosuunnitelma ei ole saatavilla.",
+      "retry": "Yritä uudelleen"
+    },
+    "sidebar": {
+      "dashboard": "Kojelauta",
+      "collapse": "Kutista sivupalkki",
+      "show": "Näytä sivupalkki"
+    },
+    "nav": {
+      "previous": "Edellinen",
+      "next": "Seuraava"
+    },
+    "lessonTypes": {
+      "audioLesson": "Äänioppitunti",
+      "audioPlayback": "Äänentoisto",
+      "pdfReader": "PDF-lukija",
+      "openPdf": "Avaa PDF",
+      "attachedDoc": "Liitetty asiakirja",
+      "docAttachment": "Word/Excel/Powerpoint-liite",
+      "downloadFile": "Lataa tiedosto",
+      "checklistTasks": "Tarkistuslistan tehtävät",
+      "pdfViewer": "PDF-asiakirjojen katseluohjelma",
+      "noPdf": "Tähän oppituntiin ei ole liitetty PDF-asiakirjaa."
+    },
+    "video": {
+      "requirementMet": "✓ 90 % videon kestosta katsottu. Voit nyt suorittaa oppitunnin.",
+      "requirementPending": "Katso vähintään 90 % videosta suorituksen mahdollistamiseksi ({{percent}} % katsottu)",
+      "simulateWatch": "(Simuloi 95 % katsotuksi)",
+      "simulateWatchTitle": "Simuloi 95 % videosta katsotuksi"
+    },
+    "completion": {
+      "completed": "Suoritettu",
+      "markAsComplete": "Merkitse suoritetuksi"
+    },
+    "quiz": {
+      "passedTitle": "Arviointi läpäisty!",
+      "resultsTitle": "Kokeen arviointitulokset",
+      "passedDesc": "Onnittelut! Läpäisit arviointivaatimukset.",
+      "failedDesc": "Pisteesi eivät riittäneet arvioinnin läpäisemiseen tällä kertaa.",
+      "yourScore": "Pisteesi",
+      "passingScore": "Läpäisyraja",
+      "attemptNo": "Yrityskerta",
+      "completedBadge": "Suoritettu",
+      "verificationIncomplete": "Vahvistus puutteellinen",
+      "returnRoadmap": "Palaa tiekarttaan",
+      "retakeQuiz": "Uusi koe",
+      "retryQuiz": "Yritä koetta uudelleen",
+      "assessmentTitle": "Oppitunnin arviointi",
+      "assessmentInstructions": "Vastaa alla oleviin kysymyksiin oppimisesi vahvistamiseksi. Tarvitset vähintään {{passingScore}} % läpäistäksesi.",
+      "singleChoice": "Valitse yksi vaihtoehto",
+      "trueFalse": "Valitse tosi tai epätosi",
+      "multipleChoice": "Useita valintoja sallittu",
+      "points": "{{points}} pistettä",
+      "submitAssessment": "Lähetä arviointi"
+    },
+    "emptyLesson": "Valitse aihe aloittaaksesi oppimisen.",
+    "noContent": "Sisältöä ei ole vielä kirjoitettu."
+  },
+  "override": {
+    "employeeLabel": "Työntekijä",
+    "activeJourney": "Aktiivinen polku",
+    "selectJourneyPlaceholder": "Hae ja valitse polkupohja...",
+    "reasonPlaceholder": "esim. Osastojen välinen sisäinen siirto tekniikan osastolle, joka vaatii räätälöityä teknistä etenemissuunnitelmaa..."
+  },
+  "visualizer": {
+    "journeyVelocity": "Polun nopeus",
+    "state": "Tila: {{state}}"
   }
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users,
   MapPin,
@@ -27,6 +28,8 @@ export const CompatibilityRadarWidget: React.FC<CompatibilityRadarWidgetProps> =
   menteeName = 'New Hire',
   reasons = [],
 }) => {
+  const { t } = useTranslation('buddy');
+
   const getScoreColor = (val: number) => {
     if (val >= 0.8) return 'text-emerald-500';
     if (val >= 0.5) return 'text-blue-500';
@@ -41,39 +44,39 @@ export const CompatibilityRadarWidget: React.FC<CompatibilityRadarWidgetProps> =
 
   const factors = [
     {
-      name: 'Department Alignment',
+      name: t('radarWidget.factors.department', { defaultValue: 'Department Alignment' }),
       weight: '35%',
       score: criteria.departmentScore,
       icon: Users,
-      description: 'Domain & organizational cluster proximity',
+      description: t('radarWidget.factors.departmentDesc', { defaultValue: 'Domain & organizational cluster proximity' }),
     },
     {
-      name: 'Location & Timezone',
+      name: t('radarWidget.factors.location', { defaultValue: 'Location & Timezone' }),
       weight: '25%',
       score: criteria.locationScore,
       icon: MapPin,
-      description: 'Same office or <= 2 hrs timezone delta',
+      description: t('radarWidget.factors.locationDesc', { defaultValue: 'Same office or <= 2 hrs timezone delta' }),
     },
     {
-      name: 'Working Language',
+      name: t('radarWidget.factors.language', { defaultValue: 'Working Language' }),
       weight: '20%',
       score: criteria.languageScore,
       icon: Languages,
-      description: 'Shared primary or working language',
+      description: t('radarWidget.factors.languageDesc', { defaultValue: 'Shared primary or working language' }),
     },
     {
-      name: 'Mentee Capacity',
+      name: t('radarWidget.factors.capacity', { defaultValue: 'Mentee Capacity' }),
       weight: '15%',
       score: criteria.capacityScore,
       icon: BatteryCharging,
-      description: 'Available mentor bandwidth slots',
+      description: t('radarWidget.factors.capacityDesc', { defaultValue: 'Available mentor bandwidth slots' }),
     },
     {
-      name: 'Skills Overlap',
+      name: t('radarWidget.factors.skills', { defaultValue: 'Skills Overlap' }),
       weight: '5%',
       score: criteria.skillsScore,
       icon: Cpu,
-      description: 'Jaccard overlap of role & technical proficiencies',
+      description: t('radarWidget.factors.skillsDesc', { defaultValue: 'Jaccard overlap of role & technical proficiencies' }),
     },
   ];
 
@@ -87,10 +90,14 @@ export const CompatibilityRadarWidget: React.FC<CompatibilityRadarWidgetProps> =
           </div>
           <div>
             <h4 className="text-xs font-bold text-foreground">
-              Multi-Factor Compatibility Analysis
+              {t('radarWidget.title', { defaultValue: 'Multi-Factor Compatibility Analysis' })}
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              {buddyName} paired with {menteeName}
+              {t('radarWidget.pairedWith', {
+                buddyName,
+                menteeName,
+                defaultValue: `${buddyName} paired with ${menteeName}`
+              })}
             </p>
           </div>
         </div>
@@ -104,7 +111,10 @@ export const CompatibilityRadarWidget: React.FC<CompatibilityRadarWidgetProps> =
                 : 'bg-amber-500/20 text-amber-500 border-amber-500/30'
             }`}
           >
-            {scorePercent}% Match
+            {t('radarWidget.matchScore', {
+              scorePercent,
+              defaultValue: `${scorePercent}% Match`
+            })}
           </Badge>
         </div>
       </div>

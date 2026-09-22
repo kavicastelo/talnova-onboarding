@@ -32,6 +32,21 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     localStorage.setItem(LANG_STORAGE_KEY, language);
   }, [language]);
 
+  // Keep state in sync if i18next triggers languageChanged
+  useEffect(() => {
+    const onLangChanged = (newLng: string) => {
+      const base = (newLng?.split('-')[0] || newLng) as SupportedLocale;
+      if (SUPPORTED_LOCALES.includes(base) && base !== language) {
+        setLanguageState(base);
+        localStorage.setItem(LANG_STORAGE_KEY, base);
+      }
+    };
+    i18n.on('languageChanged', onLangChanged);
+    return () => {
+      i18n.off('languageChanged', onLangChanged);
+    };
+  }, [language]);
+
   /**
    * Change the active language.
    *

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { KioskBlock } from '../../../types/kiosk/block.types';
 import { KioskPinOverlay } from './KioskPinOverlay';
+import { useTranslation } from 'react-i18next';
 
 interface KioskPlayerProps {
   journeyId: string;
@@ -24,6 +25,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   onExit,
   isAdminPreview = false
 }) => {
+  const { t } = useTranslation('kiosk');
   const {
     journey,
     currentStepIndex,
@@ -242,7 +244,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 text-white">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
-        <p className="mt-4 text-lg font-medium text-slate-300">Loading Kiosk Screen...</p>
+        <p className="mt-4 text-lg font-medium text-slate-300">{t('player.loadingScreen', 'Loading Kiosk Screen...')}</p>
       </div>
     );
   }
@@ -251,15 +253,15 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     return (
       <div id="kiosk-error-container" className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 px-6 text-center text-white">
         <ShieldAlert className="h-16 w-16 text-rose-500 animate-pulse" />
-        <h2 id="kiosk-error-heading" className="mt-4 text-2xl font-bold text-slate-100">Kiosk Access Error</h2>
-        <p id="kiosk-error-message" className="mt-2 max-w-md text-slate-400">{error || 'Unable to load Kiosk content.'}</p>
+        <h2 id="kiosk-error-heading" className="mt-4 text-2xl font-bold text-slate-100">{t('player.accessError', 'Kiosk Access Error')}</h2>
+        <p id="kiosk-error-message" className="mt-2 max-w-md text-slate-400">{error || t('player.unableToLoad', 'Unable to load Kiosk content.')}</p>
         {(isAdminPreview || journey?.settings?.security?.protectionType === 'pin') && (
           <button 
             id="kiosk-error-exit-btn"
             onClick={handleExitClick}
             className="mt-6 rounded-lg bg-slate-800 px-6 py-2 font-semibold text-white hover:bg-slate-700 transition min-h-[48px]"
           >
-            {isAdminPreview ? 'Exit Preview' : 'Exit'}
+            {isAdminPreview ? t('player.exitPreview', 'Exit Preview') : t('player.exit', 'Exit')}
           </button>
         )}
       </div>
@@ -388,7 +390,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                 onClick={() => setVideoCompleted(true)}
                 className="absolute bottom-4 right-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-sm min-h-[48px] shadow-lg flex items-center space-x-2 cursor-pointer z-10"
               >
-                <span>Video Finished</span>
+                <span>{t('player.videoFinished', 'Video Finished')}</span>
                 <CheckCircle2 className="w-5 h-5" />
               </button>
             )}
@@ -413,7 +415,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         return (
           <div key={block.id} className="flex justify-center rounded-xl bg-slate-900/50 p-6 border border-slate-800">
             <div className="h-32 w-32 animate-bounce rounded-full bg-emerald-500/20 border-2 border-emerald-500/60 flex items-center justify-center">
-              <span className="text-emerald-400 font-semibold text-lg">Animation</span>
+              <span className="text-emerald-400 font-semibold text-lg">{t('player.animation', 'Animation')}</span>
             </div>
           </div>
         );
@@ -566,7 +568,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                         className="w-full min-h-[64px] rounded-2xl bg-emerald-500 text-slate-950 font-bold text-lg hover:bg-emerald-400 active:scale-98 transition flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-emerald-500/20"
                       >
                         <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
-                        <span>Confirm Video Completed</span>
+                        <span>{t('player.confirmVideoCompleted', 'Confirm Video Completed')}</span>
                       </button>
                     </div>
                   ) : ppeSubmitted ? (
@@ -598,10 +600,10 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                     <div className="w-full space-y-4 animate-fade-in">
                       <div className="text-center mb-2">
                         <h3 className="text-2xl font-bold text-white tracking-tight">
-                          Mandatory PPE Safety Checklist
+                          {(activeStep.interaction as any)?.title || "Mandatory PPE Safety Checklist"}
                         </h3>
                         <p className="text-slate-400 text-sm mt-1">
-                          Touch each mandatory item to confirm compliance before shift briefing completion.
+                          Touch each item below to verify you have donned required PPE.
                         </p>
                       </div>
 
@@ -656,14 +658,14 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                         })}
                       </div>
 
-                      {/* Incomplete warning if not all items are checked */}
+                      {/* Incomplete warning banner */}
                       {checkedPpe.size < ((activeStep.interaction?.ppeItems?.length) || 3) && (
                         <div
                           id="ppe-incomplete-warning"
                           className="flex items-center space-x-2 text-amber-400 text-sm bg-amber-950/30 border border-amber-500/30 px-4 py-3 rounded-xl"
                         >
                           <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500" />
-                          <span>All items must be confirmed before briefing can be completed.</span>
+                          <span>{t('player.checklistWarning', 'All items must be confirmed before briefing can be completed.')}</span>
                         </div>
                       )}
 
@@ -690,7 +692,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                         }`}
                       >
                         <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
-                        <span>Confirm & Complete Shift Briefing</span>
+                        <span>{t('player.confirmCompleteBriefing', 'Confirm & Complete Shift Briefing')}</span>
                       </button>
                     </div>
                   )}
@@ -705,7 +707,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                     className="flex-1 rounded-xl bg-emerald-500 p-5 text-xl font-bold text-slate-950 hover:bg-emerald-400 active:scale-95 transition shadow-lg shadow-emerald-500/10 flex items-center justify-center space-x-2"
                   >
                     <CheckCircle2 className="w-6 h-6" />
-                    <span>YES</span>
+                    <span>{t('player.yes', 'YES')}</span>
                   </button>
                   <button
                     onClick={() => handleYesNoSelection(false)}
@@ -782,7 +784,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             </div>
           </div>
         ) : (
-          <p className="text-slate-500">No content available for this step.</p>
+          <p className="text-slate-500">{t('player.noContentAvailable', 'No content available for this step.')}</p>
         )}
       </main>
 
@@ -809,7 +811,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             className="flex items-center space-x-2 rounded-lg bg-slate-900 border border-slate-800 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-850 transition"
           >
             <RotateCcw className="h-4 w-4" />
-            <span>Restart</span>
+            <span>{t('player.restart', 'Restart')}</span>
           </button>
         </div>
 
@@ -827,7 +829,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
               className="flex items-center space-x-2 rounded-xl bg-slate-900 border border-slate-850 min-h-[64px] px-6 py-3 font-semibold text-slate-200 hover:bg-slate-800 hover:text-white active:scale-95 transition"
             >
               <ArrowLeft className="h-5 w-5" />
-              <span>Back</span>
+              <span>{t('player.back', 'Back')}</span>
             </button>
           )}
 
@@ -858,7 +860,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
               className="flex items-center space-x-2 rounded-xl bg-emerald-500 min-h-[64px] px-8 py-3 font-bold text-slate-950 hover:bg-emerald-400 active:scale-95 transition"
             >
               <CheckCircle2 className="h-5 w-5 stroke-[2.5]" />
-              <span>Finish</span>
+              <span>{t('player.finish', 'Finish')}</span>
             </button>
           )}
         </div>

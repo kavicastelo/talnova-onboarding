@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   HeartHandshake,
   Mail,
@@ -49,6 +50,7 @@ import { AdminBuddyOverrideModal } from '../components/buddy/AdminBuddyOverrideM
 import { buddyMatchingService } from '../services/buddy-matching.service';
 
 export const BuddyProgram: React.FC = () => {
+  const { t } = useTranslation('buddy');
   const { role } = useRole();
   const canAssignBuddy = role === 'manager' || role === 'admin' || role === 'owner' || role === 'hr_admin' || role === 'super_admin';
 
@@ -107,13 +109,13 @@ export const BuddyProgram: React.FC = () => {
       { assignmentId, taskId, completed: !currentStatus },
       {
         onSuccess: () => {
-          toast.success('Checklist item updated!');
+          toast.success(t('toasts.checklistUpdated', { defaultValue: 'Checklist item updated!' }));
           refetchBuddy();
           refetchMentees();
           refetchAssignments();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to update checklist item');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.checklistUpdateError', { defaultValue: 'Failed to update checklist item' }));
         }
       }
     );
@@ -123,14 +125,14 @@ export const BuddyProgram: React.FC = () => {
     setValidationError('');
 
     if (!selectedNewHireId || !selectedBuddyId) {
-      const err = 'Please select both a new hire mentee and an onboarding buddy.';
+      const err = t('toasts.selectBothRequired', { defaultValue: 'Please select both a new hire mentee and an onboarding buddy.' });
       setValidationError(err);
       toast.error(err);
       return;
     }
 
     if (selectedNewHireId === selectedBuddyId) {
-      const err = 'Cannot pair an employee with themselves as buddy';
+      const err = t('toasts.cannotPairSelf', { defaultValue: 'Cannot pair an employee with themselves as buddy' });
       setValidationError(err);
       toast.error(err);
       return;
@@ -144,7 +146,7 @@ export const BuddyProgram: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success('Buddy assigned to new hire successfully!');
+          toast.success(t('toasts.buddyAssigned', { defaultValue: 'Buddy assigned to new hire successfully!' }));
           setIsAssignModalOpen(false);
           setSelectedNewHireId('');
           setSelectedBuddyId('');
@@ -158,7 +160,7 @@ export const BuddyProgram: React.FC = () => {
           }
         },
         onError: (err: any) => {
-          const errMsg = err?.response?.data?.message || err?.message || 'Failed to assign buddy';
+          const errMsg = err?.response?.data?.message || err?.message || t('toasts.buddyAssignError', { defaultValue: 'Failed to assign buddy' });
           setValidationError(errMsg);
           toast.error(errMsg);
         }
@@ -184,7 +186,7 @@ export const BuddyProgram: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success(`Buddy partnership reassigned: ${reason}`);
+          toast.success(t('toasts.overrideSuccess', { reason, defaultValue: `Buddy partnership reassigned: ${reason}` }));
           setIsOverrideModalOpen(false);
           setOverridePairing(null);
           refetchBuddy();
@@ -193,7 +195,7 @@ export const BuddyProgram: React.FC = () => {
           refetchAssignments();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to reassign buddy.');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.overrideError', { defaultValue: 'Failed to reassign buddy.' }));
         },
       }
     );
@@ -202,13 +204,14 @@ export const BuddyProgram: React.FC = () => {
   const handleLogCheckin = () => {
     setCheckinValidationError('');
     if (!checkinNotes.trim()) {
-      setCheckinValidationError('Please provide check-in meeting notes.');
-      toast.error('Please provide check-in meeting notes.');
+      const msg = t('toasts.checkinNotesRequired', { defaultValue: 'Please provide check-in meeting notes.' });
+      setCheckinValidationError(msg);
+      toast.error(msg);
       return;
     }
 
     if (!selectedAssignmentId) {
-      toast.error('No assignment selected for check-in');
+      toast.error(t('toasts.noAssignmentSelected', { defaultValue: 'No assignment selected for check-in' }));
       return;
     }
 
@@ -223,7 +226,7 @@ export const BuddyProgram: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success('1-on-1 Buddy check-in logged!');
+          toast.success(t('toasts.checkinLogged', { defaultValue: '1-on-1 Buddy check-in logged!' }));
           setIsCheckinModalOpen(false);
           setCheckinNotes('');
           setCheckinValidationError('');
@@ -233,7 +236,7 @@ export const BuddyProgram: React.FC = () => {
           refetchAssignments();
         },
         onError: (err: any) => {
-          const errMsg = err?.response?.data?.message || err?.message || 'Failed to log check-in';
+          const errMsg = err?.response?.data?.message || err?.message || t('toasts.checkinError', { defaultValue: 'Failed to log check-in' });
           setCheckinValidationError(errMsg);
           toast.error(errMsg);
         }
@@ -243,7 +246,7 @@ export const BuddyProgram: React.FC = () => {
 
   const handleAddCustomTask = () => {
     if (!customTaskAssignmentId || !customTaskTitle.trim()) {
-      toast.error('Please provide a task title');
+      toast.error(t('toasts.taskTitleRequired', { defaultValue: 'Please provide a task title' }));
       return;
     }
 
@@ -257,7 +260,7 @@ export const BuddyProgram: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success('Custom task added to checklist!');
+          toast.success(t('toasts.customTaskAdded', { defaultValue: 'Custom task added to checklist!' }));
           setIsCustomTaskModalOpen(false);
           setCustomTaskTitle('');
           setCustomTaskAssignmentId(null);
@@ -266,7 +269,7 @@ export const BuddyProgram: React.FC = () => {
           refetchAssignments();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to add custom task');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.customTaskError', { defaultValue: 'Failed to add custom task' }));
         },
       }
     );
@@ -302,12 +305,15 @@ export const BuddyProgram: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success(nextAvailability ? 'Availability set to Active!' : 'Availability set to Away / Vacation');
+          toast.success(nextAvailability
+            ? t('toasts.availabilityActive', { defaultValue: 'Availability set to Active!' })
+            : t('toasts.availabilityAway', { defaultValue: 'Availability set to Away / Vacation' })
+          );
           refetchMyProfile();
           refetchAvailable();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to update availability');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.availabilityError', { defaultValue: 'Failed to update availability' }));
         }
       }
     );
@@ -316,7 +322,7 @@ export const BuddyProgram: React.FC = () => {
   const handleRegisterBuddyProfile = () => {
     setProfileValidationError('');
     if (!maxMentees || maxMentees < 1 || maxMentees > 10) {
-      const msg = 'Max mentees must be between 1 and 10';
+      const msg = t('toasts.maxMenteesRange', { defaultValue: 'Max mentees must be between 1 and 10' });
       setProfileValidationError(msg);
       toast.error(msg);
       return;
@@ -332,13 +338,13 @@ export const BuddyProgram: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success('Buddy profile saved successfully!');
+          toast.success(t('toasts.profileSaved', { defaultValue: 'Buddy profile saved successfully!' }));
           setIsRegisterModalOpen(false);
           refetchAvailable();
           refetchMyProfile();
         },
         onError: (err: any) => {
-          const errMsg = err?.response?.data?.message || err?.message || 'Failed to register profile';
+          const errMsg = err?.response?.data?.message || err?.message || t('toasts.profileSaveError', { defaultValue: 'Failed to register profile' });
           setProfileValidationError(errMsg);
           toast.error(errMsg);
         }
@@ -353,10 +359,10 @@ export const BuddyProgram: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <HeartHandshake className="h-7 w-7 text-indigo-600" />
-            Buddy & Peer Onboarding Support
+            {t('title', { defaultValue: 'Buddy & Peer Onboarding Support' })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Pair new hires with experienced peer buddies for informal guidance, cultural integration, and regular check-ins.
+            {t('subtitle', { defaultValue: 'Pair new hires with experienced peer buddies for informal guidance, cultural integration, and regular check-ins.' })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -365,7 +371,7 @@ export const BuddyProgram: React.FC = () => {
             onClick={handleOpenRegisterModal}
             data-testid="join-as-buddy-btn"
           >
-            <Sparkles className="h-4 w-4 mr-2" /> {myBuddyProfile ? 'Edit Buddy Profile' : 'Join as Buddy'}
+            <Sparkles className="h-4 w-4 mr-2" /> {myBuddyProfile ? t('editProfile', { defaultValue: 'Edit Buddy Profile' }) : t('joinProgram', { defaultValue: 'Join as Buddy' })}
           </Button>
           {canAssignBuddy && (
             <Button
@@ -376,7 +382,7 @@ export const BuddyProgram: React.FC = () => {
               }}
               data-testid="assign-buddy-btn"
             >
-              <Plus className="h-4 w-4 mr-2" /> Assign Buddy
+              <Plus className="h-4 w-4 mr-2" /> {t('assignBuddy', { defaultValue: 'Assign Buddy' })}
             </Button>
           )}
         </div>
@@ -390,7 +396,7 @@ export const BuddyProgram: React.FC = () => {
               <div className="flex items-center gap-3">
                 <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-indigo-600" />
-                  Your Buddy Profile
+                  {t('profileBanner.title', { defaultValue: 'Your Buddy Profile' })}
                 </h3>
                 <Badge
                   data-testid="buddy-status-badge"
@@ -400,20 +406,22 @@ export const BuddyProgram: React.FC = () => {
                       : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300'
                   }
                 >
-                  {myBuddyProfile.isAvailable ? 'Buddy Profile Active' : 'On Vacation / Inactive'}
+                  {myBuddyProfile.isAvailable
+                    ? t('profileBanner.active', { defaultValue: 'Buddy Profile Active' })
+                    : t('profileBanner.inactive', { defaultValue: 'On Vacation / Inactive' })}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                {myBuddyProfile.bio || 'Senior peer mentor supporting onboarding colleagues.'}
+                {myBuddyProfile.bio || t('profileBanner.defaultBio', { defaultValue: 'Senior peer mentor supporting onboarding colleagues.' })}
               </p>
               <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
-                <span><strong>Max Mentees:</strong> {myBuddyProfile.maxMentees}</span>
-                <span><strong>Current Load:</strong> {myBuddyProfile.currentMenteeCount || 0} mentees</span>
+                <span><strong>{t('profileBanner.maxMentees', { defaultValue: 'Max Mentees:' })}</strong> {myBuddyProfile.maxMentees}</span>
+                <span><strong>{t('profileBanner.currentLoad', { defaultValue: 'Current Load:' })}</strong> {t('profileBanner.menteesCount', { count: myBuddyProfile.currentMenteeCount || 0, defaultValue: `${myBuddyProfile.currentMenteeCount || 0} mentees` })}</span>
                 {myBuddyProfile.skills && myBuddyProfile.skills.length > 0 && (
-                  <span><strong>Skills:</strong> {myBuddyProfile.skills.join(', ')}</span>
+                  <span><strong>{t('profileBanner.skills', { defaultValue: 'Skills:' })}</strong> {myBuddyProfile.skills.join(', ')}</span>
                 )}
                 {myBuddyProfile.languages && myBuddyProfile.languages.length > 0 && (
-                  <span><strong>Languages:</strong> {myBuddyProfile.languages.join(', ')}</span>
+                  <span><strong>{t('profileBanner.languages', { defaultValue: 'Languages:' })}</strong> {myBuddyProfile.languages.join(', ')}</span>
                 )}
               </div>
             </div>
@@ -426,7 +434,9 @@ export const BuddyProgram: React.FC = () => {
                 onClick={() => handleToggleAvailability(myBuddyProfile.isAvailable)}
                 className="text-xs"
               >
-                {myBuddyProfile.isAvailable ? 'Set to Away / Vacation' : 'Set to Active'}
+                {myBuddyProfile.isAvailable
+                  ? t('profileBanner.setAway', { defaultValue: 'Set to Away / Vacation' })
+                  : t('profileBanner.setActive', { defaultValue: 'Set to Active' })}
               </Button>
               <Button
                 variant="outline"
@@ -435,7 +445,7 @@ export const BuddyProgram: React.FC = () => {
                 onClick={handleOpenRegisterModal}
                 className="text-xs"
               >
-                Edit Profile
+                {t('profileBanner.editBtn', { defaultValue: 'Edit Profile' })}
               </Button>
             </div>
           </CardContent>
@@ -452,7 +462,7 @@ export const BuddyProgram: React.FC = () => {
           }`}
           onClick={() => setActiveTab('my-buddy')}
         >
-          <HeartHandshake className="h-4 w-4" /> My Buddy
+          <HeartHandshake className="h-4 w-4" /> {t('tabs.myBuddy', { defaultValue: 'My Buddy' })}
         </button>
         <button
           className={`py-3 px-6 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
@@ -462,7 +472,7 @@ export const BuddyProgram: React.FC = () => {
           }`}
           onClick={() => setActiveTab('my-mentees')}
         >
-          <Users className="h-4 w-4" /> My Mentees ({mentees?.length || 0})
+          <Users className="h-4 w-4" /> {t('tabs.myMentees', { count: mentees?.length || 0, defaultValue: `My Mentees (${mentees?.length || 0})` })}
         </button>
         {canAssignBuddy && (
           <button
@@ -473,7 +483,7 @@ export const BuddyProgram: React.FC = () => {
             }`}
             onClick={() => setActiveTab('pairings')}
           >
-            <Users className="h-4 w-4" /> Active Pairings ({allAssignments?.length || 0})
+            <Users className="h-4 w-4" /> {t('tabs.pairings', { count: allAssignments?.length || 0, defaultValue: `Active Pairings (${allAssignments?.length || 0})` })}
           </button>
         )}
         {canAssignBuddy && (
@@ -485,7 +495,7 @@ export const BuddyProgram: React.FC = () => {
             }`}
             onClick={() => setActiveTab('matching')}
           >
-            <Sparkles className="h-4 w-4 text-indigo-600" /> Algorithmic Matching & Coaching
+            <Sparkles className="h-4 w-4 text-indigo-600" /> {t('tabs.matching', { defaultValue: 'Algorithmic Matching & Coaching' })}
           </button>
         )}
         <button
@@ -496,7 +506,7 @@ export const BuddyProgram: React.FC = () => {
           }`}
           onClick={() => setActiveTab('directory')}
         >
-          <Building2 className="h-4 w-4" /> Available Buddies Directory ({availableBuddies?.length || 0})
+          <Building2 className="h-4 w-4" /> {t('tabs.directory', { count: availableBuddies?.length || 0, defaultValue: `Available Buddies Directory (${availableBuddies?.length || 0})` })}
         </button>
       </div>
 
@@ -504,13 +514,17 @@ export const BuddyProgram: React.FC = () => {
       {activeTab === 'my-buddy' && (
         <div className="space-y-6">
           {buddyLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading buddy details...</div>
+            <div className="p-8 text-center text-muted-foreground">
+              {t('myBuddyTab.loading', { defaultValue: 'Loading buddy details...' })}
+            </div>
           ) : !myBuddy ? (
             <Card className="border-2 border-dashed p-8 text-center space-y-3">
               <HeartHandshake className="h-10 w-10 text-muted-foreground mx-auto" />
-              <h3 className="font-semibold text-base">No Buddy Assigned Yet</h3>
+              <h3 className="font-semibold text-base">
+                {t('myBuddyTab.noBuddyTitle', { defaultValue: 'No Buddy Assigned Yet' })}
+              </h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Your manager or HR admin will pair you with an onboarding buddy to help you get settled during your first weeks.
+                {t('myBuddyTab.noBuddyDesc', { defaultValue: 'Your manager or HR admin will pair you with an onboarding buddy to help you get settled during your first weeks.' })}
               </p>
             </Card>
           ) : (
@@ -525,12 +539,15 @@ export const BuddyProgram: React.FC = () => {
                     {myBuddy.buddyUserId?.profile?.firstName} {myBuddy.buddyUserId?.profile?.lastName}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    {myBuddy.buddyUserId?.employment?.jobTitle || 'Peer Buddy'} | {myBuddy.buddyUserId?.employment?.department || 'Team'}
+                    {myBuddy.buddyUserId?.employment?.jobTitle || t('myBuddyTab.peerBuddy', { defaultValue: 'Peer Buddy' })} | {myBuddy.buddyUserId?.employment?.department || t('myBuddyTab.team', { defaultValue: 'Team' })}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 text-xs">
                   <div className="p-3 border rounded-lg bg-muted/20 text-center">
-                    Assigned on {new Date(myBuddy.assignedAt).toLocaleDateString()}
+                    {t('myBuddyTab.assignedOn', {
+                      date: new Date(myBuddy.assignedAt).toLocaleDateString(),
+                      defaultValue: `Assigned on ${new Date(myBuddy.assignedAt).toLocaleDateString()}`
+                    })}
                   </div>
 
                   {myBuddy.communicationLinks?.email && (
@@ -538,7 +555,7 @@ export const BuddyProgram: React.FC = () => {
                       href={`mailto:${myBuddy.communicationLinks.email}`}
                       className="p-3 border rounded-lg flex items-center justify-center gap-2 font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
                     >
-                      <Mail className="h-4 w-4" /> Send Email
+                      <Mail className="h-4 w-4" /> {t('myBuddyTab.sendEmail', { defaultValue: 'Send Email' })}
                     </a>
                   )}
                 </CardContent>
@@ -548,9 +565,11 @@ export const BuddyProgram: React.FC = () => {
               <Card className="lg:col-span-2">
                 <CardHeader className="border-b pb-3">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <CheckSquare className="h-5 w-5 text-indigo-600" /> Buddy Onboarding Checklist
+                    <CheckSquare className="h-5 w-5 text-indigo-600" /> {t('myBuddyTab.checklistTitle', { defaultValue: 'Buddy Onboarding Checklist' })}
                   </CardTitle>
-                  <CardDescription>Tasks to complete together with your onboarding buddy.</CardDescription>
+                  <CardDescription>
+                    {t('myBuddyTab.checklistDesc', { defaultValue: 'Tasks to complete together with your onboarding buddy.' })}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-2">
@@ -580,12 +599,20 @@ export const BuddyProgram: React.FC = () => {
                   {/* 1-on-1 Check-ins Log */}
                   <div className="pt-4 border-t space-y-2">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                      <MessageSquare className="h-3.5 w-3.5" /> 1-on-1 Check-In History ({myBuddy.checkins?.length || 0})
+                      <MessageSquare className="h-3.5 w-3.5" /> {t('myBuddyTab.checkinHistory', {
+                        count: myBuddy.checkins?.length || 0,
+                        defaultValue: `1-on-1 Check-In History (${myBuddy.checkins?.length || 0})`
+                      })}
                     </h4>
                     {myBuddy.checkins?.map((c: any, idx: number) => (
                       <div key={idx} className="p-3 border rounded-md bg-muted/10 text-xs space-y-1">
                         <div className="flex justify-between font-medium">
-                          <span>Check-in on {new Date(c.completedAt).toLocaleDateString()}</span>
+                          <span>
+                            {t('myBuddyTab.checkinOn', {
+                              date: new Date(c.completedAt).toLocaleDateString(),
+                              defaultValue: `Check-in on ${new Date(c.completedAt).toLocaleDateString()}`
+                            })}
+                          </span>
                           <span className="flex items-center gap-1 text-amber-600">
                             <Star className="h-3 w-3 fill-current" /> {c.rating}/5
                           </span>
@@ -605,14 +632,22 @@ export const BuddyProgram: React.FC = () => {
       {activeTab === 'my-mentees' && (
         <Card>
           <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-base font-semibold">Assigned Onboarding Mentees</CardTitle>
-            <CardDescription>Track new hires you are mentoring as an Onboarding Buddy.</CardDescription>
+            <CardTitle className="text-base font-semibold">
+              {t('myMenteesTab.title', { defaultValue: 'Assigned Onboarding Mentees' })}
+            </CardTitle>
+            <CardDescription>
+              {t('myMenteesTab.desc', { defaultValue: 'Track new hires you are mentoring as an Onboarding Buddy.' })}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {menteesLoading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading mentees...</div>
+              <div className="p-8 text-center text-muted-foreground">
+                {t('myMenteesTab.loading', { defaultValue: 'Loading mentees...' })}
+              </div>
             ) : (mentees || []).length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">You do not have any active onboarding mentees assigned.</div>
+              <div className="p-8 text-center text-muted-foreground">
+                {t('myMenteesTab.empty', { defaultValue: 'You do not have any active onboarding mentees assigned.' })}
+              </div>
             ) : (
               <div>
                 <div className="divide-y">
@@ -644,7 +679,10 @@ export const BuddyProgram: React.FC = () => {
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              Paired on {new Date(m.assignedAt).toLocaleDateString()}
+                              {t('myMenteesTab.pairedOn', {
+                                date: new Date(m.assignedAt).toLocaleDateString(),
+                                defaultValue: `Paired on ${new Date(m.assignedAt).toLocaleDateString()}`
+                              })}
                             </p>
                           </div>
 
@@ -661,7 +699,7 @@ export const BuddyProgram: React.FC = () => {
                                 setIsCustomTaskModalOpen(true);
                               }}
                             >
-                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Task
+                              <Plus className="h-3.5 w-3.5 mr-1" /> {t('myMenteesTab.addCustomTask', { defaultValue: 'Add Custom Task' })}
                             </Button>
                             <Button
                               size="sm"
@@ -672,7 +710,7 @@ export const BuddyProgram: React.FC = () => {
                                 setIsCheckinModalOpen(true);
                               }}
                             >
-                              <MessageSquare className="h-3.5 w-3.5 mr-1" /> Log 1-on-1 Check-In
+                              <MessageSquare className="h-3.5 w-3.5 mr-1" /> {t('myMenteesTab.logCheckin', { defaultValue: 'Log 1-on-1 Check-In' })}
                             </Button>
                           </div>
                         </div>
@@ -680,8 +718,15 @@ export const BuddyProgram: React.FC = () => {
                         {/* Progress Bar */}
                         <div className="space-y-1.5 bg-muted/20 p-3.5 rounded-lg border">
                           <div className="flex justify-between items-center text-xs font-semibold text-foreground">
-                            <span>Mentee Ramp Progress</span>
-                            <span data-testid="mentee-progress-bar">{progressPercentage}% ({completedTasks} of {totalTasks} tasks completed)</span>
+                            <span>{t('myMenteesTab.rampProgress', { defaultValue: 'Mentee Ramp Progress' })}</span>
+                            <span data-testid="mentee-progress-bar">
+                              {t('myMenteesTab.progressSummary', {
+                                percent: progressPercentage,
+                                completed: completedTasks,
+                                total: totalTasks,
+                                defaultValue: `${progressPercentage}% (${completedTasks} of ${totalTasks} tasks completed)`
+                              })}
+                            </span>
                           </div>
                           <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
                             <div
@@ -695,7 +740,7 @@ export const BuddyProgram: React.FC = () => {
                         {/* Checklist Items */}
                         <div className="space-y-2 pt-1">
                           <h5 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                            <CheckSquare className="h-3.5 w-3.5 text-indigo-600" /> Onboarding & Cultural Checklist
+                            <CheckSquare className="h-3.5 w-3.5 text-indigo-600" /> {t('myMenteesTab.checklistHeading', { defaultValue: 'Onboarding & Cultural Checklist' })}
                           </h5>
                           <div className="space-y-2">
                             {m.checklist?.map((item: any) => (
@@ -719,7 +764,10 @@ export const BuddyProgram: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                   {item.completedAt && (
                                     <span className="text-[10px] text-muted-foreground">
-                                      Done {new Date(item.completedAt).toLocaleDateString()}
+                                      {t('myMenteesTab.doneOn', {
+                                        date: new Date(item.completedAt).toLocaleDateString(),
+                                        defaultValue: `Done ${new Date(item.completedAt).toLocaleDateString()}`
+                                      })}
                                     </span>
                                   )}
                                   <Badge variant="outline" className="uppercase text-[9px]">
@@ -735,11 +783,16 @@ export const BuddyProgram: React.FC = () => {
                         <div data-testid="checkin-timeline" className="space-y-2 pt-3 border-t">
                           <div className="flex justify-between items-center">
                             <h5 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                              <MessageSquare className="h-3.5 w-3.5 text-indigo-600" /> Recent Check-In Interactions ({m.checkins?.length || 0})
+                              <MessageSquare className="h-3.5 w-3.5 text-indigo-600" /> {t('myMenteesTab.recentInteractions', {
+                                count: m.checkins?.length || 0,
+                                defaultValue: `Recent Check-In Interactions (${m.checkins?.length || 0})`
+                              })}
                             </h5>
                           </div>
                           {(!m.checkins || m.checkins.length === 0) ? (
-                            <p className="text-xs text-muted-foreground italic py-1">No check-ins logged yet. Schedule or log an informal 1-on-1 check-in above.</p>
+                            <p className="text-xs text-muted-foreground italic py-1">
+                              {t('myMenteesTab.noInteractions', { defaultValue: 'No check-ins logged yet. Schedule or log an informal 1-on-1 check-in above.' })}
+                            </p>
                           ) : (
                             <div className="space-y-2.5">
                               {m.checkins.slice().reverse().map((c: any, idx: number) => {
@@ -752,7 +805,12 @@ export const BuddyProgram: React.FC = () => {
                                   >
                                     <div className="flex flex-wrap justify-between items-center gap-2">
                                       <div className="flex items-center gap-2 font-semibold text-foreground">
-                                        <span>Check-in on {new Date(c.completedAt).toLocaleDateString()}</span>
+                                        <span>
+                                          {t('myBuddyTab.checkinOn', {
+                                            date: new Date(c.completedAt).toLocaleDateString(),
+                                            defaultValue: `Check-in on ${new Date(c.completedAt).toLocaleDateString()}`
+                                          })}
+                                        </span>
                                         <Badge
                                           data-testid="sentiment-badge"
                                           className={
@@ -763,7 +821,11 @@ export const BuddyProgram: React.FC = () => {
                                               : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300'
                                           }
                                         >
-                                          {sentiment === 'positive' ? 'Positive' : sentiment === 'challenged' ? 'Challenged' : 'Neutral'}
+                                          {sentiment === 'positive'
+                                            ? t('myMenteesTab.sentimentPositive', { defaultValue: 'Positive' })
+                                            : sentiment === 'challenged'
+                                            ? t('myMenteesTab.sentimentChallenged', { defaultValue: 'Challenged' })
+                                            : t('myMenteesTab.sentimentNeutral', { defaultValue: 'Neutral' })}
                                         </Badge>
                                       </div>
                                       {c.rating && (
@@ -794,7 +856,7 @@ export const BuddyProgram: React.FC = () => {
                     pageSize={menteesPagination.pageSize}
                     onPageChange={menteesPagination.setPage}
                     onPageSizeChange={menteesPagination.setPageSize}
-                    itemLabel="mentees"
+                    itemLabel={t('myMenteesTab.menteesItemLabel', { defaultValue: 'mentees' })}
                   />
                 </div>
               </div>
@@ -809,8 +871,12 @@ export const BuddyProgram: React.FC = () => {
           <Card>
             <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold">Active Onboarding Buddy Pairings</CardTitle>
-                <CardDescription>Review peer mentorship pairings, checklist progress, and re-assign buddies.</CardDescription>
+                <CardTitle className="text-base font-semibold">
+                  {t('pairingsTab.title', { defaultValue: 'Active Onboarding Buddy Pairings' })}
+                </CardTitle>
+                <CardDescription>
+                  {t('pairingsTab.desc', { defaultValue: 'Review peer mentorship pairings, checklist progress, and re-assign buddies.' })}
+                </CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -821,14 +887,18 @@ export const BuddyProgram: React.FC = () => {
                 }}
                 data-testid="assign-buddy-btn-tab"
               >
-                <Plus className="h-4 w-4 mr-1" /> New Pairing
+                <Plus className="h-4 w-4 mr-1" /> {t('pairingsTab.newPairing', { defaultValue: 'New Pairing' })}
               </Button>
             </CardHeader>
             <CardContent className="p-6">
               {assignmentsLoading ? (
-                <div className="p-8 text-center text-muted-foreground">Loading pairings...</div>
+                <div className="p-8 text-center text-muted-foreground">
+                  {t('pairingsTab.loading', { defaultValue: 'Loading pairings...' })}
+                </div>
               ) : (allAssignments || []).length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">No active buddy pairings found. Click "Assign Buddy" to create one.</div>
+                <div className="p-8 text-center text-muted-foreground">
+                  {t('pairingsTab.empty', { defaultValue: 'No active buddy pairings found. Click "Assign Buddy" to create one.' })}
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {assignmentsPagination.paginatedData.map((p) => {
@@ -865,7 +935,8 @@ export const BuddyProgram: React.FC = () => {
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Mentee ({p.newHireUserId?.employment?.department || 'Department'}) &bull; Paired with <span className="font-semibold text-foreground">{buddyName}</span>
+                              {t('pairingsTab.mentee', { defaultValue: 'Mentee' })} ({p.newHireUserId?.employment?.department || 'Department'}) &bull; {t('pairingsTab.pairedWith', { defaultValue: 'Paired with' })}{' '}
+                              <span className="font-semibold text-foreground">{buddyName}</span>
                             </p>
                           </div>
 
@@ -881,14 +952,14 @@ export const BuddyProgram: React.FC = () => {
                             }}
                             data-testid="reassign-buddy-btn"
                           >
-                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Re-assign
+                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> {t('pairingsTab.reassign', { defaultValue: 'Re-assign' })}
                           </Button>
                         </div>
 
                         {/* Progress Bar */}
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-xs font-semibold">
-                            <span>Checklist Progress</span>
+                            <span>{t('pairingsTab.checklistProgress', { defaultValue: 'Checklist Progress' })}</span>
                             <span data-testid="checklist-progress">{progressPercent}%</span>
                           </div>
                           <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -898,7 +969,11 @@ export const BuddyProgram: React.FC = () => {
                             />
                           </div>
                           <p className="text-[11px] text-muted-foreground">
-                            {completedCount} of {totalCount} onboarding tasks completed
+                            {t('pairingsTab.tasksCompleted', {
+                              completed: completedCount,
+                              total: totalCount,
+                              defaultValue: `${completedCount} of ${totalCount} onboarding tasks completed`
+                            })}
                           </p>
                         </div>
 
@@ -927,7 +1002,10 @@ export const BuddyProgram: React.FC = () => {
                           ))}
                           {(p.checklist?.length || 0) > 3 && (
                             <p className="text-[10px] text-muted-foreground italic text-center pt-1">
-                              + {(p.checklist?.length || 0) - 3} more checklist items
+                              {t('pairingsTab.moreItems', {
+                                count: (p.checklist?.length || 0) - 3,
+                                defaultValue: `+ ${(p.checklist?.length || 0) - 3} more checklist items`
+                              })}
                             </p>
                           )}
                         </div>
@@ -946,9 +1024,13 @@ export const BuddyProgram: React.FC = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {availableLoading ? (
-              <div className="p-8 text-center text-muted-foreground col-span-3">Loading available buddies...</div>
+              <div className="p-8 text-center text-muted-foreground col-span-3">
+                {t('directoryTab.loading', { defaultValue: 'Loading available buddies...' })}
+              </div>
             ) : (availableBuddies || []).length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground col-span-3">No buddies registered in this organization yet.</div>
+              <div className="p-8 text-center text-muted-foreground col-span-3">
+                {t('directoryTab.empty', { defaultValue: 'No buddies registered in this organization yet.' })}
+              </div>
             ) : (
               buddiesPagination.paginatedData.map((b) => (
                 <Card key={b._id} className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
@@ -980,7 +1062,8 @@ export const BuddyProgram: React.FC = () => {
 
                   <div className="pt-4 border-t mt-4 flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">
-                      Mentee Capacity: <strong className="text-foreground">{b.currentMenteeCount} / {b.maxMentees}</strong>
+                      {t('directoryTab.menteeCapacity', { defaultValue: 'Mentee Capacity:' })}{' '}
+                      <strong className="text-foreground">{b.currentMenteeCount} / {b.maxMentees}</strong>
                     </span>
                     {canAssignBuddy && (
                       <Button
@@ -993,7 +1076,7 @@ export const BuddyProgram: React.FC = () => {
                           setIsAssignModalOpen(true);
                         }}
                       >
-                        Pair Mentee
+                        {t('directoryTab.pairMentee', { defaultValue: 'Pair Mentee' })}
                       </Button>
                     )}
                   </div>
@@ -1011,7 +1094,7 @@ export const BuddyProgram: React.FC = () => {
             pageSize={buddiesPagination.pageSize}
             onPageChange={buddiesPagination.setPage}
             onPageSizeChange={buddiesPagination.setPageSize}
-            itemLabel="buddies"
+            itemLabel={t('directoryTab.buddiesItemLabel', { defaultValue: 'buddies' })}
           />
         </div>
       )}
@@ -1025,14 +1108,14 @@ export const BuddyProgram: React.FC = () => {
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-indigo-600" />
-                    Algorithmic Multi-Factor Buddy Matching Engine
+                    {t('matchingTab.title', { defaultValue: 'Algorithmic Multi-Factor Buddy Matching Engine' })}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Evaluates candidate mentors against incoming new hires across 5 weighted factors (Dept 35%, Loc/Tz 25%, Lang 20%, Capacity 15%, Skills 5%).
+                    {t('matchingTab.desc', { defaultValue: 'Evaluates candidate mentors against incoming new hires across 5 weighted factors (Dept 35%, Loc/Tz 25%, Lang 20%, Capacity 15%, Skills 5%).' })}
                   </CardDescription>
                 </div>
                 <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200">
-                  Dynamic Algorithmic Scoring
+                  {t('matchingTab.badge', { defaultValue: 'Dynamic Algorithmic Scoring' })}
                 </Badge>
               </div>
             </CardHeader>
@@ -1040,12 +1123,12 @@ export const BuddyProgram: React.FC = () => {
               {/* Mentee Selector */}
               <div className="max-w-md space-y-1.5">
                 <label className="text-xs font-semibold text-foreground block">
-                  Select New Hire to Analyze Compatibility:
+                  {t('matchingTab.selectHireLabel', { defaultValue: 'Select New Hire to Analyze Compatibility:' })}
                 </label>
                 <SearchableSelect
                   value={selectedHireForMatching || employees[0]?.id || ''}
                   onChange={setSelectedHireForMatching}
-                  placeholder="Select new hire..."
+                  placeholder={t('matchingTab.selectHirePlaceholder', { defaultValue: 'Select new hire...' })}
                   options={employees.map((e: any) => ({
                     value: e.id,
                     label: e.name || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Employee',
@@ -1064,7 +1147,7 @@ export const BuddyProgram: React.FC = () => {
                 if (!targetHire || candidateMatches.length === 0) {
                   return (
                     <div className="p-8 text-center text-muted-foreground text-xs">
-                      Please register available buddies and select a new hire to compute algorithmic match metrics.
+                      {t('matchingTab.emptyNotice', { defaultValue: 'Please register available buddies and select a new hire to compute algorithmic match metrics.' })}
                     </div>
                   );
                 }
@@ -1073,7 +1156,11 @@ export const BuddyProgram: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Top Ranked Mentor Candidates for {targetHire.name} ({candidateMatches.length} candidates evaluated):
+                        {t('matchingTab.topRankedHeading', {
+                          name: targetHire.name,
+                          count: candidateMatches.length,
+                          defaultValue: `Top Ranked Mentor Candidates for ${targetHire.name} (${candidateMatches.length} candidates evaluated):`
+                        })}
                       </h4>
                     </div>
 
@@ -1091,7 +1178,11 @@ export const BuddyProgram: React.FC = () => {
                                 <div>
                                   <h5 className="font-bold text-xs text-foreground">{buddyName}</h5>
                                   <p className="text-[11px] text-muted-foreground">
-                                    {match.buddy?.department || 'General'} • {match.buddy?.currentMenteeCount || 0}/{match.buddy?.maxMentees || 3} active mentees
+                                    {match.buddy?.department || 'General'} • {t('matchingTab.activeMentees', {
+                                      current: match.buddy?.currentMenteeCount || 0,
+                                      max: match.buddy?.maxMentees || 3,
+                                      defaultValue: `${match.buddy?.currentMenteeCount || 0}/${match.buddy?.maxMentees || 3} active mentees`
+                                    })}
                                   </p>
                                 </div>
                               </div>
@@ -1108,7 +1199,7 @@ export const BuddyProgram: React.FC = () => {
                                 }}
                                 className="text-xs h-7 gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
                               >
-                                Pair Mentor
+                                {t('matchingTab.pairMentorBtn', { defaultValue: 'Pair Mentor' })}
                               </Button>
                             </div>
 
@@ -1133,11 +1224,15 @@ export const BuddyProgram: React.FC = () => {
           {/* Proactive Coaching Sentinel Feed */}
           <ProactiveCoachingFeed
             onLogCheckin={(prompt) => {
-              toast.info(`Opening quick check-in log for ${prompt.menteeName}`);
+              toast.info(t('toasts.quickCheckinOpening', { name: prompt.menteeName, defaultValue: `Opening quick check-in log for ${prompt.menteeName}` }));
               setIsCheckinModalOpen(true);
             }}
             onScheduleSync={(prompt) => {
-              toast.success(`1-on-1 calendar invite dispatched for Week ${prompt.week} check-in with ${prompt.menteeName}`);
+              toast.success(t('toasts.inviteDispatched', {
+                week: prompt.week,
+                name: prompt.menteeName,
+                defaultValue: `1-on-1 calendar invite dispatched for Week ${prompt.week} check-in with ${prompt.menteeName}`
+              }));
             }}
           />
         </div>
@@ -1147,8 +1242,8 @@ export const BuddyProgram: React.FC = () => {
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4">
-            <DialogTitle>Pair Mentee with Onboarding Buddy</DialogTitle>
-            <DialogDescription>Select an incoming direct report, choose an eligible buddy mentor, and attach a checklist.</DialogDescription>
+            <DialogTitle>{t('assignModal.title', { defaultValue: 'Pair Mentee with Onboarding Buddy' })}</DialogTitle>
+            <DialogDescription>{t('assignModal.desc', { defaultValue: 'Select an incoming direct report, choose an eligible buddy mentor, and attach a checklist.' })}</DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4 text-sm">
@@ -1163,7 +1258,9 @@ export const BuddyProgram: React.FC = () => {
             )}
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Incoming Mentee (Direct Report) *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('assignModal.menteeLabel', { defaultValue: 'Incoming Mentee (Direct Report) *' })}
+              </label>
               <SearchableSelect
                 data-testid="mentee-select"
                 value={selectedNewHireId}
@@ -1171,8 +1268,8 @@ export const BuddyProgram: React.FC = () => {
                   setSelectedNewHireId(val);
                   setValidationError('');
                 }}
-                placeholder="Search & select incoming mentee..."
-                searchPlaceholder="Search by mentee name, email, dept..."
+                placeholder={t('assignModal.menteePlaceholder', { defaultValue: 'Search & select incoming mentee...' })}
+                searchPlaceholder={t('assignModal.menteeSearchPlaceholder', { defaultValue: 'Search by mentee name, email, dept...' })}
                 options={employees.map((emp: any) => ({
                   value: emp.id,
                   label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
@@ -1183,7 +1280,9 @@ export const BuddyProgram: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Available Designated Buddy *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('assignModal.buddyLabel', { defaultValue: 'Available Designated Buddy *' })}
+              </label>
               <SearchableSelect
                 data-testid="buddy-select"
                 value={selectedBuddyId}
@@ -1191,38 +1290,55 @@ export const BuddyProgram: React.FC = () => {
                   setSelectedBuddyId(val);
                   setValidationError('');
                 }}
-                placeholder="Search & select registered buddy..."
-                searchPlaceholder="Search buddy by name, department..."
+                placeholder={t('assignModal.buddyPlaceholder', { defaultValue: 'Search & select registered buddy...' })}
+                searchPlaceholder={t('assignModal.buddySearchPlaceholder', { defaultValue: 'Search buddy by name, department...' })}
                 options={(availableBuddies || []).map((b: any) => {
                   const bName = `${b.userId?.profile?.firstName || ''} ${b.userId?.profile?.lastName || ''}`.trim() || b.userId?.email || 'Buddy';
                   return {
                     value: b.userId?._id,
                     label: bName,
-                    sublabel: `${b.department || 'General'} • Mentee Capacity: ${b.currentMenteeCount}/${b.maxMentees}`,
-                    badge: `${b.currentMenteeCount}/${b.maxMentees} load`,
+                    sublabel: t('assignModal.capacitySublabel', {
+                      dept: b.department || 'General',
+                      current: b.currentMenteeCount,
+                      max: b.maxMentees,
+                      defaultValue: `${b.department || 'General'} • Mentee Capacity: ${b.currentMenteeCount}/${b.maxMentees}`
+                    }),
+                    badge: t('assignModal.loadBadge', {
+                      current: b.currentMenteeCount,
+                      max: b.maxMentees,
+                      defaultValue: `${b.currentMenteeCount}/${b.maxMentees} load`
+                    }),
                   };
                 })}
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Checklist Template *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('assignModal.templateLabel', { defaultValue: 'Checklist Template *' })}
+              </label>
               <select
                 data-testid="checklist-template-select"
                 className="w-full text-xs p-2.5 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
               >
-                <option value="Standard Cultural Onboarding">Standard Cultural Onboarding</option>
-                <option value="Technical Deep Dive & Tooling">Technical Deep Dive & Tooling</option>
-                <option value="Leadership & Executive Fast Track">Leadership & Executive Fast Track</option>
+                <option value="Standard Cultural Onboarding">
+                  {t('assignModal.templates.standard', { defaultValue: 'Standard Cultural Onboarding' })}
+                </option>
+                <option value="Technical Deep Dive & Tooling">
+                  {t('assignModal.templates.technical', { defaultValue: 'Technical Deep Dive & Tooling' })}
+                </option>
+                <option value="Leadership & Executive Fast Track">
+                  {t('assignModal.templates.leadership', { defaultValue: 'Leadership & Executive Fast Track' })}
+                </option>
               </select>
             </div>
           </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsAssignModalOpen(false)}>
-              Cancel
+              {t('assignModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               size="sm"
@@ -1230,7 +1346,7 @@ export const BuddyProgram: React.FC = () => {
               onClick={handleAssignBuddy}
               data-testid="create-pairing-btn"
             >
-              Create Pairing
+              {t('assignModal.createBtn', { defaultValue: 'Create Pairing' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1240,8 +1356,8 @@ export const BuddyProgram: React.FC = () => {
       <Dialog open={isCheckinModalOpen} onOpenChange={setIsCheckinModalOpen}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4">
-            <DialogTitle>Log 1-on-1 Buddy Check-In</DialogTitle>
-            <DialogDescription>Record meeting notes, guidance provided, and mentee sentiment.</DialogDescription>
+            <DialogTitle>{t('checkinModal.title', { defaultValue: 'Log 1-on-1 Buddy Check-In' })}</DialogTitle>
+            <DialogDescription>{t('checkinModal.desc', { defaultValue: 'Record meeting notes, guidance provided, and mentee sentiment.' })}</DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4 text-sm">
@@ -1256,21 +1372,25 @@ export const BuddyProgram: React.FC = () => {
             )}
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Mentee Sentiment *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('checkinModal.sentimentLabel', { defaultValue: 'Mentee Sentiment *' })}
+              </label>
               <select
                 data-testid="checkin-sentiment-select"
                 className="w-full text-xs p-2.5 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={checkinSentiment}
                 onChange={(e: any) => setCheckinSentiment(e.target.value)}
               >
-                <option value="positive">Positive - Settling in well & confident</option>
-                <option value="neutral">Neutral - Steady ramp & on track</option>
-                <option value="challenged">Challenged - Facing blockers or support needed</option>
+                <option value="positive">{t('checkinModal.sentiments.positive', { defaultValue: 'Positive - Settling in well & confident' })}</option>
+                <option value="neutral">{t('checkinModal.sentiments.neutral', { defaultValue: 'Neutral - Steady ramp & on track' })}</option>
+                <option value="challenged">{t('checkinModal.sentiments.challenged', { defaultValue: 'Challenged - Facing blockers or support needed' })}</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Meeting Rating (1 to 5 Stars):</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('checkinModal.ratingLabel', { defaultValue: 'Meeting Rating (1 to 5 Stars):' })}
+              </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -1288,11 +1408,13 @@ export const BuddyProgram: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">1-on-1 Meeting Notes & Observations *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('checkinModal.notesLabel', { defaultValue: '1-on-1 Meeting Notes & Observations *' })}
+              </label>
               <textarea
                 data-testid="checkin-notes-textarea"
                 className="w-full min-h-[90px] text-xs p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background text-foreground resize-none"
-                placeholder="Met for coffee. Mentee is settling in well and enjoying the codebase..."
+                placeholder={t('checkinModal.notesPlaceholder', { defaultValue: 'Met for coffee. Mentee is settling in well and enjoying the codebase...' })}
                 value={checkinNotes}
                 onChange={(e) => {
                   setCheckinNotes(e.target.value);
@@ -1304,7 +1426,7 @@ export const BuddyProgram: React.FC = () => {
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsCheckinModalOpen(false)}>
-              Cancel
+              {t('checkinModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               size="sm"
@@ -1312,7 +1434,7 @@ export const BuddyProgram: React.FC = () => {
               onClick={handleLogCheckin}
               data-testid="submit-checkin-btn"
             >
-              Submit Check-in
+              {t('checkinModal.submitBtn', { defaultValue: 'Submit Check-in' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1322,8 +1444,14 @@ export const BuddyProgram: React.FC = () => {
       <Dialog open={isRegisterModalOpen} onOpenChange={setIsRegisterModalOpen}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4">
-            <DialogTitle>{myBuddyProfile ? 'Edit Buddy Profile' : 'Join as an Onboarding Buddy'}</DialogTitle>
-            <DialogDescription>Submit your mentorship bio, languages, technical skills, and mentee capacity.</DialogDescription>
+            <DialogTitle>
+              {myBuddyProfile
+                ? t('registerModal.titleEdit', { defaultValue: 'Edit Buddy Profile' })
+                : t('registerModal.titleCreate', { defaultValue: 'Join as an Onboarding Buddy' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('registerModal.desc', { defaultValue: 'Submit your mentorship bio, languages, technical skills, and mentee capacity.' })}
+            </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4 text-sm">
@@ -1338,11 +1466,13 @@ export const BuddyProgram: React.FC = () => {
             )}
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Bio & Mentorship Introduction *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('registerModal.bioLabel', { defaultValue: 'Bio & Mentorship Introduction *' })}
+              </label>
               <textarea
                 data-testid="buddy-bio-input"
                 className="w-full min-h-[80px] text-xs p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background text-foreground resize-none"
-                placeholder="Share your experience and how you can support new team members..."
+                placeholder={t('registerModal.bioPlaceholder', { defaultValue: 'Share your experience and how you can support new team members...' })}
                 value={buddyBio}
                 onChange={(e) => {
                   setBuddyBio(e.target.value);
@@ -1351,10 +1481,12 @@ export const BuddyProgram: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Technical Skills (comma separated)</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('registerModal.skillsLabel', { defaultValue: 'Technical Skills (comma separated)' })}
+              </label>
               <Input
                 data-testid="buddy-skills-input"
-                placeholder="e.g. TypeScript, MongoDB, Node.js"
+                placeholder={t('registerModal.skillsPlaceholder', { defaultValue: 'e.g. TypeScript, MongoDB, Node.js' })}
                 value={buddySkills}
                 onChange={(e: any) => {
                   setBuddySkills(e.target.value);
@@ -1364,10 +1496,12 @@ export const BuddyProgram: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Languages (comma separated)</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('registerModal.languagesLabel', { defaultValue: 'Languages (comma separated)' })}
+              </label>
               <Input
                 data-testid="buddy-languages-input"
-                placeholder="e.g. English, Spanish"
+                placeholder={t('registerModal.languagesPlaceholder', { defaultValue: 'e.g. English, Spanish' })}
                 value={buddyLanguages}
                 onChange={(e: any) => {
                   setBuddyLanguages(e.target.value);
@@ -1377,7 +1511,9 @@ export const BuddyProgram: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Max Mentees Capacity (1 to 10) *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('registerModal.capacityLabel', { defaultValue: 'Max Mentees Capacity (1 to 10) *' })}
+              </label>
               <Input
                 type="number"
                 min="1"
@@ -1401,14 +1537,14 @@ export const BuddyProgram: React.FC = () => {
                 className="rounded border-border text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
               />
               <label htmlFor="buddy-is-available" className="text-xs font-medium cursor-pointer text-foreground">
-                Available for new mentee pairings (uncheck if on vacation)
+                {t('registerModal.availableCheckbox', { defaultValue: 'Available for new mentee pairings (uncheck if on vacation)' })}
               </label>
             </div>
           </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsRegisterModalOpen(false)}>
-              Cancel
+              {t('registerModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               size="sm"
@@ -1416,7 +1552,7 @@ export const BuddyProgram: React.FC = () => {
               onClick={handleRegisterBuddyProfile}
               data-testid="save-profile-btn"
             >
-              Save Profile
+              {t('registerModal.saveBtn', { defaultValue: 'Save Profile' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1426,39 +1562,47 @@ export const BuddyProgram: React.FC = () => {
       <Dialog open={isCustomTaskModalOpen} onOpenChange={setIsCustomTaskModalOpen}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4">
-            <DialogTitle>Add Custom Task to Mentee Checklist</DialogTitle>
-            <DialogDescription>Create an ad-hoc mentoring or cultural milestone for this mentee.</DialogDescription>
+            <DialogTitle>
+              {t('customTaskModal.title', { defaultValue: 'Add Custom Task to Mentee Checklist' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('customTaskModal.desc', { defaultValue: 'Create an ad-hoc mentoring or cultural milestone for this mentee.' })}
+            </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4 text-sm">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Task Title *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('customTaskModal.titleLabel', { defaultValue: 'Task Title *' })}
+              </label>
               <Input
                 data-testid="custom-task-title-input"
-                placeholder="e.g. Schedule team lunch or review project goals"
+                placeholder={t('customTaskModal.titlePlaceholder', { defaultValue: 'e.g. Schedule team lunch or review project goals' })}
                 value={customTaskTitle}
                 onChange={(e: any) => setCustomTaskTitle(e.target.value)}
                 className="text-xs rounded-xl"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Onboarding Stage</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('customTaskModal.stageLabel', { defaultValue: 'Onboarding Stage' })}
+              </label>
               <select
                 data-testid="custom-task-stage-select"
                 className="w-full text-xs p-2.5 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
                 value={customTaskStage}
                 onChange={(e: any) => setCustomTaskStage(e.target.value)}
               >
-                <option value="day_1">Day 1</option>
-                <option value="week_1">Week 1</option>
-                <option value="month_1">Month 1</option>
+                <option value="day_1">{t('customTaskModal.stages.day1', { defaultValue: 'Day 1' })}</option>
+                <option value="week_1">{t('customTaskModal.stages.week1', { defaultValue: 'Week 1' })}</option>
+                <option value="month_1">{t('customTaskModal.stages.month1', { defaultValue: 'Month 1' })}</option>
               </select>
             </div>
           </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsCustomTaskModalOpen(false)}>
-              Cancel
+              {t('customTaskModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               size="sm"
@@ -1466,7 +1610,7 @@ export const BuddyProgram: React.FC = () => {
               onClick={handleAddCustomTask}
               data-testid="save-custom-task-btn"
             >
-              Add Task
+              {t('customTaskModal.addBtn', { defaultValue: 'Add Task' })}
             </Button>
           </DialogFooter>
         </DialogContent>

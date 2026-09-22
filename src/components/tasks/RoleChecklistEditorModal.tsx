@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -22,31 +23,32 @@ interface RoleChecklistEditorModalProps {
   template?: IRoleChecklistTemplate | null;
 }
 
-const AVAILABLE_ROLES = [
-  { value: 'employee', label: 'Employee' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'admin', label: 'Administrator' },
-  { value: 'hr_admin', label: 'HR Admin' },
-  { value: 'it_admin', label: 'IT Admin' },
-];
-
-const EMPLOYMENT_TYPES = [
-  { value: 'full_time', label: 'Full-Time' },
-  { value: 'part_time', label: 'Part-Time' },
-  { value: 'contractor', label: 'Contractor' },
-  { value: 'intern', label: 'Intern' },
-];
-
 export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> = ({
   isOpen,
   onClose,
   template,
 }) => {
+  const { t } = useTranslation(['tasks', 'common']);
   const isEditing = Boolean(template?._id);
   const { data: orgDepartments = [] } = useDepartments();
 
   const createMutation = useCreateTaskTemplate();
   const updateMutation = useUpdateTaskTemplate();
+
+  const availableRoles = [
+    { value: 'employee', label: t('checklistEditor.roleEmployee', { defaultValue: 'Employee' }) },
+    { value: 'manager', label: t('checklistEditor.roleManager', { defaultValue: 'Manager' }) },
+    { value: 'admin', label: t('checklistEditor.roleAdmin', { defaultValue: 'Administrator' }) },
+    { value: 'hr_admin', label: t('checklistEditor.roleHrAdmin', { defaultValue: 'HR Admin' }) },
+    { value: 'it_admin', label: t('checklistEditor.roleItAdmin', { defaultValue: 'IT Admin' }) },
+  ];
+
+  const employmentTypes = [
+    { value: 'full_time', label: t('checklistEditor.empTypeFullTime', { defaultValue: 'Full-Time' }) },
+    { value: 'part_time', label: t('checklistEditor.empTypePartTime', { defaultValue: 'Part-Time' }) },
+    { value: 'contractor', label: t('checklistEditor.empTypeContractor', { defaultValue: 'Contractor' }) },
+    { value: 'intern', label: t('checklistEditor.empTypeIntern', { defaultValue: 'Intern' }) },
+  ];
 
   // Form states
   const [title, setTitle] = useState('');
@@ -199,12 +201,12 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
 
   const handleSubmit = () => {
     if (!title.trim()) {
-      toast.error('Please provide a template title');
+      toast.error(t('checklistEditor.titleRequired', { defaultValue: 'Please provide a template title' }));
       return;
     }
 
     if (items.length === 0 || items.some((item) => !item.title.trim())) {
-      toast.error('All checklist items must have a title');
+      toast.error(t('checklistEditor.itemsTitleRequired', { defaultValue: 'All checklist items must have a title' }));
       return;
     }
 
@@ -246,10 +248,15 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
             </div>
             <div>
               <DialogTitle className="text-lg sm:text-xl font-bold">
-                {isEditing ? 'Edit Role Checklist Template' : 'Create Role Checklist Template'}
+                {isEditing
+                  ? t('checklistEditor.editTitle', { defaultValue: 'Edit Role Checklist Template' })
+                  : t('checklistEditor.createTitle', { defaultValue: 'Create Role Checklist Template' })}
               </DialogTitle>
               <DialogDescription className="text-xs mt-0.5 text-muted-foreground">
-                Define reusable default tasks with relative deadlines (now() + N days) automatically assigned to matching new hires.
+                {t('checklistEditor.desc', {
+                  defaultValue:
+                    'Define reusable default tasks with relative deadlines (now() + N days) automatically assigned to matching new hires.',
+                })}
               </DialogDescription>
             </div>
           </div>
@@ -259,20 +266,28 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
           {/* Section 1: Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-foreground">Template Title *</label>
+              <label className="text-xs font-bold text-foreground">
+                {t('checklistEditor.templateTitleLabel', { defaultValue: 'Template Title *' })}
+              </label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Software Engineer Day 1-30 Ramp Checklist"
+                placeholder={t('checklistEditor.templateTitlePlaceholder', {
+                  defaultValue: 'e.g. Software Engineer Day 1-30 Ramp Checklist',
+                })}
                 className="text-xs font-medium"
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-semibold text-muted-foreground">Description / Purpose</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                {t('checklistEditor.descLabel', { defaultValue: 'Description / Purpose' })}
+              </label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief summary of what this checklist guides new hires through..."
+                placeholder={t('checklistEditor.descPlaceholder', {
+                  defaultValue: 'Brief summary of what this checklist guides new hires through...',
+                })}
                 className="text-xs"
               />
             </div>
@@ -283,10 +298,14 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-indigo-600" /> Target Audience Matching Matrix
+                  <Sparkles className="h-4 w-4 text-indigo-600" />{' '}
+                  {t('checklistEditor.audienceMatrixTitle', { defaultValue: 'Target Audience Matching Matrix' })}
                 </h4>
                 <p className="text-[11px] text-muted-foreground">
-                  New hires matching any selected filters will have this checklist automatically assigned upon creation.
+                  {t('checklistEditor.audienceMatrixDesc', {
+                    defaultValue:
+                      'New hires matching any selected filters will have this checklist automatically assigned upon creation.',
+                  })}
                 </p>
               </div>
               <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
@@ -296,15 +315,19 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                   onChange={(e) => setAutoAssignNewHires(e.target.checked)}
                   className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                 />
-                <span>Auto-assign to new hires</span>
+                <span>
+                  {t('checklistEditor.autoAssignCheckbox', { defaultValue: 'Auto-assign to new hires' })}
+                </span>
               </label>
             </div>
 
             {/* Roles Chips */}
             <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-muted-foreground block">System Roles:</span>
+              <span className="text-[11px] font-semibold text-muted-foreground block">
+                {t('checklistEditor.systemRoles', { defaultValue: 'System Roles:' })}
+              </span>
               <div className="flex flex-wrap gap-1.5">
-                {AVAILABLE_ROLES.map((r) => {
+                {availableRoles.map((r) => {
                   const isSelected = selectedRoles.includes(r.value);
                   return (
                     <button
@@ -327,38 +350,57 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
             {/* Departments Chips */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-semibold text-muted-foreground block">
-                Departments ({selectedDepts.length === 0 ? 'All Departments' : `${selectedDepts.length} selected`}):
+                {t('checklistEditor.departments', {
+                  count:
+                    selectedDepts.length === 0
+                      ? t('checklistEditor.allDepartments', { defaultValue: 'All Departments' })
+                      : t('checklistEditor.selectedCount', {
+                          count: selectedDepts.length,
+                          defaultValue: `${selectedDepts.length} selected`,
+                        }),
+                  defaultValue: 'Departments ({{count}}):',
+                })}
               </span>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                {(orgDepartments.length ? orgDepartments.map((d: any) => d.name) : ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Operations']).map(
-                  (deptName: string) => {
-                    const isSelected = selectedDepts.includes(deptName);
-                    return (
-                      <button
-                        key={deptName}
-                        type="button"
-                        onClick={() => toggleDeptSelection(deptName)}
-                        className={`px-2.5 py-0.5 rounded-lg text-xs font-medium border transition-all ${
-                          isSelected
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background text-muted-foreground hover:text-foreground border-border'
-                        }`}
-                      >
-                        {deptName}
-                      </button>
-                    );
-                  }
-                )}
+                {(orgDepartments.length
+                  ? orgDepartments.map((d: any) => d.name)
+                  : ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Operations']
+                ).map((deptName: string) => {
+                  const isSelected = selectedDepts.includes(deptName);
+                  return (
+                    <button
+                      key={deptName}
+                      type="button"
+                      onClick={() => toggleDeptSelection(deptName)}
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-medium border transition-all ${
+                        isSelected
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-muted-foreground hover:text-foreground border-border'
+                      }`}
+                    >
+                      {deptName}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Employment Types */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-semibold text-muted-foreground block">
-                Employment Contract ({selectedEmpTypes.length === 0 ? 'All Types' : `${selectedEmpTypes.length} selected`}):
+                {t('checklistEditor.employmentContract', {
+                  count:
+                    selectedEmpTypes.length === 0
+                      ? t('checklistEditor.allTypes', { defaultValue: 'All Types' })
+                      : t('checklistEditor.selectedCount', {
+                          count: selectedEmpTypes.length,
+                          defaultValue: `${selectedEmpTypes.length} selected`,
+                        }),
+                  defaultValue: 'Employment Contract ({{count}}):',
+                })}
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {EMPLOYMENT_TYPES.map((et) => {
+                {employmentTypes.map((et) => {
                   const isSelected = selectedEmpTypes.includes(et.value);
                   return (
                     <button
@@ -383,13 +425,18 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-bold text-foreground">Checklist Tasks & Relative Deadlines</h4>
+                <h4 className="text-sm font-bold text-foreground">
+                  {t('checklistEditor.tasksDeadlinesTitle', { defaultValue: 'Checklist Tasks & Relative Deadlines' })}
+                </h4>
                 <p className="text-xs text-muted-foreground">
-                  Specify relative due days (+0 = Day 1 / today, +3 = Day 3, +7 = Week 1, +30 = Month 1).
+                  {t('checklistEditor.tasksDeadlinesDesc', {
+                    defaultValue:
+                      'Specify relative due days (+0 = Day 1 / today, +3 = Day 3, +7 = Week 1, +30 = Month 1).',
+                  })}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={handleAddItem} className="gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Add Task
+                <Plus className="h-3.5 w-3.5" /> {t('checklistEditor.addTaskBtn', { defaultValue: 'Add Task' })}
               </Button>
             </div>
 
@@ -407,7 +454,9 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                       <Input
                         value={item.title}
                         onChange={(e) => handleItemChange(idx, 'title', e.target.value)}
-                        placeholder="Task title (e.g. Schedule 1-on-1 team welcome)"
+                        placeholder={t('checklistEditor.taskTitlePlaceholder', {
+                          defaultValue: 'Task title (e.g. Schedule 1-on-1 team welcome)',
+                        })}
                         className="text-xs font-bold h-8 w-72 sm:w-96"
                       />
                     </div>
@@ -426,61 +475,63 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                     {/* Category */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
-                        Category
+                        {t('checklistEditor.category', { defaultValue: 'Category' })}
                       </label>
                       <select
                         value={item.category}
                         onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
                         className="w-full text-xs p-1.5 border rounded-md bg-background focus:outline-none"
                       >
-                        <option value="general">General</option>
-                        <option value="it_setup">IT Setup</option>
-                        <option value="hr_paperwork">HR Paperwork</option>
-                        <option value="training">Training</option>
-                        <option value="equipment">Equipment</option>
+                        <option value="general">{t('categoryLabels.general', { defaultValue: 'General' })}</option>
+                        <option value="it_setup">{t('categoryLabels.it_setup', { defaultValue: 'IT Setup' })}</option>
+                        <option value="hr_paperwork">{t('categoryLabels.hr_paperwork', { defaultValue: 'HR Paperwork' })}</option>
+                        <option value="training">{t('categoryLabels.training', { defaultValue: 'Training' })}</option>
+                        <option value="equipment">{t('categoryLabels.equipment', { defaultValue: 'Equipment' })}</option>
                       </select>
                     </div>
 
                     {/* Stage */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
-                        Onboarding Stage
+                        {t('checklistEditor.onboardingStage', { defaultValue: 'Onboarding Stage' })}
                       </label>
                       <select
                         value={item.stage}
                         onChange={(e) => handleItemChange(idx, 'stage', e.target.value)}
                         className="w-full text-xs p-1.5 border rounded-md bg-background focus:outline-none"
                       >
-                        <option value="preboarding">Pre-Boarding</option>
-                        <option value="day_1">Day 1</option>
-                        <option value="week_1">Week 1</option>
-                        <option value="month_1">Month 1</option>
-                        <option value="custom">Custom</option>
+                        <option value="preboarding">{t('stageLabels.preboarding', { defaultValue: 'Preboarding' })}</option>
+                        <option value="day_1">{t('stageLabels.day_1', { defaultValue: 'Day 1' })}</option>
+                        <option value="week_1">{t('stageLabels.week_1', { defaultValue: 'Week 1' })}</option>
+                        <option value="month_1">{t('stageLabels.month_1', { defaultValue: 'Month 1' })}</option>
+                        <option value="custom">{t('stageLabels.custom', { defaultValue: 'Custom' })}</option>
                       </select>
                     </div>
 
                     {/* Responsible Role */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1 flex items-center gap-1">
-                        <UserCheck className="h-3 w-3 text-indigo-600" /> Responsible Role
+                        <UserCheck className="h-3 w-3 text-indigo-600" />{' '}
+                        {t('checklistEditor.responsibleRole', { defaultValue: 'Responsible Role' })}
                       </label>
                       <select
                         value={item.responsibleRole || 'employee'}
                         onChange={(e) => handleItemChange(idx, 'responsibleRole', e.target.value)}
                         className="w-full text-xs p-1.5 border rounded-md bg-background focus:outline-none font-medium"
                       >
-                        <option value="employee">New Hire</option>
-                        <option value="manager">Direct Manager</option>
-                        <option value="it_admin">IT Administrator</option>
-                        <option value="hr_admin">HR Administrator</option>
-                        <option value="buddy">Onboarding Buddy</option>
+                        <option value="employee">{t('checklistEditor.respNewHire', { defaultValue: 'New Hire' })}</option>
+                        <option value="manager">{t('checklistEditor.respDirectManager', { defaultValue: 'Direct Manager' })}</option>
+                        <option value="it_admin">{t('checklistEditor.respItAdmin', { defaultValue: 'IT Administrator' })}</option>
+                        <option value="hr_admin">{t('checklistEditor.respHrAdmin', { defaultValue: 'HR Administrator' })}</option>
+                        <option value="buddy">{t('checklistEditor.respBuddy', { defaultValue: 'Onboarding Buddy' })}</option>
                       </select>
                     </div>
 
                     {/* Relative Deadline Offset */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1 flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-indigo-600" /> Due in (+Days)
+                        <Clock className="h-3 w-3 text-indigo-600" />{' '}
+                        {t('checklistEditor.dueInDays', { defaultValue: 'Due in (+Days)' })}
                       </label>
                       <div className="flex items-center gap-1.5">
                         <Input
@@ -494,7 +545,12 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                           className="text-xs h-7 w-20 font-mono font-bold"
                         />
                         <span className="text-[11px] text-muted-foreground">
-                          {item.relativeOffsetDays === 0 ? 'Today' : `+${item.relativeOffsetDays}d`}
+                          {item.relativeOffsetDays === 0
+                            ? t('checklistEditor.today', { defaultValue: 'Today' })
+                            : t('checklistEditor.plusDays', {
+                                days: item.relativeOffsetDays,
+                                defaultValue: `+${item.relativeOffsetDays}d`,
+                              })}
                         </span>
                       </div>
                     </div>
@@ -502,7 +558,8 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                     {/* Verification Toggle */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1 flex items-center gap-1">
-                        <ShieldCheck className="h-3 w-3 text-emerald-600" /> Verification
+                        <ShieldCheck className="h-3 w-3 text-emerald-600" />{' '}
+                        {t('checklistEditor.verification', { defaultValue: 'Verification' })}
                       </label>
                       <label className="flex items-center gap-2 pt-1 cursor-pointer">
                         <input
@@ -511,7 +568,9 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                           onChange={(e) => handleItemChange(idx, 'requiresVerification', e.target.checked)}
                           className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
                         />
-                        <span className="text-[11px]">Requires sign-off</span>
+                        <span className="text-[11px]">
+                          {t('checklistEditor.requiresSignoff', { defaultValue: 'Requires sign-off' })}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -523,7 +582,7 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
 
         <DialogFooter className="p-4 border-t bg-muted/20 flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
-            Cancel
+            {t('checklistEditor.cancel', { defaultValue: 'Cancel' })}
           </Button>
           <Button
             size="sm"
@@ -532,7 +591,9 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
             className="gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <CheckCircle2 className="h-4 w-4" />
-            {isEditing ? 'Save Template Changes' : 'Publish Checklist Template'}
+            {isEditing
+              ? t('checklistEditor.saveChanges', { defaultValue: 'Save Template Changes' })
+              : t('checklistEditor.publishTemplate', { defaultValue: 'Publish Checklist Template' })}
           </Button>
         </DialogFooter>
       </DialogContent>

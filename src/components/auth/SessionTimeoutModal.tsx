@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ export function SessionTimeoutModal({
   onStayLoggedIn,
   onLogout,
 }: SessionTimeoutModalProps) {
+  const { t } = useTranslation('auth');
   // Format MM:SS
   const mins = Math.floor(secondsRemaining / 60);
   const secs = secondsRemaining % 60;
@@ -42,10 +44,10 @@ export function SessionTimeoutModal({
             </div>
             <div>
               <DialogTitle className="text-base font-bold text-foreground">
-                Session Inactivity Warning
+                {t('sessionTimeout.warningTitle', 'Session Inactivity Warning')}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Your session is about to expire due to prolonged inactivity.
+                {t('sessionTimeout.warningSubtitle', 'Your session is about to expire due to prolonged inactivity.')}
               </DialogDescription>
             </div>
           </div>
@@ -64,7 +66,7 @@ export function SessionTimeoutModal({
             </div>
 
             <p className="text-xs text-muted-foreground mt-4 max-w-xs leading-relaxed">
-              To protect your organization's confidential HR and employee data, inactive sessions are automatically logged out.
+              {t('sessionTimeout.warningDescription', "To protect your organization's confidential HR and employee data, inactive sessions are automatically logged out.")}
             </p>
           </div>
         </DialogBody>
@@ -78,7 +80,7 @@ export function SessionTimeoutModal({
             className="w-full sm:w-auto text-xs text-muted-foreground hover:text-foreground"
           >
             <LogOut className="mr-1.5 h-3.5 w-3.5" />
-            Sign Out Now
+            {t('sessionTimeout.signOutNow', 'Sign Out Now')}
           </Button>
           <Button
             type="button"
@@ -87,7 +89,7 @@ export function SessionTimeoutModal({
             className="w-full sm:w-auto text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
           >
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            Stay Signed In
+            {t('sessionTimeout.staySignedIn', 'Stay Signed In')}
           </Button>
         </DialogFooter>
       </DialogContent>

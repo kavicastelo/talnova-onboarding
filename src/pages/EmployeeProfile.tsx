@@ -72,6 +72,7 @@ import { uploadService } from '../services/upload.service';
 import { employeeService } from '../services/employee.service';
 import { toast } from 'sonner';
 import { getErrorMessage } from '../api/client';
+import { useTranslation } from 'react-i18next';
 
 interface ProfileActivityItem {
   id: string;
@@ -86,6 +87,7 @@ interface ProfileActivityItem {
 }
 
 export function EmployeeProfile() {
+  const { t } = useTranslation('directory');
   const { id } = useParams();
   const navigate = useNavigate();
   const targetId = id || 'me';
@@ -115,13 +117,13 @@ export function EmployeeProfile() {
 
     const myTasks = myAssignedTasksData?.tasks || [];
     const map = new Map<string, any>();
-    directTasks.forEach((t) => map.set(t._id, t));
-    myTasks.forEach((t) => map.set(t._id, t));
+    directTasks.forEach((taskEntry) => map.set(taskEntry._id, taskEntry));
+    myTasks.forEach((taskEntry) => map.set(taskEntry._id, taskEntry));
     return Array.from(map.values());
   }, [employeeTasksData, myAssignedTasksData, isOwnProfile]);
 
   const equipmentTasks = useMemo(() => {
-    return allTasks.filter((t: any) => t.hardwareMetadata || t.category === 'equipment' || t.category === 'it_setup');
+    return allTasks.filter((taskEntry: any) => taskEntry.hardwareMetadata || taskEntry.category === 'equipment' || taskEntry.category === 'it_setup');
   }, [allTasks]);
 
   // 2. Buddy / Mentor Pairing
@@ -158,18 +160,18 @@ export function EmployeeProfile() {
 
   const handleAssignMilestoneToEmployee = () => {
     if (!selectedTemplateId || !employeeMongoId) {
-      toast.error('Please select a milestone template.');
+      toast.error(t('profile.milestonesTab.assignModal.pleaseSelect', 'Please select a milestone template.'));
       return;
     }
     assignMilestoneMutation.mutate(
       { templateId: selectedTemplateId, employeeId: employeeMongoId },
       {
         onSuccess: () => {
-          toast.success('Milestone program successfully assigned to employee!');
+          toast.success(t('profile.milestonesTab.assignModal.assignedSuccess', 'Milestone program successfully assigned to employee!'));
           setAssignMilestoneOpen(false);
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign milestone');
+          toast.error(err?.response?.data?.message || err?.message || t('profile.milestonesTab.assignModal.assignedFailed', 'Failed to assign milestone'));
         }
       }
     );
@@ -249,21 +251,27 @@ export function EmployeeProfile() {
 
       setAdminFirstName(employee.firstName || '');
       setAdminLastName(employee.lastName || '');
-
-      const matchedDept = activeDepartments.find((d) => d.name === employee.department);
-      setAdminDeptId(matchedDept?._id || '');
-      setAdminRole(
-        (employee.role === 'owner' || employee.role === 'admin' || employee.role === 'manager' || employee.role === 'employee' || (employee.role as string) === 'hr_admin' || (employee.role as string) === 'it_admin'
-          ? employee.role
-          : 'employee') as any
-      );
-      setAdminRoles(Array.isArray(employee.roles) && employee.roles.length > 0 ? employee.roles : [employee.role]);
-      setAdminStatus(
-        employee.status === 'Active' ? 'active' : employee.status === 'Onboarding' ? 'onboarding' : 'inactive'
-      );
       setAdminDesignation(employee.designation || '');
       setAdminPayrollCategory(employee.payrollCategory || '');
+      setAdminRole((employee.role as any) || 'employee');
+      setAdminRoles(employee.roles || []);
+      setAdminStatus(
+        employee.status === 'Active'
+          ? 'active'
+          : employee.status === 'Onboarding'
+            ? 'onboarding'
+            : 'inactive'
+      );
 
+      // Match Department
+      if (employee.department && activeDepartments.length > 0) {
+        const found = activeDepartments.find(
+          (d) => d.name.toLowerCase() === employee.department?.toLowerCase() || d._id === (employee as any).departmentId
+        );
+        if (found) setAdminDeptId(found._id);
+      }
+
+      // Format Hire Date for input[type="date"]
       let parsedDate = '';
       if (employee.hireDate) {
         const d = new Date(employee.hireDate);
@@ -281,7 +289,7 @@ export function EmployeeProfile() {
     if (!file) return;
 
     setIsUploading(true);
-    const toastId = toast.loading('Uploading profile picture...');
+    const toastId = toast.loading(t('profile.toasts.avatarUploading', 'Uploading profile picture...'));
 
     try {
       const { uploadId, url } = await uploadService.uploadFile(file, 'public');
@@ -299,7 +307,7 @@ export function EmployeeProfile() {
         },
       });
 
-      toast.success('Avatar updated successfully.', { id: toastId });
+      toast.success(t('profile.toasts.avatarSuccess', 'Avatar updated successfully.'), { id: toastId });
       refetch();
     } catch (err: any) {
       toast.error(getErrorMessage(err), { id: toastId });
@@ -320,7 +328,7 @@ export function EmployeeProfile() {
         location: locationVal,
         timezone: timezoneVal,
       });
-      toast.success('Profile details updated successfully.');
+      toast.success(t('profile.toasts.selfUpdated', 'Profile details updated successfully.'));
       setEditSelfOpen(false);
       refetch();
     } catch (err: any) {
@@ -332,7 +340,7 @@ export function EmployeeProfile() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match.');
+      toast.error(t('profile.toasts.passwordMismatch', 'New passwords do not match.'));
       return;
     }
     try {
@@ -340,7 +348,7 @@ export function EmployeeProfile() {
         oldPassword,
         newPassword,
       });
-      toast.success('Password changed successfully.');
+      toast.success(t('profile.toasts.passwordChanged', 'Password changed successfully.'));
       setChangePasswordOpen(false);
       setOldPassword('');
       setNewPassword('');
@@ -370,7 +378,7 @@ export function EmployeeProfile() {
           hireDate: adminHireDate || null,
         } as any,
       });
-      toast.success('Employee account updated successfully.');
+      toast.success(t('profile.toasts.accountUpdated', 'Employee account updated successfully.'));
       setEditEmployeeOpen(false);
       refetch();
     } catch (err: any) {
@@ -382,7 +390,7 @@ export function EmployeeProfile() {
   const handleToggleLegalHold = async () => {
     if (!employee) return;
     if (!legalHoldReason || legalHoldReason.trim().length < 10) {
-      toast.error('Audit Compliance Error: Legal hold justification must be at least 10 characters.');
+      toast.error(t('profile.toasts.legalHoldMinChars', 'Audit Compliance Error: Legal hold justification must be at least 10 characters.'));
       return;
     }
 
@@ -393,7 +401,7 @@ export function EmployeeProfile() {
         legalHold: targetState,
         reason: legalHoldReason.trim(),
       });
-      toast.success(res.message || `Legal hold ${targetState ? 'placed' : 'released'} successfully.`);
+      toast.success(res.message || (targetState ? t('profile.toasts.legalHoldPlaced', 'Legal hold placed successfully.') : t('profile.toasts.legalHoldReleased', 'Legal hold released successfully.')));
       setLegalHoldModalOpen(false);
       setLegalHoldReason('');
       refetch();
@@ -415,10 +423,10 @@ export function EmployeeProfile() {
         status: nextStatus,
         note: `Status toggled via Profile Hub by ${currentUser?.name || 'User'}`,
       });
-      toast.success(nextStatus === 'completed' ? `Completed: "${task.title}"` : `Reopened: "${task.title}"`);
+      toast.success(nextStatus === 'completed' ? t('profile.toasts.taskCompleted', { title: task.title, defaultValue: `Completed: "${task.title}"` }) : t('profile.toasts.taskReopened', { title: task.title, defaultValue: `Reopened: "${task.title}"` }));
       refetchTasks();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update task');
+      toast.error(err?.response?.data?.message || err?.message || t('profile.toasts.taskUpdateFailed', 'Failed to update task'));
     }
   };
 
@@ -434,12 +442,12 @@ export function EmployeeProfile() {
       authorRole: currentUser?.role || 'Member',
       title:
         noteCategory === 'encouragement'
-          ? 'Welcome & Encouragement'
+          ? t('profile.toasts.noteCategories.encouragement', 'Welcome & Encouragement')
           : noteCategory === 'guidance'
-            ? 'Onboarding Guidance'
+            ? t('profile.toasts.noteCategories.guidance', 'Onboarding Guidance')
             : noteCategory === 'kudos'
-              ? 'Kudos & Recognition'
-              : 'Action Required Note',
+              ? t('profile.toasts.noteCategories.kudos', 'Kudos & Recognition')
+              : t('profile.toasts.noteCategories.actionRequired', 'Action Required Note'),
       message: customNote.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }),
       badge: noteCategory.replace('_', ' ').toUpperCase(),
@@ -448,23 +456,25 @@ export function EmployeeProfile() {
 
     const updated = [newItem, ...persistedFeed];
     setPersistedFeed(updated);
+
+    // Save to localStorage
+    const storageKey = `talnova_profile_feed_${employeeMongoId}`;
     try {
-      localStorage.setItem(`talnova_profile_feed_${employeeMongoId}`, JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Failed to persist note', e);
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {
+      // Ignored
     }
 
     setCustomNote('');
-    toast.success('Note added to employee activity feed.');
   };
 
   // Filter Tasks
   const filteredTasks = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
-    return allTasks.filter((t) => {
-      const isCompleted = t.status === 'completed' || t.status === 'verified';
-      const isDueToday = t.dueDate && t.dueDate.startsWith(todayStr);
-      const isOverdue = t.status === 'overdue' || (t.dueDate && t.dueDate < todayStr && !isCompleted);
+    return allTasks.filter((taskItem) => {
+      const isCompleted = taskItem.status === 'completed' || taskItem.status === 'verified';
+      const isDueToday = taskItem.dueDate && taskItem.dueDate.startsWith(todayStr);
+      const isOverdue = taskItem.status === 'overdue' || (taskItem.dueDate && taskItem.dueDate < todayStr && !isCompleted);
 
       if (taskFilter === 'due') return isDueToday || isOverdue;
       if (taskFilter === 'upcoming') return !isCompleted && !isDueToday && !isOverdue;
@@ -480,10 +490,10 @@ export function EmployeeProfile() {
     let upcomingCount = 0;
     let completedCount = 0;
 
-    allTasks.forEach((t) => {
-      const isCompleted = t.status === 'completed' || t.status === 'verified';
-      const isDueToday = t.dueDate && t.dueDate.startsWith(todayStr);
-      const isOverdue = t.status === 'overdue' || (t.dueDate && t.dueDate < todayStr && !isCompleted);
+    allTasks.forEach((taskItem) => {
+      const isCompleted = taskItem.status === 'completed' || taskItem.status === 'verified';
+      const isDueToday = taskItem.dueDate && taskItem.dueDate.startsWith(todayStr);
+      const isOverdue = taskItem.status === 'overdue' || (taskItem.dueDate && taskItem.dueDate < todayStr && !isCompleted);
 
       if (isCompleted) completedCount++;
       else if (isDueToday || isOverdue) dueCount++;
@@ -513,17 +523,17 @@ export function EmployeeProfile() {
 
     // Completed Tasks
     allTasks
-      .filter((t) => t.status === 'completed' || t.status === 'verified')
+      .filter((taskEntry) => taskEntry.status === 'completed' || taskEntry.status === 'verified')
       .slice(0, 5)
-      .forEach((t) => {
+      .forEach((taskEntry) => {
         items.push({
-          id: `task-${t._id}`,
+          id: `task-${taskEntry._id}`,
           type: 'task',
-          author: t.assignedToUserId?.profile?.firstName || 'System',
-          title: `Task Completed: ${t.title}`,
-          message: `Category: ${t.category}. Priority: ${t.priority}. Stage: ${t.stage}.`,
-          timestamp: t.completedAt ? new Date(t.completedAt).toLocaleDateString() : 'Recently',
-          badge: t.requiresVerification ? 'VERIFIED' : 'DONE',
+          author: taskEntry.assignedToUserId?.profile?.firstName || 'System',
+          title: `Task Completed: ${taskEntry.title}`,
+          message: `Category: ${taskEntry.category}. Priority: ${taskEntry.priority}. Stage: ${taskEntry.stage}.`,
+          timestamp: taskEntry.completedAt ? new Date(taskEntry.completedAt).toLocaleDateString() : 'Recently',
+          badge: taskEntry.requiresVerification ? 'VERIFIED' : 'DONE',
           badgeVariant: 'default',
         });
       });
@@ -548,7 +558,7 @@ export function EmployeeProfile() {
   const copyProfileLink = () => {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(window.location.href);
-      toast.success('Profile URL copied to clipboard');
+      toast.success(t('profile.toasts.linkCopied', 'Profile URL copied to clipboard'));
     }
   };
 
@@ -588,12 +598,12 @@ export function EmployeeProfile() {
     return (
       <div className="max-w-md mx-auto text-center p-8 border rounded-2xl space-y-4 my-12 bg-card shadow-sm">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold text-foreground">Employee Profile Not Found</h2>
+        <h2 className="text-xl font-bold text-foreground">{t('profile.error.title', 'Employee Profile Not Found')}</h2>
         <p className="text-sm text-muted-foreground">
-          {(error as any)?.message || 'The requested employee profile could not be retrieved.'}
+          {(error as any)?.message || t('profile.error.desc', 'The requested employee profile could not be retrieved.')}
         </p>
         <Button onClick={() => refetch()} className="mx-auto">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('profile.error.retry', 'Retry')}
         </Button>
       </div>
     );
@@ -614,16 +624,16 @@ export function EmployeeProfile() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                {isOwnProfile ? 'My Unified Onboarding Hub' : `${employee.name}'s Profile`}
+                {isOwnProfile ? t('profile.header.myHubTitle', 'My Unified Onboarding Hub') : t('profile.header.userProfileTitle', { name: employee.name, defaultValue: `${employee.name}'s Profile` })}
               </h1>
               {employee.employeeId && (
                 <span className="px-2 py-0.5 rounded-md font-mono text-[10px] bg-muted text-muted-foreground border border-border/70">
-                  ID: {employee.employeeId}
+                  {t('profile.header.idLabel', { id: employee.employeeId, defaultValue: `ID: ${employee.employeeId}` })}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Single-window operational view, journey progression, checklists & peer collaboration.
+              {t('profile.header.subtitle', 'Single-window operational view, journey progression, checklists & peer collaboration.')}
             </p>
           </div>
         </div>
@@ -631,17 +641,17 @@ export function EmployeeProfile() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button variant="outline" size="sm" onClick={copyProfileLink} className="rounded-xl text-xs flex items-center gap-1.5">
             <Share2 className="h-3.5 w-3.5" />
-            Share Profile
+            {t('profile.header.shareProfile', 'Share Profile')}
           </Button>
           {isOwnProfile ? (
             <Button onClick={() => setEditSelfOpen(true)} size="sm" className="rounded-xl text-xs flex items-center gap-1.5">
               <Settings className="h-3.5 w-3.5" />
-              Edit My Profile
+              {t('profile.header.editMyProfile', 'Edit My Profile')}
             </Button>
           ) : isAdmin ? (
             <Button onClick={() => setEditEmployeeOpen(true)} size="sm" className="rounded-xl text-xs flex items-center gap-1.5">
               <Settings className="h-3.5 w-3.5" />
-              Manage Account
+              {t('profile.header.manageAccount', 'Manage Account')}
             </Button>
           ) : null}
         </div>
@@ -658,7 +668,7 @@ export function EmployeeProfile() {
               <div
                 className="relative group cursor-pointer shrink-0 rounded-full"
                 onClick={() => isOwnProfile && !isUploading && fileInputRef.current?.click()}
-                title={isOwnProfile ? 'Click to change profile picture' : undefined}
+                title={isOwnProfile ? t('profile.hero.clickToChange', 'Click to change profile picture') : undefined}
               >
                 <EmployeeAvatar
                   src={employee.avatar}
@@ -684,7 +694,7 @@ export function EmployeeProfile() {
                     ) : (
                       <>
                         <Camera className="w-5 h-5 mb-0.5" />
-                        <span className="text-[9px] font-semibold">Change Photo</span>
+                        <span className="text-[9px] font-semibold">{t('profile.hero.changePhoto', 'Change Photo')}</span>
                       </>
                     )}
                   </div>
@@ -709,7 +719,7 @@ export function EmployeeProfile() {
 
                   {employee.legalHold && (
                     <Badge className="bg-rose-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm px-2.5 py-0.5 rounded-full">
-                      <Scale className="w-3 h-3" /> STATUTORY LEGAL HOLD
+                      <Scale className="w-3 h-3" /> {t('profile.hero.statutoryHold', 'STATUTORY LEGAL HOLD')}
                     </Badge>
                   )}
                 </div>
@@ -760,12 +770,12 @@ export function EmployeeProfile() {
                   {employee.hireDate && (
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                      Joined {employee.hireDate}
+                      {t('profile.hero.joined', { date: employee.hireDate, defaultValue: `Joined ${employee.hireDate}` })}
                     </span>
                   )}
                   {employee.payrollCategory && (
                     <span className="px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground text-[10px] font-semibold border border-border/60">
-                      Payroll: {employee.payrollCategory}
+                      {t('profile.hero.payroll', { category: employee.payrollCategory, defaultValue: `Payroll: ${employee.payrollCategory}` })}
                     </span>
                   )}
                 </div>
@@ -782,7 +792,7 @@ export function EmployeeProfile() {
                     onClick={() => setChangePasswordOpen(true)}
                     className="rounded-xl text-xs w-full justify-start gap-2"
                   >
-                    <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Change Password
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground" /> {t('profile.hero.changePassword', 'Change Password')}
                   </Button>
                   <Button
                     variant="outline"
@@ -790,7 +800,7 @@ export function EmployeeProfile() {
                     onClick={() => navigate('/employee')}
                     className="rounded-xl text-xs w-full justify-start gap-2"
                   >
-                    <GraduationCap className="w-3.5 h-3.5 text-primary" /> Employee Dashboard
+                    <GraduationCap className="w-3.5 h-3.5 text-primary" /> {t('profile.hero.employeeDashboard', 'Employee Dashboard')}
                   </Button>
                 </>
               ) : (
@@ -803,7 +813,7 @@ export function EmployeeProfile() {
                       if (el) el.focus();
                     }}
                   >
-                    <MessageSquare className="w-3.5 h-3.5" /> Send Quick Note
+                    <MessageSquare className="w-3.5 h-3.5" /> {t('profile.hero.sendQuickNote', 'Send Quick Note')}
                   </Button>
                   {isAdmin && (
                     <Button
@@ -816,7 +826,7 @@ export function EmployeeProfile() {
                       className="rounded-xl text-xs w-full justify-start gap-2"
                     >
                       <Scale className="w-3.5 h-3.5" />
-                      {employee.legalHold ? 'Manage Legal Hold' : 'Place Legal Hold'}
+                      {employee.legalHold ? t('profile.hero.manageLegalHold', 'Manage Legal Hold') : t('profile.hero.placeLegalHold', 'Place Legal Hold')}
                     </Button>
                   )}
                 </>
@@ -831,7 +841,7 @@ export function EmployeeProfile() {
         {/* Onboarding Readiness */}
         <Card className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Readiness</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('profile.kpi.readiness', 'Readiness')}</span>
             <div className="p-2 rounded-xl bg-primary/10 text-primary">
               <TrendingUp className="w-4 h-4" />
             </div>
@@ -843,37 +853,37 @@ export function EmployeeProfile() {
         {/* Assigned Journeys */}
         <Card className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Journeys</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('profile.kpi.journeys', 'Journeys')}</span>
             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
               <GraduationCap className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">
             {employee.completedJourneysCount || 0}
-            <span className="text-xs font-normal text-muted-foreground"> / {employee.assignedJourneys?.length || 1} Completed</span>
+            <span className="text-xs font-normal text-muted-foreground"> {t('profile.kpi.completedCount', { completed: employee.completedJourneysCount || 0, total: employee.assignedJourneys?.length || 1, defaultValue: `/ ${employee.assignedJourneys?.length || 1} Completed` })}</span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1 truncate">
-            {primaryJourney ? primaryJourney.title : 'Standard Track'}
+            {primaryJourney ? primaryJourney.title : t('profile.kpi.standardTrack', 'Standard Track')}
           </p>
         </Card>
 
         {/* Operational Tasks */}
         <Card className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Checklists</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('profile.kpi.checklists', 'Checklists')}</span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <CheckSquare className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">
             {taskCounts.completedCount}
-            <span className="text-xs font-normal text-muted-foreground"> / {taskCounts.total} Done</span>
+            <span className="text-xs font-normal text-muted-foreground"> {t('profile.kpi.doneCount', { completed: taskCounts.completedCount, total: taskCounts.total, defaultValue: `/ ${taskCounts.total} Done` })}</span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1">
             {taskCounts.dueCount > 0 ? (
-              <span className="text-amber-600 font-semibold">{taskCounts.dueCount} Urgent Due</span>
+              <span className="text-amber-600 font-semibold">{t('profile.kpi.urgentDue', { count: taskCounts.dueCount, defaultValue: `${taskCounts.dueCount} Urgent Due` })}</span>
             ) : (
-              'All checklists on track'
+              t('profile.kpi.allOnTrack', 'All checklists on track')
             )}
           </p>
         </Card>
@@ -881,7 +891,7 @@ export function EmployeeProfile() {
         {/* Next Milestone */}
         <Card className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Milestones</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('profile.kpi.milestones', 'Milestones')}</span>
             <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <Award className="w-4 h-4" />
             </div>
@@ -890,7 +900,7 @@ export function EmployeeProfile() {
             {employeeMilestones.length > 0 ? `${employeeMilestones[0].targetDay}D` : '30D'}
           </div>
           <p className="text-[11px] text-muted-foreground mt-1 truncate">
-            {employeeMilestones.length > 0 ? employeeMilestones[0].milestoneTitle : '30-Day Checkpoint'}
+            {employeeMilestones.length > 0 ? employeeMilestones[0].milestoneTitle : t('profile.kpi.default30Checkpoint', '30-Day Checkpoint')}
           </p>
         </Card>
       </div>
@@ -899,19 +909,19 @@ export function EmployeeProfile() {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="bg-muted/60 p-1 rounded-xl border border-border/60">
           <TabsTrigger value="overview" className="rounded-lg text-xs font-medium gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" /> Unified Hub
+            <Sparkles className="w-3.5 h-3.5" /> {t('profile.tabTriggers.unifiedHub', 'Unified Hub')}
           </TabsTrigger>
           <TabsTrigger value="journeys" className="rounded-lg text-xs font-medium gap-1.5">
-            <GraduationCap className="w-3.5 h-3.5" /> Journeys ({employee.assignedJourneys?.length || 0})
+            <GraduationCap className="w-3.5 h-3.5" /> {t('profile.tabTriggers.journeys', { count: employee.assignedJourneys?.length || 0, defaultValue: `Journeys (${employee.assignedJourneys?.length || 0})` })}
           </TabsTrigger>
           <TabsTrigger value="tasks" className="rounded-lg text-xs font-medium gap-1.5">
-            <CheckSquare className="w-3.5 h-3.5" /> Tasks & Checklists ({taskCounts.total})
+            <CheckSquare className="w-3.5 h-3.5" /> {t('profile.tabTriggers.tasks', { count: taskCounts.total, defaultValue: `Tasks & Checklists (${taskCounts.total})` })}
           </TabsTrigger>
           <TabsTrigger value="milestones" className="rounded-lg text-xs font-medium gap-1.5">
-            <Flag className="w-3.5 h-3.5" /> Milestones ({employeeMilestones.length})
+            <Flag className="w-3.5 h-3.5" /> {t('profile.tabTriggers.milestones', { count: employeeMilestones.length, defaultValue: `Milestones (${employeeMilestones.length})` })}
           </TabsTrigger>
           <TabsTrigger value="activity" className="rounded-lg text-xs font-medium gap-1.5">
-            <Activity className="w-3.5 h-3.5" /> Activity & Comms
+            <Activity className="w-3.5 h-3.5" /> {t('profile.tabTriggers.activity', 'Activity & Comms')}
           </TabsTrigger>
         </TabsList>
 
@@ -930,16 +940,16 @@ export function EmployeeProfile() {
                       <GraduationCap className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-foreground">Onboarding Journey Pathway</h3>
+                      <h3 className="text-base font-bold text-foreground">{t('profile.overview.journeyPathway', 'Onboarding Journey Pathway')}</h3>
                       <p className="text-xs text-muted-foreground">
-                        Structured curriculum & autonomous progression pipeline
+                        {t('profile.overview.journeyPathwayDesc', 'Structured curriculum & autonomous progression pipeline')}
                       </p>
                     </div>
                   </div>
                   {primaryJourney && (
                     <Button variant="outline" size="sm" className="rounded-xl text-xs" asChild>
                       <Link to={`/course/${primaryJourney.id}`}>
-                        Resume Journey <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        {t('profile.overview.resumeJourney', 'Resume Journey')} <ChevronRight className="w-3.5 h-3.5 ml-1" />
                       </Link>
                     </Button>
                   )}
@@ -949,19 +959,19 @@ export function EmployeeProfile() {
                 <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-4">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-foreground">
-                      {primaryJourney ? primaryJourney.title : 'General Company Onboarding'}
+                      {primaryJourney ? primaryJourney.title : t('profile.overview.generalOnboarding', 'General Company Onboarding')}
                     </span>
-                    <span className="font-bold text-primary">{employee.progress}% Complete</span>
+                    <span className="font-bold text-primary">{t('profile.overview.percentComplete', { percent: employee.progress, defaultValue: `${employee.progress}% Complete` })}</span>
                   </div>
                   <Progress value={employee.progress} className="h-2 rounded-full" />
 
                   {/* Visual Stage Nodes */}
                   <div className="grid grid-cols-4 gap-2 pt-2">
                     {[
-                      { label: 'Pre-Boarding', done: employee.progress >= 25, active: employee.progress < 25 },
-                      { label: 'Day 1 Welcome', done: employee.progress >= 50, active: employee.progress >= 25 && employee.progress < 50 },
-                      { label: 'Week 1 Immersion', done: employee.progress >= 75, active: employee.progress >= 50 && employee.progress < 75 },
-                      { label: 'Month 1 Autonomy', done: employee.progress >= 100, active: employee.progress >= 75 },
+                      { label: t('profile.overview.stages.preboarding', 'Pre-Boarding'), done: employee.progress >= 25, active: employee.progress < 25 },
+                      { label: t('profile.overview.stages.day1Welcome', 'Day 1 Welcome'), done: employee.progress >= 50, active: employee.progress >= 25 && employee.progress < 50 },
+                      { label: t('profile.overview.stages.week1Immersion', 'Week 1 Immersion'), done: employee.progress >= 75, active: employee.progress >= 50 && employee.progress < 75 },
+                      { label: t('profile.overview.stages.month1Autonomy', 'Month 1 Autonomy'), done: employee.progress >= 100, active: employee.progress >= 75 },
                     ].map((stage, idx) => (
                       <div key={idx} className="flex flex-col items-center text-center space-y-1">
                         <div
@@ -994,9 +1004,9 @@ export function EmployeeProfile() {
                       <CheckSquare className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-foreground">Tasks & Role Checklists Hub</h3>
+                      <h3 className="text-base font-bold text-foreground">{t('profile.overview.tasksHub', 'Tasks & Role Checklists Hub')}</h3>
                       <p className="text-xs text-muted-foreground">
-                        Interactive operational checklist items with real-time sync
+                        {t('profile.overview.tasksHubDesc', 'Interactive operational checklist items with real-time sync')}
                       </p>
                     </div>
                   </div>
@@ -1008,28 +1018,28 @@ export function EmployeeProfile() {
                       className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                      All ({taskCounts.total})
+                      {t('profile.overview.filters.all', { count: taskCounts.total, defaultValue: `All (${taskCounts.total})` })}
                     </button>
                     <button
                       onClick={() => setTaskFilter('due')}
                       className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'due' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                      Urgent ({taskCounts.dueCount})
+                      {t('profile.overview.filters.urgent', { count: taskCounts.dueCount, defaultValue: `Urgent (${taskCounts.dueCount})` })}
                     </button>
                     <button
                       onClick={() => setTaskFilter('upcoming')}
                       className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'upcoming' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                      Upcoming ({taskCounts.upcomingCount})
+                      {t('profile.overview.filters.upcoming', { count: taskCounts.upcomingCount, defaultValue: `Upcoming (${taskCounts.upcomingCount})` })}
                     </button>
                     <button
                       onClick={() => setTaskFilter('completed')}
                       className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'completed' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                      Done ({taskCounts.completedCount})
+                      {t('profile.overview.filters.done', { count: taskCounts.completedCount, defaultValue: `Done (${taskCounts.completedCount})` })}
                     </button>
                   </div>
                 </div>
@@ -1043,7 +1053,7 @@ export function EmployeeProfile() {
                     </div>
                   ) : filteredTasks.length === 0 ? (
                     <div className="py-8 text-center border border-dashed rounded-xl bg-muted/20 text-xs text-muted-foreground">
-                      No tasks found for the current filter.
+                      {t('profile.overview.emptyTasks', 'No tasks found for the current filter.')}
                     </div>
                   ) : (
                     filteredTasks.slice(0, 5).map((task) => {
@@ -1063,7 +1073,7 @@ export function EmployeeProfile() {
                                   ? 'bg-emerald-500 border-emerald-500 text-white'
                                   : 'border-border hover:border-primary bg-background'
                                 }`}
-                              title={isDone ? 'Mark task pending' : 'Mark task complete'}
+                              title={isDone ? t('profile.overview.markPending', 'Mark task pending') : t('profile.overview.markComplete', 'Mark task complete')}
                             >
                               {isDone && <Check className="w-3 h-3" />}
                             </button>
@@ -1081,12 +1091,12 @@ export function EmployeeProfile() {
                                 </span>
                                 {task.stage && (
                                   <span className="capitalize text-muted-foreground font-medium">
-                                    Stage: {task.stage.replace('_', ' ')}
+                                    {t('profile.overview.stageLabel', { stage: task.stage.replace(/_/g, ' '), defaultValue: `Stage: ${task.stage.replace(/_/g, ' ')}` })}
                                   </span>
                                 )}
                                 {task.dueDate && (
                                   <span className="flex items-center gap-1 text-muted-foreground">
-                                    <Clock className="w-2.5 h-2.5" /> Due {new Date(task.dueDate).toLocaleDateString()}
+                                    <Clock className="w-2.5 h-2.5" /> {t('profile.overview.dueLabel', { date: new Date(task.dueDate).toLocaleDateString(), defaultValue: `Due ${new Date(task.dueDate).toLocaleDateString()}` })}
                                   </span>
                                 )}
                               </div>
@@ -1122,7 +1132,7 @@ export function EmployeeProfile() {
                         }}
                         className="text-xs text-primary font-semibold"
                       >
-                        View all {allTasks.length} tasks in detail tab <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        {t('profile.overview.viewAllTasks', { count: allTasks.length, defaultValue: `View all ${allTasks.length} tasks in detail tab` })} <ChevronRight className="w-3.5 h-3.5 ml-1" />
                       </Button>
                     </div>
                   )}
@@ -1137,15 +1147,15 @@ export function EmployeeProfile() {
                       <Flag className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-foreground">30 / 60 / 90 / 180-Day Milestones</h3>
+                      <h3 className="text-base font-bold text-foreground">{t('profile.overview.milestonesTitle', '30 / 60 / 90 / 180-Day Milestones')}</h3>
                       <p className="text-xs text-muted-foreground">
-                        Formal evaluation gates and SLA compliance reviews
+                        {t('profile.overview.milestonesDesc', 'Formal evaluation gates and SLA compliance reviews')}
                       </p>
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="rounded-xl text-xs" asChild>
                     <Link to="/milestones">
-                      Milestones Page <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                      {t('profile.overview.milestonesPage', 'Milestones Page')} <ChevronRight className="w-3.5 h-3.5 ml-1" />
                     </Link>
                   </Button>
                 </div>
@@ -1153,7 +1163,7 @@ export function EmployeeProfile() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {employeeMilestones.length === 0 ? (
                     <div className="col-span-2 py-6 text-center border border-dashed rounded-xl bg-muted/20 text-xs text-muted-foreground">
-                      No active milestone evaluations assigned. Default milestones will automatically seed upon Day 30.
+                      {t('profile.overview.emptyMilestones', 'No active milestone evaluations assigned. Default milestones will automatically seed upon Day 30.')}
                     </div>
                   ) : (
                     employeeMilestones.slice(0, 4).map((m: any) => (
@@ -1163,7 +1173,7 @@ export function EmployeeProfile() {
                       >
                         <div className="flex items-center justify-between">
                           <span className="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
-                            DAY {m.targetDay} GATE
+                            {t('profile.overview.dayGate', { day: m.targetDay, defaultValue: `DAY ${m.targetDay} GATE` })}
                           </span>
                           <Badge
                             variant={m.status === 'approved' || m.status === 'completed' ? 'default' : 'outline'}
@@ -1174,7 +1184,7 @@ export function EmployeeProfile() {
                         </div>
                         <h4 className="text-xs font-bold text-foreground line-clamp-1">{m.milestoneTitle}</h4>
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
-                          <span>Due: {new Date(m.dueDate).toLocaleDateString()}</span>
+                          <span>{t('profile.overview.due', { date: new Date(m.dueDate).toLocaleDateString(), defaultValue: `Due: ${new Date(m.dueDate).toLocaleDateString()}` })}</span>
                           {m.managerRating && (
                             <span className="flex items-center text-amber-500 font-bold">
                               <Star className="w-3 h-3 fill-amber-500 mr-0.5" />
@@ -1198,10 +1208,10 @@ export function EmployeeProfile() {
                     <div className="p-1.5 rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400">
                       <HeartHandshake className="w-4 h-4" />
                     </div>
-                    <h3 className="text-sm font-bold text-foreground">Onboarding Buddy</h3>
+                    <h3 className="text-sm font-bold text-foreground">{t('profile.overview.buddyTitle', 'Onboarding Buddy')}</h3>
                   </div>
                   <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" asChild>
-                    <Link to="/buddy">View Program</Link>
+                    <Link to="/buddy">{t('profile.overview.viewProgram', 'View Program')}</Link>
                   </Button>
                 </div>
 
@@ -1227,7 +1237,7 @@ export function EmployeeProfile() {
                           {matchedBuddyAssignment.buddyUserId.employment?.department || employee.department}
                         </p>
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          <CheckCircle2 className="w-3 h-3" /> Algorithmic Match 94%
+                          <CheckCircle2 className="w-3 h-3" /> {t('profile.overview.algorithmicMatch', { percent: 94, defaultValue: 'Algorithmic Match 94%' })}
                         </span>
                       </div>
                     </div>
@@ -1237,13 +1247,13 @@ export function EmployeeProfile() {
                       {matchedBuddyAssignment.buddyUserId.auth?.email && (
                         <Button variant="outline" size="sm" className="rounded-xl text-xs" asChild>
                           <a href={`mailto:${matchedBuddyAssignment.buddyUserId.auth.email}?subject=Hello from ${employee.name}`}>
-                            <Mail className="w-3.5 h-3.5 mr-1" /> Send Email
+                            <Mail className="w-3.5 h-3.5 mr-1" /> {t('profile.overview.sendEmail', 'Send Email')}
                           </a>
                         </Button>
                       )}
                       <Button variant="outline" size="sm" className="rounded-xl text-xs" asChild>
                         <Link to="/calendar">
-                          <CalendarCheck className="w-3.5 h-3.5 mr-1" /> Book 1:1
+                          <CalendarCheck className="w-3.5 h-3.5 mr-1" /> {t('profile.overview.book1on1', 'Book 1:1')}
                         </Link>
                       </Button>
                     </div>
@@ -1252,7 +1262,7 @@ export function EmployeeProfile() {
                     {matchedBuddyAssignment.checklist && matchedBuddyAssignment.checklist.length > 0 && (
                       <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1.5">
                         <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
-                          <span>Buddy Checklist Progress</span>
+                          <span>{t('profile.overview.checklistProgress', 'Buddy Checklist Progress')}</span>
                           <span>
                             {matchedBuddyAssignment.checklist.filter((c: any) => c.completed).length} /{' '}
                             {matchedBuddyAssignment.checklist.length}
@@ -1273,14 +1283,14 @@ export function EmployeeProfile() {
                   <div className="py-6 text-center space-y-3 bg-muted/20 border border-dashed rounded-xl p-4">
                     <Users className="size-8 text-muted-foreground/50 mx-auto" />
                     <div className="space-y-1">
-                      <p className="text-xs font-semibold text-foreground">No Buddy Paired Yet</p>
+                      <p className="text-xs font-semibold text-foreground">{t('profile.overview.noBuddyPaired', 'No Buddy Paired Yet')}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        Matching engine evaluates timezone, department, and role compatibility.
+                        {t('profile.overview.noBuddyDesc', 'Matching engine evaluates timezone, department, and role compatibility.')}
                       </p>
                     </div>
                     {isAdmin && (
                       <Button size="sm" className="rounded-xl text-xs" asChild>
-                        <Link to="/buddy">Pair a Mentor</Link>
+                        <Link to="/buddy">{t('profile.overview.pairMentor', 'Pair a Mentor')}</Link>
                       </Button>
                     )}
                   </div>
@@ -1294,9 +1304,9 @@ export function EmployeeProfile() {
                     <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
                       <Activity className="w-4 h-4" />
                     </div>
-                    <h3 className="text-sm font-bold text-foreground">Activity & Direct Comms</h3>
+                    <h3 className="text-sm font-bold text-foreground">{t('profile.overview.activityTitle', 'Activity & Direct Comms')}</h3>
                   </div>
-                  <span className="text-[10px] text-muted-foreground font-semibold">Live Audit</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold">{t('profile.overview.liveAudit', 'Live Audit')}</span>
                 </div>
 
                 {/* Quick Note Composer */}
@@ -1308,8 +1318,8 @@ export function EmployeeProfile() {
                       onChange={(e) => setCustomNote(e.target.value)}
                       placeholder={
                         isOwnProfile
-                          ? 'Add a personal note or reflection on your onboarding progress...'
-                          : `Send an encouraging note or guidance to ${employee.name}...`
+                          ? t('profile.overview.notePlaceholderSelf', 'Add a personal note or reflection on your onboarding progress...')
+                          : t('profile.overview.notePlaceholderOther', { name: employee.name, defaultValue: `Send an encouraging note or guidance to ${employee.name}...` })
                       }
                       rows={3}
                       className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none placeholder:text-muted-foreground"
@@ -1322,14 +1332,14 @@ export function EmployeeProfile() {
                       onChange={(e: any) => setNoteCategory(e.target.value)}
                       className="h-8 px-2 text-[11px] bg-background border border-border rounded-lg text-foreground focus:outline-none cursor-pointer"
                     >
-                      <option value="encouragement">Encouragement</option>
-                      <option value="guidance">Guidance Note</option>
-                      <option value="kudos">Kudos / Praise</option>
-                      <option value="action_required">Action Required</option>
+                      <option value="encouragement">{t('profile.overview.noteCategories.encouragement', 'Encouragement')}</option>
+                      <option value="guidance">{t('profile.overview.noteCategories.guidance', 'Guidance Note')}</option>
+                      <option value="kudos">{t('profile.overview.noteCategories.kudos', 'Kudos / Praise')}</option>
+                      <option value="action_required">{t('profile.overview.noteCategories.actionRequired', 'Action Required')}</option>
                     </select>
 
                     <Button type="submit" size="sm" disabled={!customNote.trim()} className="h-8 px-3 rounded-lg text-xs gap-1">
-                      <Send className="w-3 h-3" /> Post Note
+                      <Send className="w-3 h-3" /> {t('profile.overview.postNote', 'Post Note')}
                     </Button>
                   </div>
                 </form>
@@ -1337,7 +1347,7 @@ export function EmployeeProfile() {
                 {/* Recent Feed Events */}
                 <div className="space-y-3 pt-2 max-h-72 overflow-y-auto pr-1">
                   {combinedActivityFeed.length === 0 ? (
-                    <p className="text-center text-xs text-muted-foreground py-4">No recent activity logged.</p>
+                    <p className="text-center text-xs text-muted-foreground py-4">{t('profile.overview.noRecentActivity', 'No recent activity logged.')}</p>
                   ) : (
                     combinedActivityFeed.slice(0, 6).map((item) => (
                       <div key={item.id} className="flex gap-2.5 text-xs p-2.5 rounded-xl bg-muted/30 border border-border/50">
@@ -1371,20 +1381,20 @@ export function EmployeeProfile() {
                   <div className="flex items-center gap-2">
                     <Scale className={`size-4 ${employee.legalHold ? 'text-rose-600' : 'text-primary'}`} />
                     <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      SOC 2 CC6.1 Statutory Retention
+                      {t('profile.overview.socTitle', 'SOC 2 CC6.1 Statutory Retention')}
                     </h4>
                   </div>
                   <Badge
                     variant={employee.legalHold ? 'destructive' : 'outline'}
                     className="text-[10px] font-bold"
                   >
-                    {employee.legalHold ? 'LEGAL HOLD ACTIVE' : 'STANDARD 7-YR RETENTION'}
+                    {employee.legalHold ? t('profile.overview.holdActiveBadge', 'LEGAL HOLD ACTIVE') : t('profile.overview.standardRetentionBadge', 'STANDARD 7-YR RETENTION')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   {employee.legalHold
-                    ? `Indefinite retention freeze active: "${employee.legalHoldReason || 'Statutory litigation hold'}". Purge triggers suspended.`
-                    : 'All signed onboarding agreements, e-signature logs, and task audit trails are preserved per statutory guidelines.'}
+                    ? t('profile.overview.holdActiveDesc', { reason: employee.legalHoldReason || 'Statutory litigation hold', defaultValue: `Indefinite retention freeze active: "${employee.legalHoldReason || 'Statutory litigation hold'}". Purge triggers suspended.` })
+                    : t('profile.overview.standardRetentionDesc', 'All signed onboarding agreements, e-signature logs, and task audit trails are preserved per statutory guidelines.')}
                 </p>
                 {isAdmin && (
                   <Button
@@ -1396,7 +1406,7 @@ export function EmployeeProfile() {
                     }}
                     className="w-full text-xs rounded-xl h-8"
                   >
-                    {employee.legalHold ? 'Manage Legal Hold Justification' : 'Place Regulatory Legal Hold'}
+                    {employee.legalHold ? t('profile.overview.manageJustification', 'Manage Legal Hold Justification') : t('profile.overview.placeRegulatoryHold', 'Place Regulatory Legal Hold')}
                   </Button>
                 )}
               </Card>
@@ -1410,22 +1420,22 @@ export function EmployeeProfile() {
         <TabsContent value="journeys" className="space-y-6 mt-0">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-base font-bold text-foreground">Assigned Onboarding Journeys</h3>
+              <h3 className="text-base font-bold text-foreground">{t('profile.journeysTab.title', 'Assigned Onboarding Journeys')}</h3>
               <p className="text-xs text-muted-foreground">
-                Formal role-based tracks and interactive modular coursework
+                {t('profile.journeysTab.desc', 'Formal role-based tracks and interactive modular coursework')}
               </p>
             </div>
             <Button size="sm" className="rounded-xl text-xs" asChild>
-              <Link to="/journeys">Browse Journeys Catalog</Link>
+              <Link to="/journeys">{t('profile.journeysTab.browseCatalog', 'Browse Journeys Catalog')}</Link>
             </Button>
           </div>
 
           {!employee.assignedJourneys || employee.assignedJourneys.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground border border-dashed rounded-2xl bg-card p-8 space-y-2">
               <GraduationCap className="size-10 text-muted-foreground/40 mx-auto" />
-              <p className="font-semibold text-sm text-foreground">No Journeys Currently Assigned</p>
+              <p className="font-semibold text-sm text-foreground">{t('profile.journeysTab.emptyTitle', 'No Journeys Currently Assigned')}</p>
               <p className="text-xs text-muted-foreground">
-                Browse the catalog to enroll or apply an automated workflow rule.
+                {t('profile.journeysTab.emptyDesc', 'Browse the catalog to enroll or apply an automated workflow rule.')}
               </p>
             </div>
           ) : (
@@ -1435,7 +1445,7 @@ export function EmployeeProfile() {
                   <div className="flex justify-between items-start gap-2">
                     <div>
                       <h4 className="font-bold text-base text-foreground">{aj.title}</h4>
-                      <p className="text-xs text-muted-foreground">Assigned {aj.assignedAt || 'During Onboarding'}</p>
+                      <p className="text-xs text-muted-foreground">{t('profile.journeysTab.assignedDate', { date: aj.assignedAt || 'During Onboarding', defaultValue: `Assigned ${aj.assignedAt || 'During Onboarding'}` })}</p>
                     </div>
                     <Badge variant={aj.status === 'Completed' ? 'default' : 'secondary'} className="capitalize text-xs">
                       {aj.status}
@@ -1444,7 +1454,7 @@ export function EmployeeProfile() {
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold text-foreground">
-                      <span>Curriculum Progression</span>
+                      <span>{t('profile.journeysTab.curriculumProgression', 'Curriculum Progression')}</span>
                       <span>{aj.progress}%</span>
                     </div>
                     <Progress value={aj.progress} className="h-2 rounded-full" />
@@ -1454,13 +1464,13 @@ export function EmployeeProfile() {
                     {aj.status === 'Completed' ? (
                       <Button variant="outline" size="sm" className="w-full rounded-xl text-xs" asChild>
                         <Link to="/certificates">
-                          <Award className="w-3.5 h-3.5 mr-1 text-amber-500" /> View Issued Certificate
+                          <Award className="w-3.5 h-3.5 mr-1 text-amber-500" /> {t('profile.journeysTab.viewCertificate', 'View Issued Certificate')}
                         </Link>
                       </Button>
                     ) : (
                       <Button size="sm" className="w-full rounded-xl text-xs" asChild>
                         <Link to={`/course/${aj.id}`}>
-                          Continue Coursework <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                          {t('profile.journeysTab.continueCoursework', 'Continue Coursework')} <ChevronRight className="w-3.5 h-3.5 ml-1" />
                         </Link>
                       </Button>
                     )}
@@ -1477,13 +1487,13 @@ export function EmployeeProfile() {
         <TabsContent value="tasks" className="space-y-6 mt-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-bold text-foreground">Complete Task Roster</h3>
+              <h3 className="text-base font-bold text-foreground">{t('profile.tasksTab.title', 'Complete Task Roster')}</h3>
               <p className="text-xs text-muted-foreground">
-                All pre-boarding, IT provisioning, and departmental tasks for {employee.name}
+                {t('profile.tasksTab.desc', { name: employee.name, defaultValue: `All pre-boarding, IT provisioning, and departmental tasks for ${employee.name}` })}
               </p>
             </div>
             <Button size="sm" className="rounded-xl text-xs" asChild>
-              <Link to="/tasks">Open Full Tasks Engine</Link>
+              <Link to="/tasks">{t('profile.tasksTab.openEngine', 'Open Full Tasks Engine')}</Link>
             </Button>
           </div>
 
@@ -1495,46 +1505,46 @@ export function EmployeeProfile() {
                     <Laptop className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-foreground">Allocated Hardware & Workstation Equipment</h3>
+                    <h3 className="text-base font-bold text-foreground">{t('profile.tasksTab.equipmentTitle', 'Allocated Hardware & Workstation Equipment')}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Asset tracking, dispatch status, and workstation provisioning
+                      {t('profile.tasksTab.equipmentDesc', 'Asset tracking, dispatch status, and workstation provisioning')}
                     </p>
                   </div>
                 </div>
                 <Badge variant="outline" className="text-xs font-mono">
-                  {equipmentTasks.length} {equipmentTasks.length === 1 ? 'Asset' : 'Assets'}
+                  {t('profile.tasksTab.assetCount', { count: equipmentTasks.length, defaultValue: `${equipmentTasks.length} ${equipmentTasks.length === 1 ? 'Asset' : 'Assets'}` })}
                 </Badge>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {equipmentTasks.map((t: any) => {
-                  const hw = t.hardwareMetadata || {};
+                {equipmentTasks.map((eqItem: any) => {
+                  const hw = eqItem.hardwareMetadata || {};
                   return (
-                    <div key={t._id} className="p-3.5 rounded-xl bg-muted/40 border border-border/60 space-y-2">
+                    <div key={eqItem._id} className="p-3.5 rounded-xl bg-muted/40 border border-border/60 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{t.title}</p>
+                          <p className="text-xs font-bold text-foreground truncate">{eqItem.title}</p>
                           <p className="text-[11px] text-muted-foreground capitalize">
-                            Type: {hw.deviceType?.replace(/_/g, ' ') || 'Hardware / Equipment'}
+                            {t('profile.tasksTab.deviceType', { type: hw.deviceType?.replace(/_/g, ' ') || t('profile.tasksTab.hardwareFallback', 'Hardware / Equipment'), defaultValue: `Type: ${hw.deviceType?.replace(/_/g, ' ') || 'Hardware / Equipment'}` })}
                           </p>
                         </div>
                         <Badge
                           variant={hw.deliveryStatus === 'delivered' ? 'default' : 'secondary'}
                           className="text-[10px] capitalize shrink-0"
                         >
-                          {hw.deliveryStatus || t.status}
+                          {hw.deliveryStatus || eqItem.status}
                         </Badge>
                       </div>
                       {(hw.assetTag || hw.serialNumber) && (
                         <div className="flex flex-wrap gap-2 text-[11px] font-mono text-muted-foreground">
-                          {hw.assetTag && <span className="bg-background px-1.5 py-0.5 rounded border border-border/60">Asset: {hw.assetTag}</span>}
-                          {hw.serialNumber && <span className="bg-background px-1.5 py-0.5 rounded border border-border/60">S/N: {hw.serialNumber}</span>}
+                          {hw.assetTag && <span className="bg-background px-1.5 py-0.5 rounded border border-border/60">{t('profile.tasksTab.assetTag', { tag: hw.assetTag, defaultValue: `Asset: ${hw.assetTag}` })}</span>}
+                          {hw.serialNumber && <span className="bg-background px-1.5 py-0.5 rounded border border-border/60">{t('profile.tasksTab.serialNumber', { serial: hw.serialNumber, defaultValue: `S/N: ${hw.serialNumber}` })}</span>}
                         </div>
                       )}
                       {hw.trackingNumber && (
                         <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
                           <span className="text-muted-foreground">
-                            {hw.courierProvider ? `${hw.courierProvider}: ` : 'Tracking: '}{hw.trackingNumber}
+                            {t('profile.tasksTab.trackingLabel', { number: hw.trackingNumber, defaultValue: `${hw.courierProvider ? `${hw.courierProvider}: ` : 'Tracking: '}${hw.trackingNumber}` })}
                           </span>
                           {hw.trackingUrl && (
                             <a
@@ -1543,7 +1553,7 @@ export function EmployeeProfile() {
                               rel="noreferrer"
                               className="text-primary hover:underline flex items-center gap-1 font-semibold"
                             >
-                              Track <ExternalLink className="w-3 h-3" />
+                              {t('profile.tasksTab.trackLink', 'Track')} <ExternalLink className="w-3 h-3" />
                             </a>
                           )}
                         </div>
@@ -1558,19 +1568,19 @@ export function EmployeeProfile() {
           <div className="space-y-3">
             {allTasks.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground border border-dashed rounded-2xl bg-card p-8">
-                No tasks currently associated with this employee.
+                {t('profile.tasksTab.emptyTasks', 'No tasks currently associated with this employee.')}
               </div>
             ) : (
-              allTasks.map((t) => {
-                const isDone = t.status === 'completed' || t.status === 'verified';
+              allTasks.map((taskItem) => {
+                const isDone = taskItem.status === 'completed' || taskItem.status === 'verified';
                 return (
                   <div
-                    key={t._id}
+                    key={taskItem._id}
                     className="p-4 rounded-xl border border-border/70 bg-card shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
                     <div className="flex items-start gap-3.5 min-w-0">
                       <button
-                        onClick={() => handleToggleTaskStatus(t)}
+                        onClick={() => handleToggleTaskStatus(taskItem)}
                         className={`mt-0.5 size-5 rounded-md flex items-center justify-center border transition-colors cursor-pointer ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border bg-background'
                           }`}
                       >
@@ -1578,18 +1588,18 @@ export function EmployeeProfile() {
                       </button>
                       <div className="space-y-1 min-w-0">
                         <p className={`text-sm font-semibold ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                          {t.title}
+                          {taskItem.title}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span className="capitalize px-2 py-0.5 rounded bg-muted font-medium">
-                            Category: {t.category?.replace('_', ' ')}
+                            {t('profile.tasksTab.categoryLabel', { category: taskItem.category?.replace('_', ' '), defaultValue: `Category: ${taskItem.category?.replace('_', ' ')}` })}
                           </span>
                           <span className="capitalize px-2 py-0.5 rounded bg-muted font-medium">
-                            Stage: {t.stage?.replace('_', ' ')}
+                            {t('profile.tasksTab.stageLabel', { stage: taskItem.stage?.replace('_', ' '), defaultValue: `Stage: ${taskItem.stage?.replace('_', ' ')}` })}
                           </span>
-                          {t.dueDate && (
+                          {taskItem.dueDate && (
                             <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> Due {new Date(t.dueDate).toLocaleDateString()}
+                              <Clock className="w-3 h-3" /> {t('profile.tasksTab.dueLabel', { date: new Date(taskItem.dueDate).toLocaleDateString(), defaultValue: `Due ${new Date(taskItem.dueDate).toLocaleDateString()}` })}
                             </span>
                           )}
                         </div>
@@ -1597,11 +1607,11 @@ export function EmployeeProfile() {
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center">
-                      <Badge variant={t.priority === 'critical' ? 'destructive' : 'outline'} className="capitalize text-xs">
-                        {t.priority}
+                      <Badge variant={taskItem.priority === 'critical' ? 'destructive' : 'outline'} className="capitalize text-xs">
+                        {taskItem.priority}
                       </Badge>
                       <Badge variant={isDone ? 'default' : 'secondary'} className="capitalize text-xs">
-                        {t.status}
+                        {taskItem.status}
                       </Badge>
                     </div>
                   </div>
@@ -1617,9 +1627,9 @@ export function EmployeeProfile() {
         <TabsContent value="milestones" className="space-y-6 mt-0">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-base font-bold text-foreground">Milestone Evaluation Progression</h3>
+              <h3 className="text-base font-bold text-foreground">{t('profile.milestonesTab.title', 'Milestone Evaluation Progression')}</h3>
               <p className="text-xs text-muted-foreground">
-                30, 60, 90, and 180-day probation and performance review records
+                {t('profile.milestonesTab.desc', '30, 60, 90, and 180-day probation and performance review records')}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1635,11 +1645,11 @@ export function EmployeeProfile() {
                     setAssignMilestoneOpen(true);
                   }}
                 >
-                  <Plus className="w-3.5 h-3.5" /> Assign Milestone
+                  <Plus className="w-3.5 h-3.5" /> {t('profile.milestonesTab.assignMilestone', 'Assign Milestone')}
                 </Button>
               )}
               <Button size="sm" variant="outline" className="rounded-xl text-xs" asChild>
-                <Link to="/milestones">Milestones Dashboard</Link>
+                <Link to="/milestones">{t('profile.milestonesTab.dashboard', 'Milestones Dashboard')}</Link>
               </Button>
             </div>
           </div>
@@ -1647,7 +1657,7 @@ export function EmployeeProfile() {
           <div className="space-y-4">
             {employeeMilestones.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground border border-dashed rounded-2xl bg-card p-8">
-                No milestone evaluations recorded.
+                {t('profile.milestonesTab.empty', 'No milestone evaluations recorded.')}
               </div>
             ) : (
               employeeMilestones.map((m: any) => (
@@ -1655,22 +1665,22 @@ export function EmployeeProfile() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
                     <div className="flex items-center gap-3">
                       <div className="size-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-sm">
-                        {m.targetDay}D
+                        {t('profile.milestonesTab.dayBadge', { day: m.targetDay, defaultValue: `${m.targetDay}D` })}
                       </div>
                       <div>
                         <h4 className="font-bold text-base text-foreground">{m.milestoneTitle}</h4>
-                        <p className="text-xs text-muted-foreground">Due Date: {new Date(m.dueDate).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">{t('profile.milestonesTab.dueDate', { date: new Date(m.dueDate).toLocaleDateString(), defaultValue: `Due Date: ${new Date(m.dueDate).toLocaleDateString()}` })}</p>
                       </div>
                     </div>
                     <Badge variant={m.status === 'approved' ? 'default' : 'secondary'} className="capitalize text-xs">
-                      Status: {m.status.replace(/_/g, ' ')}
+                      {t('profile.milestonesTab.statusLabel', { status: m.status.replace(/_/g, ' '), defaultValue: `Status: ${m.status.replace(/_/g, ' ')}` })}
                     </Badge>
                   </div>
 
                   {m.goalsProgress && m.goalsProgress.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Goals & Objectives Progress:
+                        {t('profile.milestonesTab.goalsProgress', 'Goals & Objectives Progress:')}
                       </p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {m.goalsProgress.map((g: any, idx: number) => (
@@ -1687,7 +1697,7 @@ export function EmployeeProfile() {
 
                   {m.managerFeedback && (
                     <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1">
-                      <span className="font-semibold text-foreground">Manager Feedback:</span>
+                      <span className="font-semibold text-foreground">{t('profile.milestonesTab.managerFeedback', 'Manager Feedback:')}</span>
                       <p className="text-muted-foreground">{m.managerFeedback}</p>
                     </div>
                   )}
@@ -1702,17 +1712,17 @@ export function EmployeeProfile() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Award className="h-5 w-5 text-indigo-600" />
-                  Assign Milestone Check-in to {employee.name}
+                  {t('profile.milestonesTab.assignModal.title', { name: employee.name, defaultValue: `Assign Milestone Check-in to ${employee.name}` })}
                 </DialogTitle>
                 <DialogDescription>
-                  Assign a structured 30, 60, 90, or 180-day milestone program.
+                  {t('profile.milestonesTab.assignModal.desc', 'Assign a structured 30, 60, 90, or 180-day milestone program.')}
                 </DialogDescription>
               </DialogHeader>
 
               <DialogBody className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Milestone Template *
+                    {t('profile.milestonesTab.assignModal.templateLabel', 'Milestone Template *')}
                   </label>
                   <select
                     id="profile-assign-milestone-select"
@@ -1720,17 +1730,17 @@ export function EmployeeProfile() {
                     onChange={(e) => setSelectedTemplateId(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="">Select Milestone Program</option>
-                    {milestoneTemplates.map((t: any) => (
-                      <option key={t._id} value={t._id}>
-                        Day {t.targetDay} - {t.title} ({t.goals?.length || 0} goals)
+                    <option value="">{t('profile.milestonesTab.assignModal.selectTemplate', 'Select Milestone Program')}</option>
+                    {milestoneTemplates.map((tmpl: any) => (
+                      <option key={tmpl._id} value={tmpl._id}>
+                        {t('profile.milestonesTab.assignModal.templateOption', { day: tmpl.targetDay, title: tmpl.title, count: tmpl.goals?.length || 0, defaultValue: `Day ${tmpl.targetDay} - ${tmpl.title} (${tmpl.goals?.length || 0} goals)` })}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 {(() => {
-                  const selTmpl = milestoneTemplates.find((t: any) => t._id === selectedTemplateId);
+                  const selTmpl = milestoneTemplates.find((tmpl: any) => tmpl._id === selectedTemplateId);
                   if (!selTmpl) return null;
                   const hireDateObj = employee.hireDate && !isNaN(new Date(employee.hireDate).getTime())
                     ? new Date(employee.hireDate)
@@ -1740,20 +1750,20 @@ export function EmployeeProfile() {
                   return (
                     <div className="p-3 bg-muted/40 rounded-xl border border-border/60 text-xs space-y-1.5">
                       <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
-                        Calculated Milestone Schedule:
+                        {t('profile.milestonesTab.assignModal.scheduleTitle', 'Calculated Milestone Schedule:')}
                       </span>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Hire Date:</span>
+                        <span className="text-muted-foreground">{t('profile.milestonesTab.assignModal.hireDate', 'Hire Date:')}</span>
                         <span className="font-medium text-foreground">{hireDateObj.toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Target Interval:</span>
+                        <span className="text-muted-foreground">{t('profile.milestonesTab.assignModal.targetInterval', 'Target Interval:')}</span>
                         <Badge variant="outline" className="text-[10px] font-mono">
-                          +{selTmpl.targetDay} Days
+                          {t('profile.milestonesTab.assignModal.intervalDays', { days: selTmpl.targetDay, defaultValue: `+${selTmpl.targetDay} Days` })}
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-border/50 font-semibold">
-                        <span className="text-indigo-600 dark:text-indigo-400">Projected Due Date:</span>
+                        <span className="text-indigo-600 dark:text-indigo-400">{t('profile.milestonesTab.assignModal.projectedDueDate', 'Projected Due Date:')}</span>
                         <span className="text-indigo-600 dark:text-indigo-400 font-bold">{projectedDueDate.toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -1763,7 +1773,7 @@ export function EmployeeProfile() {
 
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAssignMilestoneOpen(false)}>
-                  Cancel
+                  {t('profile.milestonesTab.assignModal.cancel', 'Cancel')}
                 </Button>
                 <Button
                   id="confirm-assign-milestone-profile-btn"
@@ -1771,7 +1781,7 @@ export function EmployeeProfile() {
                   onClick={handleAssignMilestoneToEmployee}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
                 >
-                  {assignMilestoneMutation.isPending ? 'Assigning...' : 'Confirm Assignment'}
+                  {assignMilestoneMutation.isPending ? t('profile.milestonesTab.assignModal.assigning', 'Assigning...') : t('profile.milestonesTab.assignModal.confirm', 'Confirm Assignment')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1783,9 +1793,9 @@ export function EmployeeProfile() {
         {/* ============================================================ */}
         <TabsContent value="activity" className="space-y-6 mt-0">
           <div>
-            <h3 className="text-base font-bold text-foreground">Audit Log & Communication Thread</h3>
+            <h3 className="text-base font-bold text-foreground">{t('profile.activityTab.title', 'Audit Log & Communication Thread')}</h3>
             <p className="text-xs text-muted-foreground">
-              Comprehensive chronological events, automated status transitions, and notes
+              {t('profile.activityTab.desc', 'Comprehensive chronological events, automated status transitions, and notes')}
             </p>
           </div>
 
@@ -1804,7 +1814,7 @@ export function EmployeeProfile() {
                   <span className="text-xs text-muted-foreground">{item.timestamp}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{item.message}</p>
-                <div className="pt-1 text-[10px] text-muted-foreground/70">Source: {item.author}</div>
+                <div className="pt-1 text-[10px] text-muted-foreground/70">{t('profile.activityTab.source', { author: item.author, defaultValue: `Source: ${item.author}` })}</div>
               </div>
             ))}
           </div>
@@ -1819,9 +1829,9 @@ export function EmployeeProfile() {
       <Dialog open={editSelfOpen} onOpenChange={setEditSelfOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Edit Profile Details</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{t('profile.modals.editSelf.title', 'Edit Profile Details')}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Update your personal contact details and regional preferences.
+              {t('profile.modals.editSelf.desc', 'Update your personal contact details and regional preferences.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -1829,37 +1839,37 @@ export function EmployeeProfile() {
             <DialogBody className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">First Name</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.editSelf.firstName', 'First Name')}</Label>
                   <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Last Name</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.editSelf.lastName', 'Last Name')}</Label>
                   <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="text-xs" />
                 </div>
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Phone Number</Label>
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.editSelf.phone', 'Phone Number')}</Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="text-xs" />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Location</Label>
-                <Input value={locationVal} onChange={(e) => setLocationVal(e.target.value)} placeholder="e.g. San Francisco, CA" className="text-xs" />
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.editSelf.location', 'Location')}</Label>
+                <Input value={locationVal} onChange={(e) => setLocationVal(e.target.value)} placeholder={t('profile.modals.editSelf.locationPlaceholder', 'e.g. San Francisco, CA')} className="text-xs" />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Timezone</Label>
-                <Input value={timezoneVal} onChange={(e) => setTimezoneVal(e.target.value)} placeholder="e.g. America/Los_Angeles" className="text-xs" />
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.editSelf.timezone', 'Timezone')}</Label>
+                <Input value={timezoneVal} onChange={(e) => setTimezoneVal(e.target.value)} placeholder={t('profile.modals.editSelf.timezonePlaceholder', 'e.g. America/Los_Angeles')} className="text-xs" />
               </div>
             </DialogBody>
 
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditSelfOpen(false)}>
-                Cancel
+                {t('profile.modals.editSelf.cancel', 'Cancel')}
               </Button>
               <Button type="submit" size="sm" disabled={updateSelfMutation.isPending}>
-                {updateSelfMutation.isPending ? 'Saving...' : 'Save Changes'}
+                {updateSelfMutation.isPending ? t('profile.modals.editSelf.saving', 'Saving...') : t('profile.modals.editSelf.save', 'Save Changes')}
               </Button>
             </DialogFooter>
           </form>
@@ -1870,36 +1880,36 @@ export function EmployeeProfile() {
       <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Change Password</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{t('profile.modals.changePassword.title', 'Change Password')}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Ensure your account is protected with a strong, unique password.
+              {t('profile.modals.changePassword.desc', 'Ensure your account is protected with a strong, unique password.')}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleChangePassword} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4 text-xs">
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Current Password</Label>
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.changePassword.currentPassword', 'Current Password')}</Label>
                 <Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} required className="text-xs" />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">New Password</Label>
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.changePassword.newPassword', 'New Password')}</Label>
                 <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} className="text-xs" />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Confirm New Password</Label>
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.changePassword.confirmPassword', 'Confirm New Password')}</Label>
                 <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} className="text-xs" />
               </div>
             </DialogBody>
 
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setChangePasswordOpen(false)}>
-                Cancel
+                {t('profile.modals.changePassword.cancel', 'Cancel')}
               </Button>
               <Button type="submit" size="sm" disabled={changePasswordMutation.isPending}>
-                {changePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
+                {changePasswordMutation.isPending ? t('profile.modals.changePassword.updating', 'Updating...') : t('profile.modals.changePassword.update', 'Update Password')}
               </Button>
             </DialogFooter>
           </form>
@@ -1910,9 +1920,9 @@ export function EmployeeProfile() {
       <Dialog open={editEmployeeOpen} onOpenChange={setEditEmployeeOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Manage Employee Account</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{t('profile.modals.manageEmployee.title', 'Manage Employee Account')}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Administrative configuration of roles, departmental hierarchy, and employment status.
+              {t('profile.modals.manageEmployee.desc', 'Administrative configuration of roles, departmental hierarchy, and employment status.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -1920,29 +1930,29 @@ export function EmployeeProfile() {
             <DialogBody className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">First Name</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.firstName', 'First Name')}</Label>
                   <Input value={adminFirstName} onChange={(e) => setAdminFirstName(e.target.value)} required className="text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Last Name</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.lastName', 'Last Name')}</Label>
                   <Input value={adminLastName} onChange={(e) => setAdminLastName(e.target.value)} required className="text-xs" />
                 </div>
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Designation / Title</Label>
-                <Input value={adminDesignation} onChange={(e) => setAdminDesignation(e.target.value)} placeholder="e.g. Senior Frontend Engineer" className="text-xs" />
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.designation', 'Designation / Title')}</Label>
+                <Input value={adminDesignation} onChange={(e) => setAdminDesignation(e.target.value)} placeholder={t('profile.modals.manageEmployee.designationPlaceholder', 'e.g. Senior Frontend Engineer')} className="text-xs" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Department</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.department', 'Department')}</Label>
                   <select
                     value={adminDeptId}
                     onChange={(e) => setAdminDeptId(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value="">Select Department</option>
+                    <option value="">{t('profile.modals.manageEmployee.selectDept', 'Select Department')}</option>
                     {activeDepartments.map((dept) => (
                       <option key={dept._id} value={dept._id}>
                         {dept.name}
@@ -1951,7 +1961,7 @@ export function EmployeeProfile() {
                   </select>
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Primary System Role</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.primaryRole', 'Primary System Role')}</Label>
                   <select
                     value={adminRole}
                     onChange={(e) => setAdminRole(e.target.value as any)}
@@ -1969,7 +1979,7 @@ export function EmployeeProfile() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Employment Status</Label>
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.employmentStatus', 'Employment Status')}</Label>
                   <select
                     value={adminStatus}
                     onChange={(e) => setAdminStatus(e.target.value as any)}
@@ -1981,23 +1991,23 @@ export function EmployeeProfile() {
                   </select>
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold mb-1 block">Payroll Category</Label>
-                  <Input value={adminPayrollCategory} onChange={(e) => setAdminPayrollCategory(e.target.value)} placeholder="e.g. Salaried W2, Exempt" className="text-xs" />
+                  <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.payrollCategory', 'Payroll Category')}</Label>
+                  <Input value={adminPayrollCategory} onChange={(e) => setAdminPayrollCategory(e.target.value)} placeholder={t('profile.modals.manageEmployee.payrollPlaceholder', 'e.g. Salaried W2, Exempt')} className="text-xs" />
                 </div>
               </div>
 
               <div>
-                <Label className="text-xs font-semibold mb-1 block">Hire / Effective Date</Label>
+                <Label className="text-xs font-semibold mb-1 block">{t('profile.modals.manageEmployee.hireDate', 'Hire / Effective Date')}</Label>
                 <Input type="date" value={adminHireDate} onChange={(e) => setAdminHireDate(e.target.value)} className="text-xs" />
               </div>
             </DialogBody>
 
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditEmployeeOpen(false)}>
-                Cancel
+                {t('profile.modals.manageEmployee.cancel', 'Cancel')}
               </Button>
               <Button type="submit" size="sm" disabled={updateEmployeeMutation.isPending}>
-                {updateEmployeeMutation.isPending ? 'Saving...' : 'Save Account Settings'}
+                {updateEmployeeMutation.isPending ? t('profile.modals.manageEmployee.saving', 'Saving...') : t('profile.modals.manageEmployee.save', 'Save Account Settings')}
               </Button>
             </DialogFooter>
           </form>
@@ -2014,10 +2024,10 @@ export function EmployeeProfile() {
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold">
-                  {employee.legalHold ? 'Manage Statutory Legal Hold' : 'Place Statutory Legal Hold'}
+                  {employee.legalHold ? t('profile.modals.legalHold.titleManage', 'Manage Statutory Legal Hold') : t('profile.modals.legalHold.titlePlace', 'Place Statutory Legal Hold')}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  SOC 2 CC6.1 / FINRA document preservation and audit freeze
+                  {t('profile.modals.legalHold.desc', 'SOC 2 CC6.1 / FINRA document preservation and audit freeze')}
                 </DialogDescription>
               </div>
             </div>
@@ -2025,33 +2035,33 @@ export function EmployeeProfile() {
 
           <DialogBody className="space-y-4 text-xs">
             <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
-              <p className="font-semibold text-foreground">Target Employee: {employee.name}</p>
+              <p className="font-semibold text-foreground">{t('profile.modals.legalHold.targetEmployee', { name: employee.name, defaultValue: `Target Employee: ${employee.name}` })}</p>
               <p className="text-muted-foreground">
-                Current Status:{' '}
+                {t('profile.modals.legalHold.currentStatus', 'Current Status:')}{' '}
                 <span className={employee.legalHold ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
-                  {employee.legalHold ? 'Active Hold' : 'Standard Retention'}
+                  {employee.legalHold ? t('profile.modals.legalHold.activeHold', 'Active Hold') : t('profile.modals.legalHold.standardRetention', 'Standard Retention')}
                 </span>
               </p>
             </div>
 
             <div>
               <Label className="text-xs font-semibold mb-1 block">
-                Statutory Justification & Matter Reference *
+                {t('profile.modals.legalHold.justificationLabel', 'Statutory Justification & Matter Reference *')}
               </Label>
               <textarea
                 value={legalHoldReason}
                 onChange={(e) => setLegalHoldReason(e.target.value)}
-                placeholder="e.g. Audit preservation for Q3 SEC compliance review or ongoing litigation hold..."
+                placeholder={t('profile.modals.legalHold.justificationPlaceholder', 'e.g. Audit preservation for Q3 SEC compliance review or ongoing litigation hold...')}
                 rows={3}
                 className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">Must be at least 10 characters for audit logs.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{t('profile.modals.legalHold.minCharsNote', 'Must be at least 10 characters for audit logs.')}</p>
             </div>
           </DialogBody>
 
           <DialogFooter>
             <Button type="button" variant="outline" size="sm" onClick={() => setLegalHoldModalOpen(false)}>
-              Cancel
+              {t('profile.modals.legalHold.cancel', 'Cancel')}
             </Button>
             <Button
               type="button"
@@ -2060,7 +2070,7 @@ export function EmployeeProfile() {
               onClick={handleToggleLegalHold}
               disabled={isUpdatingHold}
             >
-              {isUpdatingHold ? 'Processing...' : employee.legalHold ? 'Release Legal Hold' : 'Confirm Legal Hold'}
+              {isUpdatingHold ? t('profile.modals.legalHold.processing', 'Processing...') : employee.legalHold ? t('profile.modals.legalHold.release', 'Release Legal Hold') : t('profile.modals.legalHold.confirm', 'Confirm Legal Hold')}
             </Button>
           </DialogFooter>
         </DialogContent>

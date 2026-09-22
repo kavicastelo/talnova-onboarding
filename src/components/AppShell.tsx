@@ -190,17 +190,17 @@ export function AppShell() {
   // Semantic navigation sections by role
   const adminNavSections: NavSection[] = [
     {
-      label: 'Overview & Operations',
+      label: t('groups.overviewOperations') || 'Overview & Operations',
       items: [
         { title: t('items.dashboard') || 'Dashboard', url: '/', icon: LayoutDashboard },
         {
-          title: 'HR Operations',
+          title: t('items.hrOps') || 'HR Operations',
           url: '/hr-ops',
           icon: ShieldAlert,
           capability: 'view_hr_ops',
           subItems: [
             {
-              title: 'Exceptions Workbench',
+              title: t('items.exceptionsWorkbench') || 'Exceptions Workbench',
               url: '/hr-ops/exceptions',
               icon: AlertOctagon,
               capability: 'view_hr_ops',
@@ -209,57 +209,57 @@ export function AppShell() {
             },
           ],
         },
-        { title: 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
+        { title: t('items.teamOps') || 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
       ],
     },
     {
-      label: 'People & Teams',
+      label: t('groups.peopleTeams') || 'People & Teams',
       items: [
-        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
-        { title: 'Buddy Program', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
-        { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
+        { title: t('items.buddy') || 'Buddy Program', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
+        { title: t('items.milestones') || '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
       ],
     },
     {
-      label: 'Learning & Content',
+      label: t('groups.learningContent') || 'Learning & Content',
       items: [
         { title: t('items.myLearning') || 'Journey Templates', url: '/journeys', icon: GraduationCap },
-        { title: 'AI Course Builder', url: '/ai-course-builder', icon: Wand2, featureFlag: 'ai_course_builder', capability: 'ai_course_builder' },
+        { title: t('items.aiCourseBuilder') || 'AI Course Builder', url: '/ai-course-builder', icon: Wand2, featureFlag: 'ai_course_builder', capability: 'ai_course_builder' },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
       ],
     },
     {
-      label: 'Operations & Compliance',
+      label: t('groups.operationsCompliance') || 'Operations & Compliance',
       items: [
-        { title: 'Digital Documents', url: '/documents', icon: FileText, featureFlag: 'digital_signatures' },
+        { title: t('items.documents') || 'Digital Documents', url: '/documents', icon: FileText, featureFlag: 'digital_signatures' },
         {
-          title: 'Tasks & Checklists',
+          title: t('items.tasks') || 'Tasks & Checklists',
           url: '/tasks',
           icon: CheckSquare,
           subItems: [
-            { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
+            { title: t('items.itHardwareQueue') || 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
           ],
         },
-        { title: 'Calendar & Meetings', url: '/calendar', icon: Calendar },
-        { title: 'Kiosk Terminals', url: '/kiosks', icon: Tv, featureFlag: 'kiosk_mode', capability: 'manage_organization' },
+        { title: t('items.calendar') || 'Calendar & Meetings', url: '/calendar', icon: Calendar },
+        { title: t('items.kiosks') || 'Kiosk Terminals', url: '/kiosks', icon: Tv, featureFlag: 'kiosk_mode', capability: 'manage_organization' },
       ],
     },
     {
-      label: 'System & Insights',
+      label: t('groups.systemInsights') || 'System & Insights',
       items: [
         { title: t('items.analytics') || 'Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
-        { title: 'Workflows & Rules', url: '/workflows', icon: Workflow, capability: 'manage_workflows' },
-        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
-        { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
-        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
+        { title: t('items.workflows') || 'Workflows & Rules', url: '/workflows', icon: Workflow, capability: 'manage_workflows' },
+        { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
+        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: t('items.leaderboard') || 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
         {
           title: t('items.settings') || 'Settings',
           url: '/settings',
           icon: Settings,
           capability: 'manage_organization',
           subItems: [
-            { title: 'SSO & Identity', url: '/settings/sso', icon: KeyRound, featureFlag: 'sso_enforcement', capability: 'manage_sso' },
-            { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
+            { title: t('items.sso') || 'SSO & Identity', url: '/settings/sso', icon: KeyRound, featureFlag: 'sso_enforcement', capability: 'manage_sso' },
+            { title: t('items.hris') || 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
           ],
         },
       ],
@@ -268,168 +268,168 @@ export function AppShell() {
 
   const managerNavSections: NavSection[] = [
     {
-      label: 'Team Supervision',
+      label: t('groups.teamSupervision') || 'Team Supervision',
       items: [
-        { title: 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
-        { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
-        { title: 'Tasks & Verification', url: '/tasks', icon: CheckSquare },
+        { title: t('items.teamOps') || 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
+        { title: t('items.milestones') || '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+        { title: t('items.tasksVerification') || 'Tasks & Verification', url: '/tasks', icon: CheckSquare },
       ],
     },
     {
-      label: 'People & Mentorship',
+      label: t('groups.peopleMentorship') || 'People & Mentorship',
       items: [
-        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
-        { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
-        { title: '1-on-1 Calendar', url: '/calendar', icon: Calendar },
+        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
+        { title: t('items.buddySupport') || 'Buddy Support', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
+        { title: t('items.oneOnOneCalendar') || '1-on-1 Calendar', url: '/calendar', icon: Calendar },
       ],
     },
     {
-      label: 'Insights & Tools',
+      label: t('groups.insightsTools') || 'Insights & Tools',
       items: [
-        { title: t('items.analytics') || 'Team Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
+        { title: t('items.teamAnalytics') || 'Team Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
-        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
-        { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
+        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot },
       ],
     },
   ];
 
   const employeeNavSections: NavSection[] = [
     {
-      label: 'My Onboarding',
+      label: t('groups.myOnboarding') || 'My Onboarding',
       items: [
-        { title: 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard },
+        { title: t('items.onboardingRoadmap') || 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard },
         {
-          title: 'Required Documents',
+          title: t('items.requiredDocuments') || 'Required Documents',
           url: '/documents',
           icon: FileText,
           featureFlag: 'digital_signatures',
-          badge: pendingDocsCount > 0 ? `${pendingDocsCount} pending` : null,
+          badge: pendingDocsCount > 0 ? t('pendingDocsCount', { count: pendingDocsCount, defaultValue: `${pendingDocsCount} pending` }) : null,
           badgeVariant: 'destructive',
         },
-        { title: 'Checklist Tasks', url: '/tasks', icon: CheckSquare },
-        { title: t('items.myLearning') || 'Learning Journeys', url: '/journeys', icon: GraduationCap },
+        { title: t('items.checklistTasks') || 'Checklist Tasks', url: '/tasks', icon: CheckSquare },
+        { title: t('items.learningJourneys') || 'Learning Journeys', url: '/journeys', icon: GraduationCap },
       ],
     },
     {
-      label: 'Support & Milestones',
+      label: t('groups.supportMilestones') || 'Support & Milestones',
       items: [
-        { title: 'My Onboarding Buddy', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
-        { title: '30/60/90 Goals', url: '/milestones', icon: CalendarCheck },
-        { title: 'Schedule & Meetings', url: '/calendar', icon: Calendar },
+        { title: t('items.myBuddy') || 'My Onboarding Buddy', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
+        { title: t('items.milestonesGoals') || '30/60/90 Goals', url: '/milestones', icon: CalendarCheck },
+        { title: t('items.scheduleMeetings') || 'Schedule & Meetings', url: '/calendar', icon: Calendar },
       ],
     },
     {
-      label: 'Workplace & Resources',
+      label: t('groups.workplaceResources') || 'Workplace & Resources',
       items: [
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
-        { title: 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot },
         { title: t('items.certificates') || 'Certificates', url: '/certificates', icon: Award },
-        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
-        { title: 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
+        { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
+        { title: t('items.leaderboard') || 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
       ],
     },
   ];
 
   const itAdminNavSections: NavSection[] = [
     {
-      label: 'Hardware & Provisioning',
+      label: t('groups.hardwareProvisioning') || 'Hardware & Provisioning',
       items: [
-        { title: 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
-        { title: 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+        { title: t('items.itHardwareQueue') || 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
+        { title: t('items.tasks') || 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
       ],
     },
     {
-      label: 'Systems & Directory',
+      label: t('groups.systemsDirectory') || 'Systems & Directory',
       items: [
-        { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
-        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
+        { title: t('items.hris') || 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
+        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
-        { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
+        { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
       ],
     },
   ];
 
   const superAdminNavSections: NavSection[] = [
     {
-      label: 'Platform Control',
+      label: t('platformManagement') || 'Platform Control',
       items: [
         { title: t('items.superAdminDashboard') || 'Command Center', url: '/super-admin', icon: LayoutDashboard },
-        { title: 'Alert Center', url: '/super-admin/alerts', icon: AlertTriangle },
+        { title: t('items.alerts') || 'Alert Center', url: '/super-admin/alerts', icon: AlertTriangle },
       ],
     },
     {
-      label: 'Tenants & Users',
+      label: t('groups.tenantsUsers') || 'Tenants & Users',
       items: [
         { title: t('items.organizations') || 'Organizations', url: '/super-admin/organizations', icon: Users },
         {
-          title: 'Users & Access',
+          title: t('items.usersAccess') || 'Users & Access',
           url: '/super-admin/users',
           icon: UserCheck,
           subItems: [
-            { title: 'User Directory', url: '/super-admin/users', icon: Users },
-            { title: 'Active Sessions', url: '/super-admin/users/sessions', icon: KeyRound },
+            { title: t('items.userDirectory') || 'User Directory', url: '/super-admin/users', icon: Users },
+            { title: t('items.activeSessions') || 'Active Sessions', url: '/super-admin/users/sessions', icon: KeyRound },
           ],
         },
       ],
     },
     {
-      label: 'Onboarding & Product',
+      label: t('groups.onboardingProduct') || 'Onboarding & Product',
       items: [
-        { title: 'Onboarding Monitor', url: '/super-admin/onboarding', icon: GraduationCap },
-        { title: 'Feature Adoption', url: '/super-admin/product/features', icon: BarChart2 },
-        { title: 'Operations & Hardware', url: '/super-admin/tasks-ops', icon: CheckSquare },
+        { title: t('items.onboardingMonitor') || 'Onboarding Monitor', url: '/super-admin/onboarding', icon: GraduationCap },
+        { title: t('items.featureAdoption') || 'Feature Adoption', url: '/super-admin/product/features', icon: BarChart2 },
+        { title: t('items.tasksOps') || 'Operations & Hardware', url: '/super-admin/tasks-ops', icon: CheckSquare },
       ],
     },
     {
-      label: 'Platform Observability',
+      label: t('groups.platformObservability') || 'Platform Observability',
       items: [
-        { title: 'Activity Explorer', url: '/super-admin/activity', icon: Clock },
-        { title: 'API Observability', url: '/super-admin/observability/api', icon: Activity },
-        { title: 'System Logs', url: '/super-admin/observability/logs', icon: FileText },
-        { title: 'Infrastructure & DB', url: '/super-admin/observability/infrastructure', icon: Server },
-        { title: 'AI Observability', url: '/super-admin/observability/ai', icon: Bot },
-        { title: 'Storage & Media', url: '/super-admin/observability/storage', icon: HardDrive },
+        { title: t('items.activityExplorer') || 'Activity Explorer', url: '/super-admin/activity', icon: Clock },
+        { title: t('items.apiObservability') || 'API Observability', url: '/super-admin/observability/api', icon: Activity },
+        { title: t('items.systemLogs') || 'System Logs', url: '/super-admin/observability/logs', icon: FileText },
+        { title: t('items.infrastructureDb') || 'Infrastructure & DB', url: '/super-admin/observability/infrastructure', icon: Server },
+        { title: t('items.aiObservability') || 'AI Observability', url: '/super-admin/observability/ai', icon: Bot },
+        { title: t('items.storageMedia') || 'Storage & Media', url: '/super-admin/observability/storage', icon: HardDrive },
       ],
     },
     {
-      label: 'Internal Finance',
+      label: t('groups.internalFinance') || 'Internal Finance',
       items: [
         {
           title: t('items.finance') || 'Finance & Billing',
           url: '/super-admin/finance',
           icon: DollarSign,
           subItems: [
-            { title: 'Finance Overview', url: '/super-admin/finance', icon: DollarSign },
-            { title: 'Invoices & Receivables', url: '/super-admin/finance/invoices', icon: FileSpreadsheet },
-            { title: 'Payment Ledger', url: '/super-admin/finance/payments', icon: CreditCard },
-            { title: 'Expense Tracker', url: '/super-admin/finance/expenses', icon: BarChart3 },
-            { title: 'Customer Accounts', url: '/super-admin/finance/accounts', icon: Layers },
+            { title: t('items.financeOverview') || 'Finance Overview', url: '/super-admin/finance', icon: DollarSign },
+            { title: t('items.invoicesReceivables') || 'Invoices & Receivables', url: '/super-admin/finance/invoices', icon: FileSpreadsheet },
+            { title: t('items.paymentLedger') || 'Payment Ledger', url: '/super-admin/finance/payments', icon: CreditCard },
+            { title: t('items.expenseTracker') || 'Expense Tracker', url: '/super-admin/finance/expenses', icon: BarChart3 },
+            { title: t('items.customerAccounts') || 'Customer Accounts', url: '/super-admin/finance/accounts', icon: Layers },
           ],
         },
       ],
     },
     {
-      label: 'Audit & Governance',
+      label: t('groups.auditGovernance') || 'Audit & Governance',
       items: [
-        { title: 'Audit & Security', url: '/super-admin/audit', icon: ShieldAlert },
-        { title: 'Reporting Center', url: '/super-admin/reports', icon: BarChart3 },
+        { title: t('items.auditSecurity') || 'Audit & Security', url: '/super-admin/audit', icon: ShieldAlert },
+        { title: t('items.reportingCenter') || 'Reporting Center', url: '/super-admin/reports', icon: BarChart3 },
       ],
     },
     {
-      label: 'Platform Settings',
+      label: t('groups.platformSettings') || 'Platform Settings',
       items: [
-        { title: 'Feature Flags', url: '/super-admin/settings/flags', icon: ToggleLeft },
-        { title: 'Platform Settings', url: '/super-admin/settings/platform', icon: Settings },
+        { title: t('items.featureFlags') || 'Feature Flags', url: '/super-admin/settings/flags', icon: ToggleLeft },
+        { title: t('items.platformSettings') || 'Platform Settings', url: '/super-admin/settings/platform', icon: Settings },
       ],
     },
   ];
 
   const anonymousNavSections: NavSection[] = [
     {
-      label: 'Public Resources',
+      label: t('groups.publicResources') || 'Public Resources',
       items: [
-        { title: 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
       ],
     },
   ];
@@ -439,57 +439,57 @@ export function AppShell() {
     'super-admin': t('breadcrumb.superAdmin') || 'Super Admin',
     organizations: t('breadcrumb.organizations') || 'Organizations',
     finance: t('breadcrumb.finance') || 'Finance & Billing',
-    alerts: 'Alert Center',
-    users: 'Users Directory',
-    sessions: 'Active Sessions',
-    onboarding: 'Onboarding Monitor',
-    features: 'Feature Adoption',
-    'tasks-ops': 'Operations & Hardware',
-    activity: 'Activity Explorer',
-    observability: 'Observability',
-    api: 'API Observability',
-    logs: 'System Logs',
-    infrastructure: 'Infrastructure & DB',
-    ai: 'AI Observability',
-    storage: 'Storage & Media Assets',
-    invoices: 'Invoicing & Receivables',
-    payments: 'Payment Ledger',
-    expenses: 'Expense Tracker',
-    accounts: 'Customer Accounts',
-    audit: 'Audit & Security',
-    reports: 'Reporting Center',
-    flags: 'Feature Flags',
-    platform: 'Platform Settings',
+    alerts: t('breadcrumb.alerts') || 'Alert Center',
+    users: t('breadcrumb.users') || 'Users Directory',
+    sessions: t('breadcrumb.sessions') || 'Active Sessions',
+    onboarding: t('breadcrumb.onboarding') || 'Onboarding Monitor',
+    features: t('breadcrumb.features') || 'Feature Adoption',
+    'tasks-ops': t('breadcrumb.tasksOps') || 'Operations & Hardware',
+    activity: t('breadcrumb.activity') || 'Activity Explorer',
+    observability: t('breadcrumb.observability') || 'Observability',
+    api: t('breadcrumb.api') || 'API Observability',
+    logs: t('breadcrumb.logs') || 'System Logs',
+    infrastructure: t('breadcrumb.infrastructure') || 'Infrastructure & DB',
+    ai: t('breadcrumb.ai') || 'AI Observability',
+    storage: t('breadcrumb.storage') || 'Storage & Media Assets',
+    invoices: t('breadcrumb.invoices') || 'Invoicing & Receivables',
+    payments: t('breadcrumb.payments') || 'Payment Ledger',
+    expenses: t('breadcrumb.expenses') || 'Expense Tracker',
+    accounts: t('breadcrumb.accounts') || 'Customer Accounts',
+    audit: t('breadcrumb.audit') || 'Audit & Security',
+    reports: t('breadcrumb.reports') || 'Reporting Center',
+    flags: t('breadcrumb.flags') || 'Feature Flags',
+    platform: t('breadcrumb.platform') || 'Platform Settings',
     journeys: t('breadcrumb.journeys') || 'Journey Templates',
     directory: t('breadcrumb.directory') || 'Employee Directory',
     analytics: t('breadcrumb.analytics') || 'Analytics',
     kb: t('breadcrumb.kb') || 'Knowledge Base',
-    'knowledge-base': 'Knowledge Base',
-    slideshow: 'Policy Slideshow',
+    'knowledge-base': t('breadcrumb.kb') || 'Knowledge Base',
+    slideshow: t('breadcrumb.slideshow') || 'Policy Slideshow',
     settings: t('breadcrumb.settings') || 'Settings',
-    sso: 'SSO & Identity',
-    integrations: 'HRIS Integrations',
+    sso: t('breadcrumb.sso') || 'SSO & Identity',
+    integrations: t('breadcrumb.integrations') || 'HRIS Integrations',
     employee: t('breadcrumb.employee') || 'Onboarding Roadmap',
     course: t('breadcrumb.course') || 'Course Player',
     certificates: t('breadcrumb.certificates') || 'Certificates',
-    tasks: 'Tasks & Checklists',
-    'it-ops': 'IT Hardware Queue',
-    documents: 'Digital Documents',
-    sign: 'E-Signature',
-    milestones: '30/60/90 Milestones',
-    workflows: 'Workflows & Rules',
-    manager: 'Team Operations',
-    buddy: 'Buddy Support',
-    calendar: 'Calendar & Meetings',
-    'hr-ops': 'HR Operations',
-    exceptions: 'Exceptions & Holds',
-    leaderboard: 'Leaderboard',
-    'ai-assistant': 'AI Assistant',
-    'ai-course-builder': 'AI Course Builder',
-    'office-map': 'Office Map',
-    kiosks: 'Kiosk Terminals',
-    profile: 'Profile',
-    me: 'My Profile',
+    tasks: t('breadcrumb.tasks') || 'Tasks & Checklists',
+    'it-ops': t('breadcrumb.itOps') || 'IT Hardware Queue',
+    documents: t('breadcrumb.documents') || 'Digital Documents',
+    sign: t('breadcrumb.sign') || 'E-Signature',
+    milestones: t('breadcrumb.milestones') || '30/60/90 Milestones',
+    workflows: t('breadcrumb.workflows') || 'Workflows & Rules',
+    manager: t('breadcrumb.manager') || 'Team Operations',
+    buddy: t('breadcrumb.buddy') || 'Buddy Support',
+    calendar: t('breadcrumb.calendar', { defaultValue: 'Calendar & Meetings' }),
+    'hr-ops': t('breadcrumb.hrOps') || 'HR Operations',
+    exceptions: t('breadcrumb.exceptions') || 'Exceptions & Holds',
+    leaderboard: t('breadcrumb.leaderboard') || 'Leaderboard',
+    'ai-assistant': t('breadcrumb.aiAssistant') || 'AI Assistant',
+    'ai-course-builder': t('breadcrumb.aiCourseBuilder') || 'AI Course Builder',
+    'office-map': t('breadcrumb.officeMap') || 'Office Map',
+    kiosks: t('breadcrumb.kiosks') || 'Kiosk Terminals',
+    profile: t('breadcrumb.profile') || 'Profile',
+    me: t('breadcrumb.me') || 'My Profile',
   };
   const { setOpen, isMobile } = useSidebar();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -526,12 +526,12 @@ export function AppShell() {
   const handleLogout = async () => {
     try {
       await authService.logout();
-      toast.success('Successfully logged out.');
+      toast.success(t('user.logoutSuccess', 'Successfully logged out.'));
       setTimeout(() => {
         window.location.reload();
       }, 500);
     } catch (err) {
-      toast.error('Failed to log out.');
+      toast.error(t('user.logoutFailed', 'Failed to log out.'));
     }
   };
   useCommandPaletteHotkey(setPaletteOpen);
@@ -610,13 +610,13 @@ export function AppShell() {
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
   const roleDisplayNames: Record<Role, string> = {
-    super_admin: 'Super Admin',
-    admin: 'Administrator',
-    owner: 'Owner',
-    hr_admin: 'HR Admin',
-    it_admin: 'IT Admin',
-    manager: 'Manager',
-    employee: 'Employee',
+    super_admin: t('roles.super_admin', 'Super Admin'),
+    admin: t('roles.admin', 'Administrator'),
+    owner: t('roles.owner', 'Owner'),
+    hr_admin: t('roles.hr_admin', 'HR Admin'),
+    it_admin: t('roles.it_admin', 'IT Admin'),
+    manager: t('roles.manager', 'Manager'),
+    employee: t('roles.employee', 'Employee'),
   };
 
   const availableRoles: Role[] = useMemo(() => {
@@ -694,14 +694,14 @@ export function AppShell() {
                       {settings?.orgName || 'Talnova Onboarding'}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
-                      Enterprise plan
+                      {t('enterprisePlan', 'Enterprise plan')}
                     </span>
                   </div>
                   <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('workspaces', 'Workspaces')}</DropdownMenuLabel>
                 <DropdownMenuItem>
                   <Check className="mr-2 h-4 w-4" /> {settings?.orgName || 'Talnova Onboarding'}
                 </DropdownMenuItem>
@@ -800,7 +800,7 @@ export function AppShell() {
                     />
                     <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
                       <span className="truncate text-sm font-medium leading-tight">
-                        {userLoading ? 'Loading...' : (user?.name || 'Jane Doe')}
+                        {userLoading ? t('loading', 'Loading...') : (user?.name || 'Jane Doe')}
                       </span>
                       <span className="truncate text-xs capitalize text-muted-foreground">
                         {roleDisplayNames[role] || role}
@@ -812,12 +812,12 @@ export function AppShell() {
                 <DropdownMenuContent side="top" align="end" className="w-56">
                   <DropdownMenuLabel>{user?.email || 'jane@northwind.com'}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSelectAction(() => navigate('/directory/me'))}>Profile</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSelectAction(() => navigate('/directory/me'))}>{t('user.profile', 'Profile')}</DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSelectAction(() => navigate('/settings'))}>
-                    Settings
+                    {t('user.settings', 'Settings')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSelectAction(handleLogout)}>Log out</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSelectAction(handleLogout)}>{t('user.logout', 'Log out')}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -826,7 +826,7 @@ export function AppShell() {
                 className="w-full flex items-center justify-center gap-2"
                 variant="default"
               >
-                Sign In
+                {t('signIn', 'Sign In')}
               </Button>
             )}
           </SidebarFooter>
@@ -841,14 +841,14 @@ export function AppShell() {
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link to="/" onClick={handleNavClick('/')}>Talnova Labs</Link>
+                        <Link to="/" onClick={handleNavClick('/')}>{t('talnovaLabs', 'Talnova Labs')}</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     {segments.length === 0 && role === 'admin' &&
                       <>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
-                          <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                          <BreadcrumbPage>{t('breadcrumb.dashboard', 'Dashboard')}</BreadcrumbPage>
                         </BreadcrumbItem>
                       </>
                     }
@@ -884,7 +884,7 @@ export function AppShell() {
                 className="hidden items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted md:flex md:w-64 lg:w-72">
 
                 <Search className="h-4 w-4" />
-                <span className="flex-1 text-left">Search…</span>
+                <span className="flex-1 text-left">{t('search', 'Search…')}</span>
                 <kbd className="pointer-events-none rounded border bg-background px-1.5 font-mono text-[10px] font-medium">
                   ⌘K
                 </kbd>
@@ -894,7 +894,7 @@ export function AppShell() {
                 size="icon"
                 className="md:hidden"
                 onClick={() => setPaletteOpen(true)}
-                aria-label="Search">
+                aria-label={t('search', 'Search…')}>
 
                 <Search className="h-5 w-5" />
               </Button>
@@ -918,9 +918,9 @@ export function AppShell() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
                       <DropdownMenuLabel className="flex items-center justify-between text-xs">
-                        <span>Switch View</span>
+                        <span>{t('switchView', 'Switch View')}</span>
                         <Badge variant="secondary" className="text-[10px] py-0 px-1 font-normal">
-                          {availableRoles.length} roles
+                          {t('rolesCount', { count: availableRoles.length, defaultValue: `${availableRoles.length} roles` })}
                         </Badge>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
@@ -960,7 +960,7 @@ export function AppShell() {
                       variant="ghost"
                       size="icon"
                       className="relative"
-                      aria-label="Notifications">
+                      aria-label={t('notifications.title', 'Notifications')}>
 
                       <Bell className="h-5 w-5" />
                       {unreadCount > 0 && (
@@ -972,21 +972,21 @@ export function AppShell() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80">
                     <DropdownMenuLabel className="flex items-center justify-between">
-                      <span>Notifications</span>
+                      <span>{t('notifications.title', 'Notifications')}</span>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{unreadCount} new</Badge>
+                        <Badge variant="secondary">{t('notifications.new', { count: unreadCount, defaultValue: `${unreadCount} new` })}</Badge>
                         {unreadCount > 0 && (
                           <button
                             onClick={() => markAllReadMutation.mutate()}
                             className="text-xs text-primary hover:underline font-normal">
-                            Mark all read
+                            {t('notifications.markAllRead', 'Mark all read')}
                           </button>
                         )}
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-muted-foreground">No notifications</div>
+                      <div className="p-4 text-center text-xs text-muted-foreground">{t('notifications.none', 'No notifications')}</div>
                     ) : (
                       <div className="max-h-80 overflow-y-auto">
                         {notifications.map((n) => (
@@ -1026,15 +1026,15 @@ export function AppShell() {
       <Dialog open={!!pendingNavAction} onOpenChange={(open: boolean) => !open && setPendingNavAction(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogTitle>{t('unsavedChanges.title', 'Unsaved Changes')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="text-sm text-muted-foreground">
-            You have unsaved changes in the Journey Builder. If you leave, your changes will be lost. Are you sure you want to discard your changes and leave?
+            {t('unsavedChanges.message', 'You have unsaved changes in the Journey Builder. If you leave, your changes will be lost. Are you sure you want to discard your changes and leave?')}
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingNavAction(null)}>Stay</Button>
+            <Button variant="outline" onClick={() => setPendingNavAction(null)}>{t('unsavedChanges.stay', 'Stay')}</Button>
             <Button
               variant="destructive"
               onClick={() => {
@@ -1045,7 +1045,7 @@ export function AppShell() {
                 }
               }}
             >
-              Discard & Leave
+              {t('unsavedChanges.discard', 'Discard & Leave')}
             </Button>
           </DialogFooter>
         </DialogContent>

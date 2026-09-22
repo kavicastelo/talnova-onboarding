@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/Tabs';
@@ -76,6 +77,7 @@ import { Trash, X, Lock, Globe, FileSpreadsheet, Headphones, Image as ImageIcon,
 import { uploadService } from '../services/upload.service';
 
 export function JourneyBuilder() {
+  const { t } = useTranslation(['journeys', 'common']);
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === 'new';
@@ -251,7 +253,7 @@ export function JourneyBuilder() {
           onSuccess: (newJourney) => {
             (window as any).isJourneyBuilderDirty = false;
             setIsDirty(false);
-            toast.success('Journey draft saved!');
+            toast.success(t('builder.toasts.draftSaved'));
             navigate(`/journeys/${newJourney.id}`, { replace: true });
             if (onSuccessCallback) onSuccessCallback();
           },
@@ -270,7 +272,7 @@ export function JourneyBuilder() {
           onSuccess: () => {
             (window as any).isJourneyBuilderDirty = false;
             setIsDirty(false);
-            toast.success('Draft saved successfully!');
+            toast.success(t('builder.toasts.draftSavedSuccess'));
             if (onSuccessCallback) onSuccessCallback();
           },
           onError: (err: any) => {
@@ -287,10 +289,10 @@ export function JourneyBuilder() {
         { id, journey: { status: 'Active' } },
         {
           onSuccess: () => {
-            toast.success('Journey published successfully!');
+            toast.success(t('builder.toasts.publishedSuccess'));
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to publish journey.');
+            toast.error(err?.message || t('builder.toasts.publishFailed'));
           },
         }
       );
@@ -399,9 +401,9 @@ export function JourneyBuilder() {
         setUploadPercent(pct);
       });
       updateSelectedLesson({ content: url });
-      toast.success('File uploaded successfully!');
+      toast.success(t('builder.toasts.fileUploaded'));
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to upload file.');
+      toast.error(err?.message || t('builder.toasts.uploadFailed'));
     } finally {
       setIsUploading(false);
     }
@@ -430,10 +432,10 @@ export function JourneyBuilder() {
     return (
       <div className="max-w-md mx-auto text-center p-8 border rounded-lg space-y-4 my-12">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Failed to Load Journey Builder</h2>
-        <p className="text-muted-foreground">{(error as any)?.message || 'The requested journey details could not be retrieved.'}</p>
+        <h2 className="text-xl font-bold">{t('builder.error.title')}</h2>
+        <p className="text-muted-foreground">{(error as any)?.message || t('builder.error.fallback')}</p>
         <Button onClick={() => refetch()} className="mx-auto">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('builder.error.retry')}
         </Button>
       </div>
     );
@@ -442,14 +444,15 @@ export function JourneyBuilder() {
   const handleTogglePublic = (publicVal: boolean) => {
     setIsPublic(publicVal);
     if (!isNew && id) {
+      const policyLabel = publicVal ? t('builder.toasts.policyPublic') : t('builder.toasts.policyRestricted');
       updateJourney.mutate(
         { id, journey: { audience: { isPublic: publicVal } } },
         {
           onSuccess: () => {
-            toast.success(`Access policy updated to ${publicVal ? 'Public' : 'Restricted'}.`);
+            toast.success(t('builder.toasts.accessUpdated', { policy: policyLabel }));
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to update access policy.');
+            toast.error(err?.message || t('builder.toasts.accessUpdateFailed'));
             setIsPublic(!publicVal); // revert
           }
         }
@@ -459,11 +462,11 @@ export function JourneyBuilder() {
 
   const handleBulkAssign = () => {
     if (selectedEmpIds.length === 0) {
-      toast.error('Please select at least one employee.');
+      toast.error(t('builder.toasts.selectEmployeeRequired'));
       return;
     }
     if (!id || isNew) {
-      toast.error('Please save the journey first.');
+      toast.error(t('builder.toasts.saveJourneyFirst'));
       return;
     }
 
@@ -471,11 +474,11 @@ export function JourneyBuilder() {
       { journeyId: id, employeeIds: selectedEmpIds },
       {
         onSuccess: (res: any) => {
-          toast.success(`Successfully assigned journey to ${res.assignedCount || selectedEmpIds.length} employees!`);
+          toast.success(t('builder.toasts.bulkAssignedSuccess', { count: res.assignedCount || selectedEmpIds.length }));
           setSelectedEmpIds([]);
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to assign journey in bulk.');
+          toast.error(err?.message || t('builder.toasts.bulkAssignFailed'));
         }
       }
     );
@@ -544,10 +547,10 @@ export function JourneyBuilder() {
       { assignmentId, journeyId: id || '' },
       {
         onSuccess: () => {
-          toast.success('Certificate issued successfully!');
+          toast.success(t('builder.toasts.certificateIssuedSuccess'));
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to issue certificate');
+          toast.error(err?.response?.data?.message || err?.message || t('builder.toasts.certificateIssueFailed'));
         }
       }
     );
@@ -556,13 +559,13 @@ export function JourneyBuilder() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">Completed</Badge>;
+        return <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">{t('builder.assignmentsTab.enrollments.statusCompleted')}</Badge>;
       case 'in_progress':
-        return <Badge className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20">In Progress</Badge>;
+        return <Badge className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20">{t('builder.assignmentsTab.enrollments.statusInProgress')}</Badge>;
       case 'assigned':
-        return <Badge className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-blue-500/20">Assigned</Badge>;
+        return <Badge className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-blue-500/20">{t('builder.assignmentsTab.enrollments.statusAssigned')}</Badge>;
       case 'overdue':
-        return <Badge className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-rose-500/20">Overdue</Badge>;
+        return <Badge className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-rose-500/20">{t('builder.assignmentsTab.enrollments.statusOverdue')}</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -578,6 +581,7 @@ export function JourneyBuilder() {
           <Button
             variant="ghost"
             size="icon"
+            title={t('builder.header.backTooltip')}
             onClick={() => {
               if (isDirty) {
                 setModals({
@@ -593,18 +597,20 @@ export function JourneyBuilder() {
           </Button>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold truncate">{isNew ? (title || 'New Journey') : (journey?.title || 'Engineering Onboarding')}</h1>
+              <h1 className="text-xl font-bold truncate">
+                {isNew ? (title || t('builder.header.newJourneyFallback')) : (journey?.title || t('builder.header.defaultTitleFallback'))}
+              </h1>
               <Badge variant={journey?.status === 'Active' ? 'default' : 'secondary'}>
-                {journey?.status || 'Draft'}
+                {journey?.status === 'Active' ? t('builder.header.statusActive') : t('builder.header.statusDraft')}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground flex items-center gap-1.5">
               {isDirty ? (
-                <span className="text-amber-500 font-medium">● Unsaved changes</span>
+                <span className="text-amber-500 font-medium">{t('builder.header.unsavedChanges')}</span>
               ) : isNew ? (
-                'Not saved yet'
+                t('builder.header.notSavedYet')
               ) : (
-                <span className="text-emerald-500 font-medium">✓ Draft saved</span>
+                <span className="text-emerald-500 font-medium">{t('builder.header.draftSaved')}</span>
               )}
             </p>
           </div>
@@ -621,17 +627,19 @@ export function JourneyBuilder() {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            Save Draft
+            {updateJourney.isPending || createJourney.isPending
+              ? t('builder.header.savingDraft')
+              : t('builder.header.saveDraft')}
           </Button>
 
           {activeTab === 'assignments' ? (
             journey?.status !== 'Active' ? (
               <Button onClick={handlePublish} disabled={updateJourney.isPending || createJourney.isPending} className="w-full sm:w-auto">
-                <Check className="mr-2 h-4 w-4" /> Publish Journey
+                <Check className="mr-2 h-4 w-4" /> {t('builder.header.publishJourney')}
               </Button>
             ) : (
               <Button onClick={() => handleSave(() => navigate('/journeys'))} disabled={updateJourney.isPending || createJourney.isPending} className="w-full sm:w-auto">
-                <Check className="mr-2 h-4 w-4" /> Finish
+                <Check className="mr-2 h-4 w-4" /> {t('builder.header.finish')}
               </Button>
             )
           ) : (
@@ -640,7 +648,7 @@ export function JourneyBuilder() {
               disabled={updateJourney.isPending || createJourney.isPending}
               className="w-full sm:w-auto"
             >
-              Save & Next <ArrowRight className="ml-2 h-4 w-4" />
+              {t('builder.header.saveAndNext')} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
         </div>
@@ -653,17 +661,17 @@ export function JourneyBuilder() {
               <TabsTrigger
                 value="settings"
                 className="data-[state=active]:bg-muted">
-                1. Settings
+                {t('builder.tabs.settings')}
               </TabsTrigger>
               <TabsTrigger
                 value="builder"
                 className="data-[state=active]:bg-muted">
-                2. Builder
+                {t('builder.tabs.builder')}
               </TabsTrigger>
               <TabsTrigger
                 value="assignments"
                 className="data-[state=active]:bg-muted">
-                3. Assignments
+                {t('builder.tabs.assignments')}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -674,28 +682,28 @@ export function JourneyBuilder() {
 
             <div className="max-w-2xl mx-auto space-y-8">
               <div>
-                <h2 className="text-2xl font-bold mb-4">Journey Settings</h2>
+                <h2 className="text-2xl font-bold mb-4">{t('builder.settingsTab.title')}</h2>
                 <div className="space-y-6">
                   <Card className="overflow-visible">
                     <CardHeader>
-                      <CardTitle className="text-base font-semibold">General Details</CardTitle>
+                      <CardTitle className="text-base font-semibold">{t('builder.settingsTab.generalTitle')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Journey Title</label>
+                        <label className="text-sm font-medium">{t('builder.settingsTab.journeyTitleLabel')}</label>
                         <Input value={title} onChange={(e: any) => setTitle(e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Description</label>
+                        <label className="text-sm font-medium">{t('builder.settingsTab.descriptionLabel')}</label>
                         <Input value={description} onChange={(e: any) => setDescription(e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Category</label>
+                        <label className="text-sm font-medium">{t('builder.settingsTab.categoryLabel')}</label>
                         <SearchableSelect
                           value={category}
                           onChange={setCategory}
-                          placeholder="Select Category"
-                          searchPlaceholder="Search category..."
+                          placeholder={t('builder.settingsTab.categoryPlaceholder')}
+                          searchPlaceholder={t('builder.settingsTab.categorySearchPlaceholder')}
                           options={availableCategories.map((cat) => ({
                             value: cat.toLowerCase(),
                             label: cat,
@@ -707,13 +715,13 @@ export function JourneyBuilder() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base font-semibold">Learning Rules & Constraints</CardTitle>
+                      <CardTitle className="text-base font-semibold">{t('builder.settingsTab.rulesTitle')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Require Sequential Completion</label>
-                          <p className="text-xs text-muted-foreground">Employees must complete lessons in order.</p>
+                          <label className="text-sm font-medium">{t('builder.settingsTab.sequentialTitle')}</label>
+                          <p className="text-xs text-muted-foreground">{t('builder.settingsTab.sequentialDesc')}</p>
                         </div>
                         <Switch
                           checked={requireSequentialCompletion}
@@ -723,8 +731,8 @@ export function JourneyBuilder() {
                       <Separator />
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Allow Skipping Lessons</label>
-                          <p className="text-xs text-muted-foreground">Allows users to skip lessons without marking them completed.</p>
+                          <label className="text-sm font-medium">{t('builder.settingsTab.skipTitle')}</label>
+                          <p className="text-xs text-muted-foreground">{t('builder.settingsTab.skipDesc')}</p>
                         </div>
                         <Switch
                           checked={allowSkipLessons}
@@ -734,8 +742,8 @@ export function JourneyBuilder() {
                       <Separator />
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Allow Retakes</label>
-                          <p className="text-xs text-muted-foreground">Allows users to retake quizzes multiple times.</p>
+                          <label className="text-sm font-medium">{t('builder.settingsTab.retakesTitle')}</label>
+                          <p className="text-xs text-muted-foreground">{t('builder.settingsTab.retakesDesc')}</p>
                         </div>
                         <Switch
                           checked={allowRetakes}
@@ -745,7 +753,7 @@ export function JourneyBuilder() {
                       {allowRetakes && (
                         <div className="flex items-center gap-4 pl-6">
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">Max Retakes Allowed</label>
+                            <label className="text-xs font-medium text-muted-foreground">{t('builder.settingsTab.maxRetakesLabel')}</label>
                             <Input
                               type="number"
                               value={maxRetakes}
@@ -760,13 +768,13 @@ export function JourneyBuilder() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base font-semibold">Certificate Settings</CardTitle>
+                      <CardTitle className="text-base font-semibold">{t('builder.settingsTab.certificateTitle')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <label className="text-sm font-medium">Award Certificate upon Completion</label>
-                          <p className="text-xs text-muted-foreground">Generate a certified credential once all modules are finished.</p>
+                          <label className="text-sm font-medium">{t('builder.settingsTab.awardCertificateTitle')}</label>
+                          <p className="text-xs text-muted-foreground">{t('builder.settingsTab.awardCertificateDesc')}</p>
                         </div>
                         <Switch
                           checked={certificateEnabled}
@@ -776,7 +784,7 @@ export function JourneyBuilder() {
                       {certificateEnabled && (
                         <div className="space-y-4 pl-6">
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">Passing Score Requirement (%)</label>
+                            <label className="text-xs font-medium text-muted-foreground">{t('builder.settingsTab.passingScoreLabel')}</label>
                             <Input
                               type="number"
                               value={passingScore}
@@ -794,10 +802,10 @@ export function JourneyBuilder() {
 
                 <div className="flex items-center justify-between pt-6 border-t mt-8">
                   <Button variant="outline" onClick={() => handleSave()} disabled={updateJourney.isPending || createJourney.isPending}>
-                    <Save className="mr-2 h-4 w-4" /> Save Draft
+                    <Save className="mr-2 h-4 w-4" /> {t('builder.settingsTab.saveDraftBtn')}
                   </Button>
                   <Button onClick={() => handleSave(() => setActiveTab('builder'))} disabled={updateJourney.isPending || createJourney.isPending}>
-                    Save & Next <ArrowRight className="ml-2 h-4 w-4" />
+                    {t('builder.settingsTab.saveNextBtn')} <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -812,8 +820,8 @@ export function JourneyBuilder() {
             {(!isMobile || mobileView === 'list') && (
               <div className="w-full md:w-64 flex-none border-r bg-muted/10 flex flex-col">
                 <div className="p-4 border-b flex items-center justify-between">
-                  <h3 className="font-medium">Curriculum</h3>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddModule}>
+                  <h3 className="font-medium">{t('builder.curriculum.outlineTitle')}</h3>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title={t('builder.curriculum.addModuleTooltip')} onClick={handleAddModule}>
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -821,7 +829,7 @@ export function JourneyBuilder() {
                   <div className="space-y-4">
                     {modules.length === 0 ? (
                       <div className="text-center text-xs text-muted-foreground p-4">
-                        Add your first module to get started building curriculum.
+                        {t('builder.curriculum.emptyOutline')}
                       </div>
                     ) : (
                       modules.map((module, mIdx) => (
@@ -837,6 +845,7 @@ export function JourneyBuilder() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  title={t('builder.curriculum.addLessonTooltip')}
                                   className="h-6 w-6 text-muted-foreground hover:text-indigo-400"
                                   onClick={() => handleAddLesson(module.id)}
                                 >
@@ -845,6 +854,7 @@ export function JourneyBuilder() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  title={t('builder.curriculum.removeModuleTooltip')}
                                   className="h-6 w-6 text-muted-foreground hover:text-red-400"
                                   onClick={() => handleRemoveModule(module.id)}
                                 >
@@ -886,6 +896,7 @@ export function JourneyBuilder() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
+                                      title={t('builder.curriculum.removeLessonTooltip')}
                                       className="h-5 w-5 opacity-0 group-hover/lesson:opacity-100 text-muted-foreground hover:text-red-400"
                                       onClick={() => handleRemoveLesson(module.id, lesson.id)}
                                     >
@@ -916,7 +927,7 @@ export function JourneyBuilder() {
                           className="self-start pl-0 text-primary mb-4"
                           onClick={() => setMobileView('list')}
                         >
-                          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Curriculum
+                          <ChevronLeft className="h-4 w-4 mr-1" /> {t('builder.curriculum.backToCurriculum')}
                         </Button>
                       )}
                       <div>
@@ -926,7 +937,10 @@ export function JourneyBuilder() {
                           className="text-2xl md:text-3xl font-bold h-auto py-2 px-0 border-0 focus-visible:ring-0 rounded-none bg-transparent"
                         />
                         <p className="text-muted-foreground mt-2 text-xs md:text-sm">
-                          {selectedLesson.type} Lesson • {selectedLesson.duration}
+                          {t('builder.curriculum.lessonSubheader', {
+                            type: t(`builder.curriculum.lessonTypes.${selectedLesson.type.toLowerCase()}` as any, selectedLesson.type),
+                            duration: selectedLesson.duration,
+                          })}
                         </p>
                       </div>
 
@@ -935,15 +949,15 @@ export function JourneyBuilder() {
                           {selectedLesson.type === 'Video' && (
                             <div className="space-y-6 p-6">
                               <div className="space-y-4">
-                                <label className="text-sm font-medium">Video Source</label>
+                                <label className="text-sm font-medium">{t('builder.curriculum.videoEditor.title')}</label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
                                     <div className="space-y-1">
                                       <h4 className="text-sm font-medium flex items-center gap-2">
                                         <Upload className="h-4 w-4 text-primary" />
-                                        Upload Video File
+                                        {t('builder.curriculum.videoEditor.uploadTitle')}
                                       </h4>
-                                      <p className="text-xs text-muted-foreground">Upload an MP4, WebM or Ogg video file.</p>
+                                      <p className="text-xs text-muted-foreground">{t('builder.curriculum.videoEditor.uploadDesc')}</p>
                                     </div>
                                     <div>
                                       <input
@@ -960,7 +974,9 @@ export function JourneyBuilder() {
                                         onClick={() => document.getElementById('video-upload-input')?.click()}
                                         disabled={isUploading}
                                       >
-                                        {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                        {isUploading
+                                          ? t('builder.curriculum.videoEditor.uploadingPercent', { percent: uploadPercent })
+                                          : t('builder.curriculum.videoEditor.chooseFile')}
                                       </Button>
                                     </div>
                                   </div>
@@ -968,12 +984,12 @@ export function JourneyBuilder() {
                                     <div className="space-y-1">
                                       <h4 className="text-sm font-medium flex items-center gap-2">
                                         <Link2 className="h-4 w-4 text-primary" />
-                                        Embed Video URL
+                                        {t('builder.curriculum.videoEditor.embedTitle')}
                                       </h4>
-                                      <p className="text-xs text-muted-foreground">Paste a YouTube, Vimeo, or raw MP4 URL.</p>
+                                      <p className="text-xs text-muted-foreground">{t('builder.curriculum.videoEditor.embedDesc')}</p>
                                     </div>
                                     <Input
-                                      placeholder="https://example.com/video.mp4"
+                                      placeholder={t('builder.curriculum.videoEditor.embedPlaceholder')}
                                       value={selectedLesson.content || ''}
                                       onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
                                     />
@@ -983,7 +999,7 @@ export function JourneyBuilder() {
 
                               {selectedLesson.content && (
                                 <div className="space-y-2">
-                                  <label className="text-sm font-medium">Video Preview</label>
+                                  <label className="text-sm font-medium">{t('builder.curriculum.videoEditor.previewTitle')}</label>
                                   {selectedLesson.content.includes('youtube.com') || selectedLesson.content.includes('youtu.be') ? (
                                     <div className="aspect-video bg-black rounded-lg overflow-hidden border">
                                       <iframe
@@ -1016,7 +1032,7 @@ export function JourneyBuilder() {
                                     onClick={() => setEditorTab('write')}
                                     className="h-8"
                                   >
-                                    Edit
+                                    {t('builder.curriculum.articleEditor.editTab')}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -1025,7 +1041,7 @@ export function JourneyBuilder() {
                                     className="h-8"
                                   >
                                     <Eye className="h-4 w-4 mr-1" />
-                                    Preview
+                                    {t('builder.curriculum.articleEditor.previewTab')}
                                   </Button>
                                 </div>
 
@@ -1039,7 +1055,7 @@ export function JourneyBuilder() {
                                         const val = selectedLesson.content || '';
                                         updateSelectedLesson({ content: val + ' **Bold Text** ' });
                                       }}
-                                      title="Bold"
+                                      title={t('builder.curriculum.articleEditor.bold')}
                                     >
                                       <Bold className="h-4 w-4" />
                                     </Button>
@@ -1051,7 +1067,7 @@ export function JourneyBuilder() {
                                         const val = selectedLesson.content || '';
                                         updateSelectedLesson({ content: val + ' *Italic Text* ' });
                                       }}
-                                      title="Italic"
+                                      title={t('builder.curriculum.articleEditor.italic')}
                                     >
                                       <Italic className="h-4 w-4" />
                                     </Button>
@@ -1063,7 +1079,7 @@ export function JourneyBuilder() {
                                         const val = selectedLesson.content || '';
                                         updateSelectedLesson({ content: val + '\n# Header\n' });
                                       }}
-                                      title="Header"
+                                      title={t('builder.curriculum.articleEditor.header')}
                                     >
                                       <FileText className="h-4 w-4" />
                                     </Button>
@@ -1075,7 +1091,7 @@ export function JourneyBuilder() {
                                         const val = selectedLesson.content || '';
                                         updateSelectedLesson({ content: val + '\n```\nCode Block\n```\n' });
                                       }}
-                                      title="Code"
+                                      title={t('builder.curriculum.articleEditor.code')}
                                     >
                                       <Code className="h-4 w-4" />
                                     </Button>
@@ -1087,7 +1103,7 @@ export function JourneyBuilder() {
                                         const val = selectedLesson.content || '';
                                         updateSelectedLesson({ content: val + '\n- Bullet item\n' });
                                       }}
-                                      title="List"
+                                      title={t('builder.curriculum.articleEditor.list')}
                                     >
                                       <List className="h-4 w-4" />
                                     </Button>
@@ -1103,7 +1119,7 @@ export function JourneyBuilder() {
                                       size="icon"
                                       className="h-8 w-8"
                                       onClick={() => document.getElementById('article-file-upload')?.click()}
-                                      title="Upload Image/File"
+                                      title={t('builder.curriculum.articleEditor.uploadMedia')}
                                     >
                                       <Upload className="h-4 w-4" />
                                     </Button>
@@ -1113,7 +1129,7 @@ export function JourneyBuilder() {
 
                               {editorTab === 'write' ? (
                                 <textarea
-                                  placeholder="Write your content here in Markdown format..."
+                                  placeholder={t('builder.curriculum.articleEditor.markdownPlaceholder')}
                                   className="w-full min-h-[300px] border-0 focus:ring-0 resize-y bg-transparent p-0 outline-none text-sm leading-relaxed"
                                   value={selectedLesson.content || ''}
                                   onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
@@ -1129,19 +1145,23 @@ export function JourneyBuilder() {
                           {(selectedLesson.type === 'PDF' || selectedLesson.type === 'Document' || selectedLesson.type === 'Audio' || selectedLesson.type === 'Image') && (
                             <div className="space-y-6 p-6">
                               <div className="space-y-4">
-                                <label className="text-sm font-medium">{selectedLesson.type} File Source</label>
+                                <label className="text-sm font-medium">
+                                  {t('builder.curriculum.fileEditor.sourceTitle', {
+                                    type: t(`builder.curriculum.lessonTypes.${selectedLesson.type.toLowerCase()}` as any, selectedLesson.type),
+                                  })}
+                                </label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="border rounded-lg p-4 bg-muted/10 space-y-4 flex flex-col justify-between">
                                     <div className="space-y-1">
                                       <h4 className="text-sm font-medium flex items-center gap-2">
                                         <Upload className="h-4 w-4 text-primary" />
-                                        Upload File
+                                        {t('builder.curriculum.fileEditor.uploadTitle')}
                                       </h4>
                                       <p className="text-xs text-muted-foreground">
-                                        {selectedLesson.type === 'PDF' && 'Upload a PDF document.'}
-                                        {selectedLesson.type === 'Document' && 'Upload a Word, Excel or PowerPoint document.'}
-                                        {selectedLesson.type === 'Audio' && 'Upload an MP3, WAV or M4A audio file.'}
-                                        {selectedLesson.type === 'Image' && 'Upload an PNG, JPG, JPEG or SVG image.'}
+                                        {selectedLesson.type === 'PDF' && t('builder.curriculum.fileEditor.uploadPdfDesc')}
+                                        {selectedLesson.type === 'Document' && t('builder.curriculum.fileEditor.uploadDocDesc')}
+                                        {selectedLesson.type === 'Audio' && t('builder.curriculum.fileEditor.uploadAudioDesc')}
+                                        {selectedLesson.type === 'Image' && t('builder.curriculum.fileEditor.uploadImageDesc')}
                                       </p>
                                     </div>
                                     <div>
@@ -1164,7 +1184,9 @@ export function JourneyBuilder() {
                                         onClick={() => document.getElementById('file-upload-input-generic')?.click()}
                                         disabled={isUploading}
                                       >
-                                        {isUploading ? `Uploading (${uploadPercent}%)` : 'Choose File'}
+                                        {isUploading
+                                          ? t('builder.curriculum.fileEditor.uploadingPercent', { percent: uploadPercent })
+                                          : t('builder.curriculum.fileEditor.chooseFile')}
                                       </Button>
                                     </div>
                                   </div>
@@ -1172,12 +1194,12 @@ export function JourneyBuilder() {
                                     <div className="space-y-1">
                                       <h4 className="text-sm font-medium flex items-center gap-2">
                                         <Link2 className="h-4 w-4 text-primary" />
-                                        File URL
+                                        {t('builder.curriculum.fileEditor.urlTitle')}
                                       </h4>
-                                      <p className="text-xs text-muted-foreground">Or paste a public link to the file.</p>
+                                      <p className="text-xs text-muted-foreground">{t('builder.curriculum.fileEditor.urlDesc')}</p>
                                     </div>
                                     <Input
-                                      placeholder="https://example.com/file"
+                                      placeholder={t('builder.curriculum.fileEditor.urlPlaceholder')}
                                       value={selectedLesson.content || ''}
                                       onChange={(e: any) => updateSelectedLesson({ content: e.target.value })}
                                     />
@@ -1187,7 +1209,7 @@ export function JourneyBuilder() {
 
                               {selectedLesson.content && (
                                 <div className="space-y-4">
-                                  <label className="text-sm font-medium">Preview / Current Link</label>
+                                  <label className="text-sm font-medium">{t('builder.curriculum.fileEditor.previewTitle')}</label>
                                   <div className="border rounded-lg p-4 bg-muted/5 flex items-center justify-between">
                                     <div className="flex items-center gap-2 overflow-hidden mr-4 min-w-0">
                                       <FileText className="h-5 w-5 text-indigo-400 shrink-0" />
@@ -1208,7 +1230,7 @@ export function JourneyBuilder() {
                                       className="shrink-0"
                                     >
                                       <ExternalLink className="h-4 w-4 mr-1.5" />
-                                      Open in New Tab
+                                      {t('builder.curriculum.fileEditor.openNewTab')}
                                     </Button>
                                   </div>
 
@@ -1217,7 +1239,7 @@ export function JourneyBuilder() {
                                       <div className="p-3 bg-muted/30 border-b flex items-center justify-between">
                                         <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                                           <FileText className="h-4 w-4 text-red-500" />
-                                          PDF Document Live Preview
+                                          {t('builder.curriculum.fileEditor.pdfLivePreview')}
                                         </span>
                                         <a
                                           href={selectedLesson.content}
@@ -1225,7 +1247,7 @@ export function JourneyBuilder() {
                                           rel="noopener noreferrer"
                                           className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
                                         >
-                                          Full Screen <ExternalLink className="h-3 w-3" />
+                                          {t('builder.curriculum.fileEditor.fullScreen')} <ExternalLink className="h-3 w-3" />
                                         </a>
                                       </div>
                                       <div className="h-[450px] w-full bg-white">
@@ -1246,28 +1268,30 @@ export function JourneyBuilder() {
                             <div className="space-y-6 p-6">
                               <div className="flex items-center justify-between border-b pb-4">
                                 <div>
-                                  <h4 className="text-sm font-medium">Quiz Questions</h4>
-                                  <p className="text-xs text-muted-foreground">Add multiple choice questions for your employees.</p>
+                                  <h4 className="text-sm font-medium">{t('builder.curriculum.quizEditor.title')}</h4>
+                                  <p className="text-xs text-muted-foreground">{t('builder.curriculum.quizEditor.desc')}</p>
                                 </div>
                                 <Button size="sm" onClick={handleAddQuestion}>
                                   <PlusCircle className="h-4 w-4 mr-2" />
-                                  Add Question
+                                  {t('builder.curriculum.quizEditor.addQuestion')}
                                 </Button>
                               </div>
 
                               <div className="space-y-6">
                                 {(!selectedLesson.quiz || !selectedLesson.quiz.questions || selectedLesson.quiz.questions.length === 0) ? (
                                   <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-lg">
-                                    No questions added yet. Click "Add Question" to begin.
+                                    {t('builder.curriculum.quizEditor.emptyQuestions')}
                                   </div>
                                 ) : (
                                   selectedLesson.quiz.questions.map((q, qIdx) => (
                                     <div key={q.id} className="border rounded-lg p-4 space-y-4 bg-muted/10">
                                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3">
-                                        <h5 className="text-sm font-semibold">Question {qIdx + 1}</h5>
+                                        <h5 className="text-sm font-semibold">
+                                          {t('builder.curriculum.quizEditor.questionNumber', { number: qIdx + 1 })}
+                                        </h5>
                                         <div className="flex items-center gap-3 flex-wrap">
                                           <div className="flex items-center gap-1.5">
-                                            <span className="text-xs text-muted-foreground">Type:</span>
+                                            <span className="text-xs text-muted-foreground">{t('builder.curriculum.quizEditor.typeLabel')}</span>
                                             <Select
                                               value={q.type || 'single_choice'}
                                               onValueChange={(val: 'single_choice' | 'multiple_choice' | 'true_false' | any) => {
@@ -1285,14 +1309,20 @@ export function JourneyBuilder() {
                                                 <SelectValue />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="single_choice">Single Choice</SelectItem>
-                                                <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                                                <SelectItem value="true_false">True / False</SelectItem>
+                                                <SelectItem value="single_choice">
+                                                  {t('builder.curriculum.quizEditor.types.singleChoice')}
+                                                </SelectItem>
+                                                <SelectItem value="multiple_choice">
+                                                  {t('builder.curriculum.quizEditor.types.multipleChoice')}
+                                                </SelectItem>
+                                                <SelectItem value="true_false">
+                                                  {t('builder.curriculum.quizEditor.types.trueFalse')}
+                                                </SelectItem>
                                               </SelectContent>
                                             </Select>
                                           </div>
                                           <div className="flex items-center gap-1">
-                                            <span className="text-xs text-muted-foreground">Points:</span>
+                                            <span className="text-xs text-muted-foreground">{t('builder.curriculum.quizEditor.pointsLabel')}</span>
                                             <Input
                                               type="number"
                                               value={q.points || 1}
@@ -1303,6 +1333,7 @@ export function JourneyBuilder() {
                                           <Button
                                             variant="ghost"
                                             size="icon"
+                                            title={t('builder.curriculum.quizEditor.removeQuestion')}
                                             className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                             onClick={() => handleRemoveQuestion(q.id)}
                                           >
@@ -1312,21 +1343,21 @@ export function JourneyBuilder() {
                                       </div>
 
                                       <div className="space-y-2">
-                                        <label className="text-xs font-medium">Question Text</label>
+                                        <label className="text-xs font-medium">{t('builder.curriculum.quizEditor.questionTextLabel')}</label>
                                         <Input
                                           value={q.questionText}
                                           onChange={(e: any) => handleUpdateQuestion(q.id, { questionText: e.target.value })}
-                                          placeholder="e.g. What is our core customer value proposition?"
+                                          placeholder={t('builder.curriculum.quizEditor.questionPlaceholder')}
                                         />
                                       </div>
 
                                       <div className="space-y-3">
                                         <label className="text-xs font-medium flex items-center justify-between">
-                                          <span>Options</span>
+                                          <span>{t('builder.curriculum.quizEditor.optionsLabel')}</span>
                                           <span className="text-[10px] text-muted-foreground italic">
-                                            {q.type === 'multiple_choice' && 'Select correct answer(s) using checkboxes'}
-                                            {q.type === 'single_choice' && 'Select correct answer using radio buttons'}
-                                            {q.type === 'true_false' && 'Select correct answer (True or False)'}
+                                            {q.type === 'multiple_choice' && t('builder.curriculum.quizEditor.multipleChoiceHint')}
+                                            {q.type === 'single_choice' && t('builder.curriculum.quizEditor.singleChoiceHint')}
+                                            {q.type === 'true_false' && t('builder.curriculum.quizEditor.trueFalseHint')}
                                           </span>
                                         </label>
                                         <div className="space-y-2">
@@ -1355,7 +1386,7 @@ export function JourneyBuilder() {
                                                   );
                                                   handleUpdateQuestion(q.id, { options: newOpts });
                                                 }}
-                                                placeholder={`Option ${oIdx + 1}`}
+                                                placeholder={t('builder.curriculum.quizEditor.optionPlaceholder', { number: oIdx + 1 })}
                                                 className="flex-1 h-9"
                                               />
                                               {q.type !== 'true_false' && (
@@ -1387,7 +1418,7 @@ export function JourneyBuilder() {
                                             }}
                                             className="h-8 text-xs"
                                           >
-                                            Add Option
+                                            {t('builder.curriculum.quizEditor.addOption')}
                                           </Button>
                                         )}
                                       </div>
@@ -1399,9 +1430,9 @@ export function JourneyBuilder() {
                           )}
 
                           <div className="p-4 border-t bg-muted/10">
-                            <label className="text-xs font-medium text-muted-foreground">Lesson Description</label>
+                            <label className="text-xs font-medium text-muted-foreground">{t('builder.curriculum.lessonSidebar.lessonDescLabel')}</label>
                             <Input
-                              placeholder="Add a brief summary or transcript for this lesson..."
+                              placeholder={t('builder.curriculum.lessonSidebar.lessonDescPlaceholder')}
                               className="border-0 focus-visible:ring-0 px-0 bg-transparent"
                               value={selectedLesson.description || ''}
                               onChange={(e: any) => updateSelectedLesson({ description: e.target.value })}
@@ -1414,11 +1445,11 @@ export function JourneyBuilder() {
                     {/* Right Sidebar - Settings */}
                     <div className="w-full md:w-64 flex-none border-t md:border-t-0 md:border-l bg-muted/10 flex flex-col border-b md:border-b-0">
                       <div className="p-4 border-b">
-                        <h3 className="font-medium">Lesson Settings</h3>
+                        <h3 className="font-medium">{t('builder.curriculum.lessonSidebar.title')}</h3>
                       </div>
                       <div className="p-4 space-y-6">
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Estimated Time</label>
+                          <label className="text-sm font-medium">{t('builder.curriculum.lessonSidebar.estimatedTime')}</label>
                           <div className="flex items-center gap-2">
                             <Input
                               type="number"
@@ -1426,12 +1457,12 @@ export function JourneyBuilder() {
                               onChange={(e: any) => updateSelectedLesson({ estimatedTime: Number(e.target.value) })}
                               className="w-20"
                             />
-                            <span className="text-sm text-muted-foreground">minutes</span>
+                            <span className="text-sm text-muted-foreground">{t('builder.curriculum.lessonSidebar.minutesLabel')}</span>
                           </div>
                         </div>
                         <Separator />
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Completion Rule</label>
+                          <label className="text-sm font-medium">{t('builder.curriculum.lessonSidebar.completionRule')}</label>
                           <Select
                             value={selectedLesson.completionRule || 'video'}
                             onValueChange={(val: any) => updateSelectedLesson({ completionRule: val as any })}
@@ -1440,9 +1471,9 @@ export function JourneyBuilder() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="video">Watch 90% of video</SelectItem>
-                              <SelectItem value="button">Click complete button</SelectItem>
-                              <SelectItem value="quiz">Pass attached quiz</SelectItem>
+                              <SelectItem value="video">{t('builder.curriculum.lessonSidebar.completionRules.video')}</SelectItem>
+                              <SelectItem value="button">{t('builder.curriculum.lessonSidebar.completionRules.button')}</SelectItem>
+                              <SelectItem value="quiz">{t('builder.curriculum.lessonSidebar.completionRules.quiz')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1457,27 +1488,14 @@ export function JourneyBuilder() {
                         className="mb-4 text-primary"
                         onClick={() => setMobileView('list')}
                       >
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Curriculum
+                        <ChevronLeft className="h-4 w-4 mr-1" /> {t('builder.curriculum.backToCurriculum')}
                       </Button>
                     )}
-                    Select a lesson in the curriculum sidebar to edit content.
+                    {t('builder.curriculum.selectLessonPrompt')}
                   </div>
                 )}
               </div>
             )}
-            {/* <div className="border-t bg-background p-3 px-6 flex items-center justify-between flex-none border-t">
-              <Button variant="outline" onClick={() => setActiveTab('settings')}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Previous: Settings
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => handleSave()} disabled={updateJourney.isPending || createJourney.isPending}>
-                  <Save className="mr-2 h-4 w-4" /> Save Draft
-                </Button>
-                <Button onClick={() => handleSave(() => setActiveTab('assignments'))} disabled={updateJourney.isPending || createJourney.isPending}>
-                  Save & Next <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div> */}
           </TabsContent>
 
           <TabsContent
@@ -1489,17 +1507,16 @@ export function JourneyBuilder() {
                 <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500">
                   <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold text-sm">Publishing Required</h4>
+                    <h4 className="font-semibold text-sm">{t('builder.assignmentsTab.draftWarningTitle')}</h4>
                     <p className="text-xs text-amber-500/80 mt-1">
-                      This journey is currently a Draft. Employees cannot view or self-assign draft journeys.
-                      You must Publish this journey first to activate public access or assignment tracking.
+                      {t('builder.assignmentsTab.draftWarningDesc')}
                     </p>
                   </div>
                 </div>
               )}
 
               <div>
-                <h3 className="text-lg font-semibold mb-4">Access Visibility</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('builder.assignmentsTab.visibility.title')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Public Card */}
                   <div
@@ -1514,11 +1531,11 @@ export function JourneyBuilder() {
                     </div>
                     <div>
                       <h4 className="font-medium text-sm flex items-center gap-2">
-                        Public Access
-                        {isPublic && <Badge className="bg-indigo-600/15 text-indigo-400 border-indigo-600/20">Active</Badge>}
+                        {t('builder.assignmentsTab.visibility.publicTitle')}
+                        {isPublic && <Badge className="bg-indigo-600/15 text-indigo-400 border-indigo-600/20">{t('builder.assignmentsTab.visibility.activeBadge')}</Badge>}
                       </h4>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Any organization member can find and self-enroll in this journey from their dashboard.
+                        {t('builder.assignmentsTab.visibility.publicDesc')}
                       </p>
                     </div>
                   </div>
@@ -1536,11 +1553,11 @@ export function JourneyBuilder() {
                     </div>
                     <div>
                       <h4 className="font-medium text-sm flex items-center gap-2">
-                        Restricted
-                        {!isPublic && <Badge className="bg-indigo-600/15 text-indigo-400 border-indigo-600/20">Active</Badge>}
+                        {t('builder.assignmentsTab.visibility.restrictedTitle')}
+                        {!isPublic && <Badge className="bg-indigo-600/15 text-indigo-400 border-indigo-600/20">{t('builder.assignmentsTab.visibility.activeBadge')}</Badge>}
                       </h4>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Only employees specifically targeted/assigned by an admin can access this journey.
+                        {t('builder.assignmentsTab.visibility.restrictedDesc')}
                       </p>
                     </div>
                   </div>
@@ -1554,10 +1571,10 @@ export function JourneyBuilder() {
                       <div>
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                           <Users className="h-5 w-5 text-indigo-500" />
-                          Bulk Target Employee Assignment
+                          {t('builder.assignmentsTab.bulk.title')}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Search, filter by department, select multiple employees, and assign this journey at scale (supports 10,000+ employees).
+                          {t('builder.assignmentsTab.bulk.desc')}
                         </p>
                       </div>
                       {selectedEmpIds.length > 0 && (
@@ -1571,7 +1588,12 @@ export function JourneyBuilder() {
                           ) : (
                             <UserCheck className="mr-2 h-4 w-4" />
                           )}
-                          Assign {selectedEmpIds.length} Selected {selectedEmpIds.length === 1 ? 'Employee' : 'Employees'}
+                          {t('builder.assignmentsTab.bulk.assignSelectedBtn', {
+                            count: selectedEmpIds.length,
+                            label: selectedEmpIds.length === 1
+                              ? t('builder.assignmentsTab.bulk.employeeSingle')
+                              : t('builder.assignmentsTab.bulk.employeePlural')
+                          })}
                         </Button>
                       )}
                     </div>
@@ -1582,7 +1604,7 @@ export function JourneyBuilder() {
                       <div className="sm:col-span-6 relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                          placeholder="Search employees by name, email, department..."
+                          placeholder={t('builder.assignmentsTab.bulk.searchPlaceholder')}
                           value={empSearch}
                           onChange={(e: any) => {
                             setEmpSearch(e.target.value);
@@ -1599,10 +1621,10 @@ export function JourneyBuilder() {
                             setEmpDeptFilter(val || 'all');
                             setEmpPage(1);
                           }}
-                          placeholder="All Departments"
-                          searchPlaceholder="Search department..."
+                          placeholder={t('builder.assignmentsTab.bulk.allDepartments')}
+                          searchPlaceholder={t('builder.assignmentsTab.bulk.searchDeptPlaceholder')}
                           options={[
-                            { value: 'all', label: 'All Departments' },
+                            { value: 'all', label: t('builder.assignmentsTab.bulk.allDepartments') },
                             ...employeeDepartments.map((dept: any) => ({
                               value: dept.toLowerCase(),
                               label: dept,
@@ -1614,13 +1636,13 @@ export function JourneyBuilder() {
                       <div className="sm:col-span-3">
                         <Select value={empPageSize.toString()} onValueChange={(val: any) => { setEmpPageSize(Number(val)); setEmpPage(1); }}>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Page Size" />
+                            <SelectValue placeholder={t('common:pagination.pageSize', 'Page Size')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="10">10 per page</SelectItem>
-                            <SelectItem value="25">25 per page</SelectItem>
-                            <SelectItem value="50">50 per page</SelectItem>
-                            <SelectItem value="100">100 per page</SelectItem>
+                            <SelectItem value="10">{t('builder.assignmentsTab.bulk.pageSizeOption', { size: 10 })}</SelectItem>
+                            <SelectItem value="25">{t('builder.assignmentsTab.bulk.pageSizeOption', { size: 25 })}</SelectItem>
+                            <SelectItem value="50">{t('builder.assignmentsTab.bulk.pageSizeOption', { size: 50 })}</SelectItem>
+                            <SelectItem value="100">{t('builder.assignmentsTab.bulk.pageSizeOption', { size: 100 })}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1636,7 +1658,7 @@ export function JourneyBuilder() {
                           className="h-7 text-xs px-2"
                         >
                           {isPageAllSelected ? <CheckSquare className="h-4 w-4 mr-1.5 text-indigo-500" /> : <Square className="h-4 w-4 mr-1.5" />}
-                          Select Page ({pageUnassignedIds.length})
+                          {t('builder.assignmentsTab.bulk.selectPage', { count: pageUnassignedIds.length })}
                         </Button>
 
                         <Button
@@ -1645,7 +1667,7 @@ export function JourneyBuilder() {
                           onClick={toggleSelectFilteredAll}
                           className="h-7 text-xs px-2 text-indigo-500 hover:text-indigo-600 font-medium"
                         >
-                          Select All Matched ({totalEmpCount})
+                          {t('builder.assignmentsTab.bulk.selectAllMatched', { count: totalEmpCount })}
                         </Button>
 
                         {selectedEmpIds.length > 0 && (
@@ -1655,13 +1677,13 @@ export function JourneyBuilder() {
                             onClick={() => setSelectedEmpIds([])}
                             className="h-7 text-xs px-2 text-red-500 hover:text-red-600"
                           >
-                            Clear Selection
+                            {t('builder.assignmentsTab.bulk.clearSelection')}
                           </Button>
                         )}
                       </div>
 
                       <span className="font-semibold text-muted-foreground">
-                        {selectedEmpIds.length} selected
+                        {t('builder.assignmentsTab.bulk.selectedCount', { count: selectedEmpIds.length })}
                       </span>
                     </div>
 
@@ -1678,17 +1700,17 @@ export function JourneyBuilder() {
                                 className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                               />
                             </th>
-                            <th className="p-3">Employee</th>
-                            <th className="p-3">Department</th>
-                            <th className="p-3">Role</th>
-                            <th className="p-3 text-right">Status</th>
+                            <th className="p-3">{t('builder.assignmentsTab.bulk.tableHeaders.employee')}</th>
+                            <th className="p-3">{t('builder.assignmentsTab.bulk.tableHeaders.department')}</th>
+                            <th className="p-3">{t('builder.assignmentsTab.bulk.tableHeaders.role')}</th>
+                            <th className="p-3 text-right">{t('builder.assignmentsTab.bulk.tableHeaders.status')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
                           {paginatedEmployees.length === 0 ? (
                             <tr>
                               <td colSpan={5} className="p-8 text-center text-muted-foreground text-xs">
-                                No employees found matching the search criteria.
+                                {t('builder.assignmentsTab.bulk.noEmployeesFound')}
                               </td>
                             </tr>
                           ) : (
@@ -1731,11 +1753,11 @@ export function JourneyBuilder() {
                                   <td className="p-3 text-right">
                                     {isAssigned ? (
                                       <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs font-normal">
-                                        Assigned
+                                        {t('builder.assignmentsTab.bulk.assignedBadge')}
                                       </Badge>
                                     ) : (
                                       <Badge variant="secondary" className="text-xs font-normal">
-                                        Available
+                                        {t('builder.assignmentsTab.bulk.availableBadge')}
                                       </Badge>
                                     )}
                                   </td>
@@ -1761,7 +1783,7 @@ export function JourneyBuilder() {
                           setEmpPageSize(newSize);
                           setEmpPage(1);
                         }}
-                        itemLabel="employees"
+                        itemLabel={t('builder.assignmentsTab.bulk.itemLabel')}
                       />
                     </div>
                   </CardContent>
@@ -1771,10 +1793,12 @@ export function JourneyBuilder() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">
-                    {isPublic ? 'Enrollments & Progress' : 'Assigned Employees'}
+                    {isPublic
+                      ? t('builder.assignmentsTab.enrollments.titlePublic')
+                      : t('builder.assignmentsTab.enrollments.titleRestricted')}
                   </h3>
                   <Badge variant="outline">
-                    {assignments.length} {assignments.length === 1 ? 'person' : 'people'}
+                    {t('builder.assignmentsTab.enrollments.personCount', { count: assignments.length })}
                   </Badge>
                 </div>
 
@@ -1783,11 +1807,11 @@ export function JourneyBuilder() {
                     <CardContent className="p-0">
                       <div className="p-8 text-center text-muted-foreground">
                         <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                        <p className="font-medium">No active progress logs yet.</p>
+                        <p className="font-medium">{t('builder.assignmentsTab.enrollments.emptyTitle')}</p>
                         <p className="text-sm mt-1">
                           {isPublic
-                            ? 'Public journeys show progress logs here once employees enroll and start learning.'
-                            : 'Assign this journey to employees above to start tracking their progress.'}
+                            ? t('builder.assignmentsTab.enrollments.emptyPublicDesc')
+                            : t('builder.assignmentsTab.enrollments.emptyRestrictedDesc')}
                         </p>
                       </div>
                     </CardContent>
@@ -1799,11 +1823,11 @@ export function JourneyBuilder() {
                         <table className="w-full text-sm text-left border-collapse">
                           <thead>
                             <tr className="border-b bg-muted/20 text-muted-foreground font-medium text-xs uppercase tracking-wider">
-                              <th className="px-6 py-3 border-b">Employee</th>
-                              <th className="px-6 py-3 border-b">Status</th>
-                              <th className="px-6 py-3 border-b">Progress</th>
-                              <th className="px-6 py-3 border-b">Assigned Date</th>
-                              <th className="px-6 py-3 border-b text-right">Actions</th>
+                              <th className="px-6 py-3 border-b">{t('builder.assignmentsTab.enrollments.tableHeaders.employee')}</th>
+                              <th className="px-6 py-3 border-b">{t('builder.assignmentsTab.enrollments.tableHeaders.status')}</th>
+                              <th className="px-6 py-3 border-b">{t('builder.assignmentsTab.enrollments.tableHeaders.progress')}</th>
+                              <th className="px-6 py-3 border-b">{t('builder.assignmentsTab.enrollments.tableHeaders.assignedDate')}</th>
+                              <th className="px-6 py-3 border-b text-right">{t('builder.assignmentsTab.enrollments.tableHeaders.actions')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -1840,14 +1864,16 @@ export function JourneyBuilder() {
                                     {assign.status === 'completed' ? (
                                       assign.certificate?.issued ? (
                                         <div className="flex items-center justify-end gap-2">
-                                          <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">Issued</Badge>
+                                          <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">
+                                            {t('builder.assignmentsTab.enrollments.issuedBadge')}
+                                          </Badge>
                                           <a
                                             href={`/public/certificate/${assign._id}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-indigo-400 hover:text-indigo-300 underline font-normal text-xs"
                                           >
-                                            View
+                                            {t('builder.assignmentsTab.enrollments.viewCertificate')}
                                           </a>
                                         </div>
                                       ) : (
@@ -1858,7 +1884,9 @@ export function JourneyBuilder() {
                                           onClick={() => handleIssueCertificate(assign._id)}
                                           disabled={issueCertificateMut.isPending}
                                         >
-                                          {issueCertificateMut.isPending ? 'Issuing...' : 'Issue Certificate'}
+                                          {issueCertificateMut.isPending
+                                            ? t('builder.assignmentsTab.enrollments.issuingCertificate')
+                                            : t('builder.assignmentsTab.enrollments.issueCertificateBtn')}
                                         </Button>
                                       )
                                     ) : (
@@ -1882,7 +1910,7 @@ export function JourneyBuilder() {
                           pageSize={assignmentsPagination.pageSize}
                           onPageChange={assignmentsPagination.setPage}
                           onPageSizeChange={assignmentsPagination.setPageSize}
-                          itemLabel="assignments"
+                          itemLabel={t('builder.assignmentsTab.enrollments.itemLabel')}
                         />
                       </div>
                     </CardContent>
@@ -1891,19 +1919,19 @@ export function JourneyBuilder() {
 
                 <div className="flex items-center justify-between pt-6 border-t mt-8">
                   <Button variant="outline" onClick={() => setActiveTab('builder')}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Previous: Builder
+                    <ArrowLeft className="mr-2 h-4 w-4" /> {t('builder.assignmentsTab.enrollments.prevBuilderBtn')}
                   </Button>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={() => handleSave()} disabled={updateJourney.isPending || createJourney.isPending}>
-                      <Save className="mr-2 h-4 w-4" /> Save Draft
+                      <Save className="mr-2 h-4 w-4" /> {t('builder.header.saveDraft')}
                     </Button>
                     {journey?.status !== 'Active' ? (
                       <Button onClick={handlePublish} disabled={updateJourney.isPending || createJourney.isPending}>
-                        <Check className="mr-2 h-4 w-4" /> Save & Publish Journey
+                        <Check className="mr-2 h-4 w-4" /> {t('builder.assignmentsTab.enrollments.savePublishBtn')}
                       </Button>
                     ) : (
                       <Button onClick={() => handleSave(() => navigate('/journeys'))} disabled={updateJourney.isPending || createJourney.isPending}>
-                        <Check className="mr-2 h-4 w-4" /> Finish & Exit
+                        <Check className="mr-2 h-4 w-4" /> {t('builder.assignmentsTab.enrollments.finishExitBtn')}
                       </Button>
                     )}
                   </div>
@@ -1913,20 +1941,21 @@ export function JourneyBuilder() {
           </TabsContent>
         </Tabs>
       </div>
+
       {/* Custom Dialogs */}
       <Dialog open={modals.type === 'add_module'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add Module</DialogTitle>
+            <DialogTitle>{t('builder.modals.addModule.title')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Module Title</label>
+              <label className="text-sm font-medium">{t('builder.modals.addModule.label')}</label>
               <Input
                 value={modals.inputValue1 || ''}
                 onChange={(e: any) => setModals({ ...modals, inputValue1: e.target.value })}
-                placeholder="e.g. Getting Started"
+                placeholder={t('builder.modals.addModule.placeholder')}
                 autoFocus
                 onKeyDown={(e: any) => {
                   if (e.key === 'Enter' && modals.inputValue1) {
@@ -1944,7 +1973,7 @@ export function JourneyBuilder() {
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>{t('builder.modals.addModule.cancel')}</Button>
             <Button
               onClick={() => {
                 const titleVal = modals.inputValue1;
@@ -1960,7 +1989,7 @@ export function JourneyBuilder() {
               }}
               disabled={!modals.inputValue1}
             >
-              Add Module
+              {t('builder.modals.addModule.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1969,21 +1998,21 @@ export function JourneyBuilder() {
       <Dialog open={modals.type === 'add_lesson'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add Lesson</DialogTitle>
+            <DialogTitle>{t('builder.modals.addLesson.title')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Lesson Title</label>
+              <label className="text-sm font-medium">{t('builder.modals.addLesson.titleLabel')}</label>
               <Input
                 value={modals.inputValue1 || ''}
                 onChange={(e: any) => setModals({ ...modals, inputValue1: e.target.value })}
-                placeholder="e.g. Introduction to Git"
+                placeholder={t('builder.modals.addLesson.titlePlaceholder')}
                 autoFocus
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Lesson Type</label>
+              <label className="text-sm font-medium">{t('builder.modals.addLesson.typeLabel')}</label>
               <Select
                 value={modals.inputValue2 || 'Article'}
                 onValueChange={(val: any) => setModals({ ...modals, inputValue2: val })}
@@ -1992,21 +2021,21 @@ export function JourneyBuilder() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Article">Article</SelectItem>
-                  <SelectItem value="Video">Video</SelectItem>
-                  <SelectItem value="Quiz">Quiz</SelectItem>
-                  <SelectItem value="PDF">PDF Document</SelectItem>
-                  <SelectItem value="Document">MS Office Document (Word/Excel)</SelectItem>
-                  <SelectItem value="Audio">Audio Player</SelectItem>
-                  <SelectItem value="Image">Image Viewer</SelectItem>
-                  <SelectItem value="Task">Task Checkoff</SelectItem>
+                  <SelectItem value="Article">{t('builder.curriculum.lessonTypes.article')}</SelectItem>
+                  <SelectItem value="Video">{t('builder.curriculum.lessonTypes.video')}</SelectItem>
+                  <SelectItem value="Quiz">{t('builder.curriculum.lessonTypes.quiz')}</SelectItem>
+                  <SelectItem value="PDF">{t('builder.curriculum.lessonTypes.pdf')}</SelectItem>
+                  <SelectItem value="Document">{t('builder.curriculum.lessonTypes.document')}</SelectItem>
+                  <SelectItem value="Audio">{t('builder.curriculum.lessonTypes.audio')}</SelectItem>
+                  <SelectItem value="Image">{t('builder.curriculum.lessonTypes.image')}</SelectItem>
+                  <SelectItem value="Task">{t('builder.curriculum.lessonTypes.task')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>{t('builder.modals.addLesson.cancel')}</Button>
             <Button
               onClick={() => {
                 const titleVal = modals.inputValue1;
@@ -2041,7 +2070,7 @@ export function JourneyBuilder() {
               }}
               disabled={!modals.inputValue1}
             >
-              Add Lesson
+              {t('builder.modals.addLesson.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2050,17 +2079,17 @@ export function JourneyBuilder() {
       <Dialog open={modals.type === 'confirm_delete_module' || modals.type === 'confirm_delete_lesson'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>{t('builder.modals.confirmDelete.title')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="text-sm text-muted-foreground">
             {modals.type === 'confirm_delete_module'
-              ? 'Are you sure you want to remove this module and all of its lessons? This action cannot be undone.'
-              : 'Are you sure you want to remove this lesson? This action cannot be undone.'}
+              ? t('builder.modals.confirmDelete.moduleDesc')
+              : t('builder.modals.confirmDelete.lessonDesc')}
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>{t('builder.modals.confirmDelete.cancel')}</Button>
             <Button
               variant="destructive"
               onClick={() => {
@@ -2086,7 +2115,7 @@ export function JourneyBuilder() {
                 setModals({ type: null });
               }}
             >
-              Delete
+              {t('builder.modals.confirmDelete.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2095,15 +2124,15 @@ export function JourneyBuilder() {
       <Dialog open={modals.type === 'unsaved_changes'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogTitle>{t('builder.modals.unsavedChanges.title')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="text-sm text-muted-foreground">
-            You have unsaved changes in this journey. If you leave now, your progress will be lost. Are you sure you want to discard changes and leave?
+            {t('builder.modals.unsavedChanges.desc')}
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModals({ type: null })}>Stay</Button>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>{t('builder.modals.unsavedChanges.stay')}</Button>
             <Button
               variant="destructive"
               onClick={() => {
@@ -2113,7 +2142,7 @@ export function JourneyBuilder() {
                 }
               }}
             >
-              Discard & Leave
+              {t('builder.modals.unsavedChanges.discard')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2145,7 +2174,8 @@ function renderFormattedText(text: string) {
 }
 
 function MarkdownPreview({ content }: { content: string }) {
-  if (!content) return <p className="text-muted-foreground italic text-sm">No content written yet. Use the editor to add text.</p>;
+  const { t } = useTranslation('journeys');
+  if (!content) return <p className="text-muted-foreground italic text-sm">{t('builder.curriculum.articleEditor.emptyMarkdown')}</p>;
 
   const lines = content.split('\n');
   return (
@@ -2183,3 +2213,5 @@ function MarkdownPreview({ content }: { content: string }) {
     </div>
   );
 }
+
+export default JourneyBuilder;

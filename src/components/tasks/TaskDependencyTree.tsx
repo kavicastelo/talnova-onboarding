@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Lock,
   Unlock
@@ -23,6 +24,8 @@ export const TaskDependencyTree: React.FC<TaskDependencyTreeProps> = ({
   isLocked = false,
   lockReason,
 }) => {
+  const { t } = useTranslation(['tasks', 'common']);
+
   if (prerequisites.length === 0 && !isLocked) {
     return null;
   }
@@ -39,16 +42,16 @@ export const TaskDependencyTree: React.FC<TaskDependencyTreeProps> = ({
             <TooltipTrigger asChild>
               <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 cursor-help">
                 <Lock className="h-3 w-3 shrink-0" />
-                <span>Prerequisite Locked</span>
+                <span>{t('dependencies.prerequisiteLocked', { defaultValue: 'Prerequisite Locked' })}</span>
               </div>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs text-xs space-y-1.5 p-2.5">
               <p className="font-semibold text-amber-500 flex items-center gap-1">
                 <Lock className="h-3.5 w-3.5" />
-                Blocked by Dependent Action
+                {t('dependencies.blockedBy', { defaultValue: 'Blocked by Dependent Action' })}
               </p>
               <p className="text-muted-foreground text-[11px]">
-                {lockReason || 'This task unlocks automatically once preceding items are verified.'}
+                {lockReason || t('dependencies.defaultLockReason', { defaultValue: 'This task unlocks automatically once preceding items are verified.' })}
               </p>
               {prerequisites.length > 0 && (
                 <div className="pt-1.5 mt-1 border-t border-border space-y-1">
@@ -81,11 +84,11 @@ export const TaskDependencyTree: React.FC<TaskDependencyTreeProps> = ({
             <TooltipTrigger asChild>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <Unlock className="h-3 w-3" />
-                <span>Prerequisites Met</span>
+                <span>{t('dependencies.prerequisitesMet', { defaultValue: 'Prerequisites Met' })}</span>
               </span>
             </TooltipTrigger>
             <TooltipContent className="text-xs">
-              All preceding dependencies have been completed and verified.
+              {t('dependencies.allMetTooltip', { defaultValue: 'All preceding dependencies have been completed and verified.' })}
             </TooltipContent>
           </Tooltip>
         )}

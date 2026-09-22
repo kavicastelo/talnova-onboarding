@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Workflow,
   Plus,
@@ -38,6 +39,7 @@ import {
 } from '../components/Dialog';
 
 export function Workflows() {
+  const { t } = useTranslation(['workflows', 'common']);
   const [activeTab, setActiveTab] = useState<'rules' | 'logs'>('rules');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTriggerFilter, setSelectedTriggerFilter] = useState<string>('all');
@@ -110,27 +112,27 @@ export function Workflows() {
     setValidationError(null);
 
     if (!name.trim()) {
-      setValidationError('Rule title is required.');
+      setValidationError(t('validation.titleRequired', 'Rule title is required.'));
       return;
     }
 
     if (actions.length === 0) {
-      setValidationError('At least one action step is required.');
+      setValidationError(t('validation.actionRequired', 'At least one action step is required.'));
       return;
     }
 
     for (let i = 0; i < actions.length; i++) {
       const act = actions[i];
       if (act.type === 'assign_journey' && !act.params.journeyId) {
-        setValidationError('Target template is required for journey assignment.');
+        setValidationError(t('validation.journeyRequired', 'Target template is required for journey assignment.'));
         return;
       }
       if (act.type === 'assign_checklist' && !act.params.checklistTemplateId) {
-        setValidationError('Target checklist template is required.');
+        setValidationError(t('validation.checklistRequired', 'Target checklist template is required.'));
         return;
       }
       if (act.type === 'create_task' && !act.params.taskTitle) {
-        setValidationError('Task title is required for task creation.');
+        setValidationError(t('validation.taskTitleRequired', 'Task title is required for task creation.'));
         return;
       }
     }
@@ -156,7 +158,7 @@ export function Workflows() {
           setValidationError(null);
         },
         onError: (err: any) => {
-          setValidationError(err?.response?.data?.message || 'Failed to save workflow rule.');
+          setValidationError(err?.response?.data?.message || t('validation.failedSave', 'Failed to save workflow rule.'));
         },
       }
     );
@@ -176,19 +178,19 @@ export function Workflows() {
     );
   };
 
-  const getTriggerBadge = (t: string) => {
+  const getTriggerBadge = (trigger: string) => {
     const labels: Record<string, string> = {
-      user_created: 'New User Created',
-      journey_completed: 'Journey Completed',
-      task_completed: 'Task Completed',
-      stage_entered: 'Stage Entered',
-      checkin_due: 'Compliance Checkin Due',
-      milestone_completed: 'Milestone Completed',
+      user_created: t('triggers.user_created', 'New User Created'),
+      journey_completed: t('triggers.journey_completed', 'Journey Completed'),
+      task_completed: t('triggers.task_completed', 'Task Completed'),
+      stage_entered: t('triggers.stage_entered', 'Stage Entered'),
+      checkin_due: t('triggers.checkin_due', 'Compliance Checkin Due'),
+      milestone_completed: t('triggers.milestone_completed', 'Milestone Completed'),
     };
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
         <Zap className="w-3 h-3 text-indigo-500" />
-        {labels[t] || t}
+        {labels[trigger] || trigger}
       </span>
     );
   };
@@ -196,14 +198,28 @@ export function Workflows() {
   const getStatusBadge = (s: string) => {
     switch (s) {
       case 'success':
-        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700 rounded-full dark:bg-emerald-950 dark:text-emerald-300">Success</span>;
+        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700 rounded-full dark:bg-emerald-950 dark:text-emerald-300">{t('status.success', 'Success')}</span>;
       case 'partial_failure':
-        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full dark:bg-amber-950 dark:text-amber-300">Partial Failure</span>;
+        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full dark:bg-amber-950 dark:text-amber-300">{t('status.partialFailure', 'Partial Failure')}</span>;
       case 'pending_delay':
-        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full dark:bg-blue-950 dark:text-blue-300">Pending Delay</span>;
+        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full dark:bg-blue-950 dark:text-blue-300">{t('status.pendingDelay', 'Pending Delay')}</span>;
       default:
-        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">Failed</span>;
+        return <span className="px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">{t('status.failed', 'Failed')}</span>;
     }
+  };
+
+  const getActionLabel = (type: string) => {
+    const map: Record<string, string> = {
+      assign_journey: t('builderModal.actionTypes.assignJourney', 'Assign Onboarding Journey'),
+      assign_checklist: t('builderModal.actionTypes.assignChecklist', 'Assign Checklist Template'),
+      create_task: t('builderModal.actionTypes.createTask', 'Create Operational Task'),
+      send_notification: t('builderModal.actionTypes.sendNotification', 'Send Multi-Channel Notification'),
+      assign_document: t('builderModal.actionTypes.assignDocument', 'Assign E-Signature Document Template'),
+      trigger_buddy: t('builderModal.actionTypes.triggerBuddy', 'Trigger Buddy Pairing'),
+      trigger_webhook: t('builderModal.actionTypes.triggerWebhook', 'Trigger Outbound Webhook'),
+      assign_milestone: t('builderModal.actionTypes.assignMilestone', 'Assign Milestone Check-in Program'),
+    };
+    return map[type] || type.replace('_', ' ');
   };
 
   return (
@@ -214,10 +230,10 @@ export function Workflows() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
               <Workflow className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              Workflow Automation Engine
+              {t('title', 'Workflow Automation Engine')}
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-              Event-driven automation rules for auto-assigning journeys, provisioning tasks, and dispatching multi-channel alerts.
+              {t('subtitle', 'Event-driven automation rules for auto-assigning journeys, provisioning tasks, and dispatching multi-channel alerts.')}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -226,7 +242,7 @@ export function Workflows() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium text-sm rounded-xl transition-all"
             >
               <History className="w-4 h-4" />
-              Execution Logs
+              {t('executionLogs', 'Execution Logs')}
             </button>
             <button
               id="create-rule-btn"
@@ -234,7 +250,7 @@ export function Workflows() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none"
             >
               <Plus className="w-4 h-4" />
-              Create Rule
+              {t('createRule', 'Create Rule')}
             </button>
           </div>
         </div>
@@ -250,7 +266,7 @@ export function Workflows() {
                   : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                   }`}
               >
-                Active Workflow Rules ({rules.length})
+                {t('tabs.rules', 'Active Workflow Rules')} ({rules.length})
               </button>
               <button
                 onClick={() => setActiveTab('logs')}
@@ -259,7 +275,7 @@ export function Workflows() {
                   : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                   }`}
               >
-                Audit Execution History ({logs.length})
+                {t('tabs.logs', 'Audit Execution History')} ({logs.length})
               </button>
             </div>
 
@@ -268,7 +284,7 @@ export function Workflows() {
                 <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search rules..."
+                  placeholder={t('filters.searchPlaceholder', 'Search workflow rules...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -280,12 +296,12 @@ export function Workflows() {
                 onChange={(e) => setSelectedTriggerFilter(e.target.value)}
                 className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="all">All Event Triggers</option>
-                <option value="user_created">User Created</option>
-                <option value="journey_completed">Journey Completed</option>
-                <option value="task_completed">Task Completed</option>
-                <option value="stage_entered">Stage Entered</option>
-                <option value="milestone_completed">Milestone Completed</option>
+                <option value="all">{t('filters.allTriggers', 'All Event Triggers')}</option>
+                <option value="user_created">{t('filters.userCreated', 'New User Created')}</option>
+                <option value="journey_completed">{t('filters.journeyCompleted', 'Journey Completed')}</option>
+                <option value="task_completed">{t('filters.taskCompleted', 'Task Completed')}</option>
+                <option value="stage_entered">{t('filters.stageEntered', 'Stage Entered')}</option>
+                <option value="milestone_completed">{t('filters.milestoneCompleted', 'Milestone Completed')}</option>
               </select>
             </div>
           </div>
@@ -300,8 +316,8 @@ export function Workflows() {
           ) : filteredRules.length === 0 ? (
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700">
               <Workflow className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold">No Workflow Rules Configured</h3>
-              <p className="text-slate-500 text-sm mt-1">Create automated workflow rules to auto-assign learning paths and operational tasks.</p>
+              <h3 className="text-lg font-semibold">{t('rulesList.emptyTitle', 'No Workflow Rules Configured')}</h3>
+              <p className="text-slate-500 text-sm mt-1">{t('rulesList.emptyDesc', 'Create automated workflow rules to auto-assign learning paths and operational tasks.')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -318,7 +334,7 @@ export function Workflows() {
                           <div className="flex items-center gap-2">
                             {getTriggerBadge(rule.triggerType)}
                             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">
-                              Priority: {(rule as any).priority ?? 0}
+                              {t('rulesList.priority', 'Priority: {{priority}}', { priority: (rule as any).priority ?? 0 })}
                             </span>
                           </div>
                           <h3 className="text-lg font-bold mt-2">{rule.name}</h3>
@@ -330,7 +346,7 @@ export function Workflows() {
                               : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                               }`}
                           >
-                            {rule.isActive ? 'Active' : 'Inactive'}
+                            {rule.isActive ? t('status.active', 'Active') : t('status.inactive', 'Inactive')}
                           </span>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -355,11 +371,11 @@ export function Workflows() {
                       {rule.conditions && rule.conditions.length > 0 && (
                         <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 text-xs space-y-1">
                           <span className="font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                            Conditions:
+                            {t('rulesList.conditionsHeader', 'Conditions:')}
                           </span>
                           {rule.conditions.map((c, i) => (
                             <div key={i} className="text-slate-600 dark:text-slate-300 font-mono">
-                              IF <span className="font-semibold">{c.field}</span> {c.operator}{' '}
+                              {t('rulesList.conditionIf', 'IF')} <span className="font-semibold">{c.field}</span> {c.operator}{' '}
                               <span className="text-indigo-600 dark:text-indigo-400">{c.value}</span>
                             </div>
                           ))}
@@ -370,12 +386,12 @@ export function Workflows() {
                       {rule.actions && rule.actions.length > 0 && (
                         <div className="bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl p-3 text-xs space-y-1 border border-indigo-100 dark:border-indigo-900/30">
                           <span className="font-semibold text-indigo-500 uppercase tracking-wider block mb-1">
-                            Actions Triggered:
+                            {t('rulesList.actionsTriggered', 'Actions Triggered:')}
                           </span>
                           {rule.actions.map((act, i) => (
                             <div key={i} className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                               <Zap className="w-3 h-3 text-indigo-500" />
-                              <span className="capitalize">{act.type.replace('_', ' ')}</span>
+                              <span className="capitalize">{getActionLabel(act.type)}</span>
                             </div>
                           ))}
                         </div>
@@ -384,7 +400,7 @@ export function Workflows() {
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700/60">
                       <span className="text-xs text-slate-400">
-                        Updated {new Date(rule.updatedAt).toLocaleDateString()}
+                        {t('rulesList.updatedAt', 'Updated {{date}}', { date: new Date(rule.updatedAt).toLocaleDateString() })}
                       </span>
 
                       <div className="flex items-center gap-2">
@@ -393,13 +409,13 @@ export function Workflows() {
                           className="px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded-lg transition-all flex items-center gap-1"
                         >
                           <Play className="w-3 h-3" />
-                          Test Run
+                          {t('rulesList.testRun', 'Test Run')}
                         </button>
 
                         <button
                           onClick={() => deleteWorkflowMutation.mutate(rule._id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-all"
-                          title="Delete Rule"
+                          title={t('rulesList.deleteRuleTitle', 'Delete Rule')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -418,7 +434,7 @@ export function Workflows() {
                 pageSize={rulesPagination.pageSize}
                 onPageChange={rulesPagination.setPage}
                 onPageSizeChange={rulesPagination.setPageSize}
-                itemLabel="rules"
+                itemLabel={t('rulesList.rulesLabel', 'rules')}
               />
             </div>
           )
@@ -432,7 +448,7 @@ export function Workflows() {
             ) : logs.length === 0 ? (
               <div className="p-12 text-center text-slate-500">
                 <Activity className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p>No workflow execution logs found.</p>
+                <p>{t('logsList.empty', 'No execution logs recorded yet.')}</p>
               </div>
             ) : (
               <div>
@@ -440,24 +456,24 @@ export function Workflows() {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-400 uppercase">
                       <tr>
-                        <th className="p-4">Trigger Event</th>
-                        <th className="p-4">Workflow Rule</th>
-                        <th className="p-4">Target Employee</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4">Steps Executed</th>
-                        <th className="p-4">Executed At</th>
+                        <th className="p-4">{t('logsList.headerTrigger', 'Trigger Event')}</th>
+                        <th className="p-4">{t('logsList.headerRule', 'Workflow Rule')}</th>
+                        <th className="p-4">{t('logsList.headerTarget', 'Target Employee')}</th>
+                        <th className="p-4">{t('logsList.headerStatus', 'Status')}</th>
+                        <th className="p-4">{t('logsList.headerSteps', 'Steps Executed')}</th>
+                        <th className="p-4">{t('logsList.headerExecutedAt', 'Executed At')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                       {logsPagination.paginatedData.map((log) => (
                         <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
                           <td className="p-4 font-medium">{getTriggerBadge(log.triggerEvent)}</td>
-                          <td className="p-4 font-medium">{log.workflowRuleId?.name || 'Workflow Rule'}</td>
+                          <td className="p-4 font-medium">{log.workflowRuleId?.name || t('logsList.defaultRuleName', 'Workflow Rule')}</td>
                           <td className="p-4">
                             {log.targetUserId?.profile?.firstName} {log.targetUserId?.profile?.lastName}
                           </td>
                           <td className="p-4">{getStatusBadge(log.status)}</td>
-                          <td className="p-4 text-xs font-mono">{log.stepResults?.length || 0} steps</td>
+                          <td className="p-4 text-xs font-mono">{t('logsList.stepsCount', '{{count}} steps', { count: log.stepResults?.length || 0 })}</td>
                           <td className="p-4 text-xs text-slate-400">{new Date(log.executedAt).toLocaleString()}</td>
                         </tr>
                       ))}
@@ -475,7 +491,7 @@ export function Workflows() {
                     pageSize={logsPagination.pageSize}
                     onPageChange={logsPagination.setPage}
                     onPageSizeChange={logsPagination.setPageSize}
-                    itemLabel="logs"
+                    itemLabel={t('logsList.logsLabel', 'logs')}
                   />
                 </div>
               </div>
@@ -490,10 +506,10 @@ export function Workflows() {
           <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               <Zap className="w-5 h-5 text-indigo-600" />
-              Configure Automated Workflow Rule
+              {t('builderModal.title', 'Configure Automated Workflow Rule')}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Define trigger events, evaluation filters, and downstream action steps.
+              {t('builderModal.desc', 'Define trigger events, evaluation filters, and downstream action steps.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -509,12 +525,12 @@ export function Workflows() {
               )}
 
               <div>
-                <label className="block font-medium mb-1 text-xs">Workflow Rule Title / Name *</label>
+                <label className="block font-medium mb-1 text-xs">{t('builderModal.nameLabel', 'Workflow Rule Title / Name *')}</label>
                 <input
                   id="rule-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Auto Assign Eng Onboarding"
+                  placeholder={t('builderModal.namePlaceholder', 'e.g. Auto Assign Eng Onboarding')}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -526,23 +542,23 @@ export function Workflows() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-medium mb-1 text-xs">Event Trigger *</label>
+                  <label className="block font-medium mb-1 text-xs">{t('builderModal.triggerLabel', 'Event Trigger *')}</label>
                   <select
                     id="rule-trigger-select"
                     value={triggerType}
                     onChange={(e) => setTriggerType(e.target.value as any)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                   >
-                    <option value="user_created">ON_USER_CREATED (New User Created / Hired)</option>
-                    <option value="journey_completed">ON_JOURNEY_COMPLETED (Journey Completed)</option>
-                    <option value="task_completed">ON_TASK_COMPLETED (Task Completed)</option>
-                    <option value="stage_entered">ON_STAGE_ENTERED (Stage Entered)</option>
-                    <option value="milestone_completed">ON_MILESTONE_COMPLETED (Milestone Check-in Completed)</option>
+                    <option value="user_created">{t('builderModal.triggers.user_created', 'ON_USER_CREATED (New User Created / Hired)')}</option>
+                    <option value="journey_completed">{t('builderModal.triggers.journey_completed', 'ON_JOURNEY_COMPLETED (Journey Completed)')}</option>
+                    <option value="task_completed">{t('builderModal.triggers.task_completed', 'ON_TASK_COMPLETED (Task Completed)')}</option>
+                    <option value="stage_entered">{t('builderModal.triggers.stage_entered', 'ON_STAGE_ENTERED (Stage Entered)')}</option>
+                    <option value="milestone_completed">{t('builderModal.triggers.milestone_completed', 'ON_MILESTONE_COMPLETED (Milestone Check-in Completed)')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1 text-xs">Priority (Higher runs first)</label>
+                  <label className="block font-medium mb-1 text-xs">{t('builderModal.priorityLabel', 'Priority (Higher runs first)')}</label>
                   <input
                     id="rule-priority-input"
                     type="number"
@@ -559,7 +575,7 @@ export function Workflows() {
               <div className="border border-slate-200 dark:border-slate-700 p-4 rounded-xl space-y-3 bg-slate-50/50 dark:bg-slate-900/30">
                 <div className="flex justify-between items-center">
                   <h4 className="font-semibold text-xs uppercase tracking-wider text-slate-400">
-                    IF Filter Conditions (Optional)
+                    {t('builderModal.conditionsTitle', 'IF Filter Conditions (Optional)')}
                   </h4>
                   <button
                     type="button"
@@ -568,7 +584,7 @@ export function Workflows() {
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add Condition
+                    {t('builderModal.addCondition', 'Add Condition')}
                   </button>
                 </div>
 
@@ -584,9 +600,9 @@ export function Workflows() {
                       }}
                       className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
                     >
-                      <option value="department">Department</option>
-                      <option value="role">Role</option>
-                      <option value="jobTitle">Job Title</option>
+                      <option value="department">{t('builderModal.conditionFields.department', 'Department')}</option>
+                      <option value="role">{t('builderModal.conditionFields.role', 'Role')}</option>
+                      <option value="jobTitle">{t('builderModal.conditionFields.jobTitle', 'Job Title')}</option>
                     </select>
 
                     <select
@@ -599,9 +615,9 @@ export function Workflows() {
                       }}
                       className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
                     >
-                      <option value="equals">Equals</option>
-                      <option value="not_equals">Not Equals</option>
-                      <option value="contains">Contains</option>
+                      <option value="equals">{t('builderModal.conditionOperators.equals', 'Equals')}</option>
+                      <option value="not_equals">{t('builderModal.conditionOperators.notEquals', 'Not Equals')}</option>
+                      <option value="contains">{t('builderModal.conditionOperators.contains', 'Contains')}</option>
                     </select>
 
                     <input
@@ -613,7 +629,7 @@ export function Workflows() {
                         updated[idx].value = e.target.value;
                         setConditions(updated);
                       }}
-                      placeholder="Value"
+                      placeholder={t('builderModal.conditionValuePlaceholder', 'Value')}
                       className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
                     />
 
@@ -621,6 +637,7 @@ export function Workflows() {
                       type="button"
                       onClick={() => handleRemoveCondition(idx)}
                       className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                      title={t('builderModal.removeCondition', 'Remove Condition')}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -632,7 +649,7 @@ export function Workflows() {
               <div className="border border-slate-200 dark:border-slate-700 p-4 rounded-xl space-y-3 bg-slate-50/50 dark:bg-slate-900/30">
                 <div className="flex justify-between items-center">
                   <h4 className="font-semibold text-xs uppercase tracking-wider text-slate-400">
-                    THEN Actions Pipeline *
+                    {t('builderModal.actionsTitle', 'THEN Actions Pipeline *')}
                   </h4>
                   <button
                     type="button"
@@ -641,18 +658,21 @@ export function Workflows() {
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add Action Step
+                    {t('builderModal.addAction', 'Add Action Step')}
                   </button>
                 </div>
 
                 {actions.map((act, idx) => (
                   <div key={idx} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-xs text-indigo-600">Step {idx + 1}</span>
+                      <span className="font-bold text-xs text-indigo-600">
+                        {t('builderModal.stepLabel', 'Step {{number}}', { number: idx + 1 })}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveAction(idx)}
                         className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                        title={t('builderModal.removeAction', 'Remove Action')}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -669,20 +689,20 @@ export function Workflows() {
                       }}
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                     >
-                      <option value="assign_journey">Assign Onboarding Journey</option>
-                      <option value="assign_checklist">Assign Checklist Template</option>
-                      <option value="create_task">Create Operational Task</option>
-                      <option value="send_notification">Send Multi-Channel Notification</option>
-                      <option value="assign_document">Assign E-Signature Document Template</option>
-                      <option value="trigger_buddy">Trigger Buddy Pairing</option>
-                      <option value="trigger_webhook">Trigger Outbound Webhook</option>
-                      <option value="assign_milestone">Assign Milestone Check-in Program</option>
+                      <option value="assign_journey">{t('builderModal.actionTypes.assignJourney', 'Assign Onboarding Journey')}</option>
+                      <option value="assign_checklist">{t('builderModal.actionTypes.assignChecklist', 'Assign Checklist Template')}</option>
+                      <option value="create_task">{t('builderModal.actionTypes.createTask', 'Create Operational Task')}</option>
+                      <option value="send_notification">{t('builderModal.actionTypes.sendNotification', 'Send Multi-Channel Notification')}</option>
+                      <option value="assign_document">{t('builderModal.actionTypes.assignDocument', 'Assign E-Signature Document Template')}</option>
+                      <option value="trigger_buddy">{t('builderModal.actionTypes.triggerBuddy', 'Trigger Buddy Pairing')}</option>
+                      <option value="trigger_webhook">{t('builderModal.actionTypes.triggerWebhook', 'Trigger Outbound Webhook')}</option>
+                      <option value="assign_milestone">{t('builderModal.actionTypes.assignMilestone', 'Assign Milestone Check-in Program')}</option>
                     </select>
 
                     {act.type === 'assign_milestone' && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] text-slate-500 mb-1">Milestone Template (Optional)</label>
+                          <label className="block text-[11px] text-slate-500 mb-1">{t('builderModal.milestoneTemplateLabel', 'Milestone Template (Optional)')}</label>
                           <select
                             value={act.params.templateId || ''}
                             onChange={(e) => {
@@ -693,16 +713,16 @@ export function Workflows() {
                             }}
                             className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                           >
-                            <option value="">Auto-Detect by Target Day</option>
+                            <option value="">{t('builderModal.milestoneAutoDetect', 'Auto-Detect by Target Day')}</option>
                             {milestoneTemplates.map((mt: any) => (
                               <option key={mt._id} value={mt._id}>
-                                Day {mt.targetDay} - {mt.title}
+                                {t('builderModal.milestoneDayOption', 'Day {{day}} - {{title}}', { day: mt.targetDay, title: mt.title })}
                               </option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[11px] text-slate-500 mb-1">Target Day (e.g. 30, 60, 90, 180)</label>
+                          <label className="block text-[11px] text-slate-500 mb-1">{t('builderModal.targetDayLabel', 'Target Day (e.g. 30, 60, 90, 180)')}</label>
                           <select
                             value={act.params.targetDay || 30}
                             onChange={(e) => {
@@ -713,10 +733,10 @@ export function Workflows() {
                             }}
                             className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                           >
-                            <option value={30}>Day 30 Milestone</option>
-                            <option value={60}>Day 60 Milestone</option>
-                            <option value={90}>Day 90 Milestone</option>
-                            <option value={180}>Day 180 Milestone</option>
+                            <option value={30}>{t('builderModal.targetDayOption', 'Day {{day}} Milestone', { day: 30 })}</option>
+                            <option value={60}>{t('builderModal.targetDayOption', 'Day {{day}} Milestone', { day: 60 })}</option>
+                            <option value={90}>{t('builderModal.targetDayOption', 'Day {{day}} Milestone', { day: 90 })}</option>
+                            <option value={180}>{t('builderModal.targetDayOption', 'Day {{day}} Milestone', { day: 180 })}</option>
                           </select>
                         </div>
                       </div>
@@ -735,7 +755,7 @@ export function Workflows() {
                           }}
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                         >
-                          <option value="">Select Journey Template</option>
+                          <option value="">{t('builderModal.selectJourneyPlaceholder', 'Select Journey Template')}</option>
                           {journeys.map((j: any) => (
                             <option key={j._id} value={j._id}>
                               {j.title}
@@ -755,7 +775,7 @@ export function Workflows() {
                         }}
                         className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                       >
-                        <option value="">Select Document Template</option>
+                        <option value="">{t('builderModal.selectDocumentPlaceholder', 'Select Document Template')}</option>
                         {documentTemplates.map((dt: any) => (
                           <option key={dt._id} value={dt._id}>
                             {dt.title} ({dt.category})
@@ -773,15 +793,15 @@ export function Workflows() {
                           updated[idx].params = { ...updated[idx].params, buddyUserId: val };
                           setActions(updated);
                         }}
-                        placeholder="Auto-Select Available Buddy or Search..."
-                        searchPlaceholder="Search buddy by name, department..."
+                        placeholder={t('builderModal.buddyPlaceholder', 'Auto-Select Available Buddy or Search...')}
+                        searchPlaceholder={t('builderModal.buddySearchPlaceholder', 'Search buddy by name, department...')}
                         options={[
-                          { value: '', label: 'Auto-Select Available Buddy in Organization' },
+                          { value: '', label: t('builderModal.buddyAutoOption', 'Auto-Select Available Buddy in Organization') },
                           ...employees.map((emp: any) => ({
                             value: emp.id,
-                            label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                            label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || t('builderModal.unnamedEmployee', 'Unnamed'),
                             sublabel: emp.email,
-                            badge: emp.department || 'Employee',
+                            badge: emp.department || t('builderModal.employeeRoleFallback', 'Employee'),
                           }))
                         ]}
                       />
@@ -790,7 +810,7 @@ export function Workflows() {
                     {act.type === 'trigger_webhook' && (
                       <input
                         type="url"
-                        placeholder="Webhook Target URL (e.g. https://api.hris.com/v1/webhook)"
+                        placeholder={t('builderModal.webhookPlaceholder', 'Webhook Target URL (e.g. https://api.hris.com/v1/webhook)')}
                         value={act.params.webhookUrl || ''}
                         onChange={(e) => {
                           const updated = [...actions];
@@ -803,7 +823,7 @@ export function Workflows() {
 
                     {act.type === 'assign_checklist' && (
                       <div>
-                        <label className="block text-[11px] text-slate-500 mb-1">Checklist Template *</label>
+                        <label className="block text-[11px] text-slate-500 mb-1">{t('builderModal.checklistTemplateLabel', 'Checklist Template *')}</label>
                         <select
                           id={`action-target-checklist-select-${idx}`}
                           value={act.params.checklistTemplateId || ''}
@@ -815,10 +835,10 @@ export function Workflows() {
                           }}
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                         >
-                          <option value="">Select Checklist Template</option>
+                          <option value="">{t('builderModal.selectChecklistPlaceholder', 'Select Checklist Template')}</option>
                           {taskTemplates.map((tt: any) => (
                             <option key={tt._id} value={tt._id}>
-                              {tt.title} ({tt.items?.length || 0} items)
+                              {tt.title} {t('builderModal.checklistItemsCount', '({{count}} items)', { count: tt.items?.length || 0 })}
                             </option>
                           ))}
                         </select>
@@ -829,7 +849,7 @@ export function Workflows() {
                       <div className="space-y-2">
                         <input
                           type="text"
-                          placeholder="Task Title (e.g. IT Workstation Provisioning) *"
+                          placeholder={t('builderModal.taskTitlePlaceholder', 'Task Title (e.g. IT Workstation Provisioning) *')}
                           value={act.params.taskTitle || ''}
                           onChange={(e) => {
                             const updated = [...actions];
@@ -840,7 +860,7 @@ export function Workflows() {
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                         />
                         <textarea
-                          placeholder="Task Description / Instructions (Optional)"
+                          placeholder={t('builderModal.taskDescPlaceholder', 'Task Description / Instructions (Optional)')}
                           value={act.params.taskDescription || ''}
                           rows={2}
                           onChange={(e) => {
@@ -852,7 +872,7 @@ export function Workflows() {
                         />
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div>
-                            <label className="block text-[10px] text-slate-500 mb-0.5">Assigned To Role</label>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">{t('builderModal.assignedRoleLabel', 'Assigned To Role')}</label>
                             <select
                               value={act.params.taskAssigneeRole || 'employee'}
                               onChange={(e) => {
@@ -862,15 +882,15 @@ export function Workflows() {
                               }}
                               className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                             >
-                              <option value="employee">New Hire (Employee)</option>
-                              <option value="manager">Direct Manager</option>
-                              <option value="it_admin">IT Administrator</option>
-                              <option value="hr_admin">HR Administrator</option>
-                              <option value="buddy">Assigned Buddy</option>
+                              <option value="employee">{t('builderModal.roles.employee', 'New Hire (Employee)')}</option>
+                              <option value="manager">{t('builderModal.roles.manager', 'Direct Manager')}</option>
+                              <option value="it_admin">{t('builderModal.roles.it_admin', 'IT Administrator')}</option>
+                              <option value="hr_admin">{t('builderModal.roles.hr_admin', 'HR Administrator')}</option>
+                              <option value="buddy">{t('builderModal.roles.buddy', 'Assigned Buddy')}</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] text-slate-500 mb-0.5">Category</label>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">{t('builderModal.categoryLabel', 'Category')}</label>
                             <select
                               value={act.params.taskCategory || 'general'}
                               onChange={(e) => {
@@ -880,15 +900,15 @@ export function Workflows() {
                               }}
                               className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                             >
-                              <option value="general">General</option>
-                              <option value="it_setup">IT Setup</option>
-                              <option value="equipment">Hardware / Equipment</option>
-                              <option value="hr_paperwork">HR Paperwork</option>
-                              <option value="training">Training</option>
+                              <option value="general">{t('builderModal.categories.general', 'General')}</option>
+                              <option value="it_setup">{t('builderModal.categories.it_setup', 'IT Setup')}</option>
+                              <option value="equipment">{t('builderModal.categories.equipment', 'Hardware / Equipment')}</option>
+                              <option value="hr_paperwork">{t('builderModal.categories.hr_paperwork', 'HR Paperwork')}</option>
+                              <option value="training">{t('builderModal.categories.training', 'Training')}</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] text-slate-500 mb-0.5">Stage</label>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">{t('builderModal.stageLabel', 'Stage')}</label>
                             <select
                               value={act.params.taskStage || 'day_1'}
                               onChange={(e) => {
@@ -898,17 +918,17 @@ export function Workflows() {
                               }}
                               className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                             >
-                              <option value="preboarding">Pre-boarding</option>
-                              <option value="day_1">Day 1</option>
-                              <option value="week_1">Week 1</option>
-                              <option value="month_1">Month 1</option>
-                              <option value="custom">Custom</option>
+                              <option value="preboarding">{t('builderModal.stages.preboarding', 'Pre-boarding')}</option>
+                              <option value="day_1">{t('builderModal.stages.day_1', 'Day 1')}</option>
+                              <option value="week_1">{t('builderModal.stages.week_1', 'Week 1')}</option>
+                              <option value="month_1">{t('builderModal.stages.month_1', 'Month 1')}</option>
+                              <option value="custom">{t('builderModal.stages.custom', 'Custom')}</option>
                             </select>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[10px] text-slate-500 mb-0.5">Priority</label>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">{t('builderModal.priorityLabelTask', 'Priority')}</label>
                             <select
                               value={act.params.taskPriority || 'normal'}
                               onChange={(e) => {
@@ -918,14 +938,14 @@ export function Workflows() {
                               }}
                               className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                             >
-                              <option value="low">Low</option>
-                              <option value="normal">Normal</option>
-                              <option value="high">High</option>
-                              <option value="critical">Critical</option>
+                              <option value="low">{t('builderModal.priorities.low', 'Low')}</option>
+                              <option value="normal">{t('builderModal.priorities.normal', 'Normal')}</option>
+                              <option value="high">{t('builderModal.priorities.high', 'High')}</option>
+                              <option value="critical">{t('builderModal.priorities.critical', 'Critical')}</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] text-slate-500 mb-0.5">Due In (Days from trigger)</label>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">{t('builderModal.dueInLabel', 'Due In (Days from trigger)')}</label>
                             <input
                               type="number"
                               min="0"
@@ -953,7 +973,7 @@ export function Workflows() {
                 onClick={() => setIsBuilderOpen(false)}
                 className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
               >
-                Cancel
+                {t('builderModal.cancel', 'Cancel')}
               </button>
               <button
                 id="save-activate-rule-btn"
@@ -961,7 +981,7 @@ export function Workflows() {
                 disabled={createWorkflowMutation.isPending}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
               >
-                {createWorkflowMutation.isPending ? 'Saving...' : 'Save & Activate'}
+                {createWorkflowMutation.isPending ? t('builderModal.saving', 'Saving...') : t('builderModal.save', 'Save & Activate')}
               </button>
             </DialogFooter>
           </form>
@@ -972,26 +992,26 @@ export function Workflows() {
       <Dialog open={!!testRunModalRule} onOpenChange={(open) => { if (!open) setTestRunModalRule(null); }}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4 border-b border-border/60 bg-card">
-            <DialogTitle className="text-lg font-bold">Trigger Workflow Test Run</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{t('testRunModal.title', 'Trigger Workflow Test Run')}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Select a target employee to evaluate rule conditions and execute action steps for &quot;{testRunModalRule?.name}&quot;.
+              {t('testRunModal.desc', 'Select a target employee to evaluate rule conditions and execute action steps for "{{name}}".', { name: testRunModalRule?.name })}
             </DialogDescription>
           </DialogHeader>
 
           {testRunModalRule && (
             <DialogBody className="space-y-4 text-xs">
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-foreground">Target Employee *</label>
+                <label className="block text-xs font-medium text-foreground">{t('testRunModal.targetEmployeeLabel', 'Target Employee *')}</label>
                 <SearchableSelect
                   value={selectedTestUser}
                   onChange={(val) => setSelectedTestUser(val)}
-                  placeholder="Search & select target employee..."
-                  searchPlaceholder="Search employee by name, email..."
+                  placeholder={t('testRunModal.targetEmployeePlaceholder', 'Search & select target employee...')}
+                  searchPlaceholder={t('testRunModal.searchEmployeePlaceholder', 'Search employee by name, email...')}
                   options={employees.map((emp: any) => ({
                     value: emp.id,
-                    label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                    label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || t('builderModal.unnamedEmployee', 'Unnamed'),
                     sublabel: emp.email,
-                    badge: emp.department || 'Employee',
+                    badge: emp.department || t('builderModal.employeeRoleFallback', 'Employee'),
                   }))}
                 />
               </div>
@@ -1004,7 +1024,7 @@ export function Workflows() {
               onClick={() => setTestRunModalRule(null)}
               className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
             >
-              Cancel
+              {t('testRunModal.cancel', 'Cancel')}
             </button>
             <button
               type="button"
@@ -1013,7 +1033,7 @@ export function Workflows() {
               className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Play className="w-3.5 h-3.5" />
-              {triggerTestRunMutation.isPending ? 'Running...' : 'Execute Test Run'}
+              {triggerTestRunMutation.isPending ? t('testRunModal.running', 'Running...') : t('testRunModal.execute', 'Execute Test Run')}
             </button>
           </DialogFooter>
         </DialogContent>

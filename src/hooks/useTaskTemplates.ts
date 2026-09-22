@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskTemplateService, IRoleChecklistTemplate } from '../services/task-template.service';
 import { toast } from 'sonner';
+import i18n from '../i18n';
 
 export function useTaskTemplates(filters?: { role?: string; department?: string; isActive?: boolean }) {
   return useQuery({
@@ -23,7 +24,7 @@ export function useCreateTaskTemplate() {
     mutationFn: (data: Partial<IRoleChecklistTemplate>) => taskTemplateService.createTemplate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-templates'] });
-      toast.success('Checklist template created successfully');
+      toast.success(i18n.t('tasks:toasts.templateCreated', 'Checklist template created successfully'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to create template');
@@ -38,7 +39,7 @@ export function useUpdateTaskTemplate() {
       taskTemplateService.updateTemplate(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-templates'] });
-      toast.success('Checklist template updated successfully');
+      toast.success(i18n.t('tasks:toasts.templateUpdated', 'Checklist template updated successfully'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to update template');
@@ -52,7 +53,7 @@ export function useDeleteTaskTemplate() {
     mutationFn: (id: string) => taskTemplateService.deleteTemplate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-templates'] });
-      toast.success('Checklist template archived');
+      toast.success(i18n.t('tasks:toasts.templateArchived', 'Checklist template archived'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to archive template');

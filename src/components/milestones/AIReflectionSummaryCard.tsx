@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Sparkles,
   ThumbsUp,
@@ -30,6 +31,7 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
   employeeRating = 5,
   onQuickApprove,
 }) => {
+  const { t } = useTranslation(['milestones', 'common']);
   if (!aiSummary) {
     return null;
   }
@@ -37,8 +39,8 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
   const achievements = aiSummary.keyAchievements && aiSummary.keyAchievements.length > 0
     ? aiSummary.keyAchievements
     : [
-      'Completed core onboarding checkpoints on schedule',
-      'Demonstrated strong team engagement and positive collaboration'
+      t('aiReflection.defaultAchievement1', { defaultValue: 'Completed core onboarding checkpoints on schedule' }),
+      t('aiReflection.defaultAchievement2', { defaultValue: 'Demonstrated strong team engagement and positive collaboration' })
     ];
 
   const blockers = aiSummary.flaggedBlockers || [];
@@ -54,13 +56,13 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
           </div>
           <div>
             <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              AI Reflection Briefing
+              {t('aiReflection.title', { defaultValue: 'AI Reflection Briefing' })}
               <Badge variant="outline" className="text-[9px] py-0 border-primary/30 text-primary font-mono capitalize">
                 {modelBadge}
               </Badge>
             </h5>
             <p className="text-[11px] text-muted-foreground">
-              Autonomous reflection synthesis for {employeeName} to fast-track manager sign-off.
+              {t('aiReflection.desc', { name: employeeName, defaultValue: `Autonomous reflection synthesis for ${employeeName} to fast-track manager sign-off.` })}
             </p>
           </div>
         </div>
@@ -73,7 +75,7 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
                 : 'bg-muted text-muted-foreground'
             }`}
         >
-          {sentiment} Sentiment
+          {t('aiReflection.sentiment', { sentiment, defaultValue: `${sentiment} Sentiment` })}
         </Badge>
       </div>
 
@@ -85,7 +87,7 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
 
       <div className="space-y-1.5 text-xs">
         <p className="font-semibold text-muted-foreground text-[11px] uppercase tracking-wider">
-          Key Highlights & Achievements:
+          {t('aiReflection.highlightsTitle', { defaultValue: 'Key Highlights & Achievements:' })}
         </p>
         <ul className="space-y-1">
           {achievements.map((item, idx) => (
@@ -100,7 +102,7 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
       {blockers.length > 0 && (
         <div className="space-y-1.5 text-xs pt-1 border-t border-border/50">
           <p className="font-semibold text-amber-500 text-[11px] uppercase tracking-wider flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" /> Flagged Blockers:
+            <AlertCircle className="h-3 w-3" /> {t('aiReflection.blockersTitle', { defaultValue: 'Flagged Blockers:' })}
           </p>
           <ul className="space-y-1 text-muted-foreground">
             {blockers.map((b, idx) => (
@@ -120,7 +122,7 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
             onClick={onQuickApprove}
             className="text-xs h-7 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
           >
-            <ThumbsUp className="h-3 w-3" /> 1-Click Fast-Track Sign-Off
+            <ThumbsUp className="h-3 w-3" /> {t('aiReflection.fastTrackBtn', { defaultValue: '1-Click Fast-Track Sign-Off' })}
           </Button>
         </div>
       )}

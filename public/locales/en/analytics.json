@@ -1,0 +1,106 @@
+{
+  "title": "Company Analytics & Onboarding Telemetry",
+  "subtitle": "Real-time cohort velocity, onboarding funnel drop-off stages, and departmental productivity ramp-up.",
+  "exportCSV": "Export CSV",
+  "scheduleReport": "Schedule Email Report",
+  "reportsBtn": "Reports",
+  "filterDept": "All Departments",
+  "filterRange": {
+    "7d": "Last 7 Days",
+    "30d": "Last 30 Days",
+    "90d": "Last 90 Days",
+    "all": "All Time"
+  },
+  "filters": {
+    "deptLabel": "Dept:",
+    "rangeLabel": "Range:"
+  },
+  "toasts": {
+    "exportSuccess": "Compliance CSV report exported successfully!",
+    "exportError": "Failed to export CSV report",
+    "validationError": "Please fill in report title and recipient emails.",
+    "reportCreated": "Scheduled report created!",
+    "createReportError": "Failed to create scheduled report",
+    "reportDeleted": "Scheduled report deleted."
+  },
+  "kpis": {
+    "activeCohort": "Active Onboarding",
+    "avgDays": "Avg Completion Time",
+    "retention": "Retention Rate",
+    "velocity": "Learning Velocity Index",
+    "milestoneCompletion": "Funnel Conversion",
+    "onTimeSla": "On-Time Milestone SLA Rate",
+    "filteredBy": "Filtered by {{department}}",
+    "acrossAll": "Across all departments",
+    "daysUnit": "{{count}} Days",
+    "benchmarkNote": "Fastest: 6d • Industry benchmark: 21d",
+    "retentionSub": "+2.4% vs previous cohort",
+    "productivitySub": "Day 90 Full Productivity"
+  },
+  "milestonesCard": {
+    "title": "Milestones & Probation SLA Performance (30/60/90/180D)",
+    "badge": "Live Operational SLA",
+    "desc": "Evaluation completion rates, direct report review queues, and escalation health metrics.",
+    "openConsole": "Open Milestones Console →",
+    "totalMilestones": "Total Milestones",
+    "assignedCheckins": "Assigned check-ins",
+    "signOffRate": "Sign-off Rate",
+    "approvedOfTotal": "{{completed}} of {{total}} approved",
+    "onTimeSla": "On-Time SLA",
+    "escalatedBreached": "{{count}} escalated/breached",
+    "pendingReviews": "Pending Reviews",
+    "awaitingSignoff": "Awaiting manager sign-off"
+  },
+  "charts": {
+    "funnelTitle": "Onboarding Funnel & Drop-off Telemetry",
+    "funnelDesc": "Attrition drop-off percentage through Day 1 to Day 90 milestone stages.",
+    "funnelTooltip": "{{val}}% active ({{count}} learners, drop-off: {{dropOff}}%)",
+    "completion": "Completion",
+    "productivityTitle": "Productivity Ramp-up Curve",
+    "productivityDesc": "Measured velocity from day 1 onboarding to full workplace autonomy.",
+    "targetBadge": "Target: 95%",
+    "productiveTooltip": "{{val}}% Productive",
+    "autonomy": "Autonomy"
+  },
+  "bottlenecks": {
+    "title": "Module & Quiz Bottleneck Analysis",
+    "desc": "Modules with lowest quiz pass rates and student drop-offs.",
+    "noData": "No quiz bottleneck data recorded yet.",
+    "totalQuizAttempts": "{{count}} total quiz attempt(s)",
+    "passRate": "{{rate}}% Pass Rate",
+    "avgScore": "Avg Score: {{score}}%",
+    "modulesLabel": "modules",
+    "difficultQuestions": "Difficult Quiz Questions Item Analysis",
+    "difficultQuestionsDesc": "Questions with highest incorrect answer rates.",
+    "noQuestions": "No difficult question items recorded yet.",
+    "totalAttempts": "{{count}} total attempt(s)",
+    "incorrectRate": "{{rate}}% Incorrect",
+    "questionsLabel": "questions"
+  },
+  "scheduledReports": {
+    "title": "Automated Scheduled Audit Reports",
+    "desc": "Periodic telemetry exports dispatched to executive leadership and stakeholders.",
+    "createModalTitle": "Create Scheduled Telemetry Report",
+    "modalTitle": "Scheduled Compliance Reports",
+    "modalDesc": "Automate recurring CSV analytics reports delivered via email.",
+    "titleLabel": "Report Schedule Title",
+    "titlePlaceholder": "e.g. Weekly Executive Compliance Digest",
+    "frequency": "Frequency",
+    "frequencies": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "recipients": "Recipient Emails (comma-separated)",
+    "recipientsLabel": "Recipients (Comma separated)",
+    "recipientsPlaceholder": "hr@company.com, exec@company.com",
+    "addBtn": "Add Scheduled Report Schedule",
+    "activeSchedules": "Active Schedules",
+    "noSchedules": "No active scheduled reports.",
+    "recipientsList": "{{frequency}} • Recipients: {{recipients}}",
+    "reportsLabel": "reports",
+    "cancel": "Cancel",
+    "create": "Schedule Report",
+    "close": "Close"
+  }
+}

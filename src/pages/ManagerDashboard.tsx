@@ -43,8 +43,10 @@ import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
 import { useRole } from '../context/RoleContext';
+import { useTranslation } from 'react-i18next';
 
 export const ManagerDashboard: React.FC = () => {
+  const { t } = useTranslation(['manager', 'common']);
   const { hasFeature } = useRole();
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useManagerDashboard();
   const { data: team, isLoading: teamLoading, refetch: refetchTeam } = useTeamDirectReports();
@@ -83,12 +85,12 @@ export const ManagerDashboard: React.FC = () => {
       { employeeId: selectedEmpId, message: nudgeMsg },
       {
         onSuccess: (res) => {
-          toast.success(res.message || 'Nudge sent successfully!');
+          toast.success(res.message || t('nudgeModal.success', { defaultValue: 'Nudge sent successfully!' }));
           setIsNudgeModalOpen(false);
           setNudgeMsg('');
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to send nudge');
+          toast.error(err?.response?.data?.message || err?.message || t('nudgeModal.failed', { defaultValue: 'Failed to send nudge' }));
         }
       }
     );
@@ -100,7 +102,7 @@ export const ManagerDashboard: React.FC = () => {
       { employeeId: selectedEmpId, notes: signOffNotes },
       {
         onSuccess: (res) => {
-          toast.success(res.message || 'Sign-off recorded successfully!');
+          toast.success(res.message || t('signOffModal.success', { defaultValue: 'Sign-off recorded successfully!' }));
           setIsSignOffModalOpen(false);
           setSignOffNotes('');
           refetchTeam();
@@ -108,7 +110,7 @@ export const ManagerDashboard: React.FC = () => {
           refetchOverview();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to sign off');
+          toast.error(err?.response?.data?.message || err?.message || t('signOffModal.failed', { defaultValue: 'Failed to sign off' }));
         }
       }
     );
@@ -121,10 +123,10 @@ export const ManagerDashboard: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Users className="h-7 w-7 text-indigo-600" />
-            Manager Operations & Team Oversight
+            {t('title', { defaultValue: 'Manager Operations & Team Oversight' })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Monitor direct reports, track onboarding progress, resolve overdue items, and sign off on completed programs.
+            {t('subtitle', { defaultValue: 'Monitor direct reports, track onboarding progress, resolve overdue items, and sign off on completed programs.' })}
           </p>
         </div>
         <Button
@@ -133,10 +135,10 @@ export const ManagerDashboard: React.FC = () => {
           onClick={() => {
             refetchMetrics();
             refetchTeam();
-            toast.success('Manager dashboard refreshed');
+            toast.success(t('refreshedToast', { defaultValue: 'Manager dashboard refreshed' }));
           }}
         >
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh Data
+          <RefreshCw className="h-4 w-4 mr-2" /> {t('refresh', { defaultValue: 'Refresh Data' })}
         </Button>
       </div>
 
@@ -145,7 +147,7 @@ export const ManagerDashboard: React.FC = () => {
         <Card id="card-total-direct-reports" className="border-l-4 border-l-indigo-600">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Direct Reports
+              {t('metrics.directReports', { defaultValue: 'Direct Reports' })}
             </CardTitle>
             <Users className="h-4 w-4 text-indigo-600" />
           </CardHeader>
@@ -154,7 +156,7 @@ export const ManagerDashboard: React.FC = () => {
               {metricsLoading ? '...' : metrics?.totalDirectReports || 0}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Active team members under your supervision
+              {t('metrics.directReportsDesc', { defaultValue: 'Active team members under your supervision' })}
             </p>
           </CardContent>
         </Card>
@@ -162,7 +164,7 @@ export const ManagerDashboard: React.FC = () => {
         <Card id="card-active-onboardings" className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Active Onboardings
+              {t('metrics.activeOnboardings', { defaultValue: 'Active Onboardings' })}
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-blue-500" />
           </CardHeader>
@@ -171,7 +173,7 @@ export const ManagerDashboard: React.FC = () => {
               {metricsLoading ? '...' : metrics?.activeOnboardingCount || 0}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Employees currently completing onboarding
+              {t('metrics.activeOnboardingsDesc', { defaultValue: 'Employees currently completing onboarding' })}
             </p>
           </CardContent>
         </Card>
@@ -179,7 +181,7 @@ export const ManagerDashboard: React.FC = () => {
         <Card id="card-completion-rate" className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Team Completion Rate
+              {t('metrics.teamCompletionRate', { defaultValue: 'Team Completion Rate' })}
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
@@ -194,7 +196,7 @@ export const ManagerDashboard: React.FC = () => {
         <Card id="card-overdue-items" className="border-l-4 border-l-amber-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Overdue Items
+              {t('metrics.overdueItems', { defaultValue: 'Overdue Items' })}
             </CardTitle>
             <AlertTriangle className="h-4 w-4 text-amber-500" />
           </CardHeader>
@@ -203,7 +205,7 @@ export const ManagerDashboard: React.FC = () => {
               {metricsLoading ? '...' : metrics?.overdueItemsCount || 0}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Pending journeys or tasks past due date
+              {t('metrics.overdueItemsDesc', { defaultValue: 'Pending journeys or tasks past due date' })}
             </p>
           </CardContent>
         </Card>
@@ -217,22 +219,22 @@ export const ManagerDashboard: React.FC = () => {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Flag className="h-4 w-4 text-purple-600" />
-                  Milestone Approvals
+                  {t('quickActions.milestoneApprovals', { defaultValue: 'Milestone Approvals' })}
                 </CardTitle>
                 {pendingMilestones.length > 0 && (
                   <Badge className="bg-amber-500 text-white font-bold text-xs px-2 py-0.5">
-                    {pendingMilestones.length} Pending
+                    {t('quickActions.pendingCount', { count: pendingMilestones.length, defaultValue: `${pendingMilestones.length} Pending` })}
                   </Badge>
                 )}
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
                   {pendingMilestones.length > 0
-                    ? `${pendingMilestones.length} direct reports have submitted self check-ins awaiting your sign-off.`
-                    : 'Review 30-60-90 day check-ins, assess goal completion, and sign off ratings.'}
+                    ? t('quickActions.milestoneSubmitted', { count: pendingMilestones.length, defaultValue: `${pendingMilestones.length} direct reports have submitted self check-ins awaiting your sign-off.` })
+                    : t('quickActions.milestoneDesc', { defaultValue: 'Review 30-60-90 day check-ins, assess goal completion, and sign off ratings.' })}
                 </p>
                 <Button size="sm" variant={pendingMilestones.length > 0 ? "default" : "outline"} className={`w-full ${pendingMilestones.length > 0 ? 'bg-purple-600 hover:bg-purple-700 text-white font-semibold' : ''}`} asChild>
-                  <Link to="/milestones">Review Milestone Approvals</Link>
+                  <Link to="/milestones">{t('quickActions.reviewMilestonesBtn', { defaultValue: 'Review Milestone Approvals' })}</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -243,15 +245,15 @@ export const ManagerDashboard: React.FC = () => {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Users className="h-4 w-4 text-blue-600" />
-                  Buddy Matching
+                  {t('quickActions.buddyMatching', { defaultValue: 'Buddy Matching' })}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Assign and pair senior team mentors to new hires for peer guidance.
+                  {t('quickActions.buddyDesc', { defaultValue: 'Assign and pair senior team mentors to new hires for peer guidance.' })}
                 </p>
                 <Button size="sm" variant="outline" className="w-full" asChild>
-                  <Link to="/buddy">Manage Buddy Matching</Link>
+                  <Link to="/buddy">{t('quickActions.manageBuddyBtn', { defaultValue: 'Manage Buddy Matching' })}</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -262,15 +264,15 @@ export const ManagerDashboard: React.FC = () => {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-emerald-600" />
-                  Calendar 1-on-1 Schedule
+                  {t('quickActions.calendarSchedule', { defaultValue: 'Calendar 1-on-1 Schedule' })}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Schedule recurring onboarding 1-on-1s and sync calendar milestones.
+                  {t('quickActions.calendarDesc', { defaultValue: 'Schedule recurring onboarding 1-on-1s and sync calendar milestones.' })}
                 </p>
                 <Button size="sm" variant="outline" className="w-full" asChild>
-                  <Link to="/calendar">View 1-on-1 Schedule</Link>
+                  <Link to="/calendar">{t('quickActions.viewCalendarBtn', { defaultValue: 'View 1-on-1 Schedule' })}</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -289,15 +291,18 @@ export const ManagerDashboard: React.FC = () => {
                 </div>
                 <div>
                   <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                    Action Required: {pendingMilestones.length} Pending Milestone {pendingMilestones.length === 1 ? 'Evaluation' : 'Evaluations'}
+                    {t('pendingAlert.actionRequired', {
+                      count: pendingMilestones.length,
+                      defaultValue: `Action Required: ${pendingMilestones.length} Pending Milestone ${pendingMilestones.length === 1 ? 'Evaluation' : 'Evaluations'}`
+                    })}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Direct reports have submitted self check-in reflections and are awaiting manager review and sign-off.
+                    {t('pendingAlert.desc', { defaultValue: 'Direct reports have submitted self check-in reflections and are awaiting manager review and sign-off.' })}
                   </CardDescription>
                 </div>
               </div>
               <Button size="sm" asChild className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 shrink-0">
-                <Link to="/milestones">Review All Milestones</Link>
+                <Link to="/milestones">{t('pendingAlert.reviewAll', { defaultValue: 'Review All Milestones' })}</Link>
               </Button>
             </div>
           </CardHeader>
@@ -306,18 +311,18 @@ export const ManagerDashboard: React.FC = () => {
               {pendingMilestones.slice(0, 3).map((pm: any) => {
                 const empName = pm.employeeId?.profile
                   ? `${pm.employeeId.profile.firstName || ''} ${pm.employeeId.profile.lastName || ''}`.trim()
-                  : (pm.employeeId?.name || 'Direct Report');
+                  : (pm.employeeId?.name || t('pendingAlert.directReportFallback', { defaultValue: 'Direct Report' }));
                 return (
                   <div key={pm._id} className="py-2.5 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-foreground">{empName}</span>
                       <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
-                        Day {pm.targetDay}
+                        {t('pendingAlert.day', { day: pm.targetDay, defaultValue: `Day ${pm.targetDay}` })}
                       </Badge>
                       <span className="text-muted-foreground truncate max-w-xs">{pm.milestoneTitle}</span>
                     </div>
                     <Button size="sm" variant="ghost" asChild className="h-7 text-xs text-indigo-600 hover:text-indigo-700">
-                      <Link to="/milestones">Review &rarr;</Link>
+                      <Link to="/milestones">{t('pendingAlert.review', { defaultValue: 'Review' })} &rarr;</Link>
                     </Button>
                   </div>
                 );
@@ -332,15 +337,15 @@ export const ManagerDashboard: React.FC = () => {
         <CardHeader className="pb-3 border-b">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-semibold">Direct Reports Roster</CardTitle>
+              <CardTitle className="text-base font-semibold">{t('roster.title', { defaultValue: 'Direct Reports Roster' })}</CardTitle>
               <CardDescription>
-                Track individual progress, send reminders, and manage onboarding milestones.
+                {t('roster.subtitle', { defaultValue: 'Track individual progress, send reminders, and manage onboarding milestones.' })}
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search direct reports..."
+                placeholder={t('roster.searchPlaceholder', { defaultValue: 'Search direct reports...' })}
                 value={search}
                 onChange={(e: any) => setSearch(e.target.value)}
                 className="pl-9 text-sm"
@@ -350,10 +355,10 @@ export const ManagerDashboard: React.FC = () => {
         </CardHeader>
         <CardContent className="p-0">
           {teamLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading direct reports...</div>
+            <div className="p-8 text-center text-muted-foreground">{t('roster.loading', { defaultValue: 'Loading direct reports...' })}</div>
           ) : filteredTeam.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
-              No direct reports found. Assign employees to your manager account in HR Settings.
+              {t('roster.empty', { defaultValue: 'No direct reports found. Assign employees to your manager account in HR Settings.' })}
             </div>
           ) : (
             <div>
@@ -361,12 +366,12 @@ export const ManagerDashboard: React.FC = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-muted/30 text-xs uppercase font-medium text-muted-foreground border-b">
                     <tr>
-                      <th className="px-6 py-3">Employee</th>
-                      <th className="px-6 py-3">Department & Role</th>
-                      <th className="px-6 py-3">Journey Progress</th>
-                      <th className="px-6 py-3">Checklist Tasks</th>
-                      <th className="px-6 py-3">Status</th>
-                      <th className="px-6 py-3 text-right">Manager Actions</th>
+                      <th className="px-6 py-3">{t('roster.columns.employee', { defaultValue: 'Employee' })}</th>
+                      <th className="px-6 py-3">{t('roster.columns.deptRole', { defaultValue: 'Department & Role' })}</th>
+                      <th className="px-6 py-3">{t('roster.columns.journeyProgress', { defaultValue: 'Journey Progress' })}</th>
+                      <th className="px-6 py-3">{t('roster.columns.checklistTasks', { defaultValue: 'Checklist Tasks' })}</th>
+                      <th className="px-6 py-3">{t('roster.columns.status', { defaultValue: 'Status' })}</th>
+                      <th className="px-6 py-3 text-right">{t('roster.columns.actions', { defaultValue: 'Manager Actions' })}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -385,8 +390,8 @@ export const ManagerDashboard: React.FC = () => {
                           <div className="text-xs text-muted-foreground font-normal">{emp.email}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-xs font-medium">{emp.jobTitle || 'Team Member'}</div>
-                          <div className="text-xs text-muted-foreground">{emp.department || 'General'}</div>
+                          <div className="text-xs font-medium">{emp.jobTitle || t('roster.defaultJobTitle', { defaultValue: 'Team Member' })}</div>
+                          <div className="text-xs text-muted-foreground">{emp.department || t('roster.defaultDepartment', { defaultValue: 'General' })}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3 w-40">
@@ -396,31 +401,31 @@ export const ManagerDashboard: React.FC = () => {
                             </span>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-1">
-                            {emp.journeyStats.completed} / {emp.journeyStats.totalAssigned} Journeys Done
+                            {t('roster.journeysDone', { completed: emp.journeyStats.completed, total: emp.journeyStats.totalAssigned, defaultValue: `${emp.journeyStats.completed} / ${emp.journeyStats.totalAssigned} Journeys Done` })}
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-xs font-medium">
-                            {emp.taskStats.completed} / {emp.taskStats.totalAssigned} Tasks Completed
+                            {t('roster.tasksCompleted', { completed: emp.taskStats.completed, total: emp.taskStats.totalAssigned, defaultValue: `${emp.taskStats.completed} / ${emp.taskStats.totalAssigned} Tasks Completed` })}
                           </div>
                           {emp.taskStats.overdue > 0 && (
                             <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] mt-1">
-                              {emp.taskStats.overdue} Overdue
+                              {t('roster.overdueCount', { count: emp.taskStats.overdue, defaultValue: `${emp.taskStats.overdue} Overdue` })}
                             </Badge>
                           )}
                         </td>
                         <td className="px-6 py-4">
                           {emp.hasOverdueItems ? (
                             <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                              Overdue Items
+                              {t('roster.status.overdue', { defaultValue: 'Overdue Items' })}
                             </Badge>
                           ) : emp.journeyStats.completionPercentage === 100 ? (
                             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                              Completed
+                              {t('roster.status.completed', { defaultValue: 'Completed' })}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                              Onboarding
+                              {t('roster.status.onboarding', { defaultValue: 'Onboarding' })}
                             </Badge>
                           )}
                         </td>
@@ -429,7 +434,7 @@ export const ManagerDashboard: React.FC = () => {
                             id={`view-details-btn-${emp._id}`}
                             size="sm"
                             variant="ghost"
-                            title="View Details"
+                            title={t('roster.actions.viewDetails', { defaultValue: 'View Details' })}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedEmpId(emp._id);
@@ -442,7 +447,7 @@ export const ManagerDashboard: React.FC = () => {
                             id={`send-nudge-btn-${emp._id}`}
                             size="sm"
                             variant="outline"
-                            title="Send Nudge"
+                            title={t('roster.actions.sendNudge', { defaultValue: 'Send Nudge' })}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedEmpId(emp._id);
@@ -455,7 +460,7 @@ export const ManagerDashboard: React.FC = () => {
                             id={`sign-off-btn-${emp._id}`}
                             size="sm"
                             variant="outline"
-                            title="Sign Off Onboarding"
+                            title={t('roster.actions.signOff', { defaultValue: 'Sign Off Onboarding' })}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedEmpId(emp._id);
@@ -481,7 +486,7 @@ export const ManagerDashboard: React.FC = () => {
                   pageSize={teamPagination.pageSize}
                   onPageChange={teamPagination.setPage}
                   onPageSizeChange={teamPagination.setPageSize}
-                  itemLabel="reports"
+                  itemLabel={t('roster.reportsLabel', { defaultValue: 'reports' })}
                 />
               </div>
             </div>
@@ -494,21 +499,21 @@ export const ManagerDashboard: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
-              <BellRing className="h-5 w-5" /> Send Manager Nudge
+              <BellRing className="h-5 w-5" /> {t('nudgeModal.title', { defaultValue: 'Send Manager Nudge' })}
             </DialogTitle>
             <DialogDescription>
-              Send an instant in-app alert to encourage your direct report to complete their pending onboarding tasks.
+              {t('nudgeModal.desc', { defaultValue: 'Send an instant in-app alert to encourage your direct report to complete their pending onboarding tasks.' })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Custom Message (Optional)
+                {t('nudgeModal.customMessage', { defaultValue: 'Custom Message (Optional)' })}
               </label>
               <textarea
                 className="w-full min-h-[100px] text-sm p-3 border rounded-md focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                placeholder="e.g. Hi! Just a quick reminder to complete your Compliance & Security training by Friday."
+                placeholder={t('nudgeModal.placeholder', { defaultValue: 'e.g. Hi! Just a quick reminder to complete your Compliance & Security training by Friday.' })}
                 value={nudgeMsg}
                 onChange={(e) => setNudgeMsg(e.target.value)}
               />
@@ -517,14 +522,14 @@ export const ManagerDashboard: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsNudgeModalOpen(false)}>
-              Cancel
+              {t('common:cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               className="bg-amber-600 hover:bg-amber-700 text-white"
               onClick={handleNudgeSubmit}
               disabled={nudgeMutation.isPending}
             >
-              {nudgeMutation.isPending ? 'Sending...' : 'Send Nudge Alert'}
+              {nudgeMutation.isPending ? t('nudgeModal.sending', { defaultValue: 'Sending...' }) : t('nudgeModal.send', { defaultValue: 'Send Nudge Alert' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -535,21 +540,21 @@ export const ManagerDashboard: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald-600">
-              <Award className="h-5 w-5" /> Manager Onboarding Sign-Off
+              <Award className="h-5 w-5" /> {t('signOffModal.title', { defaultValue: 'Manager Onboarding Sign-Off' })}
             </DialogTitle>
             <DialogDescription>
-              Formally approve and sign off on this employee's onboarding program.
+              {t('signOffModal.desc', { defaultValue: "Formally approve and sign off on this employee's onboarding program." })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Sign-Off Notes / Feedback
+                {t('signOffModal.notes', { defaultValue: 'Sign-Off Notes / Feedback' })}
               </label>
               <textarea
                 className="w-full min-h-[100px] text-sm p-3 border rounded-md focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                placeholder="e.g. Employee completed all mandatory journeys and team orientation tasks with excellent performance."
+                placeholder={t('signOffModal.placeholder', { defaultValue: 'e.g. Employee completed all mandatory journeys and team orientation tasks with excellent performance.' })}
                 value={signOffNotes}
                 onChange={(e) => setSignOffNotes(e.target.value)}
               />
@@ -558,14 +563,14 @@ export const ManagerDashboard: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSignOffModalOpen(false)}>
-              Cancel
+              {t('common:cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={handleSignOffSubmit}
               disabled={signOffMutation.isPending}
             >
-              {signOffMutation.isPending ? 'Processing...' : 'Approve & Sign Off'}
+              {signOffMutation.isPending ? t('signOffModal.processing', { defaultValue: 'Processing...' }) : t('signOffModal.approve', { defaultValue: 'Approve & Sign Off' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -577,25 +582,25 @@ export const ManagerDashboard: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-indigo-600" />
-              Direct Report Onboarding Details
+              {t('detailsDrawer.title', { defaultValue: 'Direct Report Onboarding Details' })}
             </DialogTitle>
             <DialogDescription>
-              {empDetails?.employee.fullName} ({empDetails?.employee.jobTitle || 'Team Member'} - {empDetails?.employee.department || 'General'})
+              {empDetails?.employee.fullName} ({empDetails?.employee.jobTitle || t('roster.defaultJobTitle', { defaultValue: 'Team Member' })} - {empDetails?.employee.department || t('roster.defaultDepartment', { defaultValue: 'General' })})
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-6">
             {detailsLoading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading employee deep-dive data...</div>
+              <div className="p-8 text-center text-muted-foreground">{t('detailsDrawer.loading', { defaultValue: 'Loading employee deep-dive data...' })}</div>
             ) : (
               <>
                 {/* Journeys Section */}
                 <div>
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-600">
-                    <BookOpen className="h-4 w-4" /> Assigned Journeys ({empDetails?.assignments.length || 0})
+                    <BookOpen className="h-4 w-4" /> {t('detailsDrawer.assignedJourneys', { count: empDetails?.assignments.length || 0, defaultValue: `Assigned Journeys (${empDetails?.assignments.length || 0})` })}
                   </h4>
                   {empDetails?.assignments.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No journeys assigned yet.</p>
+                    <p className="text-xs text-muted-foreground italic">{t('detailsDrawer.noJourneys', { defaultValue: 'No journeys assigned yet.' })}</p>
                   ) : (
                     <div className="space-y-3">
                       {empDetails?.assignments.map((a) => (
@@ -603,7 +608,7 @@ export const ManagerDashboard: React.FC = () => {
                           <div>
                             <div className="font-medium text-sm">{a.journeyTitle} (v{a.journeyVersion})</div>
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              Assigned on {new Date(a.assignedAt).toLocaleDateString()} {a.dueDate ? `| Due ${new Date(a.dueDate).toLocaleDateString()}` : ''}
+                              {t('detailsDrawer.assignedOn', { date: new Date(a.assignedAt).toLocaleDateString(), defaultValue: `Assigned on ${new Date(a.assignedAt).toLocaleDateString()}` })} {a.dueDate ? `| ${t('detailsDrawer.dueOn', { date: new Date(a.dueDate).toLocaleDateString(), defaultValue: `Due ${new Date(a.dueDate).toLocaleDateString()}` })}` : ''}
                             </div>
                           </div>
                           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -624,31 +629,31 @@ export const ManagerDashboard: React.FC = () => {
                 {/* Tasks Section */}
                 <div>
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-600">
-                    <CheckSquare className="h-4 w-4" /> Checklist Tasks ({empDetails?.tasks.length || 0})
+                    <CheckSquare className="h-4 w-4" /> {t('detailsDrawer.checklistTasks', { count: empDetails?.tasks.length || 0, defaultValue: `Checklist Tasks (${empDetails?.tasks.length || 0})` })}
                   </h4>
                   {empDetails?.tasks.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No standalone checklist tasks assigned yet.</p>
+                    <p className="text-xs text-muted-foreground italic">{t('detailsDrawer.noTasks', { defaultValue: 'No standalone checklist tasks assigned yet.' })}</p>
                   ) : (
                     <div className="space-y-2">
-                      {empDetails?.tasks.map((t) => (
-                        <div key={t._id} className="p-3 border rounded-lg bg-card flex justify-between items-center text-xs">
+                      {empDetails?.tasks.map((tItem) => (
+                        <div key={tItem._id} className="p-3 border rounded-lg bg-card flex justify-between items-center text-xs">
                           <div>
-                            <span className="font-medium text-foreground">{t.title}</span>
-                            {t.category && <span className="ml-2 text-muted-foreground">({t.category})</span>}
+                            <span className="font-medium text-foreground">{tItem.title}</span>
+                            {tItem.category && <span className="ml-2 text-muted-foreground">({tItem.category})</span>}
                           </div>
                           <div className="flex items-center gap-2">
-                            {t.dueDate && (
-                              <span className="text-muted-foreground">Due: {new Date(t.dueDate).toLocaleDateString()}</span>
+                            {tItem.dueDate && (
+                              <span className="text-muted-foreground">{t('detailsDrawer.due', { date: new Date(tItem.dueDate).toLocaleDateString(), defaultValue: `Due: ${new Date(tItem.dueDate).toLocaleDateString()}` })}</span>
                             )}
                             <Badge
                               variant="outline"
                               className={
-                                t.status === 'completed'
+                                tItem.status === 'completed'
                                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                                   : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                               }
                             >
-                              {t.status}
+                              {tItem.status}
                             </Badge>
                           </div>
                         </div>
@@ -662,7 +667,7 @@ export const ManagerDashboard: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDetailsDrawerOpen(false)}>
-              Close
+              {t('detailsDrawer.close', { defaultValue: 'Close' })}
             </Button>
           </DialogFooter>
         </DialogContent>

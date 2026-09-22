@@ -1,0 +1,184 @@
+{
+  "title": "වැඩප්‍රවාහ ස්වයංක්‍රීයකරණ එන්ජිම",
+  "subtitle": "ගමන් ස්වයංක්‍රීයව පැවරීම, කාර්යයන් සැපයීම සහ බහු-නාලිකා ඇඟවීම් යැවීම සඳහා සිදුවීම් මත පදනම් වූ ස්වයංක්‍රීයකරණ රීති.",
+  "executionLogs": "ක්‍රියාත්මක කිරීමේ ලඝු-සටහන්",
+  "createRule": "රීතිය සාදන්න",
+  "tabs": {
+    "rules": "ක්‍රියාකාරී වැඩප්‍රවාහ රීති",
+    "logs": "විගණන ක්‍රියාත්මක කිරීමේ ඉතිහාසය"
+  },
+  "filters": {
+    "searchPlaceholder": "වැඩප්‍රවාහ රීති සොයන්න...",
+    "allTriggers": "සියලු සිදුවීම් ප්‍රේරක",
+    "userCreated": "නව පරිශීලකයා සාදන ලදී",
+    "journeyCompleted": "ගමන සම්පූර්ණයි",
+    "taskCompleted": "කාර්යය සම්පූර්ණයි",
+    "stageEntered": "අදියරට ඇතුළු විය",
+    "checkinDue": "අනුකූලතා පිරික්සුම නියමිතයි",
+    "milestoneCompleted": "සන්ධිස්ථානය සම්පූර්ණයි"
+  },
+  "triggers": {
+    "user_created": "නව පරිශීලකයා සාදන ලදී",
+    "journey_completed": "ගමන සම්පූර්ණයි",
+    "task_completed": "කාර්යය සම්පූර්ණයි",
+    "stage_entered": "අදියරට ඇතුළු විය",
+    "checkin_due": "අනුකූලතා පිරික්සුම නියමිතයි",
+    "milestone_completed": "සන්ධිස්ථානය සම්පූර්ණයි"
+  },
+  "status": {
+    "success": "සාර්ථකයි",
+    "partialFailure": "අර්ධ අසාර්ථකයි",
+    "pendingDelay": "ප්‍රමාදය අපේක්ෂාවෙන්",
+    "failed": "අසාර්ථකයි",
+    "active": "ක්‍රියාකාරී",
+    "inactive": "අක්‍රිය"
+  },
+  "rulesList": {
+    "loading": "වැඩප්‍රවාහ රීති පූරණය වෙමින් පවතී...",
+    "empty": "තවමත් කිසිදු වැඩප්‍රවාහ රීතියක් සාදා නැත. රීතියක් සෑදීමෙන් ඇතුළත් වීමේ ක්‍රියාමාර්ග ස්වයංක්‍රීය කරන්න.",
+    "emptyTitle": "කිසිදු වැඩප්‍රවාහ රීතියක් වින්‍යාස කර නොමැත",
+    "emptyDesc": "ඉගෙනුම් මාර්ග සහ මෙහෙයුම් කාර්යයන් ස්වයංක්‍රීයව පැවරීම සඳහා වැඩප්‍රවාහ රීති සාදන්න.",
+    "testRun": "පරීක්ෂණ ධාවනය",
+    "priority": "ප්‍රමුඛතාවය: {{priority}}",
+    "conditions": "කොන්දේසි ({{count}})",
+    "actions": "ක්‍රියාමාර්ග ({{count}})",
+    "rulesLabel": "රීති",
+    "conditionsHeader": "කොන්දේසි:",
+    "conditionIf": "IF",
+    "actionsTriggered": "ප්‍රේරණය වූ ක්‍රියාමාර්ග:",
+    "updatedAt": "යාවත්කාලීන කළේ {{date}}",
+    "deleteRuleTitle": "රීතිය මකන්න"
+  },
+  "logsList": {
+    "loading": "ක්‍රියාත්මක කිරීමේ ලඝු-සටහන් පූරණය වෙමින් පවතී...",
+    "empty": "තවමත් කිසිදු ක්‍රියාත්මක කිරීමේ ලඝු-සටහනක් වාර්තා වී නොමැත.",
+    "timestamp": "වේලාමුද්‍රාව",
+    "rule": "ප්‍රේරණය වූ රීතිය",
+    "user": "ඉලක්කගත පරිශීලකයා",
+    "status": "ක්‍රියාත්මක කිරීමේ තත්ත්වය",
+    "logsLabel": "ලඝු-සටහන්",
+    "headerTrigger": "ප්‍රේරක සිදුවීම",
+    "headerRule": "වැඩප්‍රවාහ රීතිය",
+    "headerTarget": "ඉලක්කගත සේවකයා",
+    "headerStatus": "තත්ත්වය",
+    "headerSteps": "ක්‍රියාත්මක කළ පියවර",
+    "headerExecutedAt": "ක්‍රියාත්මක කළ දිනය/වේලාව",
+    "defaultRuleName": "වැඩප්‍රවාහ රීතිය",
+    "stepsCount": "පියවර {{count}}"
+  },
+  "validation": {
+    "titleRequired": "රීතියේ නම අවශ්‍යයි.",
+    "actionRequired": "අවම වශයෙන් එක් ක්‍රියාමාර්ග පියවරක් අවශ්‍ය වේ.",
+    "journeyRequired": "ගමන් පැවරීම සඳහා ඉලක්කගත ආකෘතිය අවශ්‍ය වේ.",
+    "checklistRequired": "ඉලක්කගත පිරික්සුම් ලැයිස්තු ආකෘතිය අවශ්‍ය වේ.",
+    "taskTitleRequired": "කාර්යය සෑදීම සඳහා කාර්ය නාමය අවශ්‍ය වේ.",
+    "failedSave": "වැඩප්‍රවාහ රීතිය සුරැකීම අසාර්ථක විය."
+  },
+  "builderModal": {
+    "title": "ස්වයංක්‍රීය වැඩප්‍රවාහ රීතිය වින්‍යාස කරන්න",
+    "desc": "සිදුවීම් ප්‍රේරක, ඇගයීම් පෙරහන් සහ පසු විපරම් ක්‍රියාමාර්ග පියවර නිර්වචනය කරන්න.",
+    "nameLabel": "වැඩප්‍රවාහ රීති නම *",
+    "namePlaceholder": "උදා. ඉංජිනේරු පළමු දින ඇතුළත් වීමේ සැකසුම",
+    "descLabel": "විස්තරය",
+    "triggerLabel": "සිදුවීම් ප්‍රේරකය *",
+    "priorityLabel": "ප්‍රමුඛතාවය (ඉහළ අගය පළමුව ධාවනය වේ)",
+    "conditionsTitle": "IF පෙරහන් කොන්දේසි (විකල්ප)",
+    "addCondition": "කොන්දේසියක් එක් කරන්න",
+    "conditionFields": {
+      "department": "දෙපාර්තමේන්තුව",
+      "role": "කාර්යභාරය",
+      "jobTitle": "තනතුර"
+    },
+    "conditionOperators": {
+      "equals": "සමානයි",
+      "notEquals": "අසමානයි",
+      "contains": "අඩංගු වේ"
+    },
+    "conditionValuePlaceholder": "අගය",
+    "removeCondition": "කොන්දේසිය ඉවත් කරන්න",
+    "actionsTitle": "THEN ක්‍රියාමාර්ග නල මාර්ගය *",
+    "addAction": "ක්‍රියාමාර්ග පියවරක් එක් කරන්න",
+    "stepLabel": "පියවර {{number}}",
+    "removeAction": "ක්‍රියාමාර්ගය ඉවත් කරන්න",
+    "actionTypes": {
+      "assignJourney": "ඇතුළත් වීමේ ගමන පවරන්න",
+      "assignChecklist": "පිරික්සුම් ලැයිස්තු ආකෘතිය පවරන්න",
+      "createTask": "මෙහෙයුම් කාර්යයක් සාදන්න",
+      "sendNotification": "බහු-නාලිකා දැනුම්දීමක් යවන්න",
+      "assignDocument": "විද්‍යුත් අත්සන් ලේඛන ආකෘතිය පවරන්න",
+      "triggerBuddy": "සහායක මිතුරා (Buddy) යුගල කිරීම ප්‍රේරණය කරන්න",
+      "triggerWebhook": "බාහිර Webhook ප්‍රේරණය කරන්න",
+      "assignMilestone": "සන්ධිස්ථාන පිරික්සුම් වැඩසටහන පවරන්න"
+    },
+    "triggers": {
+      "user_created": "ON_USER_CREATED (නව පරිශීලකයෙකු සෑදූ විට / බඳවා ගත් විට)",
+      "journey_completed": "ON_JOURNEY_COMPLETED (ගමන සම්පූර්ණ වූ විට)",
+      "task_completed": "ON_TASK_COMPLETED (කාර්යය සම්පූර්ණ වූ විට)",
+      "stage_entered": "ON_STAGE_ENTERED (අදියරට ඇතුළු වූ විට)",
+      "milestone_completed": "ON_MILESTONE_COMPLETED (සන්ධිස්ථාන පිරික්සුම සම්පූර්ණ වූ විට)"
+    },
+    "milestoneTemplateLabel": "සන්ධිස්ථාන ආකෘතිය (විකල්ප)",
+    "milestoneAutoDetect": "ඉලක්කගත දිනය අනුව ස්වයංක්‍රීයව හඳුනාගන්න",
+    "milestoneDayOption": "දින {{day}} - {{title}}",
+    "targetDayLabel": "ඉලක්කගත දිනය (උදා. 30, 60, 90, 180)",
+    "targetDayOption": "දින {{day}} සන්ධිස්ථානය",
+    "selectJourneyPlaceholder": "ගමන් ආකෘතිය තෝරන්න",
+    "selectDocumentPlaceholder": "ලේඛන ආකෘතිය තෝරන්න",
+    "buddyPlaceholder": "පවතින සහායකයෙකු ස්වයංක්‍රීයව තෝරන්න හෝ සොයන්න...",
+    "buddySearchPlaceholder": "නම, දෙපාර්තමේන්තුව අනුව සහායකයෙකු සොයන්න...",
+    "buddyAutoOption": "ආයතනය තුළ සිටින සුදුසු සහායකයෙකු ස්වයංක්‍රීයව තෝරන්න",
+    "unnamedEmployee": "නම් නොකළ",
+    "employeeRoleFallback": "සේවකයා",
+    "webhookPlaceholder": "Webhook ඉලක්කගත URL (උදා. https://api.hris.com/v1/webhook)",
+    "checklistTemplateLabel": "පිරික්සුම් ලැයිස්තු ආකෘතිය *",
+    "selectChecklistPlaceholder": "පිරික්සුම් ලැයිස්තු ආකෘතිය තෝරන්න",
+    "checklistItemsCount": "(අයිතම {{count}})",
+    "taskTitlePlaceholder": "කාර්ය නාමය (උදා. IT පරිගණක සැකසුම) *",
+    "taskDescPlaceholder": "කාර්ය විස්තරය / උපදෙස් (විකල්ප)",
+    "assignedRoleLabel": "පවරන ලද කාර්යභාරය",
+    "roles": {
+      "employee": "නව සේවකයා (New Hire)",
+      "manager": "සෘජු කළමනාකරු",
+      "it_admin": "තොරතුරු තාක්ෂණ පරිපාලක (IT Admin)",
+      "hr_admin": "මානව සම්පත් පරිපාලක (HR Admin)",
+      "buddy": "පවරන ලද සහායකයා (Buddy)"
+    },
+    "categoryLabel": "ප්‍රවර්ගය",
+    "categories": {
+      "general": "සාමාන්‍ය",
+      "it_setup": "තොරතුරු තාක්ෂණ සැකසුම",
+      "equipment": "දෘඩාංග / උපකරණ",
+      "hr_paperwork": "මානව සම්පත් ලේඛන කටයුතු",
+      "training": "පුහුණුව"
+    },
+    "stageLabel": "අදියර",
+    "stages": {
+      "preboarding": "ඇතුළත් වීමට පෙර (Pre-boarding)",
+      "day_1": "පළමු දිනය",
+      "week_1": "පළමු සතිය",
+      "month_1": "පළමු මාසය",
+      "custom": "අභිරුචි"
+    },
+    "priorityLabelTask": "ප්‍රමුඛතාවය",
+    "priorities": {
+      "low": "අඩු",
+      "normal": "සාමාන්‍ය",
+      "high": "ඉහළ",
+      "critical": "ඉතා තීරණාත්මක"
+    },
+    "dueInLabel": "නියමිත කාලය (ප්‍රේරණය වූ දින සිට දින)",
+    "cancel": "අවලංගු කරන්න",
+    "save": "සුරකින්න සහ සක්‍රිය කරන්න",
+    "saving": "සුරකිමින් පවතී..."
+  },
+  "testRunModal": {
+    "title": "වැඩප්‍රවාහ පරීක්ෂණ ධාවනය ප්‍රේරණය කරන්න",
+    "desc": "\"{{name}}\" සඳහා රීති කොන්දේසි ඇගයීමට සහ ක්‍රියාමාර්ග ක්‍රියාත්මක කිරීමට ඉලක්කගත සේවකයෙකු තෝරන්න.",
+    "targetEmployeeLabel": "ඉලක්කගත සේවකයා *",
+    "targetEmployeePlaceholder": "ඉලක්කගත සේවකයා සොයා තෝරන්න...",
+    "searchEmployeePlaceholder": "නම, විද්‍යුත් තැපෑල අනුව සේවකයා සොයන්න...",
+    "cancel": "අවලංගු කරන්න",
+    "execute": "පරීක්ෂණ ධාවනය ක්‍රියාත්මක කරන්න",
+    "running": "ධාවනය වෙමින් පවතී..."
+  }
+}

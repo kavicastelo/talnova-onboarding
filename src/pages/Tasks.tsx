@@ -58,8 +58,10 @@ import {
   SheetDescription,
   SheetFooter
 } from '../components/Sheet';
+import { useTranslation } from 'react-i18next';
 
 export function Tasks() {
+  const { t } = useTranslation(['tasks', 'common']);
   const { can } = useRole();
   const canManageTasks = can('create_task_template') || can('assign_task') || can('manage_it_ops');
 
@@ -223,17 +225,17 @@ export function Tasks() {
     if (fields.courierUrl && fields.courierUrl.trim()) {
       const url = fields.courierUrl.trim();
       if (!/^https?:\/\/.+/i.test(url)) {
-        errors.courierUrl = 'Tracking URL must start with http:// or https://';
+        errors.courierUrl = t('validation.trackingUrlPrefix', { defaultValue: 'Tracking URL must start with http:// or https://' });
       }
     }
     if (fields.assetTag && fields.assetTag.trim().length > 0 && fields.assetTag.trim().length < 2) {
-      errors.assetTag = 'Asset tag must be at least 2 characters';
+      errors.assetTag = t('validation.assetTagMinLength', { defaultValue: 'Asset tag must be at least 2 characters' });
     }
     if (fields.serialNumber && fields.serialNumber.trim().length > 0 && fields.serialNumber.trim().length < 2) {
-      errors.serialNumber = 'Serial number must be at least 2 characters';
+      errors.serialNumber = t('validation.serialNumberMinLength', { defaultValue: 'Serial number must be at least 2 characters' });
     }
     if (fields.mdmStatus === 'dispatched' && !fields.courierProvider?.trim() && !fields.courierUrl?.trim()) {
-      errors.courierProvider = 'Courier provider or tracking URL recommended when dispatched';
+      errors.courierProvider = t('validation.courierProviderRequired', { defaultValue: 'Courier provider or tracking URL recommended when dispatched' });
     }
     return errors;
   };
@@ -266,7 +268,7 @@ export function Tasks() {
 
     if (Object.keys(validationErrors).length > 0) {
       setHwModalErrors(validationErrors);
-      toast.error('Please fix validation errors before saving');
+      toast.error(t('validation.fixErrorsBeforeSave', { defaultValue: 'Please fix validation errors before saving' }));
       return;
     }
 
@@ -290,14 +292,14 @@ export function Tasks() {
         });
       }
 
-      toast.success('Hardware provisioning details saved successfully');
+      toast.success(t('toasts.hardwareSaved', { defaultValue: 'Hardware provisioning details saved successfully' }));
       setIsHardwareModalOpen(false);
       refetch();
       if (selectedTask?._id === hardwareTask._id) {
         setSelectedTask(updated);
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update hardware details');
+      toast.error(err?.response?.data?.message || err?.message || t('toasts.failedUpdateHardware', { defaultValue: 'Failed to update hardware details' }));
     } finally {
       setIsSavingHardware(false);
     }
@@ -334,10 +336,10 @@ export function Tasks() {
     e.preventDefault();
     const errors: Record<string, string> = {};
     if (!title.trim()) {
-      errors.title = 'Task title is required';
+      errors.title = t('validation.taskTitleRequired', { defaultValue: 'Task title is required' });
     }
     if (!assignedToUserId) {
-      errors.assignedToUserId = 'Please select a responsible user';
+      errors.assignedToUserId = t('validation.assigneeRequired', { defaultValue: 'Please select a responsible user' });
     }
 
     if (createWithHardware) {
@@ -353,7 +355,7 @@ export function Tasks() {
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      toast.error('Please fix validation errors before creating the task');
+      toast.error(t('validation.fixErrorsBeforeCreate', { defaultValue: 'Please fix validation errors before creating the task' }));
       return;
     }
 
@@ -392,7 +394,7 @@ export function Tasks() {
       },
       {
         onSuccess: () => {
-          toast.success(createWithHardware ? 'Hardware task & asset registered successfully' : 'Operational task created successfully');
+          toast.success(createWithHardware ? t('toasts.hardwareRegistered', { defaultValue: 'Hardware task & asset registered successfully' }) : t('toasts.taskCreated', { defaultValue: 'Operational task created successfully' }));
           setIsCreateModalOpen(false);
           setTitle('');
           setDescription('');
@@ -408,7 +410,7 @@ export function Tasks() {
           }
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to create task');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedCreateTask', { defaultValue: 'Failed to create task' }));
         },
       }
     );
@@ -433,13 +435,13 @@ export function Tasks() {
       { id: task.taskCode || task._id, status: 'verified', note: 'Task verified by manager' },
       {
         onSuccess: (updated) => {
-          toast.success('Task successfully verified by manager');
+          toast.success(t('toasts.verifiedByManager', { defaultValue: 'Task successfully verified by manager' }));
           if (selectedTask?._id === task._id) {
             setSelectedTask(updated);
           }
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to verify task');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedVerify', { defaultValue: 'Failed to verify task' }));
         },
       }
     );
@@ -465,10 +467,10 @@ export function Tasks() {
         onSuccess: (updated) => {
           setSelectedTask(updated);
           setCommentText('');
-          toast.success('Comment added successfully');
+          toast.success(t('toasts.commentAdded', { defaultValue: 'Comment added successfully' }));
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to add comment');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedAddComment', { defaultValue: 'Failed to add comment' }));
         }
       }
     );
@@ -477,43 +479,36 @@ export function Tasks() {
   const getPriorityBadge = (p: string) => {
     switch (p) {
       case 'critical':
-        return <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">Critical</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">{t('priorities.critical', { defaultValue: 'Critical' })}</span>;
       case 'high':
-        return <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full dark:bg-amber-950 dark:text-amber-300">High</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full dark:bg-amber-950 dark:text-amber-300">{t('priorities.high', { defaultValue: 'High' })}</span>;
       case 'normal':
-        return <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full dark:bg-blue-950 dark:text-blue-300">Normal</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full dark:bg-blue-950 dark:text-blue-300">{t('priorities.normal', { defaultValue: 'Normal' })}</span>;
       default:
-        return <span className="px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 rounded-full dark:bg-slate-800 dark:text-slate-300">Low</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 rounded-full dark:bg-slate-800 dark:text-slate-300">{t('priorities.low', { defaultValue: 'Low' })}</span>;
     }
   };
 
   const getStageBadge = (s: string) => {
-    const labels: Record<string, string> = {
-      preboarding: 'Preboarding',
-      day_1: 'Day 1',
-      week_1: 'Week 1',
-      month_1: 'Month 1',
-      custom: 'Custom',
-    };
     return (
       <span className="px-2.5 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
-        {labels[s] || s}
+        {t(`stageLabels.${s}`, { defaultValue: s })}
       </span>
     );
   };
 
   const getCategoryBadge = (c: string) => {
-    const labels: Record<string, { label: string; color: string }> = {
-      it_setup: { label: 'IT Setup', color: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800' },
-      hr_paperwork: { label: 'HR Paperwork', color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' },
-      equipment: { label: 'Equipment', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800' },
-      training: { label: 'Training', color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' },
-      general: { label: 'General', color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
+    const colors: Record<string, string> = {
+      it_setup: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800',
+      hr_paperwork: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800',
+      equipment: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
+      training: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+      general: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
     };
-    const info = labels[c] || { label: c, color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300' };
+    const color = colors[c] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300';
     return (
-      <span className={`px-2.5 py-0.5 text-xs font-medium border rounded-md ${info.color}`}>
-        {info.label}
+      <span className={`px-2.5 py-0.5 text-xs font-medium border rounded-md ${color}`}>
+        {t(`categoryLabels.${c}`, { defaultValue: c })}
       </span>
     );
   };
@@ -544,29 +539,29 @@ export function Tasks() {
   const getDeviceLabel = (deviceType?: string) => {
     switch (deviceType?.toLowerCase()) {
       case 'laptop':
-        return 'Laptop';
+        return t('deviceTypes.laptop', { defaultValue: 'Laptop' });
       case 'desktop':
-        return 'Desktop PC';
+        return t('deviceTypes.desktop', { defaultValue: 'Desktop PC' });
       case 'monitor':
-        return 'Monitor';
+        return t('deviceTypes.monitor', { defaultValue: 'Monitors & Displays' });
       case 'mobile':
-        return 'Mobile Phone';
+        return t('deviceTypes.mobile', { defaultValue: 'Mobile Devices' });
       case 'security_key':
-        return 'Security Key';
+        return t('deviceTypes.security_key', { defaultValue: 'Security Keys / Fobs' });
       case 'peripherals':
-        return 'Peripherals';
+        return t('deviceTypes.peripherals', { defaultValue: 'Peripherals' });
       case 'notebook':
-        return 'Stationery';
+        return t('deviceTypes.notebook', { defaultValue: 'Notebooks / Stationery' });
       case 'safety_kit':
-        return 'Safety Kit / PPE';
+        return t('deviceTypes.safety_kit', { defaultValue: 'Safety Kits / PPE' });
       case 'uniform':
-        return 'Uniform';
+        return t('deviceTypes.uniform', { defaultValue: 'Uniforms / Workwear' });
       case 'tools':
-        return 'Field Tools';
+        return t('deviceTypes.tools', { defaultValue: 'Field Tools' });
       case 'badge_access':
-        return 'Access Badge';
+        return t('deviceTypes.badge_access', { defaultValue: 'Access Badges' });
       default:
-        return deviceType ? deviceType.toUpperCase() : 'Equipment';
+        return deviceType ? deviceType.toUpperCase() : t('deviceTypes.other', { defaultValue: 'Other Assets' });
     }
   };
 
@@ -576,41 +571,41 @@ export function Tasks() {
         return (
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            Pending Prep
+            {t('mdmStatuses.pending_dispatch', { defaultValue: 'Pending Prep & Dispatch' })}
           </span>
         );
       case 'dispatched':
         return (
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800 flex items-center gap-1">
             <Truck className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-            In Transit
+            {t('mdmStatuses.dispatched', { defaultValue: 'Dispatched / In Transit' })}
           </span>
         );
       case 'enrolled':
         return (
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 flex items-center gap-1">
             <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-            MDM Enrolled
+            {t('mdmStatuses.enrolled', { defaultValue: 'MDM Enrolled' })}
           </span>
         );
       case 'delivered':
         return (
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
             <PackageCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-            Delivered
+            {t('mdmStatuses.delivered', { defaultValue: 'Delivered & Confirmed' })}
           </span>
         );
       case 'failed':
         return (
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-300 border border-red-300 dark:border-red-800 flex items-center gap-1">
             <AlertCircle className="w-3 h-3 text-red-600 dark:text-red-400" />
-            Delivery Failed
+            {t('mdmStatuses.failed', { defaultValue: 'Delivery / MDM Failed' })}
           </span>
         );
       default:
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            {status || 'PENDING'}
+            {status || t('taskCard.none', { defaultValue: 'None' }).toUpperCase()}
           </span>
         );
     }
@@ -626,19 +621,19 @@ export function Tasks() {
               {activeTab === 'it_ops' ? (
                 <>
                   <Laptop className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
-                  IT Hardware & Equipment Queue
+                  {t('hardware.title', { defaultValue: 'IT Hardware Provisioning Queue' })}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                  Tasks & Onboarding Checklists
+                  {t('title', { defaultValue: 'Tasks & Checklists' })}
                 </>
               )}
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
               {activeTab === 'it_ops'
-                ? 'Provision hardware assets, track courier delivery, configure MDM enrollment, and verify equipment sign-offs.'
-                : 'Manage operational tasks, cross-person onboarding checklists, deadlines, and prerequisites.'}
+                ? t('hardware.subtitle', { defaultValue: 'Track equipment deployment, serial numbers, MDM enrollments, and asset handovers.' })
+                : t('subtitle', { defaultValue: 'Manage onboarding tasks, checklist items, and hardware provisioning across your team.' })}
             </p>
           </div>
           {canManageTasks && (
@@ -651,7 +646,7 @@ export function Tasks() {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-cyan-200 dark:shadow-none cursor-pointer"
                 >
                   <Cpu className="w-4 h-4" />
-                  Provision Hardware Asset
+                  {t('hardware.dispatchMdm', { defaultValue: 'Dispatch MDM Enrollment' })}
                 </button>
               )}
               <button
@@ -666,7 +661,7 @@ export function Tasks() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                Add Task
+                {t('createTask', { defaultValue: 'Create Task' })}
               </button>
             </div>
           )}
@@ -684,7 +679,7 @@ export function Tasks() {
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
-              My Tasks Inbox
+              {t('tabs.myTasks', { defaultValue: 'My Tasks' })}
             </button>
             <button
               id="tab-assigned-tasks"
@@ -694,7 +689,7 @@ export function Tasks() {
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
-              Assigned Tasks
+              {t('tabs.assignedTasks', { defaultValue: 'Assigned Tasks' })}
             </button>
             <button
               id="tab-overdue-tasks"
@@ -704,7 +699,7 @@ export function Tasks() {
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
-              Overdue Alert
+              {t('tabs.overdueAlert', { defaultValue: 'Overdue Alert' })}
             </button>
             <button
               id="tab-all-tasks"
@@ -714,7 +709,7 @@ export function Tasks() {
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
-              All Tasks
+              {t('tabs.all', { defaultValue: 'All Tasks' })}
             </button>
             <button
               id="tab-direct-reports"
@@ -725,7 +720,7 @@ export function Tasks() {
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
-              Direct Reports
+              {t('tabs.directReports', { defaultValue: 'Direct Reports' })}
             </button>
             <button
               id="tab-it-ops"
@@ -737,7 +732,7 @@ export function Tasks() {
                 }`}
             >
               <Laptop className="w-4 h-4" />
-              IT Hardware Queue
+              {t('tabs.itHardwareQueue', { defaultValue: 'IT Hardware Queue' })}
             </button>
             <button
               id="tab-templates"
@@ -749,7 +744,7 @@ export function Tasks() {
                 }`}
             >
               <ListChecks className="w-4 h-4" />
-              Checklist Templates
+              {t('tabs.checklistTemplates', { defaultValue: 'Checklist Templates' })}
             </button>
           </div>
 
@@ -761,7 +756,9 @@ export function Tasks() {
                   <Laptop className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Assets</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    {t('kpis.totalAssets', { defaultValue: 'Total Assets' })}
+                  </p>
                   <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalHardwareCount}</p>
                 </div>
               </div>
@@ -771,7 +768,9 @@ export function Tasks() {
                   <Package className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Pending Prep</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    {t('kpis.pendingPrep', { defaultValue: 'Pending Prep' })}
+                  </p>
                   <p className="text-xl font-bold text-amber-900 dark:text-amber-100">{pendingDispatchCount}</p>
                 </div>
               </div>
@@ -781,7 +780,9 @@ export function Tasks() {
                   <Truck className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">In Transit / Dispatched</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                    {t('kpis.inTransit', { defaultValue: 'In Transit / Dispatched' })}
+                  </p>
                   <p className="text-xl font-bold text-blue-900 dark:text-blue-100">{inTransitCount}</p>
                 </div>
               </div>
@@ -791,7 +792,9 @@ export function Tasks() {
                   <PackageCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Delivered / Enrolled</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    {t('kpis.deliveredEnrolled', { defaultValue: 'Delivered / Enrolled' })}
+                  </p>
                   <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">{deliveredOrEnrolledCount}</p>
                 </div>
               </div>
@@ -806,7 +809,7 @@ export function Tasks() {
                 <input
                   id="hw-search-input"
                   type="text"
-                  placeholder="Search assets, serial, courier..."
+                  placeholder={t('filters.searchAssets', { defaultValue: 'Search assets, serial, courier...' })}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -820,19 +823,19 @@ export function Tasks() {
                 onChange={(e) => setHwDeviceTypeFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
               >
-                <option value="all">All Equipment Types</option>
-                <option value="laptop">Laptops</option>
-                <option value="desktop">Desktop PCs</option>
-                <option value="monitor">Monitors & Displays</option>
-                <option value="mobile">Mobile Devices</option>
-                <option value="security_key">Security Keys / Fobs</option>
-                <option value="peripherals">Peripherals</option>
-                <option value="notebook">Notebooks / Stationery</option>
-                <option value="safety_kit">Safety Kits / PPE</option>
-                <option value="uniform">Uniforms / Workwear</option>
-                <option value="tools">Field Tools</option>
-                <option value="badge_access">Access Badges</option>
-                <option value="other">Other Assets</option>
+                <option value="all">{t('filters.allEquipmentTypes', { defaultValue: 'All Equipment Types' })}</option>
+                <option value="laptop">{t('deviceTypes.laptop', { defaultValue: 'Laptops' })}</option>
+                <option value="desktop">{t('deviceTypes.desktop', { defaultValue: 'Desktop PCs' })}</option>
+                <option value="monitor">{t('deviceTypes.monitor', { defaultValue: 'Monitors & Displays' })}</option>
+                <option value="mobile">{t('deviceTypes.mobile', { defaultValue: 'Mobile Devices' })}</option>
+                <option value="security_key">{t('deviceTypes.security_key', { defaultValue: 'Security Keys / Fobs' })}</option>
+                <option value="peripherals">{t('deviceTypes.peripherals', { defaultValue: 'Peripherals' })}</option>
+                <option value="notebook">{t('deviceTypes.notebook', { defaultValue: 'Notebooks / Stationery' })}</option>
+                <option value="safety_kit">{t('deviceTypes.safety_kit', { defaultValue: 'Safety Kits / PPE' })}</option>
+                <option value="uniform">{t('deviceTypes.uniform', { defaultValue: 'Uniforms / Workwear' })}</option>
+                <option value="tools">{t('deviceTypes.tools', { defaultValue: 'Field Tools' })}</option>
+                <option value="badge_access">{t('deviceTypes.badge_access', { defaultValue: 'Access Badges' })}</option>
+                <option value="other">{t('deviceTypes.other', { defaultValue: 'Other Assets' })}</option>
               </select>
 
               <select
@@ -842,12 +845,12 @@ export function Tasks() {
                 onChange={(e) => setHwStatusFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
               >
-                <option value="all">All Delivery & MDM Statuses</option>
-                <option value="pending_dispatch">Pending Prep & Dispatch</option>
-                <option value="dispatched">Dispatched / In Transit</option>
-                <option value="enrolled">MDM Enrolled</option>
-                <option value="delivered">Delivered & Confirmed</option>
-                <option value="failed">Delivery / MDM Failed</option>
+                <option value="all">{t('filters.allDeliveryStatuses', { defaultValue: 'All Delivery & MDM Statuses' })}</option>
+                <option value="pending_dispatch">{t('mdmStatuses.pending_dispatch', { defaultValue: 'Pending Prep & Dispatch' })}</option>
+                <option value="dispatched">{t('mdmStatuses.dispatched', { defaultValue: 'Dispatched / In Transit' })}</option>
+                <option value="enrolled">{t('mdmStatuses.enrolled', { defaultValue: 'MDM Enrolled' })}</option>
+                <option value="delivered">{t('mdmStatuses.delivered', { defaultValue: 'Delivered & Confirmed' })}</option>
+                <option value="failed">{t('mdmStatuses.failed', { defaultValue: 'Delivery / MDM Failed' })}</option>
               </select>
 
               <select
@@ -855,11 +858,11 @@ export function Tasks() {
                 onChange={(e) => setPriorityFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
               >
-                <option value="all">All Priorities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="normal">Normal</option>
-                <option value="low">Low</option>
+                <option value="all">{t('filters.allPriorities', { defaultValue: 'All Priorities' })}</option>
+                <option value="critical">{t('priorities.critical', { defaultValue: 'Critical' })}</option>
+                <option value="high">{t('priorities.high', { defaultValue: 'High' })}</option>
+                <option value="normal">{t('priorities.normal', { defaultValue: 'Normal' })}</option>
+                <option value="low">{t('priorities.low', { defaultValue: 'Low' })}</option>
               </select>
             </div>
           )}
@@ -872,7 +875,7 @@ export function Tasks() {
                 <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search tasks..."
+                  placeholder={t('filters.searchTasks', { defaultValue: 'Search tasks...' })}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -885,12 +888,12 @@ export function Tasks() {
                 onChange={(e) => setSelectedStage(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="all">All Stages</option>
-                <option value="preboarding">Preboarding</option>
-                <option value="day_1">Day 1</option>
-                <option value="week_1">Week 1</option>
-                <option value="month_1">Month 1</option>
-                <option value="custom">Custom</option>
+                <option value="all">{t('filters.allStages', { defaultValue: 'All Stages' })}</option>
+                <option value="preboarding">{t('stageLabels.preboarding', { defaultValue: 'Preboarding' })}</option>
+                <option value="day_1">{t('stageLabels.day_1', { defaultValue: 'Day 1' })}</option>
+                <option value="week_1">{t('stageLabels.week_1', { defaultValue: 'Week 1' })}</option>
+                <option value="month_1">{t('stageLabels.month_1', { defaultValue: 'Month 1' })}</option>
+                <option value="custom">{t('stageLabels.custom', { defaultValue: 'Custom' })}</option>
               </select>
 
               {/* Category Filter */}
@@ -901,12 +904,12 @@ export function Tasks() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="all">All Categories</option>
-                <option value="it_setup">IT Setup</option>
-                <option value="hr_paperwork">HR Paperwork</option>
-                <option value="equipment">Equipment</option>
-                <option value="training">Training</option>
-                <option value="general">General</option>
+                <option value="all">{t('filters.allCategories', { defaultValue: 'All Categories' })}</option>
+                <option value="it_setup">{t('categoryLabels.it_setup', { defaultValue: 'IT Setup' })}</option>
+                <option value="hr_paperwork">{t('categoryLabels.hr_paperwork', { defaultValue: 'HR Paperwork' })}</option>
+                <option value="equipment">{t('categoryLabels.equipment', { defaultValue: 'Equipment' })}</option>
+                <option value="training">{t('categoryLabels.training', { defaultValue: 'Training' })}</option>
+                <option value="general">{t('categoryLabels.general', { defaultValue: 'General' })}</option>
               </select>
 
               {/* Priority Filter */}
@@ -915,11 +918,11 @@ export function Tasks() {
                 onChange={(e) => setPriorityFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="all">All Priorities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="normal">Normal</option>
-                <option value="low">Low</option>
+                <option value="all">{t('filters.allPriorities', { defaultValue: 'All Priorities' })}</option>
+                <option value="critical">{t('priorities.critical', { defaultValue: 'Critical' })}</option>
+                <option value="high">{t('priorities.high', { defaultValue: 'High' })}</option>
+                <option value="normal">{t('priorities.normal', { defaultValue: 'Normal' })}</option>
+                <option value="low">{t('priorities.low', { defaultValue: 'Low' })}</option>
               </select>
             </div>
           )}
@@ -937,24 +940,24 @@ export function Tasks() {
             {activeTab === 'it_ops' ? (
               <>
                 <Laptop className="w-12 h-12 text-cyan-500 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold">No Hardware Queue Items Found</h3>
+                <h3 className="text-lg font-semibold">{t('emptyStates.hwEmptyTitle', { defaultValue: 'No Hardware Queue Items Found' })}</h3>
                 <p className="text-slate-500 text-sm mt-1 max-w-md mx-auto">
-                  There are no hardware provisioning or IT equipment tasks matching your filter criteria.
+                  {t('emptyStates.hwEmptyDesc', { defaultValue: 'There are no hardware provisioning or IT equipment tasks matching your filter criteria.' })}
                 </p>
                 {canManageTasks && (
                   <button
                     onClick={handleOpenCreateHardwareTask}
                     className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
-                    <Plus className="w-4 h-4" /> Provision New Hardware Asset
+                    <Plus className="w-4 h-4" /> {t('emptyStates.provisionNewAsset', { defaultValue: 'Provision New Hardware Asset' })}
                   </button>
                 )}
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold">No Tasks Found</h3>
-                <p className="text-slate-500 text-sm mt-1">There are no operational tasks matching your filter criteria.</p>
+                <h3 className="text-lg font-semibold">{t('emptyStates.tasksEmptyTitle', { defaultValue: 'No Tasks Found' })}</h3>
+                <p className="text-slate-500 text-sm mt-1">{t('emptyStates.tasksEmptyDesc', { defaultValue: 'There are no operational tasks matching your filter criteria.' })}</p>
               </>
             )}
           </div>
@@ -1006,14 +1009,14 @@ export function Tasks() {
                               id={`badge-verified-${taskKey}`}
                               className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full border border-emerald-300 dark:border-emerald-800 flex items-center gap-1"
                             >
-                              <Check className="w-3 h-3 stroke-[3]" /> Verified
+                              <Check className="w-3 h-3 stroke-[3]" /> {t('taskCard.verified', { defaultValue: 'Verified' })}
                             </span>
                           ) : isCompleted ? (
                             <span
                               id={`badge-completed-${taskKey}`}
                               className="px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 rounded-full border border-blue-200"
                             >
-                              Completed
+                              {t('taskCard.completed', { defaultValue: 'Completed' })}
                             </span>
                           ) : null}
                           {getCategoryBadge(task.category)}
@@ -1028,11 +1031,14 @@ export function Tasks() {
                             lockReason={(task as any).lockReason}
                           />
                           <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 rounded-full dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                            Assigned: {task.assignedToUserId?.profile?.firstName || 'User'} {task.assignedToUserId?.profile?.lastName || ''}
+                            {t('taskCard.assigned', {
+                              name: `${task.assignedToUserId?.profile?.firstName || 'User'} ${task.assignedToUserId?.profile?.lastName || ''}`.trim(),
+                              defaultValue: `Assigned: ${task.assignedToUserId?.profile?.firstName || 'User'} ${task.assignedToUserId?.profile?.lastName || ''}`.trim(),
+                            })}
                           </span>
                           {isOverdue && (
                             <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full dark:bg-red-950 dark:text-red-300">
-                              Overdue
+                              {t('taskCard.overdue', { defaultValue: 'Overdue' })}
                             </span>
                           )}
                         </div>
@@ -1046,22 +1052,29 @@ export function Tasks() {
                         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
                           <span className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5 text-slate-400" />
-                            Assignee: {task.assignedToUserId?.profile?.firstName || 'User'}{' '}
-                            {task.assignedToUserId?.profile?.lastName || ''}
+                            {t('taskCard.assignee', {
+                              name: `${task.assignedToUserId?.profile?.firstName || 'User'} ${task.assignedToUserId?.profile?.lastName || ''}`.trim(),
+                              defaultValue: `Assignee: ${task.assignedToUserId?.profile?.firstName || 'User'} ${task.assignedToUserId?.profile?.lastName || ''}`.trim(),
+                            })}
                           </span>
 
                           {task.employeeId && (
                             <span className="flex items-center gap-1">
                               <Shield className="w-3.5 h-3.5 text-slate-400" />
-                              Target: {task.employeeId?.profile?.firstName}{' '}
-                              {task.employeeId?.profile?.lastName}
+                              {t('taskCard.target', {
+                                name: `${task.employeeId?.profile?.firstName || ''} ${task.employeeId?.profile?.lastName || ''}`.trim(),
+                                defaultValue: `Target: ${task.employeeId?.profile?.firstName || ''} ${task.employeeId?.profile?.lastName || ''}`.trim(),
+                              })}
                             </span>
                           )}
 
                           {task.dueDate && (
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                              Due: {new Date(task.dueDate).toLocaleDateString()}
+                              {t('taskCard.due', {
+                                date: new Date(task.dueDate).toLocaleDateString(),
+                                defaultValue: `Due: ${new Date(task.dueDate).toLocaleDateString()}`,
+                              })}
                             </span>
                           )}
                         </div>
@@ -1074,13 +1087,13 @@ export function Tasks() {
                             </span>
                             {task.hardwareMetadata.serialNumber && (
                               <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-[11px]">
-                                <span className="text-slate-400 font-sans">SN:</span>
+                                <span className="text-slate-400 font-sans">{t('taskCard.sn', { defaultValue: 'SN:' })}</span>
                                 <span className="font-mono font-semibold">{task.hardwareMetadata.serialNumber}</span>
                               </span>
                             )}
                             {task.hardwareMetadata.assetTag && (
                               <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-[11px]">
-                                <span className="text-slate-400 font-sans">Tag:</span>
+                                <span className="text-slate-400 font-sans">{t('taskCard.tag', { defaultValue: 'Tag:' })}</span>
                                 <span className="font-mono font-semibold">{task.hardwareMetadata.assetTag}</span>
                               </span>
                             )}
@@ -1098,7 +1111,7 @@ export function Tasks() {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:underline font-medium text-[11px]"
                               >
-                                <ExternalLink className="w-3 h-3" /> Track Shipment
+                                <ExternalLink className="w-3 h-3" /> {t('taskCard.trackShipment', { defaultValue: 'Track Shipment' })}
                               </a>
                             )}
                           </div>
@@ -1113,10 +1126,12 @@ export function Tasks() {
                           data-testid={`hardware-details-btn-${taskKey}`}
                           onClick={() => handleOpenHardwareModal(task)}
                           className="px-3 py-1.5 text-xs font-medium bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:hover:bg-cyan-900 border border-cyan-200 dark:border-cyan-800 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
-                          title="Hardware & Equipment Tracking"
+                          title={t('taskCard.updateHardware', { defaultValue: 'Hardware & Equipment Tracking' })}
                         >
                           <Cpu className="w-3.5 h-3.5" />
-                          {activeTab === 'it_ops' ? 'Update Hardware' : 'Equipment'}
+                          {activeTab === 'it_ops'
+                            ? t('taskCard.updateHardware', { defaultValue: 'Update Hardware' })
+                            : t('taskCard.equipment', { defaultValue: 'Equipment' })}
                         </button>
                       )}
 
@@ -1125,10 +1140,10 @@ export function Tasks() {
                           id={`verify-task-btn-${taskKey}`}
                           onClick={() => handleVerifyTask(task)}
                           className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all flex items-center gap-1 shadow-sm"
-                          title="Verify Task"
+                          title={t('taskCard.verifyTask', { defaultValue: 'Verify Task' })}
                         >
                           <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                          Verify Task
+                          {t('taskCard.verifyTask', { defaultValue: 'Verify Task' })}
                         </button>
                       ) : (
                         <button
@@ -1138,10 +1153,10 @@ export function Tasks() {
                             setIsRevocationModalOpen(true);
                           }}
                           className="px-2.5 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-lg transition-all flex items-center gap-1"
-                          title="Revoke Verification (HITL Guardrail)"
+                          title={t('taskCard.revoke', { defaultValue: 'Revoke Verification' })}
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          Revoke
+                          {t('taskCard.revoke', { defaultValue: 'Revoke' })}
                         </button>
                       )}
 
@@ -1150,7 +1165,7 @@ export function Tasks() {
                         onClick={() => setSelectedTask(task)}
                         className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-all"
                       >
-                        View Details
+                        {t('taskCard.viewDetails', { defaultValue: 'View Details' })}
                       </button>
                     </div>
                   </div>
@@ -1167,7 +1182,7 @@ export function Tasks() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              itemLabel="tasks"
+              itemLabel={activeTab === 'it_ops' ? t('taskCard.paginationLabelEquipment', { defaultValue: 'equipment items' }) : t('taskCard.paginationLabelTasks', { defaultValue: 'tasks' })}
             />
           </div>
         )}
@@ -1188,7 +1203,7 @@ export function Tasks() {
                   </div>
                   <SheetTitle className="text-xl font-bold mt-2">{selectedTask.title}</SheetTitle>
                   <SheetDescription className="text-xs text-muted-foreground mt-1">
-                    Onboarding operational task details and verification controls.
+                    {t('drawer.sheetDesc', { defaultValue: 'Onboarding operational task details and verification controls.' })}
                   </SheetDescription>
                 </div>
               </div>
@@ -1196,7 +1211,7 @@ export function Tasks() {
               {/* Task Attributes */}
               <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
                 <div>
-                  <span className="text-slate-400 block text-xs">Responsible Assignee</span>
+                  <span className="text-slate-400 block text-xs">{t('drawer.responsibleAssignee', { defaultValue: 'Responsible Assignee' })}</span>
                   <span className="font-medium">
                     {selectedTask.assignedToUserId?.profile?.firstName}{' '}
                     {selectedTask.assignedToUserId?.profile?.lastName}
@@ -1204,22 +1219,22 @@ export function Tasks() {
                 </div>
 
                 <div>
-                  <span className="text-slate-400 block text-xs">Target Employee</span>
+                  <span className="text-slate-400 block text-xs">{t('drawer.targetEmployee', { defaultValue: 'Target Employee' })}</span>
                   <span className="font-medium">
-                    {selectedTask.employeeId?.profile?.firstName || 'N/A'}{' '}
+                    {selectedTask.employeeId?.profile?.firstName || t('taskCard.none', { defaultValue: 'None' })}{' '}
                     {selectedTask.employeeId?.profile?.lastName || ''}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-slate-400 block text-xs">Status</span>
+                  <span className="text-slate-400 block text-xs">{t('drawer.status', { defaultValue: 'Status' })}</span>
                   <span className="font-medium capitalize">{selectedTask.status}</span>
                 </div>
 
                 <div>
-                  <span className="text-slate-400 block text-xs">Due Date</span>
+                  <span className="text-slate-400 block text-xs">{t('drawer.dueDate', { defaultValue: 'Due Date' })}</span>
                   <span className="font-medium">
-                    {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : 'None'}
+                    {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : t('taskCard.none', { defaultValue: 'None' })}
                   </span>
                 </div>
               </div>
@@ -1230,49 +1245,51 @@ export function Tasks() {
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
                       <Cpu className="w-4 h-4 text-cyan-600" />
-                      Hardware & Equipment Tracking
+                      {t('drawer.hwCardTitle', { defaultValue: 'Hardware & Equipment Tracking' })}
                     </h4>
                     <button
                       id="drawer-edit-hardware-btn"
                       onClick={() => handleOpenHardwareModal(selectedTask)}
                       className="px-2.5 py-1 text-xs font-medium bg-white dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900 transition-all cursor-pointer shadow-sm"
                     >
-                      Update Details
+                      {t('drawer.updateDetails', { defaultValue: 'Update Details' })}
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Device Type</span>
+                      <span className="text-slate-400 block text-[11px]">{t('drawer.deviceType', { defaultValue: 'Device Type' })}</span>
                       <span className="font-semibold capitalize text-slate-700 dark:text-slate-200">
-                        {selectedTask.hardwareMetadata?.deviceType || 'Laptop'}
+                        {getDeviceLabel(selectedTask.hardwareMetadata?.deviceType)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block text-[11px]">MDM Status</span>
+                      <span className="text-slate-400 block text-[11px]">{t('drawer.mdmStatus', { defaultValue: 'MDM Status' })}</span>
                       <span className="font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
-                        {selectedTask.hardwareMetadata?.mdmStatus || 'pending_dispatch'}
+                        {selectedTask.hardwareMetadata?.mdmStatus
+                          ? t(`mdmStatuses.${selectedTask.hardwareMetadata.mdmStatus}`, { defaultValue: selectedTask.hardwareMetadata.mdmStatus })
+                          : t('mdmStatuses.pending_dispatch', { defaultValue: 'Pending Prep & Dispatch' })}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Serial Number</span>
+                      <span className="text-slate-400 block text-[11px]">{t('drawer.serialNumber', { defaultValue: 'Serial Number' })}</span>
                       <span className="font-mono text-slate-700 dark:text-slate-200">
-                        {selectedTask.hardwareMetadata?.serialNumber || 'Not assigned'}
+                        {selectedTask.hardwareMetadata?.serialNumber || t('drawer.notAssigned', { defaultValue: 'Not assigned' })}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Asset Tag</span>
+                      <span className="text-slate-400 block text-[11px]">{t('drawer.assetTag', { defaultValue: 'Asset Tag' })}</span>
                       <span className="font-mono text-slate-700 dark:text-slate-200">
-                        {selectedTask.hardwareMetadata?.assetTag || 'Not assigned'}
+                        {selectedTask.hardwareMetadata?.assetTag || t('drawer.notAssigned', { defaultValue: 'Not assigned' })}
                       </span>
                     </div>
 
                     {selectedTask.hardwareMetadata?.courierTrackingUrl && (
                       <div className="col-span-2">
-                        <span className="text-slate-400 block text-[11px]">Courier Tracking</span>
+                        <span className="text-slate-400 block text-[11px]">{t('drawer.courierTracking', { defaultValue: 'Courier Tracking' })}</span>
                         <a
                           href={selectedTask.hardwareMetadata.courierTrackingUrl}
                           target="_blank"
@@ -1280,14 +1297,14 @@ export function Tasks() {
                           className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
                         >
                           {selectedTask.hardwareMetadata.courierProvider ? `${selectedTask.hardwareMetadata.courierProvider}: ` : ''}
-                          Track Package <ExternalLink className="w-3 h-3" />
+                          {t('drawer.trackPackage', { defaultValue: 'Track Package' })} <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
                     )}
 
                     {selectedTask.hardwareMetadata?.receiptAttachment && (
                       <div className="col-span-2">
-                        <span className="text-slate-400 block text-[11px]">Receipt / Purchase Proof</span>
+                        <span className="text-slate-400 block text-[11px]">{t('drawer.receiptProof', { defaultValue: 'Receipt / Purchase Proof' })}</span>
                         <a
                           href={selectedTask.hardwareMetadata.receiptAttachment.fileUrl}
                           target="_blank"
@@ -1295,7 +1312,7 @@ export function Tasks() {
                           className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
                         >
                           <FileText className="w-3 h-3" />
-                          {selectedTask.hardwareMetadata.receiptAttachment.fileName || 'View Receipt'}
+                          {selectedTask.hardwareMetadata.receiptAttachment.fileName || t('drawer.viewReceipt', { defaultValue: 'View Receipt' })}
                         </a>
                       </div>
                     )}
@@ -1307,7 +1324,7 @@ export function Tasks() {
               {selectedTask.description && (
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                    Instructions & Context
+                    {t('drawer.instructionsContext', { defaultValue: 'Instructions & Context' })}
                   </h4>
                   <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
                     {selectedTask.description}
@@ -1318,7 +1335,10 @@ export function Tasks() {
               {/* Comments Feed */}
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Activity Comments ({selectedTask.comments?.length || 0})
+                  {t('drawer.activityComments', {
+                    count: selectedTask.comments?.length || 0,
+                    defaultValue: `Activity Comments (${selectedTask.comments?.length || 0})`,
+                  })}
                 </h4>
 
                 <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
@@ -1339,7 +1359,7 @@ export function Tasks() {
                   <input
                     id="task-comment-input"
                     type="text"
-                    placeholder="Add a comment..."
+                    placeholder={t('drawer.addCommentPlaceholder', { defaultValue: 'Add a comment...' })}
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     className="flex-1 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -1369,7 +1389,7 @@ export function Tasks() {
                     className="py-2.5 px-3 rounded-xl font-medium text-xs border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    Revoke Verification
+                    {t('drawer.revokeVerification', { defaultValue: 'Revoke Verification' })}
                   </button>
                 )}
 
@@ -1381,7 +1401,7 @@ export function Tasks() {
                     className="flex-1 py-2.5 rounded-xl font-medium text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                   >
                     <Check className="w-4 h-4 stroke-[2.5]" />
-                    Verify Task
+                    {t('taskCard.verifyTask', { defaultValue: 'Verify Task' })}
                   </button>
                 )}
 
@@ -1394,7 +1414,9 @@ export function Tasks() {
                       : 'bg-primary text-primary-foreground hover:bg-primary/90'
                   }`}
                 >
-                  {selectedTask.status === 'completed' || selectedTask.status === 'verified' ? 'Reopen Task' : 'Mark Task Complete'}
+                  {selectedTask.status === 'completed' || selectedTask.status === 'verified'
+                    ? t('drawer.reopenTask', { defaultValue: 'Reopen Task' })
+                    : t('drawer.markTaskComplete', { defaultValue: 'Mark Task Complete' })}
                 </button>
               </div>
             </SheetFooter>
@@ -1406,21 +1428,25 @@ export function Tasks() {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent id="create-task-modal" className="max-w-xl p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4">
-            <DialogTitle className="text-lg font-bold">Create Operational Task</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              {t('createModal.title', { defaultValue: 'Create Operational Task' })}
+            </DialogTitle>
             <DialogDescription>
-              Assign standard or customized onboarding tasks to responsible team members.
+              {t('createModal.desc', { defaultValue: 'Assign standard or customized onboarding tasks to responsible team members.' })}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateTask} className="flex flex-col flex-1 overflow-hidden">
             <DialogBody className="space-y-4 text-sm">
               <div>
-                <label className="block font-medium mb-1 text-xs text-foreground">Task Title *</label>
+                <label className="block font-medium mb-1 text-xs text-foreground">
+                  {t('createModal.taskTitleLabel', { defaultValue: 'Task Title *' })}
+                </label>
                 <input
                   id="task-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Issue Laptop & Configure IT Access"
+                  placeholder={t('createModal.taskTitlePlaceholder', { defaultValue: 'e.g. Issue Laptop & Configure IT Access' })}
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);
@@ -1442,11 +1468,13 @@ export function Tasks() {
               </div>
 
               <div>
-                <label className="block font-medium mb-1 text-xs text-foreground">Instructions / Description</label>
+                <label className="block font-medium mb-1 text-xs text-foreground">
+                  {t('createModal.instructionsLabel', { defaultValue: 'Instructions / Description' })}
+                </label>
                 <textarea
                   id="task-desc-input"
                   rows={2}
-                  placeholder="Additional guidance for responsible person..."
+                  placeholder={t('createModal.instructionsPlaceholder', { defaultValue: 'Additional guidance for responsible person...' })}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs resize-none"
@@ -1455,7 +1483,9 @@ export function Tasks() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium mb-1 text-xs text-foreground">Assign Responsible User *</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">
+                    {t('createModal.assigneeLabel', { defaultValue: 'Assign Responsible User *' })}
+                  </label>
                   <SearchableSelect
                     id="task-assignee-select"
                     required
@@ -1470,8 +1500,8 @@ export function Tasks() {
                         });
                       }
                     }}
-                    placeholder="Search & select assignee..."
-                    searchPlaceholder="Search by name, role, email..."
+                    placeholder={t('createModal.assigneePlaceholder', { defaultValue: 'Search & select assignee...' })}
+                    searchPlaceholder={t('createModal.assigneeSearchPlaceholder', { defaultValue: 'Search by name, role, email...' })}
                     options={employees.map((emp: any) => ({
                       value: emp.id,
                       label: `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || emp.name || 'Unnamed Employee',
@@ -1485,14 +1515,16 @@ export function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1 text-xs text-foreground">Target Employee (Optional)</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">
+                    {t('createModal.targetEmployeeLabel', { defaultValue: 'Target Employee (Optional)' })}
+                  </label>
                   <SearchableSelect
                     id="task-target-employee-select"
                     clearable
                     value={employeeId}
                     onChange={(val) => setEmployeeId(val)}
-                    placeholder="Search & select employee..."
-                    searchPlaceholder="Search by name, department..."
+                    placeholder={t('createModal.targetEmployeePlaceholder', { defaultValue: 'Search & select employee...' })}
+                    searchPlaceholder={t('createModal.targetEmployeeSearchPlaceholder', { defaultValue: 'Search by name, department...' })}
                     options={employees.map((emp: any) => ({
                       value: emp.id,
                       label: `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || emp.name || 'Unnamed Employee',
@@ -1504,55 +1536,63 @@ export function Tasks() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-medium mb-1 text-xs text-foreground">Category</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">
+                    {t('createModal.categoryLabel', { defaultValue: 'Category' })}
+                  </label>
                   <select
                     id="task-category-select"
                     value={category}
                     onChange={(e) => handleCategoryChange(e.target.value as any)}
                     className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
-                    <option value="equipment">Equipment</option>
-                    <option value="it_setup">IT Setup</option>
-                    <option value="hr_paperwork">HR Paperwork</option>
-                    <option value="training">Training</option>
-                    <option value="general">General</option>
+                    <option value="equipment">{t('categoryLabels.equipment', { defaultValue: 'Equipment' })}</option>
+                    <option value="it_setup">{t('categoryLabels.it_setup', { defaultValue: 'IT Setup' })}</option>
+                    <option value="hr_paperwork">{t('categoryLabels.hr_paperwork', { defaultValue: 'HR Paperwork' })}</option>
+                    <option value="training">{t('categoryLabels.training', { defaultValue: 'Training' })}</option>
+                    <option value="general">{t('categoryLabels.general', { defaultValue: 'General' })}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1 text-xs text-foreground">Stage</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">
+                    {t('createModal.stageLabel', { defaultValue: 'Stage' })}
+                  </label>
                   <select
                     id="task-stage-select"
                     value={stage}
                     onChange={(e) => setStage(e.target.value as any)}
                     className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
-                    <option value="preboarding">Preboarding</option>
-                    <option value="day_1">Day 1</option>
-                    <option value="week_1">Week 1</option>
-                    <option value="month_1">Month 1</option>
-                    <option value="custom">Custom</option>
+                    <option value="preboarding">{t('stageLabels.preboarding', { defaultValue: 'Preboarding' })}</option>
+                    <option value="day_1">{t('stageLabels.day_1', { defaultValue: 'Day 1' })}</option>
+                    <option value="week_1">{t('stageLabels.week_1', { defaultValue: 'Week 1' })}</option>
+                    <option value="month_1">{t('stageLabels.month_1', { defaultValue: 'Month 1' })}</option>
+                    <option value="custom">{t('stageLabels.custom', { defaultValue: 'Custom' })}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-1 text-xs text-foreground">Priority</label>
+                  <label className="block font-medium mb-1 text-xs text-foreground">
+                    {t('createModal.priorityLabel', { defaultValue: 'Priority' })}
+                  </label>
                   <select
                     id="task-priority-select"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as any)}
                     className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
-                    <option value="low">Low</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
+                    <option value="low">{t('priorities.low', { defaultValue: 'Low' })}</option>
+                    <option value="normal">{t('priorities.normal', { defaultValue: 'Normal' })}</option>
+                    <option value="high">{t('priorities.high', { defaultValue: 'High' })}</option>
+                    <option value="critical">{t('priorities.critical', { defaultValue: 'Critical' })}</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-medium mb-1 text-xs text-foreground">Due Date</label>
+                <label className="block font-medium mb-1 text-xs text-foreground">
+                  {t('createModal.dueDateLabel', { defaultValue: 'Due Date' })}
+                </label>
                 <input
                   id="task-due-date-input"
                   type="date"
@@ -1571,7 +1611,7 @@ export function Tasks() {
                   className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
                 />
                 <label htmlFor="task-verification-checkbox" className="text-xs font-medium cursor-pointer text-foreground">
-                  Requires Admin / Manager Sign-off to complete
+                  {t('createModal.requiresSignoffLabel', { defaultValue: 'Requires Admin / Manager Sign-off to complete' })}
                 </label>
               </div>
 
@@ -1581,8 +1621,12 @@ export function Tasks() {
                   <div className="flex items-center gap-2">
                     <Laptop className="h-4 w-4 text-cyan-500" />
                     <div>
-                      <span className="text-xs font-semibold text-foreground block">Provision Hardware Asset</span>
-                      <span className="text-[11px] text-muted-foreground">Attach asset tag, serial number & courier tracking</span>
+                      <span className="text-xs font-semibold text-foreground block">
+                        {t('createModal.provisionHardwareTitle', { defaultValue: 'Provision Hardware Asset' })}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {t('createModal.provisionHardwareSubtitle', { defaultValue: 'Attach asset tag, serial number & courier tracking' })}
+                      </span>
                     </div>
                   </div>
                   <input
@@ -1599,7 +1643,9 @@ export function Tasks() {
                   <div className="mt-3 p-3 bg-muted/40 border border-border/60 rounded-xl space-y-3 text-xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-medium mb-1 text-xs text-foreground">Hardware Equipment Type *</label>
+                        <label className="block font-medium mb-1 text-xs text-foreground">
+                          {t('createModal.hwDeviceTypeLabel', { defaultValue: 'Hardware Equipment Type *' })}
+                        </label>
                         <select
                           id="new-hw-device-type-select"
                           data-testid="new-hw-device-type-select"
@@ -1607,23 +1653,25 @@ export function Tasks() {
                           onChange={(e) => setNewHwDeviceType(e.target.value)}
                           className="w-full px-2.5 py-1.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
                         >
-                          <option value="laptop">Laptop</option>
-                          <option value="desktop">Desktop PC</option>
-                          <option value="monitor">Monitor / Display</option>
-                          <option value="mobile">Mobile Phone / Tablet</option>
-                          <option value="security_key">Hardware Security Key / Fob</option>
-                          <option value="peripherals">Peripherals (Keyboard, Mouse, Headset)</option>
-                          <option value="notebook">Notebook / Stationery</option>
-                          <option value="safety_kit">Safety Kit / PPE</option>
-                          <option value="uniform">Uniform / Workwear</option>
-                          <option value="tools">Field Equipment / Tools</option>
-                          <option value="badge_access">Access Badge / Keycard</option>
-                          <option value="other">Other Equipment</option>
+                          <option value="laptop">{t('deviceTypes.laptop', { defaultValue: 'Laptop' })}</option>
+                          <option value="desktop">{t('deviceTypes.desktop', { defaultValue: 'Desktop PC' })}</option>
+                          <option value="monitor">{t('deviceTypes.monitor', { defaultValue: 'Monitor / Display' })}</option>
+                          <option value="mobile">{t('deviceTypes.mobile', { defaultValue: 'Mobile Phone / Tablet' })}</option>
+                          <option value="security_key">{t('deviceTypes.security_key', { defaultValue: 'Hardware Security Key / Fob' })}</option>
+                          <option value="peripherals">{t('deviceTypes.peripherals', { defaultValue: 'Peripherals (Keyboard, Mouse, Headset)' })}</option>
+                          <option value="notebook">{t('deviceTypes.notebook', { defaultValue: 'Notebook / Stationery' })}</option>
+                          <option value="safety_kit">{t('deviceTypes.safety_kit', { defaultValue: 'Safety Kit / PPE' })}</option>
+                          <option value="uniform">{t('deviceTypes.uniform', { defaultValue: 'Uniform / Workwear' })}</option>
+                          <option value="tools">{t('deviceTypes.tools', { defaultValue: 'Field Equipment / Tools' })}</option>
+                          <option value="badge_access">{t('deviceTypes.badge_access', { defaultValue: 'Access Badge / Keycard' })}</option>
+                          <option value="other">{t('deviceTypes.other', { defaultValue: 'Other Equipment' })}</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="block font-medium mb-1 text-xs text-foreground">Courier / Provisioning Status</label>
+                        <label className="block font-medium mb-1 text-xs text-foreground">
+                          {t('createModal.hwStatusLabel', { defaultValue: 'Courier / Provisioning Status' })}
+                        </label>
                         <select
                           id="new-hw-status-select"
                           data-testid="new-hw-status-select"
@@ -1631,23 +1679,25 @@ export function Tasks() {
                           onChange={(e) => setNewHwMdmStatus(e.target.value)}
                           className="w-full px-2.5 py-1.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
                         >
-                          <option value="pending_dispatch">Pending Dispatch / Preparing</option>
-                          <option value="dispatched">Dispatched / In Transit</option>
-                          <option value="enrolled">MDM Enrolled</option>
-                          <option value="delivered">Delivered / In Possession</option>
-                          <option value="failed">Delivery / Enrollment Failed</option>
+                          <option value="pending_dispatch">{t('mdmStatuses.pending_dispatch', { defaultValue: 'Pending Dispatch / Preparing' })}</option>
+                          <option value="dispatched">{t('mdmStatuses.dispatched', { defaultValue: 'Dispatched / In Transit' })}</option>
+                          <option value="enrolled">{t('mdmStatuses.enrolled', { defaultValue: 'MDM Enrolled' })}</option>
+                          <option value="delivered">{t('mdmStatuses.delivered', { defaultValue: 'Delivered / In Possession' })}</option>
+                          <option value="failed">{t('mdmStatuses.failed', { defaultValue: 'Delivery / Enrollment Failed' })}</option>
                         </select>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-medium mb-1 text-xs text-foreground">Serial Number</label>
+                        <label className="block font-medium mb-1 text-xs text-foreground">
+                          {t('createModal.hwSerialLabel', { defaultValue: 'Serial Number' })}
+                        </label>
                         <input
                           id="new-hw-serial-input"
                           data-testid="new-hw-serial-input"
                           type="text"
-                          placeholder="e.g. C02G41KSMD6T"
+                          placeholder={t('createModal.hwSerialPlaceholder', { defaultValue: 'e.g. C02G41KSMD6T' })}
                           value={newHwSerialNumber}
                           onChange={(e) => {
                             setNewHwSerialNumber(e.target.value);
@@ -1669,12 +1719,14 @@ export function Tasks() {
                       </div>
 
                       <div>
-                        <label className="block font-medium mb-1 text-xs text-foreground">Asset Tag</label>
+                        <label className="block font-medium mb-1 text-xs text-foreground">
+                          {t('createModal.hwAssetTagLabel', { defaultValue: 'Asset Tag' })}
+                        </label>
                         <input
                           id="new-hw-asset-tag-input"
                           data-testid="new-hw-asset-tag-input"
                           type="text"
-                          placeholder="e.g. TAL-AST-9021"
+                          placeholder={t('createModal.hwAssetTagPlaceholder', { defaultValue: 'e.g. TAL-AST-9021' })}
                           value={newHwAssetTag}
                           onChange={(e) => {
                             setNewHwAssetTag(e.target.value);
@@ -1698,12 +1750,14 @@ export function Tasks() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-medium mb-1 text-xs text-foreground">Courier Provider</label>
+                        <label className="block font-medium mb-1 text-xs text-foreground">
+                          {t('createModal.hwCourierProviderLabel', { defaultValue: 'Courier Provider' })}
+                        </label>
                         <input
                           id="new-hw-courier-provider-input"
                           data-testid="new-hw-courier-provider-input"
                           type="text"
-                          placeholder="e.g. FedEx / DHL / UPS"
+                          placeholder={t('createModal.hwCourierProviderPlaceholder', { defaultValue: 'e.g. FedEx / DHL / UPS' })}
                           value={newHwCourierProvider}
                           onChange={(e) => {
                             setNewHwCourierProvider(e.target.value);
@@ -1723,12 +1777,14 @@ export function Tasks() {
                       </div>
 
                       <div>
-                        <label className="block font-medium mb-1 text-xs text-foreground">Courier Tracking URL</label>
+                        <label className="block font-medium mb-1 text-xs text-foreground">
+                          {t('createModal.hwCourierUrlLabel', { defaultValue: 'Courier Tracking URL' })}
+                        </label>
                         <input
                           id="new-hw-courier-url-input"
                           data-testid="new-hw-courier-url-input"
                           type="url"
-                          placeholder="https://track.fedex.com/..."
+                          placeholder={t('createModal.hwCourierUrlPlaceholder', { defaultValue: 'https://track.fedex.com/...' })}
                           value={newHwCourierUrl}
                           onChange={(e) => {
                             setNewHwCourierUrl(e.target.value);
@@ -1751,12 +1807,14 @@ export function Tasks() {
                     </div>
 
                     <div className="pt-1 border-t border-border/40">
-                      <label className="block text-[11px] text-muted-foreground mb-1 font-medium">Receipt / Storage Link (Optional)</label>
+                      <label className="block text-[11px] text-muted-foreground mb-1 font-medium">
+                        {t('createModal.hwReceiptLabel', { defaultValue: 'Receipt / Storage Link (Optional)' })}
+                      </label>
                       <input
                         id="new-hw-receipt-url-input"
                         data-testid="new-hw-receipt-url-input"
                         type="url"
-                        placeholder="https://storage.example.com/receipts/..."
+                        placeholder={t('createModal.hwReceiptPlaceholder', { defaultValue: 'https://storage.example.com/receipts/...' })}
                         value={newHwReceiptFileUrl}
                         onChange={(e) => setNewHwReceiptFileUrl(e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -1774,7 +1832,7 @@ export function Tasks() {
                 onClick={() => setIsCreateModalOpen(false)}
                 className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
               >
-                Cancel
+                {t('createModal.cancel', { defaultValue: 'Cancel' })}
               </button>
               <button
                 id="submit-create-task-btn"
@@ -1783,7 +1841,11 @@ export function Tasks() {
                 disabled={createTaskMutation.isPending}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
               >
-                {createTaskMutation.isPending ? 'Creating...' : createWithHardware ? 'Create & Register Asset' : 'Create Task'}
+                {createTaskMutation.isPending
+                  ? t('createModal.creating', { defaultValue: 'Creating...' })
+                  : createWithHardware
+                  ? t('createModal.createAndRegister', { defaultValue: 'Create & Register Asset' })
+                  : t('createModal.createTaskBtn', { defaultValue: 'Create Task' })}
               </button>
             </DialogFooter>
           </form>
@@ -1799,9 +1861,11 @@ export function Tasks() {
                 <Laptop className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold">Hardware Provisioning & MDM</DialogTitle>
+                <DialogTitle className="text-lg font-bold">
+                  {t('hardwareModal.title', { defaultValue: 'Hardware Provisioning & MDM' })}
+                </DialogTitle>
                 <DialogDescription>
-                  Configure asset tracking, MDM enrollment, and courier dispatch.
+                  {t('hardwareModal.desc', { defaultValue: 'Configure asset tracking, MDM enrollment, and courier dispatch.' })}
                 </DialogDescription>
               </div>
             </div>
@@ -1811,54 +1875,68 @@ export function Tasks() {
             <form onSubmit={handleSaveHardware} className="flex flex-col flex-1 overflow-hidden">
               <DialogBody className="space-y-4 text-sm">
                 <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border/60 space-y-1">
-                  <span className="font-semibold block text-foreground">Task: {hardwareTask.title}</span>
-                  <span>Assignee: {hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin'} | Target: {hardwareTask.employeeId?.profile?.firstName || 'New Hire'}</span>
+                  <span className="font-semibold block text-foreground">
+                    {t('hardwareModal.taskHeader', { title: hardwareTask.title, defaultValue: `Task: ${hardwareTask.title}` })}
+                  </span>
+                  <span>
+                    {t('hardwareModal.assigneeTargetHeader', {
+                      assignee: hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin',
+                      target: hardwareTask.employeeId?.profile?.firstName || 'New Hire',
+                      defaultValue: `Assignee: ${hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin'} | Target: ${hardwareTask.employeeId?.profile?.firstName || 'New Hire'}`,
+                    })}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Equipment / Device Type</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">
+                      {t('hardwareModal.deviceTypeLabel', { defaultValue: 'Equipment / Device Type' })}
+                    </label>
                     <select
                       id="hw-device-type-select"
                       value={hwDeviceType}
                       onChange={(e) => setHwDeviceType(e.target.value)}
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
                     >
-                      <option value="laptop">Laptop</option>
-                      <option value="desktop">Desktop PC</option>
-                      <option value="monitor">Monitor / Display</option>
-                      <option value="mobile">Mobile Phone / Tablet</option>
-                      <option value="security_key">Hardware Security Key / Fob</option>
-                      <option value="peripherals">Peripherals (Keyboard, Mouse, Headset)</option>
-                      <option value="notebook">Notebook / Stationery</option>
-                      <option value="safety_kit">Safety Kit / PPE</option>
-                      <option value="uniform">Uniform / Workwear</option>
-                      <option value="tools">Field Equipment / Tools</option>
-                      <option value="badge_access">Access Badge / Keycard</option>
-                      <option value="other">Other Equipment</option>
+                      <option value="laptop">{t('deviceTypes.laptop', { defaultValue: 'Laptop' })}</option>
+                      <option value="desktop">{t('deviceTypes.desktop', { defaultValue: 'Desktop PC' })}</option>
+                      <option value="monitor">{t('deviceTypes.monitor', { defaultValue: 'Monitor / Display' })}</option>
+                      <option value="mobile">{t('deviceTypes.mobile', { defaultValue: 'Mobile Phone / Tablet' })}</option>
+                      <option value="security_key">{t('deviceTypes.security_key', { defaultValue: 'Hardware Security Key / Fob' })}</option>
+                      <option value="peripherals">{t('deviceTypes.peripherals', { defaultValue: 'Peripherals (Keyboard, Mouse, Headset)' })}</option>
+                      <option value="notebook">{t('deviceTypes.notebook', { defaultValue: 'Notebook / Stationery' })}</option>
+                      <option value="safety_kit">{t('deviceTypes.safety_kit', { defaultValue: 'Safety Kit / PPE' })}</option>
+                      <option value="uniform">{t('deviceTypes.uniform', { defaultValue: 'Uniform / Workwear' })}</option>
+                      <option value="tools">{t('deviceTypes.tools', { defaultValue: 'Field Equipment / Tools' })}</option>
+                      <option value="badge_access">{t('deviceTypes.badge_access', { defaultValue: 'Access Badge / Keycard' })}</option>
+                      <option value="other">{t('deviceTypes.other', { defaultValue: 'Other Equipment' })}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Delivery / MDM Status</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">
+                      {t('hardwareModal.deliveryStatusLabel', { defaultValue: 'Delivery / MDM Status' })}
+                    </label>
                     <select
                       id="hw-mdm-status-select"
                       value={hwMdmStatus}
                       onChange={(e) => setHwMdmStatus(e.target.value)}
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
                     >
-                      <option value="pending_dispatch">Pending Dispatch / Preparing</option>
-                      <option value="dispatched">Dispatched / In Transit</option>
-                      <option value="enrolled">MDM Enrolled</option>
-                      <option value="delivered">Delivered / In Possession</option>
-                      <option value="failed">Delivery / Enrollment Failed</option>
+                      <option value="pending_dispatch">{t('mdmStatuses.pending_dispatch', { defaultValue: 'Pending Dispatch / Preparing' })}</option>
+                      <option value="dispatched">{t('mdmStatuses.dispatched', { defaultValue: 'Dispatched / In Transit' })}</option>
+                      <option value="enrolled">{t('mdmStatuses.enrolled', { defaultValue: 'MDM Enrolled' })}</option>
+                      <option value="delivered">{t('mdmStatuses.delivered', { defaultValue: 'Delivered / In Possession' })}</option>
+                      <option value="failed">{t('mdmStatuses.failed', { defaultValue: 'Delivery / Enrollment Failed' })}</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Serial Number</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">
+                      {t('hardwareModal.serialNumberLabel', { defaultValue: 'Serial Number' })}
+                    </label>
                     <input
                       id="hw-serial-input"
                       type="text"
@@ -1884,7 +1962,9 @@ export function Tasks() {
                   </div>
 
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Asset Tag</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">
+                      {t('hardwareModal.assetTagLabel', { defaultValue: 'Asset Tag' })}
+                    </label>
                     <input
                       id="hw-asset-tag-input"
                       type="text"
@@ -1912,7 +1992,9 @@ export function Tasks() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Courier Provider</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">
+                      {t('hardwareModal.courierProviderLabel', { defaultValue: 'Courier Provider' })}
+                    </label>
                     <input
                       id="hw-courier-provider-input"
                       type="text"
@@ -1936,7 +2018,9 @@ export function Tasks() {
                   </div>
 
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Tracking URL</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">
+                      {t('hardwareModal.trackingUrlLabel', { defaultValue: 'Tracking URL' })}
+                    </label>
                     <input
                       id="hw-courier-url-input"
                       type="url"
@@ -1964,26 +2048,30 @@ export function Tasks() {
 
                 <div className="border-t border-border/60 pt-3 space-y-2">
                   <span className="block font-medium text-xs text-foreground">
-                    Hardware Receipt / Purchase Invoice Attachment
+                    {t('hardwareModal.receiptSectionTitle', { defaultValue: 'Hardware Receipt / Purchase Invoice Attachment' })}
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">File Name</label>
+                      <label className="block text-xs text-muted-foreground mb-1">
+                        {t('hardwareModal.fileNameLabel', { defaultValue: 'File Name' })}
+                      </label>
                       <input
                         id="hw-receipt-name-input"
                         type="text"
-                        placeholder="e.g. invoice_macbook.pdf"
+                        placeholder={t('hardwareModal.fileNamePlaceholder', { defaultValue: 'e.g. invoice_macbook.pdf' })}
                         value={hwReceiptFileName}
                         onChange={(e) => setHwReceiptFileName(e.target.value)}
                         className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">File URL / Storage Link</label>
+                      <label className="block text-xs text-muted-foreground mb-1">
+                        {t('hardwareModal.fileUrlLabel', { defaultValue: 'File URL / Storage Link' })}
+                      </label>
                       <input
                         id="hw-receipt-url-input"
                         type="url"
-                        placeholder="https://storage.example.com/receipts/..."
+                        placeholder={t('hardwareModal.fileUrlPlaceholder', { defaultValue: 'https://storage.example.com/receipts/...' })}
                         value={hwReceiptFileUrl}
                         onChange={(e) => setHwReceiptFileUrl(e.target.value)}
                         className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -2000,7 +2088,7 @@ export function Tasks() {
                   onClick={() => setIsHardwareModalOpen(false)}
                   className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium cursor-pointer transition-colors"
                 >
-                  Cancel
+                  {t('createModal.cancel', { defaultValue: 'Cancel' })}
                 </button>
                 <button
                   id="save-hardware-btn"
@@ -2008,7 +2096,9 @@ export function Tasks() {
                   disabled={isSavingHardware}
                   className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                 >
-                  {isSavingHardware ? 'Saving...' : 'Save Hardware Details'}
+                  {isSavingHardware
+                    ? t('hardwareModal.saving', { defaultValue: 'Saving...' })
+                    : t('hardwareModal.saveDetails', { defaultValue: 'Save Hardware Details' })}
                 </button>
               </DialogFooter>
             </form>

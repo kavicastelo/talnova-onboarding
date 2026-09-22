@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { cn } from './utils';
 import { Slot } from './Slot';
@@ -92,6 +93,7 @@ export interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> 
 
 export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
   ({ className, children, side = 'right', showCloseButton = true, closeOnBackdrop = true, ...props }, forwardedRef) => {
+    const { t } = useTranslation('common');
     const { open, setOpen, titleId, descId } = React.useContext(SheetContext);
     const internalRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -185,7 +187,7 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
               type="button"
               onClick={() => setOpen(false)}
               className="absolute top-3.5 right-3.5 z-10 inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
-              aria-label="Close panel"
+              aria-label={t('closePanel', 'Close panel')}
             >
               <X className="size-4" />
             </button>

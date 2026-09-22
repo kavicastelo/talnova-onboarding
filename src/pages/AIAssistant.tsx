@@ -31,8 +31,10 @@ import {
 import { useOrganizationCapabilities } from '../hooks/useOrganizationCapabilities';
 import { useRole } from '../context/RoleContext';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function AIAssistant() {
+  const { t } = useTranslation('kb');
   const navigate = useNavigate();
   const { role } = useRole();
   const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
@@ -67,7 +69,7 @@ export function AIAssistant() {
           }
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to generate AI response');
+          toast.error(err?.response?.data?.message || err?.message || t('assistant.errors.generateFailed', { defaultValue: 'Failed to generate AI response' }));
         },
       }
     );
@@ -84,7 +86,7 @@ export function AIAssistant() {
       },
       {
         onSuccess: () => {
-          toast.success('Thank you for rating this response!');
+          toast.success(t('assistant.feedbackSuccess', { defaultValue: 'Thank you for rating this response!' }));
         },
       }
     );
@@ -102,14 +104,14 @@ export function AIAssistant() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Bot className="h-7 w-7 text-indigo-600" />
-            AI Onboarding Assistant
+            {t('assistant.title', { defaultValue: 'AI Onboarding Assistant' })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Tenant-safe AI assistant answering onboarding questions using authorized company knowledge base articles.
+            {t('assistant.subtitle', { defaultValue: 'Tenant-safe AI assistant answering onboarding questions using authorized company knowledge base articles.' })}
           </p>
         </div>
         <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleNewChat}>
-          <Plus className="h-4 w-4 mr-2" /> New Conversation Thread
+          <Plus className="h-4 w-4 mr-2" /> {t('assistant.newChat', { defaultValue: 'New Conversation Thread' })}
         </Button>
       </div>
 
@@ -118,9 +120,9 @@ export function AIAssistant() {
           <div className="flex items-center gap-3">
             <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
             <div>
-              <span className="font-semibold text-foreground">AI Integration Required: </span>
+              <span className="font-semibold text-foreground">{t('assistant.banner.requiredLabel', { defaultValue: 'AI Integration Required: ' })}</span>
               <span className="text-muted-foreground">
-                {aiReason || 'Your organization administrator has not configured an AI provider yet.'}
+                {aiReason || t('assistant.banner.defaultReason', { defaultValue: 'Your organization administrator has not configured an AI provider yet.' })}
               </span>
             </div>
           </div>
@@ -131,11 +133,11 @@ export function AIAssistant() {
               className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              Configure AI Provider
+              {t('assistant.banner.configureBtn', { defaultValue: 'Configure AI Provider' })}
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground">
-              Please contact your workspace administrator to enable AI features.
+              {t('assistant.banner.contactAdmin', { defaultValue: 'Please contact your workspace administrator to enable AI features.' })}
             </span>
           )}
         </div>
@@ -147,7 +149,7 @@ export function AIAssistant() {
         <Card className="lg:col-span-1 flex flex-col overflow-hidden">
           <CardHeader className="p-4 border-b">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Chat History
+              {t('assistant.sidebar.title', { defaultValue: 'Chat History' })}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-2 flex-1 overflow-y-auto space-y-1">
@@ -158,7 +160,7 @@ export function AIAssistant() {
                 <Skeleton className="h-10" />
               </div>
             ) : (conversations || []).length === 0 ? (
-              <div className="text-xs text-muted-foreground p-4 text-center">No previous conversations.</div>
+              <div className="text-xs text-muted-foreground p-4 text-center">{t('assistant.sidebar.empty', { defaultValue: 'No previous conversations.' })}</div>
             ) : (
               conversations?.map((conv) => (
                 <button
@@ -188,31 +190,31 @@ export function AIAssistant() {
                   <Sparkles className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-foreground">How can I assist your onboarding today?</h3>
+                  <h3 className="font-bold text-base text-foreground">{t('assistant.emptyState.title', { defaultValue: 'How can I assist your onboarding today?' })}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Ask about company policies, required documents, or assigned learning journeys.
+                    {t('assistant.emptyState.subtitle', { defaultValue: 'Ask about company policies, required documents, or assigned learning journeys.' })}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 gap-2 w-full pt-2">
                   <button
-                    onClick={() => handleSendPrompt('What company policies do I need to read?')}
+                    onClick={() => handleSendPrompt(t('assistant.emptyState.prompts.policies', { defaultValue: 'What company policies do I need to read?' }))}
                     className="p-3 bg-card border rounded-lg text-xs text-left hover:border-indigo-600 transition-colors flex justify-between items-center"
                   >
-                    <span>What company policies do I need to read?</span>
+                    <span>{t('assistant.emptyState.prompts.policies', { defaultValue: 'What company policies do I need to read?' })}</span>
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                   <button
-                    onClick={() => handleSendPrompt('Who is my assigned onboarding buddy?')}
+                    onClick={() => handleSendPrompt(t('assistant.emptyState.prompts.buddy', { defaultValue: 'Who is my assigned onboarding buddy?' }))}
                     className="p-3 bg-card border rounded-lg text-xs text-left hover:border-indigo-600 transition-colors flex justify-between items-center"
                   >
-                    <span>Who is my assigned onboarding buddy?</span>
+                    <span>{t('assistant.emptyState.prompts.buddy', { defaultValue: 'Who is my assigned onboarding buddy?' })}</span>
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                   <button
-                    onClick={() => handleSendPrompt('How do I complete my pending tasks?')}
+                    onClick={() => handleSendPrompt(t('assistant.emptyState.prompts.tasks', { defaultValue: 'How do I complete my pending tasks?' }))}
                     className="p-3 bg-card border rounded-lg text-xs text-left hover:border-indigo-600 transition-colors flex justify-between items-center"
                   >
-                    <span>How do I complete my pending tasks?</span>
+                    <span>{t('assistant.emptyState.prompts.tasks', { defaultValue: 'How do I complete my pending tasks?' })}</span>
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </div>
@@ -243,15 +245,15 @@ export function AIAssistant() {
                     {msg.sender === 'assistant' && msg.content.includes("flagged this as missing company information") && (
                       <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 flex items-center gap-2 text-amber-700 dark:text-amber-400 text-[11px]" data-testid="ai-gap-badge">
                         <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-                        <span>Knowledge gap logged. Workspace administrators have been notified to add this company policy.</span>
+                        <span>{t('assistant.messages.gapNotice', { defaultValue: 'Knowledge gap logged. Workspace administrators have been notified to add this company policy.' })}</span>
                       </div>
                     )}
 
                     {/* Citations / References */}
                     {msg.citations && msg.citations.length > 0 && (
                       <div className="pt-2 border-t border-border/40 space-y-1.5">
-                        <span className="text-[11px] font-semibold text-muted-foreground block flex items-center gap-1">
-                          <BookOpen className="h-3.5 w-3.5 text-indigo-600" /> Source Citations:
+                        <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                          <BookOpen className="h-3.5 w-3.5 text-indigo-600" /> {t('assistant.messages.sourceCitations', { defaultValue: 'Source Citations:' })}
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {msg.citations.map((c, cIdx) => (
@@ -319,7 +321,7 @@ export function AIAssistant() {
                   <Bot className="h-4 w-4 animate-bounce" />
                 </div>
                 <div className="bg-card border p-3 rounded-xl text-muted-foreground animate-pulse">
-                  Synthesizing company knowledge response...
+                  {t('assistant.messages.synthesizing', { defaultValue: 'Synthesizing company knowledge response...' })}
                 </div>
               </div>
             )}
@@ -329,7 +331,7 @@ export function AIAssistant() {
           <div className="p-4 border-t bg-card flex gap-2 items-center">
             <Input
               data-testid="ai-prompt-input"
-              placeholder={isAIAvailable ? "Ask AI Onboarding Assistant a question..." : "AI integration required to send queries..."}
+              placeholder={isAIAvailable ? t('assistant.input.placeholderAvailable', { defaultValue: 'Ask AI Onboarding Assistant a question...' }) : t('assistant.input.placeholderDisabled', { defaultValue: 'AI integration required to send queries...' })}
               value={inputPrompt}
               onChange={(e: any) => setInputPrompt(e.target.value)}
               onKeyDown={(e: any) => isAIAvailable && e.key === 'Enter' && handleSendPrompt()}
@@ -342,7 +344,7 @@ export function AIAssistant() {
               onClick={() => handleSendPrompt()}
               disabled={!isAIAvailable || chatMutation.isPending || !inputPrompt.trim()}
             >
-              <Send className="h-4 w-4 mr-2" /> Send
+              <Send className="h-4 w-4 mr-2" /> {t('assistant.input.send', { defaultValue: 'Send' })}
             </Button>
           </div>
         </Card>

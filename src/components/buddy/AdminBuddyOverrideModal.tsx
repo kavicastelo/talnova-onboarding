@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Sliders,
   AlertTriangle,
@@ -58,6 +59,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
   availableBuddies,
   onConfirmOverride,
 }) => {
+  const { t } = useTranslation('buddy');
   const [selectedBuddyId, setSelectedBuddyId] = useState('');
   const [reason, setReason] = useState('');
   const [notifyParties, setNotifyParties] = useState(true);
@@ -74,12 +76,12 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
     setValidationError('');
 
     if (!selectedBuddyId) {
-      setValidationError('Please select a replacement mentor.');
+      setValidationError(t('overrideModal.selectMentorError', { defaultValue: 'Please select a replacement mentor.' }));
       return;
     }
 
     if (!reason.trim() || reason.trim().length < 8) {
-      setValidationError('Please provide a specific reason for manual partner reassignment (min 8 characters).');
+      setValidationError(t('overrideModal.reasonError', { defaultValue: 'Please provide a specific reason for manual partner reassignment (min 8 characters).' }));
       return;
     }
 
@@ -91,10 +93,10 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
         reason: reason.trim(),
         notifyParties,
       });
-      toast.success(`Buddy assignment updated for ${pairing.newHireName}`);
+      toast.success(t('overrideModal.successToast', { name: pairing.newHireName, defaultValue: `Buddy assignment updated for ${pairing.newHireName}` }));
       onClose();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update buddy assignment');
+      toast.error(err?.message || t('overrideModal.failToast', { defaultValue: 'Failed to update buddy assignment' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -110,10 +112,10 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-bold">
-                Manual Buddy Reassignment (HITL Override)
+                {t('overrideModal.title', { defaultValue: 'Manual Buddy Reassignment (HITL Override)' })}
               </DialogTitle>
               <DialogDescription>
-                Veto or customize algorithmic pairing when bespoke onboarding mentorship is required.
+                {t('overrideModal.desc', { defaultValue: 'Veto or customize algorithmic pairing when bespoke onboarding mentorship is required.' })}
               </DialogDescription>
             </div>
           </div>
@@ -125,27 +127,27 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
             <div className="p-4 rounded-xl border border-border/70 bg-muted/30 space-y-2.5 text-xs">
               <div className="flex items-center justify-between font-medium text-muted-foreground pb-2 border-b border-border/40">
                 <span className="flex items-center gap-1.5 font-semibold text-foreground">
-                  <Users className="h-3.5 w-3.5 text-primary" /> Active Pairing Context
+                  <Users className="h-3.5 w-3.5 text-primary" /> {t('overrideModal.contextHeading', { defaultValue: 'Active Pairing Context' })}
                 </span>
                 {pairing.matchScore !== undefined && (
                   <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[10px] gap-1">
-                    <Sparkles className="h-3 w-3" /> {pairing.matchScore}% Match
+                    <Sparkles className="h-3 w-3" /> {t('overrideModal.matchBadge', { score: pairing.matchScore, defaultValue: `${pairing.matchScore}% Match` })}
                   </Badge>
                 )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                 <div>
-                  <span className="text-muted-foreground block text-[11px]">Mentee (New Hire)</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('overrideModal.menteeLabel', { defaultValue: 'Mentee (New Hire)' })}</span>
                   <span className="font-semibold text-foreground text-sm flex items-center gap-1 mt-0.5">
                     <User className="h-3.5 w-3.5 text-muted-foreground" />
                     {pairing.newHireName}
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[11px]">Current Mentor</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('overrideModal.mentorLabel', { defaultValue: 'Current Mentor' })}</span>
                   <span className="font-medium text-foreground text-sm flex items-center gap-1 mt-0.5">
-                    {pairing.currentBuddyName || 'Algorithmic Queue / Unassigned'}
+                    {pairing.currentBuddyName || t('overrideModal.unassigned', { defaultValue: 'Algorithmic Queue / Unassigned' })}
                   </span>
                 </div>
               </div>
@@ -153,7 +155,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
               {pairing.department && (
                 <div className="flex items-center gap-1.5 text-muted-foreground pt-1 border-t border-border/30">
                   <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Department: <strong className="text-foreground">{pairing.department}</strong></span>
+                  <span>{t('overrideModal.departmentLabel', { defaultValue: 'Department:' })} <strong className="text-foreground">{pairing.department}</strong></span>
                 </div>
               )}
             </div>
@@ -161,14 +163,20 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
             {/* Replacement Mentor Selection */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                <span>Select Replacement Mentor <span className="text-destructive">*</span></span>
+                <span>{t('overrideModal.selectMentorLabel', { defaultValue: 'Select Replacement Mentor *' })}</span>
                 <span className="text-[11px] text-muted-foreground font-normal">
-                  {availableBuddies.length} available mentors
+                  {t('overrideModal.availableCount', { count: availableBuddies.length, defaultValue: `${availableBuddies.length} available mentors` })}
                 </span>
               </Label>
               <SearchableSelect
                 options={availableBuddies.map((b) => ({
-                  label: `${b.name} (${b.department || 'General'}) — [${b.currentMentees}/${b.maxMentees} active]`,
+                  label: t('overrideModal.activeMenteesOption', {
+                    name: b.name,
+                    department: b.department || 'General',
+                    current: b.currentMentees,
+                    max: b.maxMentees,
+                    defaultValue: `${b.name} (${b.department || 'General'}) — [${b.currentMentees}/${b.maxMentees} active]`
+                  }),
                   value: b.id,
                 }))}
                 value={selectedBuddyId}
@@ -176,8 +184,8 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
                   setSelectedBuddyId(val);
                   setValidationError('');
                 }}
-                placeholder="Search and choose mentor..."
-                searchPlaceholder="Search by mentor name or department..."
+                placeholder={t('overrideModal.selectPlaceholder', { defaultValue: 'Search and choose mentor...' })}
+                searchPlaceholder={t('overrideModal.selectSearchPlaceholder', { defaultValue: 'Search by mentor name or department...' })}
               />
             </div>
 
@@ -186,7 +194,13 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
               <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
-                  <strong>Capacity Warning:</strong> {selectedBuddy?.name} is currently mentoring {selectedBuddy?.currentMentees}/{selectedBuddy?.maxMentees} employees. As an administrator, you may override this capacity threshold.
+                  <strong>{t('overrideModal.capacityWarning', { defaultValue: 'Capacity Warning:' })}</strong>{' '}
+                  {t('overrideModal.capacityWarningDesc', {
+                    name: selectedBuddy?.name,
+                    current: selectedBuddy?.currentMentees,
+                    max: selectedBuddy?.maxMentees,
+                    defaultValue: `${selectedBuddy?.name} is currently mentoring ${selectedBuddy?.currentMentees}/${selectedBuddy?.maxMentees} employees. As an administrator, you may override this capacity threshold.`
+                  })}
                 </div>
               </div>
             )}
@@ -195,13 +209,13 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
                 <Label htmlFor="buddy-override-reason" className="text-xs font-semibold text-foreground">
-                  Reason for Manual Pairing <span className="text-destructive">*</span>
+                  {t('overrideModal.reasonLabel', { defaultValue: 'Reason for Manual Pairing *' })}
                 </Label>
                 <span className="text-[11px] text-muted-foreground font-mono">
                   {reason.trim().length >= 8 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Ready</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{t('overrideModal.ready', { defaultValue: 'Ready' })}</span>
                   ) : (
-                    <span>min 8 chars</span>
+                    <span>{t('overrideModal.minChars', { defaultValue: 'min 8 chars' })}</span>
                   )}
                 </span>
               </div>
@@ -213,7 +227,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
                   setReason(e.target.value);
                   setValidationError('');
                 }}
-                placeholder="e.g. Assigned dedicated bilingual mentor with Japanese/English fluency for overseas team transition..."
+                placeholder={t('overrideModal.reasonPlaceholder', { defaultValue: 'e.g. Assigned dedicated bilingual mentor with Japanese/English fluency for overseas team transition...' })}
                 className="w-full text-xs p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
               />
             </div>
@@ -228,7 +242,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
                 className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
               />
               <label htmlFor="notify-parties" className="text-xs text-muted-foreground cursor-pointer leading-relaxed">
-                Send warm introduction email notification and calendar 1-on-1 invitation to both parties.
+                {t('overrideModal.notifyLabel', { defaultValue: 'Send warm introduction email notification and calendar 1-on-1 invitation to both parties.' })}
               </label>
             </div>
 
@@ -242,7 +256,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
-              Cancel
+              {t('overrideModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               type="submit"
@@ -252,11 +266,11 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving Assignment...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('overrideModal.saving', { defaultValue: 'Saving Assignment...' })}
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Confirm Manual Pairing
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {t('overrideModal.confirmBtn', { defaultValue: 'Confirm Manual Pairing' })}
                 </>
               )}
             </Button>

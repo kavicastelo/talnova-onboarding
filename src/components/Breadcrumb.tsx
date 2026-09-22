@@ -1,17 +1,21 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight, Ellipsis } from 'lucide-react';
 import { cn } from './utils';
 
 export const Breadcrumb = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
-  ({ className, ...props }, ref) => (
-    <nav
-      ref={ref}
-      aria-label="breadcrumb"
-      data-slot="breadcrumb"
-      className={cn(className)}
-      {...props}
-    />
-  )
+  ({ className, ...props }, ref) => {
+    const { t } = useTranslation('common');
+    return (
+      <nav
+        ref={ref}
+        aria-label={props['aria-label'] || t('breadcrumb', 'Breadcrumb')}
+        data-slot="breadcrumb"
+        className={cn(className)}
+        {...props}
+      />
+    );
+  }
 );
 Breadcrumb.displayName = 'Breadcrumb';
 
@@ -91,18 +95,21 @@ export const BreadcrumbSeparator = ({ children, className, ...props }: Breadcrum
 BreadcrumbSeparator.displayName = 'BreadcrumbSeparator';
 
 export const BreadcrumbEllipsis = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>(
-  ({ className, ...props }, ref) => (
-    <span
-      ref={ref}
-      data-slot="breadcrumb-ellipsis"
-      role="presentation"
-      aria-hidden="true"
-      className={cn('flex size-5 items-center justify-center [&>svg]:size-4', className)}
-      {...props}
-    >
-      <Ellipsis />
-      <span className="sr-only">More</span>
-    </span>
-  )
+  ({ className, children, ...props }, ref) => {
+    const { t } = useTranslation('common');
+    return (
+      <span
+        ref={ref}
+        data-slot="breadcrumb-ellipsis"
+        role="presentation"
+        aria-hidden="true"
+        className={cn('flex size-5 items-center justify-center [&>svg]:size-4', className)}
+        {...props}
+      >
+        <Ellipsis />
+        <span className="sr-only">{children || t('more', 'More')}</span>
+      </span>
+    );
+  }
 );
 BreadcrumbEllipsis.displayName = 'BreadcrumbEllipsis';

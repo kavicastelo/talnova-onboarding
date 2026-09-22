@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../Card';
 import { Button } from '../Button';
 import { Input } from '../Input';
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export function AIIntegrationSettings() {
+  const { t } = useTranslation('settings');
   const { data: config, isLoading, refetch } = useIntegrationConfig('ai');
   const saveMut = useSaveIntegration('ai');
   const testMut = useTestIntegration('ai');
@@ -123,11 +125,11 @@ export function AIIntegrationSettings() {
       {
         onSuccess: () => {
           setApiKey(''); // Clear input secret after save
-          toast.success('AI configuration saved successfully!');
+          toast.success(t('ai.toasts.saved', 'AI configuration saved successfully!'));
           refetch();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || 'Failed to save configuration.');
+          toast.error(err?.response?.data?.message || t('ai.toasts.saveFailed', 'Failed to save configuration.'));
         },
       }
     );
@@ -138,7 +140,7 @@ export function AIIntegrationSettings() {
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-500" />
-          Loading AI integration settings...
+          {t('ai.loading', 'Loading AI integration settings...')}
         </CardContent>
       </Card>
     );
@@ -154,7 +156,7 @@ export function AIIntegrationSettings() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-indigo-500" />
-                <CardTitle>AI & Automation Configuration</CardTitle>
+                <CardTitle>{t('ai.title', 'AI & Automation Configuration')}</CardTitle>
                 <Badge
                   variant={
                     status === 'valid'
@@ -167,21 +169,20 @@ export function AIIntegrationSettings() {
                   }
                 >
                   {status === 'valid'
-                    ? 'Verified & Operational'
+                    ? t('ai.status.valid', 'Verified & Operational')
                     : status === 'configured'
-                    ? 'Configured (Untested)'
+                    ? t('ai.status.configured', 'Configured (Untested)')
                     : status === 'invalid'
-                    ? 'Connection Error'
-                    : 'Not Configured'}
+                    ? t('ai.status.invalid', 'Connection Error')
+                    : t('ai.status.notConfigured', 'Not Configured')}
                 </Badge>
               </div>
               <CardDescription>
-                Configure the LLM provider for your organization. Dependent application features will
-                consume this integration securely.
+                {t('ai.description', 'Configure the LLM provider for your organization. Dependent application features will consume this integration securely.')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium">Integration Enabled</span>
+              <span className="text-xs text-muted-foreground font-medium">{t('ai.enabled', 'Integration Enabled')}</span>
               <button
                 type="button"
                 onClick={() => setEnabled(!enabled)}
@@ -231,7 +232,7 @@ export function AIIntegrationSettings() {
 
           {/* Provider Selection */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">AI Provider</label>
+            <label className="text-sm font-medium">{t('ai.providerLabel', 'AI Provider')}</label>
             <select
               value={provider}
               onChange={(e) => handleProviderChange(e.target.value)}
@@ -248,7 +249,7 @@ export function AIIntegrationSettings() {
           {/* Model / Deployment */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Model Configuration</label>
+              <label className="text-sm font-medium">{t('ai.modelConfigLabel', 'Model Configuration')}</label>
               {/* Preset Chips */}
               <div className="flex flex-wrap gap-1.5">
                 {(provider === 'gemini'
@@ -277,7 +278,7 @@ export function AIIntegrationSettings() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Model Identifier (or Custom Model)</label>
+                <label className="text-xs text-muted-foreground">{t('ai.modelIdentifier', 'Model Identifier (or Custom Model)')}</label>
                 <Input
                   value={model}
                   onChange={(e: any) => setModel(e.target.value)}
@@ -296,7 +297,7 @@ export function AIIntegrationSettings() {
               {(provider === 'custom' || provider === 'azure_openai') && (
                 <div className="space-y-1.5">
                   <label className="text-xs text-muted-foreground">
-                    {provider === 'azure_openai' ? 'Azure Resource URL' : 'Custom Base API Endpoint'}
+                    {provider === 'azure_openai' ? t('ai.azureResourceUrl', 'Azure Resource URL') : t('ai.customEndpoint', 'Custom Base API Endpoint')}
                   </label>
                   <Input
                     value={endpoint}
@@ -317,7 +318,7 @@ export function AIIntegrationSettings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-muted/20">
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs">
-                <span className="font-medium">Creativity / Temperature</span>
+                <span className="font-medium">{t('ai.temperature', 'Creativity / Temperature')}</span>
                 <span className="font-mono text-muted-foreground font-semibold">{temperature.toFixed(2)}</span>
               </div>
               <input
@@ -330,14 +331,14 @@ export function AIIntegrationSettings() {
                 className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>0.0 (Strict / Factual)</span>
-                <span>1.0 (Creative)</span>
+                <span>{t('ai.temperatureStrict', '0.0 (Strict / Factual)')}</span>
+                <span>{t('ai.temperatureCreative', '1.0 (Creative)')}</span>
               </div>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs">
-                <span className="font-medium">Max Output Tokens</span>
+                <span className="font-medium">{t('ai.maxTokens', 'Max Output Tokens')}</span>
                 <span className="font-mono text-muted-foreground font-semibold">{maxTokens} tokens</span>
               </div>
               <select
@@ -351,14 +352,14 @@ export function AIIntegrationSettings() {
                 <option value={2048}>2048 tokens (~1500 words)</option>
                 <option value={4096}>4096 tokens (~3000 words)</option>
               </select>
-              <p className="text-[10px] text-muted-foreground">Upper token limit per generated lesson, quiz, or chatbot response.</p>
+              <p className="text-[10px] text-muted-foreground">{t('ai.maxTokensDesc', 'Upper token limit per generated lesson, quiz, or chatbot response.')}</p>
             </div>
           </div>
 
           {/* API Key / Secrets */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">API Secret Key</label>
+              <label className="text-sm font-medium">{t('ai.apiKeyLabel', 'API Secret Key')}</label>
               {config?.hasSecret && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />

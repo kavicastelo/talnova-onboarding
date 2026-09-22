@@ -72,7 +72,7 @@ export function JourneysList() {
     setModals({
       type: 'duplicate',
       journeyId: id,
-      inputValue: `${title} (Copy)`
+      inputValue: `${title} (${t('list.copySuffix')})`
     });
   };
 
@@ -89,11 +89,11 @@ export function JourneysList() {
         { id: modals.journeyId, title: modals.inputValue },
         {
           onSuccess: () => {
-            toast.success('Journey duplicated successfully');
+            toast.success(t('list.toasts.duplicateSuccess'));
             setModals({ type: null });
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to duplicate journey');
+            toast.error(err?.message || t('list.toasts.duplicateFailed'));
           }
         }
       );
@@ -106,11 +106,11 @@ export function JourneysList() {
         { id: modals.journeyId, journey: { status: 'Archived' } },
         {
           onSuccess: () => {
-            toast.success('Journey archived successfully');
+            toast.success(t('list.toasts.archiveSuccess'));
             setModals({ type: null });
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to archive journey');
+            toast.error(err?.message || t('list.toasts.archiveFailed'));
           }
         }
       );
@@ -208,7 +208,7 @@ export function JourneysList() {
   };
 
   const handleConfirmOverride = async (params: { targetJourneyId: string; reason: string; grandfatherArtifacts: boolean }) => {
-    toast.success(`Manual override applied: reassigned to ${journeys.find(j => j.id === params.targetJourneyId)?.title || 'selected journey'}`);
+    toast.success(t('list.toasts.overrideSuccess', { title: journeys.find(j => j.id === params.targetJourneyId)?.title || 'selected journey' }));
   };
 
   return (
@@ -216,12 +216,12 @@ export function JourneysList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            {canCreate ? t('list.title') : 'My Onboarding Journeys'}
+            {canCreate ? t('list.title') : t('list.myJourneysTitle')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {canCreate
-              ? 'Manage and track employee onboarding paths, stage gates, and autonomous assignments.'
-              : 'Track and complete your assigned onboarding paths.'}
+              ? t('list.subtitleAdmin')
+              : t('list.subtitleEmployee')}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -236,7 +236,7 @@ export function JourneysList() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Journey Templates
+                {t('list.tabs.templates')}
               </button>
               <button
                 type="button"
@@ -248,7 +248,7 @@ export function JourneysList() {
                 }`}
               >
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Autonomous Routing
+                {t('list.tabs.autonomous')}
               </button>
             </div>
           )}
@@ -318,10 +318,10 @@ export function JourneysList() {
                 <TableCell colSpan={canCreate ? 6 : 3} className="h-32 text-center">
                   <div className="flex flex-col items-center justify-center gap-2 text-destructive">
                     <AlertCircle className="h-8 w-8" />
-                    <p className="font-semibold">Failed to load journeys</p>
-                    <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
+                    <p className="font-semibold">{t('list.error.title')}</p>
+                    <p className="text-xs text-muted-foreground">{(error as any)?.message || t('list.error.default')}</p>
                     <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
-                      <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
+                      <RefreshCw className="mr-2 h-3.5 w-3.5" /> {t('list.error.retry')}
                     </Button>
                   </div>
                 </TableCell>
@@ -370,13 +370,13 @@ export function JourneysList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => navigate(`/journeys/${journey.id}`)}>
-                            Edit
+                            {t('list.actions.edit')}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicateClick(journey.id, journey.title)}>
-                            Duplicate
+                            {t('list.actions.duplicate')}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => handleArchiveClick(journey.id)}>
-                            Archive
+                            {t('list.actions.archive')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -399,7 +399,7 @@ export function JourneysList() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              itemLabel="journeys"
+              itemLabel={t('list.itemLabel')}
             />
           </div>
         )}
@@ -418,16 +418,16 @@ export function JourneysList() {
       <Dialog open={modals.type === 'duplicate'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Duplicate Journey</DialogTitle>
+            <DialogTitle>{t('list.duplicateModal.title')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">New Title</label>
+              <label className="text-sm font-medium">{t('list.duplicateModal.newTitle')}</label>
               <Input
                 value={modals.inputValue || ''}
                 onChange={(e: any) => setModals({ ...modals, inputValue: e.target.value })}
-                placeholder="e.g. Engineering Onboarding (Copy)"
+                placeholder={t('list.duplicateModal.placeholder')}
                 autoFocus
                 onKeyDown={(e: any) => {
                   if (e.key === 'Enter' && modals.inputValue) {
@@ -439,12 +439,12 @@ export function JourneysList() {
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>{t('list.duplicateModal.cancel')}</Button>
             <Button
               onClick={handleConfirmDuplicate}
               disabled={!modals.inputValue || duplicateJourney.isPending}
             >
-              {duplicateJourney.isPending ? 'Duplicating...' : 'Duplicate'}
+              {duplicateJourney.isPending ? t('list.duplicateModal.duplicating') : t('list.duplicateModal.duplicateBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -453,21 +453,21 @@ export function JourneysList() {
       <Dialog open={modals.type === 'archive'} onOpenChange={(open: boolean) => !open && setModals({ type: null })}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Archive Journey</DialogTitle>
+            <DialogTitle>{t('list.archiveModal.title')}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="text-sm text-muted-foreground">
-            Are you sure you want to archive this journey? Enrolled employees will no longer be able to access it.
+            {t('list.archiveModal.description')}
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModals({ type: null })}>Cancel</Button>
+            <Button variant="outline" onClick={() => setModals({ type: null })}>{t('list.archiveModal.cancel')}</Button>
             <Button
               variant="destructive"
               onClick={handleConfirmArchive}
               disabled={updateJourney.isPending}
             >
-              {updateJourney.isPending ? 'Archiving...' : 'Archive'}
+              {updateJourney.isPending ? t('list.archiveModal.archiving') : t('list.archiveModal.archiveBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,8 +1,15 @@
 {
   "list": {
     "title": "Onboarding Journeys",
+    "myJourneysTitle": "My Onboarding Journeys",
+    "subtitleAdmin": "Manage and track employee onboarding paths, stage gates, and autonomous assignments.",
+    "subtitleEmployee": "Track and complete your assigned onboarding paths.",
     "createNew": "Create Journey",
     "searchPlaceholder": "Search journeys…",
+    "tabs": {
+      "templates": "Journey Templates",
+      "autonomous": "Autonomous Routing"
+    },
     "columns": {
       "title": "Title",
       "status": "Status",
@@ -11,11 +18,45 @@
       "lastUpdated": "Last Updated",
       "actions": "Actions"
     },
+    "actions": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "archive": "Archive"
+    },
+    "copySuffix": "Copy",
+    "itemLabel": "journeys",
     "empty": "No journeys found. Create your first onboarding journey.",
     "filterAll": "All",
     "filterActive": "Active",
     "filterDraft": "Draft",
-    "filterArchived": "Archived"
+    "filterArchived": "Archived",
+    "error": {
+      "title": "Failed to load journeys",
+      "default": "An error occurred.",
+      "retry": "Retry"
+    },
+    "duplicateModal": {
+      "title": "Duplicate Journey",
+      "newTitle": "New Title",
+      "placeholder": "e.g. Engineering Onboarding (Copy)",
+      "cancel": "Cancel",
+      "duplicating": "Duplicating...",
+      "duplicateBtn": "Duplicate"
+    },
+    "archiveModal": {
+      "title": "Archive Journey",
+      "description": "Are you sure you want to archive this journey? Enrolled employees will no longer be able to access it.",
+      "cancel": "Cancel",
+      "archiving": "Archiving...",
+      "archiveBtn": "Archive"
+    },
+    "toasts": {
+      "duplicateSuccess": "Journey duplicated successfully",
+      "duplicateFailed": "Failed to duplicate journey",
+      "archiveSuccess": "Journey archived successfully",
+      "archiveFailed": "Failed to archive journey",
+      "overrideSuccess": "Manual override applied: reassigned to {{title}}"
+    }
   },
   "builder": {
     "title": "Journey Builder",
@@ -26,6 +67,477 @@
     "saveDraft": "Save as Draft",
     "unsavedWarning": "You have unsaved changes.",
     "publishSuccess": "Journey published successfully.",
-    "saveSuccess": "Journey saved."
+    "saveSuccess": "Journey saved.",
+    "header": {
+      "newJourneyFallback": "New Journey",
+      "defaultTitleFallback": "Engineering Onboarding",
+      "statusActive": "Active",
+      "statusDraft": "Draft",
+      "unsavedChanges": "● Unsaved changes",
+      "notSavedYet": "Not saved yet",
+      "draftSaved": "✓ Draft saved",
+      "saveDraft": "Save Draft",
+      "savingDraft": "Saving...",
+      "publishJourney": "Publish Journey",
+      "publishing": "Publishing...",
+      "finish": "Finish",
+      "finishExit": "Finish & Exit",
+      "saveAndNext": "Save & Next",
+      "saveAndPublish": "Save & Publish Journey",
+      "backTooltip": "Back to Journeys"
+    },
+    "tabs": {
+      "settings": "1. Settings",
+      "builder": "2. Builder",
+      "assignments": "3. Assignments"
+    },
+    "settingsTab": {
+      "title": "Journey Settings",
+      "generalTitle": "General Details",
+      "journeyTitleLabel": "Journey Title",
+      "descriptionLabel": "Description",
+      "categoryLabel": "Category",
+      "categoryPlaceholder": "Select Category",
+      "categorySearchPlaceholder": "Search category...",
+      "rulesTitle": "Learning Rules & Constraints",
+      "sequentialTitle": "Require Sequential Completion",
+      "sequentialDesc": "Employees must complete lessons in order.",
+      "skipTitle": "Allow Skipping Lessons",
+      "skipDesc": "Allows users to skip lessons without marking them completed.",
+      "retakesTitle": "Allow Retakes",
+      "retakesDesc": "Allows users to retake quizzes multiple times.",
+      "maxRetakesLabel": "Max Retakes Allowed",
+      "certificateTitle": "Certificate Settings",
+      "awardCertificateTitle": "Award Certificate upon Completion",
+      "awardCertificateDesc": "Generate a certified credential once all modules are finished.",
+      "passingScoreLabel": "Passing Score Requirement (%)",
+      "saveDraftBtn": "Save Draft",
+      "saveNextBtn": "Save & Next"
+    },
+    "curriculum": {
+      "outlineTitle": "Curriculum",
+      "emptyOutline": "Add your first module to get started building curriculum.",
+      "addModuleTooltip": "Add Module",
+      "addLessonTooltip": "Add Lesson",
+      "removeModuleTooltip": "Remove Module",
+      "removeLessonTooltip": "Remove Lesson",
+      "backToCurriculum": "Back to Curriculum",
+      "lessonSubheader": "{{type}} Lesson • {{duration}}",
+      "selectLessonPrompt": "Select a lesson in the curriculum sidebar to edit content.",
+      "lessonTypes": {
+        "article": "Article",
+        "video": "Video",
+        "quiz": "Quiz",
+        "pdf": "PDF Document",
+        "document": "MS Office Document (Word/Excel)",
+        "audio": "Audio Player",
+        "image": "Image Viewer",
+        "task": "Task Checkoff"
+      },
+      "videoEditor": {
+        "title": "Video Source",
+        "uploadTitle": "Upload Video File",
+        "uploadDesc": "Upload an MP4, WebM or Ogg video file.",
+        "chooseFile": "Choose File",
+        "uploadingPercent": "Uploading ({{percent}}%)",
+        "embedTitle": "Embed Video URL",
+        "embedDesc": "Paste a YouTube, Vimeo, or raw MP4 URL.",
+        "embedPlaceholder": "https://example.com/video.mp4",
+        "previewTitle": "Video Preview"
+      },
+      "articleEditor": {
+        "editTab": "Edit",
+        "previewTab": "Preview",
+        "bold": "Bold",
+        "italic": "Italic",
+        "header": "Header",
+        "code": "Code",
+        "list": "List",
+        "uploadMedia": "Upload Image/File",
+        "markdownPlaceholder": "Write your content here in Markdown format...",
+        "emptyMarkdown": "No content written yet. Use the editor to add text."
+      },
+      "fileEditor": {
+        "sourceTitle": "{{type}} File Source",
+        "uploadTitle": "Upload File",
+        "uploadPdfDesc": "Upload a PDF document.",
+        "uploadDocDesc": "Upload a Word, Excel or PowerPoint document.",
+        "uploadAudioDesc": "Upload an MP3, WAV or M4A audio file.",
+        "uploadImageDesc": "Upload an PNG, JPG, JPEG or SVG image.",
+        "chooseFile": "Choose File",
+        "uploadingPercent": "Uploading ({{percent}}%)",
+        "urlTitle": "File URL",
+        "urlDesc": "Or paste a public link to the file.",
+        "urlPlaceholder": "https://example.com/file",
+        "previewTitle": "Preview / Current Link",
+        "openNewTab": "Open in New Tab",
+        "pdfLivePreview": "PDF Document Live Preview",
+        "fullScreen": "Full Screen"
+      },
+      "quizEditor": {
+        "title": "Quiz Questions",
+        "desc": "Add multiple choice questions for your employees.",
+        "addQuestion": "Add Question",
+        "emptyQuestions": "No questions added yet. Click \"Add Question\" to begin.",
+        "questionNumber": "Question {{number}}",
+        "typeLabel": "Type:",
+        "types": {
+          "singleChoice": "Single Choice",
+          "multipleChoice": "Multiple Choice",
+          "trueFalse": "True / False"
+        },
+        "pointsLabel": "Points:",
+        "removeQuestion": "Remove Question",
+        "questionTextLabel": "Question Text",
+        "questionPlaceholder": "e.g. What is our core customer value proposition?",
+        "optionsLabel": "Options",
+        "multipleChoiceHint": "Select correct answer(s) using checkboxes",
+        "singleChoiceHint": "Select correct answer using radio buttons",
+        "trueFalseHint": "Select correct answer (True or False)",
+        "optionPlaceholder": "Option {{number}}",
+        "addOption": "Add Option"
+      },
+      "lessonSidebar": {
+        "title": "Lesson Settings",
+        "estimatedTime": "Estimated Time",
+        "minutesLabel": "minutes",
+        "completionRule": "Completion Rule",
+        "completionRules": {
+          "video": "Watch 90% of video",
+          "button": "Click complete button",
+          "quiz": "Pass attached quiz"
+        },
+        "lessonDescLabel": "Lesson Description",
+        "lessonDescPlaceholder": "Add a brief summary or transcript for this lesson..."
+      }
+    },
+    "assignmentsTab": {
+      "draftWarningTitle": "Publishing Required",
+      "draftWarningDesc": "This journey is currently a Draft. Employees cannot view or self-assign draft journeys. You must Publish this journey first to activate public access or assignment tracking.",
+      "visibility": {
+        "title": "Access Visibility",
+        "publicTitle": "Public Access",
+        "publicDesc": "Any organization member can find and self-enroll in this journey from their dashboard.",
+        "restrictedTitle": "Restricted",
+        "restrictedDesc": "Only employees specifically targeted/assigned by an admin can access this journey.",
+        "activeBadge": "Active"
+      },
+      "bulk": {
+        "title": "Bulk Target Employee Assignment",
+        "desc": "Search, filter by department, select multiple employees, and assign this journey at scale (supports 10,000+ employees).",
+        "assignSelectedBtn": "Assign {{count}} Selected {{label}}",
+        "employeeSingle": "Employee",
+        "employeePlural": "Employees",
+        "searchPlaceholder": "Search employees by name, email, department...",
+        "allDepartments": "All Departments",
+        "searchDeptPlaceholder": "Search department...",
+        "pageSizeOption": "{{size}} per page",
+        "selectPage": "Select Page ({{count}})",
+        "selectAllMatched": "Select All Matched ({{count}})",
+        "clearSelection": "Clear Selection",
+        "selectedCount": "{{count}} selected",
+        "tableHeaders": {
+          "employee": "Employee",
+          "department": "Department",
+          "role": "Role",
+          "status": "Status"
+        },
+        "noEmployeesFound": "No employees found matching the search criteria.",
+        "assignedBadge": "Assigned",
+        "availableBadge": "Available",
+        "itemLabel": "employees"
+      },
+      "enrollments": {
+        "titlePublic": "Enrollments & Progress",
+        "titleRestricted": "Assigned Employees",
+        "personCount": "{{count}} person",
+        "personCount_other": "{{count}} people",
+        "emptyTitle": "No active progress logs yet.",
+        "emptyPublicDesc": "Public journeys show progress logs here once employees enroll and start learning.",
+        "emptyRestrictedDesc": "Assign this journey to employees above to start tracking their progress.",
+        "tableHeaders": {
+          "employee": "Employee",
+          "status": "Status",
+          "progress": "Progress",
+          "assignedDate": "Assigned Date",
+          "actions": "Actions"
+        },
+        "statusCompleted": "Completed",
+        "statusInProgress": "In Progress",
+        "statusAssigned": "Assigned",
+        "statusOverdue": "Overdue",
+        "issuedBadge": "Issued",
+        "viewCertificate": "View",
+        "issueCertificateBtn": "Issue Certificate",
+        "issuingCertificate": "Issuing...",
+        "itemLabel": "assignments",
+        "prevBuilderBtn": "Previous: Builder",
+        "savePublishBtn": "Save & Publish Journey",
+        "finishExitBtn": "Finish & Exit"
+      }
+    },
+    "modals": {
+      "addModule": {
+        "title": "Add Module",
+        "label": "Module Title",
+        "placeholder": "e.g. Getting Started",
+        "cancel": "Cancel",
+        "confirm": "Add Module"
+      },
+      "addLesson": {
+        "title": "Add Lesson",
+        "titleLabel": "Lesson Title",
+        "titlePlaceholder": "e.g. Introduction to Git",
+        "typeLabel": "Lesson Type",
+        "cancel": "Cancel",
+        "confirm": "Add Lesson"
+      },
+      "confirmDelete": {
+        "title": "Confirm Deletion",
+        "moduleDesc": "Are you sure you want to remove this module and all of its lessons? This action cannot be undone.",
+        "lessonDesc": "Are you sure you want to remove this lesson? This action cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      },
+      "unsavedChanges": {
+        "title": "Unsaved Changes",
+        "desc": "You have unsaved changes in this journey. If you leave now, your progress will be lost. Are you sure you want to discard changes and leave?",
+        "stay": "Stay",
+        "discard": "Discard & Leave"
+      }
+    },
+    "error": {
+      "title": "Failed to Load Journey Builder",
+      "fallback": "The requested journey details could not be retrieved.",
+      "retry": "Retry"
+    },
+    "toasts": {
+      "draftSaved": "Journey draft saved!",
+      "draftSavedSuccess": "Draft saved successfully!",
+      "publishedSuccess": "Journey published successfully!",
+      "publishFailed": "Failed to publish journey.",
+      "fileUploaded": "File uploaded successfully!",
+      "uploadFailed": "Failed to upload file.",
+      "accessUpdated": "Access policy updated to {{policy}}.",
+      "accessUpdateFailed": "Failed to update access policy.",
+      "policyPublic": "Public",
+      "policyRestricted": "Restricted",
+      "selectEmployeeRequired": "Please select at least one employee.",
+      "saveJourneyFirst": "Please save the journey first.",
+      "bulkAssignedSuccess": "Successfully assigned journey to {{count}} employees!",
+      "bulkAssignFailed": "Failed to assign journey in bulk.",
+      "certificateIssuedSuccess": "Certificate issued successfully!",
+      "certificateIssueFailed": "Failed to issue certificate"
+    }
+  },
+  "aiBuilder": {
+    "title": "AI Course & Journey Builder",
+    "subtitle": "Generate full onboarding curriculum, lesson content, and quizzes grounded in company knowledge with 1-click human review approval.",
+    "banner": {
+      "blockedLabel": "Course Synthesis Blocked: ",
+      "defaultReason": "An AI provider integration must be configured for your organization before courses can be synthesized.",
+      "configureBtn": "Configure AI in Settings",
+      "contactAdmin": "Please contact your administrator to configure an AI provider."
+    },
+    "generator": {
+      "cardTitle": "AI Onboarding Curriculum Generator",
+      "cardDesc": "Enter a role, topic, or upload a policy document to synthesize a structured learning course.",
+      "topicLabel": "Onboarding Topic, Policy Document, or Prompt",
+      "attachedFile": "Attached: {{name}}",
+      "uploadFile": "Upload Policy File",
+      "promptPlaceholder": "e.g. Enterprise Data Privacy & GDPR Guidelines for 2026",
+      "targetRole": "Target Role",
+      "rolePlaceholder": "e.g. All Employees",
+      "department": "Department",
+      "deptPlaceholder": "e.g. Compliance",
+      "courseLevel": "Course Level",
+      "levels": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      },
+      "modules": "Modules",
+      "moduleOption": "{{count}} Modules",
+      "btnBlocked": "AI Configuration Required to Generate Course",
+      "btnSynthesizing": "Synthesizing Course & Quizzes...",
+      "btnGenerate": "Generate Course Draft"
+    },
+    "editor": {
+      "title": "Course Draft Preview & Editor",
+      "subtitle": "Review generated syllabus, edit module titles, and save the course directly to the LMS.",
+      "savingToLMS": "Saving Course...",
+      "saveToLMS": "Save Course to LMS",
+      "approveAndPublish": "Approve & Publish",
+      "modulesGenerated": "{{count}} Modules Generated",
+      "moduleIndex": "Module {{index}}:",
+      "saveModuleTitle": "Save",
+      "editModuleTitle": "Edit Module Title",
+      "regenerateBtn": "Regenerate",
+      "minsDuration": "{{minutes}} mins",
+      "quizAssessment": "Quiz Assessment ({{count}} Questions):",
+      "correctOption": "✓ (Correct)"
+    },
+    "queue": {
+      "title": "All Course Drafts Queue",
+      "empty": "No previous course drafts found.",
+      "modulesBadge": "{{count}} Modules"
+    },
+    "toasts": {
+      "attachedDoc": "Attached document: {{name}}",
+      "promptRequired": "Please enter a course prompt or upload a policy document.",
+      "generatedSuccess": "AI generated course draft \"{{title}}\"!",
+      "generateFailed": "Failed to generate AI course draft",
+      "moduleTitleUpdated": "Module {{index}} title updated to \"{{title}}\"",
+      "noDraftToSave": "No course draft available to save",
+      "courseSavedSuccess": "Course saved successfully",
+      "saveCourseFailed": "Failed to save course to LMS",
+      "publishedSuccess": "Course draft published to live Journeys!",
+      "publishFailed": "Failed to publish draft to journeys",
+      "moduleRegenerated": "Module content regenerated with AI!",
+      "draftDeleted": "Course draft deleted."
+    }
+  },
+  "certificates": {
+    "title": "My Certificates",
+    "subtitle": "View, download, and share verified digital credentials for onboarding journeys you completed.",
+    "verifiedCredential": "Verified Credential",
+    "issuedDate": "Issued: {{date}}",
+    "na": "N/A",
+    "credentialId": "Credential ID:",
+    "viewAndDownload": "View & Download Certificate",
+    "verifyPublicLink": "Verify Public Link",
+    "copyLink": "Copy Link",
+    "shareLinkedIn": "Share on LinkedIn",
+    "itemLabel": "certificates",
+    "fallbackJourneyTitle": "Employee Onboarding Journey",
+    "error": {
+      "title": "Failed to Load Certificates",
+      "desc": "Your certificates could not be loaded.",
+      "retry": "Retry"
+    },
+    "empty": {
+      "title": "No Certificates Found",
+      "desc": "Finish any of your assigned training or onboarding journeys to receive a verified completion certificate.",
+      "goToDashboard": "Go to Dashboard"
+    },
+    "modal": {
+      "title": "View Certificate",
+      "fallbackRecipient": "Jane Doe",
+      "fallbackJourney": "General Onboarding",
+      "fallbackOrg": "Talnova",
+      "close": "Close",
+      "downloadPrint": "Download / Print Certificate"
+    },
+    "toasts": {
+      "linkedInOpened": "LinkedIn sharing link opened!",
+      "copiedLink": "Certificate link copied to clipboard!"
+    },
+    "publicViewer": {
+      "verifying": "Verifying digital credential...",
+      "invalidTitle": "Invalid or Revoked Credential",
+      "invalidDesc": "The requested certificate could not be found, or it may have been revoked by the issuing organization.",
+      "goToOnboarding": "Go to Talnova Onboarding",
+      "verifiedAuthentic": "Verified Authentic Credential",
+      "printLocalCopy": "Share / Print Local Copy",
+      "notFound": "No certificates found"
+    }
+  },
+  "viewer": {
+    "translating": "Translating...",
+    "complianceGateWarning": "Mandatory compliance documents must be signed before accessing LMS courses.",
+    "complianceGateLessonWarning": "Mandatory compliance documents must be signed before completing lessons.",
+    "complianceGateQuizWarning": "Mandatory compliance documents must be signed before submitting quizzes.",
+    "complianceBanner": {
+      "title": "Compliance Prerequisite Active:",
+      "desc": "You have {{count}} unsigned compliance agreement(s) required by enterprise policy before completing lessons.",
+      "signBtn": "Sign Required Document"
+    },
+    "offlineSync": {
+      "reconnecting": "Reconnecting to network...",
+      "syncedCount": "Online: Synchronized {{count}} lesson(s) to server.",
+      "markedOffline": "Offline: Lesson marked as complete. Saved to IndexedDB offline queue.",
+      "savedOfflineQueue": "Saved to IndexedDB offline queue. Progress will sync when connection is restored.",
+      "offlineToggle": "⚡ Offline (Click to Sync Online)",
+      "onlineToggle": "📶 Online (Click to Toggle Offline)",
+      "toggleTitle": "Toggle PWA network offline/online simulation",
+      "offlineSimulated": "Network set to Offline mode (DevTools Offline)."
+    },
+    "toasts": {
+      "lessonCompletedAuto": "Lesson completed automatically!",
+      "moduleNotFound": "Module context not found.",
+      "quizPassed": "Congratulations! You passed the quiz with a score of {{score}}%!",
+      "quizFailed": "You scored {{score}}%, which is below the passing score of {{passingScore}}%.",
+      "quizSubmitFailed": "Failed to submit quiz.",
+      "updateCompletionFailed": "Failed to update lesson completion"
+    },
+    "error": {
+      "title": "Failed to Load Course",
+      "desc": "The course curriculum is not available.",
+      "retry": "Retry"
+    },
+    "sidebar": {
+      "dashboard": "Dashboard",
+      "collapse": "Collapse Sidebar",
+      "show": "Show Sidebar"
+    },
+    "nav": {
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "lessonTypes": {
+      "audioLesson": "Audio Lesson",
+      "audioPlayback": "Audio Playback",
+      "pdfReader": "PDF Reader",
+      "openPdf": "Open PDF",
+      "attachedDoc": "Attached Document",
+      "docAttachment": "Word/Excel/Powerpoint Attachment",
+      "downloadFile": "Download File",
+      "checklistTasks": "Checklist Tasks",
+      "pdfViewer": "PDF Document Viewer",
+      "noPdf": "No PDF document attached to this lesson."
+    },
+    "video": {
+      "requirementMet": "✓ 90% video duration watched. You can now complete the lesson.",
+      "requirementPending": "Watch at least 90% of the video to enable completion ({{percent}}% watched)",
+      "simulateWatch": "(Simulate 95% Watched)",
+      "simulateWatchTitle": "Simulate 95% video watched"
+    },
+    "completion": {
+      "completed": "Completed",
+      "markAsComplete": "Mark as Complete"
+    },
+    "quiz": {
+      "passedTitle": "Assessment Passed!",
+      "resultsTitle": "Quiz Evaluation Results",
+      "passedDesc": "Congratulations! You passed the assessment requirements.",
+      "failedDesc": "You did not score enough to pass the assessment this time.",
+      "yourScore": "Your Score",
+      "passingScore": "Passing Score",
+      "attemptNo": "Attempt No",
+      "completedBadge": "Completed",
+      "verificationIncomplete": "Verification Incomplete",
+      "returnRoadmap": "Return to Roadmap",
+      "retakeQuiz": "Retake Quiz",
+      "retryQuiz": "Retry Quiz",
+      "assessmentTitle": "Lesson Assessment",
+      "assessmentInstructions": "Answer the questions below to verify your learning. You need at least {{passingScore}}% to pass.",
+      "singleChoice": "Select single choice option",
+      "trueFalse": "Select True or False",
+      "multipleChoice": "Multiple choices allowed",
+      "points": "{{points}} points",
+      "submitAssessment": "Submit Assessment"
+    },
+    "emptyLesson": "Select a topic to start learning.",
+    "noContent": "No content written yet."
+  },
+  "override": {
+    "employeeLabel": "Employee",
+    "activeJourney": "Active Journey",
+    "selectJourneyPlaceholder": "Search and choose journey template...",
+    "reasonPlaceholder": "e.g. Cross-department internal transfer to Engineering branch requiring customized technical roadmap and local statutory verification..."
+  },
+  "visualizer": {
+    "journeyVelocity": "Journey Velocity",
+    "state": "State: {{state}}"
   }
 }

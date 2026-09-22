@@ -32,6 +32,7 @@ import { autoDetectColumnMapping, CANONICAL_EMPLOYEE_FIELDS } from '../../utils/
 import { employeeService } from '../../services/employee.service';
 import { useOrganizationCapabilities } from '../../hooks/useOrganizationCapabilities';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface BulkImportWizardProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation(['directory', 'common']);
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [fileName, setFileName] = useState<string>('');
   const [detectedDelimiter, setDetectedDelimiter] = useState<string>(',');
@@ -109,10 +111,16 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
       setColumnMapping(autoMap);
 
       if (parsed.headers.length > 0 && parsed.rows.length > 0) {
-        toast.success(`Parsed ${parsed.rows.length} rows with delimiter '${parsed.delimiter === '\t' ? 'TAB' : parsed.delimiter}'`);
+        toast.success(
+          t('bulkImportWizard.upload.toastParsed', {
+            count: parsed.rows.length,
+            delimiter: parsed.delimiter === '\t' ? t('bulkImportWizard.mapping.delimiterTab', { defaultValue: 'TAB' }) : parsed.delimiter,
+            defaultValue: `Parsed ${parsed.rows.length} rows with delimiter '${parsed.delimiter === '\t' ? 'TAB' : parsed.delimiter}'`
+          })
+        );
         setCurrentStep('mapping');
       } else {
-        toast.error('Could not parse any rows from this file. Please check the format.');
+        toast.error(t('bulkImportWizard.upload.toastParseError', { defaultValue: 'Could not parse any rows from this file. Please check the format.' }));
       }
     };
     reader.readAsText(file);
@@ -162,11 +170,11 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
   // 3. Trigger Server Validation
   const runValidation = async () => {
     if (!hasEmailMapped) {
-      toast.error('Please map a column to Email Address before proceeding.');
+      toast.error(t('bulkImportWizard.mapping.missingEmailToast', { defaultValue: 'Please map a column to Email Address before proceeding.' }));
       return;
     }
     if (!hasNameMapped) {
-      toast.error('Please map a column to Full Name or First Name.');
+      toast.error(t('bulkImportWizard.mapping.missingNameToast', { defaultValue: 'Please map a column to Full Name or First Name.' }));
       return;
     }
 
@@ -181,7 +189,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
       setValidationReport(report);
       setCurrentStep('preview');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Validation request failed');
+      toast.error(err?.response?.data?.message || err?.message || t('bulkImportWizard.toasts.validationFailed', { defaultValue: 'Validation request failed' }));
     } finally {
       setIsValidating(false);
     }
@@ -245,10 +253,16 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
         failures: allFailures,
       });
       setCurrentStep('completed');
-      toast.success(`Import complete! ${totalSuccess} created, ${totalUpdated} updated.`);
+      toast.success(
+        t('bulkImportWizard.toasts.importSuccess', {
+          successCount: totalSuccess,
+          updatedCount: totalUpdated,
+          defaultValue: `Import complete! ${totalSuccess} created, ${totalUpdated} updated.`
+        })
+      );
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Import failed');
+      toast.error(err?.response?.data?.message || err?.message || t('bulkImportWizard.toasts.importFailed', { defaultValue: 'Import failed' }));
       setIsImporting(false);
     }
   };
@@ -279,26 +293,26 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
               </div>
               <div>
                 <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
-                  Dynamic Bulk User Import
+                  {t('bulkImportWizard.title', { defaultValue: 'Dynamic Bulk User Import' })}
                   <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
-                    Smart Mapper
+                    {t('bulkImportWizard.smartMapperBadge', { defaultValue: 'Smart Mapper' })}
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-0.5 text-muted-foreground">
-                  Ingest employee records with fuzzy header detection, error correction, and automated workflow triggers.
+                  {t('bulkImportWizard.desc', { defaultValue: 'Ingest employee records with fuzzy header detection, error correction, and automated workflow triggers.' })}
                 </DialogDescription>
               </div>
             </div>
 
             {/* Stepper indicators */}
             <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-muted-foreground shrink-0">
-              <span className={currentStep === 'upload' ? 'text-primary font-bold' : ''}>1. File</span>
+              <span className={currentStep === 'upload' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.file', { defaultValue: '1. File' })}</span>
               <span>&rarr;</span>
-              <span className={currentStep === 'mapping' ? 'text-primary font-bold' : ''}>2. Map</span>
+              <span className={currentStep === 'mapping' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.map', { defaultValue: '2. Map' })}</span>
               <span>&rarr;</span>
-              <span className={currentStep === 'preview' ? 'text-primary font-bold' : ''}>3. Verify</span>
+              <span className={currentStep === 'preview' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.verify', { defaultValue: '3. Verify' })}</span>
               <span>&rarr;</span>
-              <span className={currentStep === 'options' ? 'text-primary font-bold' : ''}>4. Options</span>
+              <span className={currentStep === 'options' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.options', { defaultValue: '4. Options' })}</span>
             </div>
           </div>
         </DialogHeader>
@@ -329,20 +343,20 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                   <Upload className="h-8 w-8" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-base text-foreground">Click to upload or drag & drop</h4>
+                  <h4 className="font-bold text-base text-foreground">{t('bulkImportWizard.upload.dropzoneTitle', { defaultValue: 'Click to upload or drag & drop' })}</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Supports standard CSV, TSV, or tab-delimited text files (RFC 4180 compliant)
+                    {t('bulkImportWizard.upload.dropzoneDesc', { defaultValue: 'Supports standard CSV, TSV, or tab-delimited text files (RFC 4180 compliant)' })}
                   </p>
                 </div>
                 <Badge variant="outline" className="text-[11px] font-mono">
-                  .CSV • .TSV • UTF-8
+                  {t('bulkImportWizard.upload.dropzoneBadge', { defaultValue: '.CSV • .TSV • UTF-8' })}
                 </Badge>
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/30 text-xs">
                 <div>
-                  <span className="font-semibold block text-foreground">Need a starting template?</span>
-                  <span className="text-muted-foreground">Download our pre-configured corporate employee import sheet.</span>
+                  <span className="font-semibold block text-foreground">{t('bulkImportWizard.upload.needTemplate', { defaultValue: 'Need a starting template?' })}</span>
+                  <span className="text-muted-foreground">{t('bulkImportWizard.upload.needTemplateDesc', { defaultValue: 'Download our pre-configured corporate employee import sheet.' })}</span>
                 </div>
                 <Button
                   variant="outline"
@@ -350,7 +364,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                   onClick={downloadSampleTemplate}
                   className="gap-1.5 text-xs font-semibold"
                 >
-                  <Download className="h-3.5 w-3.5 text-primary" /> Download Sample CSV
+                  <Download className="h-3.5 w-3.5 text-primary" /> {t('bulkImportWizard.upload.downloadSampleCsv', { defaultValue: 'Download Sample CSV' })}
                 </Button>
               </div>
             </div>
@@ -361,15 +375,18 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
             <div className="space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Map Columns to Talnova Fields</h3>
+                  <h3 className="text-sm font-bold text-foreground">{t('bulkImportWizard.mapping.title', { defaultValue: 'Map Columns to Talnova Fields' })}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Our fuzzy detection engine has pre-matched headers. Review or adjust mappings below.
+                    {t('bulkImportWizard.mapping.desc', { defaultValue: 'Our fuzzy detection engine has pre-matched headers. Review or adjust mappings below.' })}
                   </p>
                 </div>
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                  <span>File: <strong className="text-foreground">{fileName}</strong> ({rawRows.length} rows)</span>
+                  <span>{t('bulkImportWizard.mapping.fileLabel', { defaultValue: 'File:' })} <strong className="text-foreground">{fileName}</strong> {t('bulkImportWizard.mapping.rowsCount', { count: rawRows.length, defaultValue: `(${rawRows.length} rows)` })}</span>
                   <Badge variant="outline" className="text-[10px] uppercase">
-                    Delimiter: {detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter === ';' ? 'Semicolon' : 'Comma'}
+                    {t('bulkImportWizard.mapping.delimiterLabel', {
+                      delimiter: detectedDelimiter === '\t' ? t('bulkImportWizard.mapping.delimiterTab', { defaultValue: 'TAB' }) : detectedDelimiter === ';' ? t('bulkImportWizard.mapping.delimiterSemicolon', { defaultValue: 'Semicolon' }) : t('bulkImportWizard.mapping.delimiterComma', { defaultValue: 'Comma' }),
+                      defaultValue: `Delimiter: ${detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter === ';' ? 'Semicolon' : 'Comma'}`
+                    })}
                   </Badge>
                 </div>
               </div>
@@ -378,7 +395,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>
-                    Required fields: <strong>Email Address</strong> and <strong>Full Name</strong> (or First Name) must be mapped to proceed.
+                    {t('bulkImportWizard.mapping.requiredNotice', { defaultValue: 'Required fields: Email Address and Full Name (or First Name) must be mapped to proceed.' })}
                   </span>
                 </div>
               )}
@@ -387,9 +404,9 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 border-b">
                     <tr>
-                      <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">CSV Column</th>
-                      <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">Sample Values</th>
-                      <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">Target Talnova Field</th>
+                      <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">{t('bulkImportWizard.mapping.colCsvHeader', { defaultValue: 'CSV Column' })}</th>
+                      <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">{t('bulkImportWizard.mapping.colSampleValues', { defaultValue: 'Sample Values' })}</th>
+                      <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">{t('bulkImportWizard.mapping.colTargetField', { defaultValue: 'Target Talnova Field' })}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -409,7 +426,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                                 {sample1} {sample2 ? `• ${sample2}` : ''}
                               </span>
                             ) : (
-                              <em className="text-muted-foreground/60">(empty)</em>
+                              <em className="text-muted-foreground/60">{t('bulkImportWizard.mapping.emptySample', { defaultValue: '(empty)' })}</em>
                             )}
                           </td>
                           <td className="py-3 px-4">
@@ -423,8 +440,8 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                               }}
                               className="text-xs p-1.5 border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary w-64"
                             >
-                              <option value="__ignore__">⛔ Ignore this column</option>
-                              <optgroup label="Core Profile">
+                              <option value="__ignore__">{t('bulkImportWizard.mapping.ignoreColumn', { defaultValue: '⛔ Ignore this column' })}</option>
+                              <optgroup label={t('bulkImportWizard.mapping.coreProfileGroup', { defaultValue: 'Core Profile' })}>
                                 {CANONICAL_EMPLOYEE_FIELDS.map((f) => (
                                   <option key={f.key} value={f.key}>
                                     {f.label} {f.required ? '*' : ''}
@@ -448,23 +465,23 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
               {/* Validation Summary Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 rounded-xl border bg-card text-center">
-                  <span className="text-xs text-muted-foreground font-medium block">Total Ingested</span>
+                  <span className="text-xs text-muted-foreground font-medium block">{t('bulkImportWizard.preview.metricTotal', { defaultValue: 'Total Ingested' })}</span>
                   <span className="text-xl font-bold text-foreground">{validationReport.totalRows}</span>
                 </div>
                 <div className="p-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/20 text-center">
-                  <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium block">Ready to Import</span>
+                  <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium block">{t('bulkImportWizard.preview.metricReady', { defaultValue: 'Ready to Import' })}</span>
                   <span className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
                     {validationReport.validCount}
                   </span>
                 </div>
                 <div className="p-3.5 rounded-xl border bg-rose-500/10 border-rose-500/20 text-center">
-                  <span className="text-xs text-rose-700 dark:text-rose-300 font-medium block">Validation Errors</span>
+                  <span className="text-xs text-rose-700 dark:text-rose-300 font-medium block">{t('bulkImportWizard.preview.metricErrors', { defaultValue: 'Validation Errors' })}</span>
                   <span className="text-xl font-bold text-rose-700 dark:text-rose-300">
                     {validationReport.errorCount}
                   </span>
                 </div>
                 <div className="p-3.5 rounded-xl border bg-amber-500/10 border-amber-500/20 text-center">
-                  <span className="text-xs text-amber-700 dark:text-amber-300 font-medium block">Warnings / Conflicts</span>
+                  <span className="text-xs text-amber-700 dark:text-amber-300 font-medium block">{t('bulkImportWizard.preview.metricWarnings', { defaultValue: 'Warnings / Conflicts' })}</span>
                   <span className="text-xl font-bold text-amber-700 dark:text-amber-300">
                     {validationReport.conflictCount + validationReport.warningCount}
                   </span>
@@ -482,7 +499,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                       : 'bg-muted text-muted-foreground'
                       }`}
                   >
-                    All ({mappedUsers.length})
+                    {t('bulkImportWizard.preview.filterAll', { count: mappedUsers.length, defaultValue: `All (${mappedUsers.length})` })}
                   </button>
                   <button
                     type="button"
@@ -492,7 +509,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                       : 'bg-muted text-muted-foreground'
                       }`}
                   >
-                    Valid Only ({validationReport.validCount})
+                    {t('bulkImportWizard.preview.filterValid', { count: validationReport.validCount, defaultValue: `Valid Only (${validationReport.validCount})` })}
                   </button>
                   <button
                     type="button"
@@ -502,11 +519,11 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                       : 'bg-muted text-muted-foreground'
                       }`}
                   >
-                    Errors Only ({validationReport.errorCount + validationReport.conflictCount})
+                    {t('bulkImportWizard.preview.filterErrors', { count: validationReport.errorCount + validationReport.conflictCount, defaultValue: `Errors Only (${validationReport.errorCount + validationReport.conflictCount})` })}
                   </button>
                 </div>
                 <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <Edit2 className="h-3 w-3" /> Click any cell to edit & fix values in-place
+                  <Edit2 className="h-3 w-3" /> {t('bulkImportWizard.preview.clickCellToEdit', { defaultValue: 'Click any cell to edit & fix values in-place' })}
                 </span>
               </div>
 
@@ -515,13 +532,13 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <table className="w-full text-xs text-left">
                   <thead className="bg-muted/60 sticky top-0 border-b">
                     <tr>
-                      <th className="p-2.5 font-semibold text-muted-foreground">#</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">Status</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">Email</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">Name</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">Department</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">Job Title</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">Manager Email</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colNum', { defaultValue: '#' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colStatus', { defaultValue: 'Status' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colEmail', { defaultValue: 'Email' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colName', { defaultValue: 'Name' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colDept', { defaultValue: 'Department' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colJobTitle', { defaultValue: 'Job Title' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colManagerEmail', { defaultValue: 'Manager Email' })}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -548,11 +565,11 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                               </Badge>
                             ) : hasConflict ? (
                               <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 gap-1">
-                                <AlertTriangle className="h-2.5 w-2.5" /> Exists
+                                <AlertTriangle className="h-2.5 w-2.5" /> {t('bulkImportWizard.preview.badgeExists', { defaultValue: 'Exists' })}
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
-                                <CheckCircle2 className="h-2.5 w-2.5" /> Ready
+                                <CheckCircle2 className="h-2.5 w-2.5" /> {t('bulkImportWizard.preview.badgeReady', { defaultValue: 'Ready' })}
                               </Badge>
                             )}
                           </td>
@@ -574,7 +591,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                               />
                             ) : (
                               <span className={!user.email || rowError?.field === 'email' ? 'text-rose-600 font-bold' : ''}>
-                                {user.email || '<missing email>'}
+                                {user.email || t('bulkImportWizard.preview.missingEmail', { defaultValue: '<missing email>' })}
                               </span>
                             )}
                           </td>
@@ -595,7 +612,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                                 className="h-6 text-xs p-1"
                               />
                             ) : (
-                              <span>{user.fullName || user.firstName || '<missing name>'}</span>
+                              <span>{user.fullName || user.firstName || t('bulkImportWizard.preview.missingName', { defaultValue: '<missing name>' })}</span>
                             )}
                           </td>
 
@@ -612,7 +629,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                                 className="h-6 text-xs p-1"
                               />
                             ) : (
-                              <span>{user.department || 'General'}</span>
+                              <span>{user.department || t('bulkImportWizard.preview.defaultDept', { defaultValue: 'General' })}</span>
                             )}
                           </td>
 
@@ -642,7 +659,11 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 </table>
                 {displayedRowIndices.length > 50 && (
                   <div className="p-2 text-center text-[11px] text-muted-foreground bg-muted/30 border-t">
-                    Showing first 50 of {displayedRowIndices.length} filtered records. All {mappedUsers.length} records will be submitted.
+                    {t('bulkImportWizard.preview.paginationNotice', {
+                      filteredCount: displayedRowIndices.length,
+                      totalCount: mappedUsers.length,
+                      defaultValue: `Showing first 50 of ${displayedRowIndices.length} filtered records. All ${mappedUsers.length} records will be submitted.`
+                    })}
                   </div>
                 )}
               </div>
@@ -653,9 +674,9 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
           {currentStep === 'options' && (
             <div className="space-y-5">
               <div>
-                <h3 className="text-sm font-bold text-foreground">Import Automation & Orchestration</h3>
+                <h3 className="text-sm font-bold text-foreground">{t('bulkImportWizard.options.title', { defaultValue: 'Import Automation & Orchestration' })}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Configure post-ingestion behaviors and autonomous lifecycle engine triggers.
+                  {t('bulkImportWizard.options.desc', { defaultValue: 'Configure post-ingestion behaviors and autonomous lifecycle engine triggers.' })}
                 </p>
               </div>
 
@@ -664,10 +685,10 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <div className="p-4 rounded-xl border bg-card flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 font-bold text-xs text-foreground">
-                      <Sparkles className="h-4 w-4 text-primary" /> Trigger Autonomous Workflows & Journeys
+                      <Sparkles className="h-4 w-4 text-primary" /> {t('bulkImportWizard.options.triggerWorkflowsTitle', { defaultValue: 'Trigger Autonomous Workflows & Journeys' })}
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Evaluates departmental and regional stage gates to automatically assign the appropriate onboarding journey.
+                      {t('bulkImportWizard.options.triggerWorkflowsDesc', { defaultValue: 'Evaluates departmental and regional stage gates to automatically assign the appropriate onboarding journey.' })}
                     </p>
                   </div>
                   <input
@@ -682,10 +703,10 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <div className="p-4 rounded-xl border bg-card flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 font-bold text-xs text-foreground">
-                      <Layers className="h-4 w-4 text-indigo-600" /> Auto-Assign Role-Based Checklists & Relative Tasks
+                      <Layers className="h-4 w-4 text-indigo-600" /> {t('bulkImportWizard.options.autoChecklistsTitle', { defaultValue: 'Auto-Assign Role-Based Checklists & Relative Tasks' })}
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Automatically binds default checklists matched to role/dept, setting relative deadlines from now (e.g. +3 days, +7 days).
+                      {t('bulkImportWizard.options.autoChecklistsDesc', { defaultValue: 'Automatically binds default checklists matched to role/dept, setting relative deadlines from now (e.g. +3 days, +7 days).' })}
                     </p>
                   </div>
                   <input
@@ -701,15 +722,18 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                       <div className="font-bold text-xs text-foreground flex items-center gap-2">
-                        Send Welcome & Invitation Emails
+                        {t('bulkImportWizard.options.emailInvitesTitle', { defaultValue: 'Send Welcome & Invitation Emails' })}
                         {!isEmailAvailable && (
                           <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300">
-                            Email Config Required
+                            {t('bulkImportWizard.options.emailConfigRequired', { defaultValue: 'Email Config Required' })}
                           </Badge>
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        Sends an onboarding portal activation email with temporary login credentials (<code className="font-mono bg-muted px-1 rounded">Welcome@2026!</code>).
+                        {t('bulkImportWizard.options.emailInvitesDesc', {
+                          tempPassword: 'Welcome@2026!',
+                          defaultValue: 'Sends an onboarding portal activation email with temporary login credentials (Welcome@2026!).'
+                        })}
                       </p>
                     </div>
                     <input
@@ -724,9 +748,9 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs flex items-start gap-2" data-testid="bulk-import-email-warning">
                       <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                       <div>
-                        <span className="font-semibold text-foreground">Email Service Not Configured: </span>
+                        <span className="font-semibold text-foreground">{t('bulkImportWizard.options.emailServiceNotConfigured', { defaultValue: 'Email Service Not Configured: ' })}</span>
                         <span className="text-muted-foreground">
-                          {emailReason || 'Configure an email provider in Settings > Integrations before sending invitations.'}
+                          {emailReason || t('bulkImportWizard.options.emailProviderFallback', { defaultValue: 'Configure an email provider in Settings > Integrations before sending invitations.' })}
                         </span>
                       </div>
                     </div>
@@ -735,7 +759,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
 
                 {/* Upsert Mode Radio */}
                 <div className="p-4 rounded-xl border bg-card space-y-3">
-                  <div className="font-bold text-xs text-foreground">Existing User Conflict Resolution</div>
+                  <div className="font-bold text-xs text-foreground">{t('bulkImportWizard.options.conflictResolutionTitle', { defaultValue: 'Existing User Conflict Resolution' })}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <label
                       className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${!updateExisting ? 'border-primary bg-primary/5 font-semibold text-primary' : 'hover:bg-muted/10'
@@ -749,8 +773,8 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                         className="text-primary focus:ring-primary"
                       />
                       <div>
-                        <div className="text-xs">Skip Existing Records</div>
-                        <div className="text-[10px] text-muted-foreground font-normal">Ignores rows matching registered emails</div>
+                        <div className="text-xs">{t('bulkImportWizard.options.skipExistingTitle', { defaultValue: 'Skip Existing Records' })}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">{t('bulkImportWizard.options.skipExistingDesc', { defaultValue: 'Ignores rows matching registered emails' })}</div>
                       </div>
                     </label>
 
@@ -766,8 +790,8 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                         className="text-primary focus:ring-primary"
                       />
                       <div>
-                        <div className="text-xs">Update Profile Data (Upsert)</div>
-                        <div className="text-[10px] text-muted-foreground font-normal">Overwrites department, title, manager line</div>
+                        <div className="text-xs">{t('bulkImportWizard.options.updateProfileTitle', { defaultValue: 'Update Profile Data (Upsert)' })}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">{t('bulkImportWizard.options.updateProfileDesc', { defaultValue: 'Overwrites department, title, manager line' })}</div>
                       </div>
                     </label>
                   </div>
@@ -781,9 +805,9 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
             <div className="py-12 text-center space-y-4">
               <RefreshCw className="h-10 w-10 text-primary animate-spin mx-auto" />
               <div>
-                <h4 className="font-bold text-base text-foreground">Importing Employees & Triggering Automations</h4>
+                <h4 className="font-bold text-base text-foreground">{t('bulkImportWizard.importing.title', { defaultValue: 'Importing Employees & Triggering Automations' })}</h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Processing batches, instantiating onboarding cases, and binding role checklists...
+                  {t('bulkImportWizard.importing.desc', { defaultValue: 'Processing batches, instantiating onboarding cases, and binding role checklists...' })}
                 </p>
               </div>
               <div className="w-full max-w-md mx-auto bg-muted rounded-full h-2.5 overflow-hidden">
@@ -792,7 +816,9 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                   style={{ width: `${importProgress}%` }}
                 />
               </div>
-              <span className="text-xs font-mono text-muted-foreground">{importProgress}% completed</span>
+              <span className="text-xs font-mono text-muted-foreground">
+                {t('bulkImportWizard.importing.completedPct', { progress: importProgress, defaultValue: `${importProgress}% completed` })}
+              </span>
             </div>
           )}
 
@@ -803,23 +829,23 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <Check className="h-8 w-8" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground">Bulk Import Completed Successfully</h3>
+                <h3 className="text-lg font-bold text-foreground">{t('bulkImportWizard.completed.title', { defaultValue: 'Bulk Import Completed Successfully' })}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Employee profiles created and connected with reporting managers and onboarding checklists.
+                  {t('bulkImportWizard.completed.desc', { defaultValue: 'Employee profiles created and connected with reporting managers and onboarding checklists.' })}
                 </p>
               </div>
 
               <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
                 <div className="p-3 border rounded-xl bg-card">
-                  <span className="text-xs text-muted-foreground block">New Users</span>
+                  <span className="text-xs text-muted-foreground block">{t('bulkImportWizard.completed.newUsers', { defaultValue: 'New Users' })}</span>
                   <span className="text-lg font-bold text-emerald-600">+{importResults.successCount}</span>
                 </div>
                 <div className="p-3 border rounded-xl bg-card">
-                  <span className="text-xs text-muted-foreground block">Updated</span>
+                  <span className="text-xs text-muted-foreground block">{t('bulkImportWizard.completed.updated', { defaultValue: 'Updated' })}</span>
                   <span className="text-lg font-bold text-primary">{importResults.updatedCount}</span>
                 </div>
                 <div className="p-3 border rounded-xl bg-card">
-                  <span className="text-xs text-muted-foreground block">Failed / Skipped</span>
+                  <span className="text-xs text-muted-foreground block">{t('bulkImportWizard.completed.failedSkipped', { defaultValue: 'Failed / Skipped' })}</span>
                   <span className="text-lg font-bold text-muted-foreground">{importResults.failures.length}</span>
                 </div>
               </div>
@@ -832,17 +858,17 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
           <div>
             {currentStep === 'mapping' && (
               <Button variant="ghost" size="sm" onClick={() => setCurrentStep('upload')} className="gap-1 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to File
+                <ArrowLeft className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.backToFile', { defaultValue: 'Back to File' })}
               </Button>
             )}
             {currentStep === 'preview' && (
               <Button variant="ghost" size="sm" onClick={() => setCurrentStep('mapping')} className="gap-1 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" /> Adjust Mappings
+                <ArrowLeft className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.adjustMappings', { defaultValue: 'Adjust Mappings' })}
               </Button>
             )}
             {currentStep === 'options' && (
               <Button variant="ghost" size="sm" onClick={() => setCurrentStep('preview')} className="gap-1 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to Preview
+                <ArrowLeft className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.backToPreview', { defaultValue: 'Back to Preview' })}
               </Button>
             )}
           </div>
@@ -850,7 +876,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
           <div className="flex items-center gap-2">
             {currentStep !== 'completed' && currentStep !== 'importing' && (
               <Button variant="outline" size="sm" onClick={handleClose} className="text-xs">
-                Cancel
+                {t('common:cancel', { defaultValue: 'Cancel' })}
               </Button>
             )}
 
@@ -863,11 +889,11 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
               >
                 {isValidating ? (
                   <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Validating...
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" /> {t('bulkImportWizard.buttons.validating', { defaultValue: 'Validating...' })}
                   </>
                 ) : (
                   <>
-                    Verify & Preview <ArrowRight className="h-3.5 w-3.5" />
+                    {t('bulkImportWizard.buttons.verifyAndPreview', { defaultValue: 'Verify & Preview' })} <ArrowRight className="h-3.5 w-3.5" />
                   </>
                 )}
               </Button>
@@ -879,7 +905,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 onClick={() => setCurrentStep('options')}
                 className="gap-1 text-xs font-semibold"
               >
-                <Settings2 className="h-3.5 w-3.5" /> Configure Options &rarr;
+                <Settings2 className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.configureOptions', { defaultValue: 'Configure Options' })} &rarr;
               </Button>
             )}
 
@@ -890,13 +916,13 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 disabled={isImporting}
                 className="gap-1 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                Start Bulk Import ({mappedUsers.length} rows)
+                {t('bulkImportWizard.buttons.startBulkImport', { count: mappedUsers.length, defaultValue: `Start Bulk Import (${mappedUsers.length} rows)` })}
               </Button>
             )}
 
             {currentStep === 'completed' && (
               <Button size="sm" onClick={handleClose} className="text-xs font-semibold">
-                Done & Return to Directory
+                {t('bulkImportWizard.completed.doneButton', { defaultValue: 'Done & Return to Directory' })}
               </Button>
             )}
           </div>

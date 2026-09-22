@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   CardContent,
@@ -54,6 +55,7 @@ import { toast } from 'sonner';
 import { FloorPlanData, DeskData, OfficeLocationData } from '../services/location.service';
 
 export function OfficeMap() {
+  const { t } = useTranslation('directory');
   const { role } = useRole();
   const isAdminOrOwner = role === 'admin' || role === 'owner' || role === 'super_admin';
 
@@ -131,7 +133,7 @@ export function OfficeMap() {
   const handleAssignDesk = () => {
     const locId = activeLocation?._id || guidance?.locationId;
     if (!locId || !activePopoverDesk || !targetUserIdInput.trim()) {
-      toast.error('Please enter a target employee user ID to assign desk.');
+      toast.error(t('officeMap.toasts.targetUserIdRequired'));
       return;
     }
 
@@ -144,12 +146,12 @@ export function OfficeMap() {
       },
       {
         onSuccess: () => {
-          toast.success(`Desk ${activePopoverDesk.deskNumber} assigned successfully!`);
+          toast.success(t('officeMap.toasts.deskAssignedSuccess', { deskNumber: activePopoverDesk.deskNumber }));
           setSelectedDesk(null);
           setTargetUserIdInput('');
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign desk');
+          toast.error(err?.response?.data?.message || err?.message || t('officeMap.toasts.deskAssignFailed'));
         },
       }
     );
@@ -257,12 +259,12 @@ export function OfficeMap() {
       floors: [...prev.floors, newFloor],
     }));
     setEditorFloorIndex(formData.floors.length);
-    toast.success(`Floor ${nextNum} added to configuration.`);
+    toast.success(t('officeMap.toasts.floorAdded', { floorNumber: nextNum }));
   };
 
   const handleRemoveFloor = (index: number) => {
     if (formData.floors.length <= 1) {
-      toast.error('An office location must have at least one floor plan.');
+      toast.error(t('officeMap.toasts.minFloorRequired'));
       return;
     }
     const updated = formData.floors.filter((_, idx) => idx !== index);
@@ -272,14 +274,14 @@ export function OfficeMap() {
 
   const handleAddDeskToFloor = () => {
     if (!newDeskNumber.trim()) {
-      toast.error('Please specify a desk number (e.g. 201-A).');
+      toast.error(t('officeMap.toasts.deskNumberRequired'));
       return;
     }
     const targetFloor = formData.floors[editorFloorIndex];
     if (!targetFloor) return;
 
     if (targetFloor.desks.some((d) => d.deskNumber.toLowerCase() === newDeskNumber.trim().toLowerCase())) {
-      toast.error(`Desk "${newDeskNumber.trim()}" already exists on this floor.`);
+      toast.error(t('officeMap.toasts.deskExists', { deskNumber: newDeskNumber.trim() }));
       return;
     }
 
@@ -304,7 +306,7 @@ export function OfficeMap() {
     setFormData((prev) => ({ ...prev, floors: updatedFloors }));
     setNewDeskNumber('');
     setNewDeskZone('');
-    toast.success(`Desk ${newDesk.deskNumber} added to ${targetFloor.floorName}.`);
+    toast.success(t('officeMap.toasts.deskAdded', { deskNumber: newDesk.deskNumber, floorName: targetFloor.floorName }));
   };
 
   const handleRemoveDeskFromFloor = (deskNumber: string) => {
@@ -320,15 +322,15 @@ export function OfficeMap() {
 
   const handleSaveLocation = async () => {
     if (!formData.name.trim()) {
-      toast.error('Please provide an office facility name.');
+      toast.error(t('officeMap.toasts.facilityNameRequired'));
       return;
     }
     if (!formData.street.trim() || !formData.city.trim() || !formData.country.trim()) {
-      toast.error('Please complete street, city, and country address fields.');
+      toast.error(t('officeMap.toasts.addressRequired'));
       return;
     }
     if (formData.floors.length === 0) {
-      toast.error('At least one floor layout is required.');
+      toast.error(t('officeMap.toasts.floorRequired'));
       return;
     }
 
@@ -360,15 +362,15 @@ export function OfficeMap() {
           id: activeLocation._id,
           updates: payload,
         });
-        toast.success(`Office map "${payload.name}" updated successfully!`);
+        toast.success(t('officeMap.toasts.officeMapUpdated', { name: payload.name }));
       } else {
         const created = await createLocationMutation.mutateAsync(payload);
-        toast.success(`New office map "${created.name}" created successfully!`);
+        toast.success(t('officeMap.toasts.officeMapCreated', { name: created.name }));
         setSelectedLocationId(created._id);
       }
       setIsEditorOpen(false);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to save office map.');
+      toast.error(err?.response?.data?.message || err?.message || t('officeMap.toasts.saveOfficeMapFailed'));
     }
   };
 
@@ -398,10 +400,10 @@ export function OfficeMap() {
             className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2"
           >
             <MapPin className="h-7 w-7 text-indigo-600" />
-            Office Map & Location Experience
+            {t('officeMap.header.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Explore interactive floor layouts, search for teammates' desks, locate conference rooms, and view Wi-Fi credentials.
+            {t('officeMap.header.subtitle')}
           </p>
         </div>
 
@@ -410,10 +412,10 @@ export function OfficeMap() {
           {/* Multi-Location Switcher */}
           {allLocations.length > 1 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground">Office:</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('officeMap.controls.officeLabel')}</span>
               <select
                 data-testid="location-selector"
-                aria-label="Select Office Location"
+                aria-label={t('officeMap.controls.selectOfficeAria')}
                 value={activeLocation?._id || ''}
                 onChange={(e) => {
                   setSelectedLocationId(e.target.value);
@@ -424,7 +426,7 @@ export function OfficeMap() {
               >
                 {allLocations.map((loc) => (
                   <option key={loc._id} value={loc._id}>
-                    {loc.name} {loc.isPrimary ? '(Primary)' : ''}
+                    {loc.name} {loc.isPrimary ? t('officeMap.controls.primaryBadge') : ''}
                   </option>
                 ))}
               </select>
@@ -434,10 +436,10 @@ export function OfficeMap() {
           {/* Floor Selector Dropdown */}
           {currentFloors.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground">Floor:</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('officeMap.controls.floorLabel')}</span>
               <select
                 data-testid="floor-selector"
-                aria-label="Select Floor"
+                aria-label={t('officeMap.controls.selectFloorAria')}
                 value={activeFloorIndex}
                 onChange={(e) => {
                   setActiveFloorIndex(Number(e.target.value));
@@ -465,7 +467,7 @@ export function OfficeMap() {
                 className="h-9 text-xs font-semibold border-indigo-200 hover:border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30"
               >
                 <Edit2 className="h-3.5 w-3.5 mr-1.5" />
-                Edit Office Map
+                {t('officeMap.controls.editMapBtn')}
               </Button>
 
               <Button
@@ -475,7 +477,7 @@ export function OfficeMap() {
                 className="h-9 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               >
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Create New Map
+                {t('officeMap.controls.createMapBtn')}
               </Button>
             </div>
           )}
@@ -493,7 +495,7 @@ export function OfficeMap() {
                   {activeLocation.name}
                   {activeLocation.isPrimary && (
                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-bold">
-                      PRIMARY CAMPUS
+                      {t('officeMap.guidance.primaryCampus')}
                     </Badge>
                   )}
                 </CardTitle>
@@ -508,7 +510,7 @@ export function OfficeMap() {
                 rel="noopener noreferrer"
               >
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs">
-                  <Navigation className="h-3.5 w-3.5 mr-1.5" /> Get Google Maps Directions
+                  <Navigation className="h-3.5 w-3.5 mr-1.5" /> {t('officeMap.guidance.getDirections')}
                 </Button>
               </a>
             </div>
@@ -518,14 +520,14 @@ export function OfficeMap() {
             {/* Wi-Fi Credentials */}
             <div data-testid="wifi-card" className="p-4 border rounded-lg bg-card space-y-2">
               <div className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
-                <Wifi className="h-4 w-4 text-emerald-500" /> Office Wi-Fi Network
+                <Wifi className="h-4 w-4 text-emerald-500" /> {t('officeMap.guidance.wifiTitle')}
               </div>
               <div>
-                <span className="text-muted-foreground">Network (SSID):</span>{' '}
+                <span className="text-muted-foreground">{t('officeMap.guidance.wifiSsidLabel')}</span>{' '}
                 <span className="font-bold text-foreground">{activeLocation.accessInfo?.wifiSsd || 'Talnova-Secure-5G'}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Password:</span>{' '}
+                <span className="text-muted-foreground">{t('officeMap.guidance.wifiPasswordLabel')}</span>{' '}
                 <span className="font-mono text-indigo-600 font-bold">{activeLocation.accessInfo?.wifiPassword || 'Welcome2026'}</span>
               </div>
             </div>
@@ -533,10 +535,10 @@ export function OfficeMap() {
             {/* Building Access */}
             <div data-testid="access-code-card" className="p-4 border rounded-lg bg-card space-y-2">
               <div className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
-                <Key className="h-4 w-4 text-amber-500" /> Building Access Code
+                <Key className="h-4 w-4 text-amber-500" /> {t('officeMap.guidance.accessTitle')}
               </div>
               <div>
-                <span className="text-muted-foreground">Lobby Pass Code:</span>{' '}
+                <span className="text-muted-foreground">{t('officeMap.guidance.lobbyPassLabel')}</span>{' '}
                 <span className="font-mono text-amber-600 font-bold">{activeLocation.accessInfo?.buildingAccessCode || 'KEY-5004'}</span>
               </div>
               <p className="text-muted-foreground">{activeLocation.accessInfo?.arrivalInstructions}</p>
@@ -545,14 +547,14 @@ export function OfficeMap() {
             {/* Assigned Seat / Desk */}
             <div data-testid="assigned-desk-card" className="p-4 border rounded-lg bg-card space-y-2">
               <div className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
-                <User className="h-4 w-4 text-indigo-600" /> Your Assigned Desk
+                <User className="h-4 w-4 text-indigo-600" /> {t('officeMap.guidance.assignedDeskTitle')}
               </div>
               <div>
-                <span className="text-muted-foreground">Floor:</span>{' '}
-                <span className="font-bold text-foreground">Floor {guidance?.assignedFloorNumber || currentFloor?.floorNumber || 1}</span>
+                <span className="text-muted-foreground">{t('officeMap.controls.floorLabel')}</span>{' '}
+                <span className="font-bold text-foreground">{t('officeMap.guidance.assignedFloor', { floorNumber: guidance?.assignedFloorNumber || currentFloor?.floorNumber || 1 })}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Desk #:</span>{' '}
+                <span className="text-muted-foreground">{t('officeMap.guidance.deskNumberLabel')}</span>{' '}
                 <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 font-bold">
                   {guidance?.assignedDesk?.deskNumber || '101-A'}
                 </Badge>
@@ -569,10 +571,10 @@ export function OfficeMap() {
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Layers className="h-5 w-5 text-indigo-600" />
-                Interactive Workplace Map — {currentFloor?.floorName || 'Main Floor'}
+                {t('officeMap.map.title', { floorName: currentFloor?.floorName || 'Main Floor' })}
               </CardTitle>
               <CardDescription>
-                Search for teammates, locate desks, meeting rooms, and amenities on this floor.
+                {t('officeMap.map.subtitle')}
               </CardDescription>
             </div>
 
@@ -582,7 +584,7 @@ export function OfficeMap() {
               <Input
                 data-testid="map-search-input"
                 type="text"
-                placeholder="Search teammate desk (e.g. Sarah, Michael)..."
+                placeholder={t('officeMap.map.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-8 text-xs h-9"
@@ -606,7 +608,7 @@ export function OfficeMap() {
               data-testid="no-matching-members"
               className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 rounded-lg text-xs flex items-center gap-2 font-medium"
             >
-              ⚠️ No matching team members found on this floor
+              {t('officeMap.map.noMatchingFound')}
             </div>
           )}
 
@@ -617,9 +619,9 @@ export function OfficeMap() {
             >
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-indigo-600" />
-                Found teammate: <strong>{matchedDesk.assignedUserName}</strong> at Desk <strong>{matchedDesk.deskNumber}</strong> ({matchedDesk.zone})
+                {t('officeMap.map.foundTeammate')} <strong>{matchedDesk.assignedUserName}</strong> {t('officeMap.map.atDesk')} <strong>{matchedDesk.deskNumber}</strong> ({matchedDesk.zone})
               </span>
-              <span className="text-[11px] bg-indigo-600 text-white px-2 py-0.5 rounded font-bold">MATCH HIGHLIGHTED</span>
+              <span className="text-[11px] bg-indigo-600 text-white px-2 py-0.5 rounded font-bold">{t('officeMap.map.matchHighlighted')}</span>
             </div>
           )}
 
@@ -674,10 +676,10 @@ export function OfficeMap() {
                 <circle cx="150" cy="140" r="7" fill="rgba(99, 102, 241, 0.4)" />
                 <circle cx="190" cy="140" r="7" fill="rgba(99, 102, 241, 0.4)" />
                 <text x="150" y="65" textAnchor="middle" className="text-[12px] font-bold fill-indigo-600 dark:fill-indigo-400">
-                  Conference Room Alpha
+                  {t('officeMap.map.rooms.conferenceAlpha')}
                 </text>
                 <text x="150" y="110" textAnchor="middle" className="text-[10px] font-medium fill-slate-500 dark:fill-slate-400">
-                  12 Seats • 4K Display
+                  {t('officeMap.map.rooms.conferenceAlphaDesc')}
                 </text>
               </g>
 
@@ -701,10 +703,10 @@ export function OfficeMap() {
                 <circle cx="115" cy="300" r="7" fill="rgba(59, 130, 246, 0.4)" />
                 <circle cx="185" cy="300" r="7" fill="rgba(59, 130, 246, 0.4)" />
                 <text x="150" y="225" textAnchor="middle" className="text-[12px] font-bold fill-blue-600 dark:fill-blue-400">
-                  Apollo Meeting Room
+                  {t('officeMap.map.rooms.apolloMeeting')}
                 </text>
                 <text x="150" y="270" textAnchor="middle" className="text-[10px] font-medium fill-slate-500 dark:fill-slate-400">
-                  8 Seats • Digital Whiteboard
+                  {t('officeMap.map.rooms.apolloMeetingDesc')}
                 </text>
               </g>
 
@@ -720,7 +722,7 @@ export function OfficeMap() {
                   stroke="rgba(147, 51, 234, 0.3)"
                   strokeWidth="1.5"
                 />
-                <text x="92" y="425" textAnchor="middle" className="text-[11px] font-bold fill-purple-600">Quiet Pod A</text>
+                <text x="92" y="425" textAnchor="middle" className="text-[11px] font-bold fill-purple-600">{t('officeMap.map.rooms.quietPodA')}</text>
                 <rect
                   x="155"
                   y="360"
@@ -731,7 +733,7 @@ export function OfficeMap() {
                   stroke="rgba(147, 51, 234, 0.3)"
                   strokeWidth="1.5"
                 />
-                <text x="207" y="425" textAnchor="middle" className="text-[11px] font-bold fill-purple-600">Quiet Pod B</text>
+                <text x="207" y="425" textAnchor="middle" className="text-[11px] font-bold fill-purple-600">{t('officeMap.map.rooms.quietPodB')}</text>
               </g>
 
               {/* 2. Right Wing: Kitchen & Amenities */}
@@ -749,13 +751,13 @@ export function OfficeMap() {
                 />
                 <rect x="680" y="65" width="180" height="35" rx="6" fill="rgba(245, 158, 11, 0.2)" stroke="rgba(245, 158, 11, 0.5)" />
                 <text x="770" y="60" textAnchor="middle" className="text-[12px] font-bold fill-amber-600 dark:fill-amber-400">
-                  ☕ Kitchen & Coffee Bar
+                  {t('officeMap.map.rooms.kitchenBar')}
                 </text>
                 <text x="770" y="87" textAnchor="middle" className="text-[10px] font-semibold fill-amber-700 dark:fill-amber-300">
-                  Espresso Bar & Dining Island
+                  {t('officeMap.map.rooms.kitchenBarDesc')}
                 </text>
                 <text x="770" y="140" textAnchor="middle" className="text-[10px] fill-slate-500 dark:fill-slate-400">
-                  Snacks • Microwaves • Sparkling Water
+                  {t('officeMap.map.rooms.kitchenItems')}
                 </text>
               </g>
 
@@ -772,10 +774,10 @@ export function OfficeMap() {
                   strokeWidth="2"
                 />
                 <text x="770" y="275" textAnchor="middle" className="text-[12px] font-bold fill-emerald-600 dark:fill-emerald-400">
-                  Restrooms & Wellness
+                  {t('officeMap.map.rooms.restrooms')}
                 </text>
                 <text x="770" y="305" textAnchor="middle" className="text-[10px] fill-slate-500 dark:fill-slate-400">
-                  Accessible • First Aid Station
+                  {t('officeMap.map.rooms.restroomsDesc')}
                 </text>
               </g>
 
@@ -791,7 +793,7 @@ export function OfficeMap() {
                   strokeWidth="2"
                 />
                 <text x="865" y="430" textAnchor="middle" transform="rotate(-90 865 430)" className="text-[11px] font-bold fill-red-600">
-                  EMERGENCY EXIT
+                  {t('officeMap.map.rooms.emergencyExit')}
                 </text>
               </g>
 
@@ -897,7 +899,7 @@ export function OfficeMap() {
                           : "fill-slate-700 dark:fill-slate-200"
                       }`}
                     >
-                      {desk.assignedUserName ? desk.assignedUserName.split(' ')[0] : 'Vacant'}
+                      {desk.assignedUserName ? desk.assignedUserName.split(' ')[0] : t('officeMap.map.vacant')}
                     </text>
                   </g>
                 );
@@ -933,11 +935,11 @@ export function OfficeMap() {
                             : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-xs'
                         }
                       >
-                        {activePopoverDesk.isAvailable ? 'AVAILABLE' : 'OCCUPIED'}
+                        {activePopoverDesk.isAvailable ? t('officeMap.popover.statusAvailable') : t('officeMap.popover.statusOccupied')}
                       </Badge>
                     </div>
                     <div data-testid="popover-person-dept" className="text-xs text-muted-foreground mt-0.5">
-                      {activePopoverDesk.zone || 'Workstation Area'} • {currentFloor?.floorName}
+                      {activePopoverDesk.zone || t('officeMap.popover.defaultZone')} • {currentFloor?.floorName}
                     </div>
                   </div>
                 </div>
@@ -957,23 +959,23 @@ export function OfficeMap() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-3 border-t border-border/60">
                 <div className="p-2.5 bg-muted/20 rounded-md">
-                  <span className="text-muted-foreground block text-[11px]">Assigned Desk:</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('officeMap.popover.assignedDeskLabel')}</span>
                   <span data-testid="popover-person-desk" className="font-bold text-foreground text-sm">
                     {activePopoverDesk.deskNumber}
                   </span>
                 </div>
 
                 <div className="p-2.5 bg-muted/20 rounded-md">
-                  <span className="text-muted-foreground block text-[11px]">Floor Level:</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('officeMap.popover.floorLevelLabel')}</span>
                   <span data-testid="popover-person-floor" className="font-bold text-foreground text-sm">
-                    Floor {currentFloor?.floorNumber}
+                    {t('officeMap.popover.floorLevelValue', { floorNumber: currentFloor?.floorNumber })}
                   </span>
                 </div>
 
                 <div className="p-2.5 bg-muted/20 rounded-md">
-                  <span className="text-muted-foreground block text-[11px]">Zone / Department:</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('officeMap.popover.zoneDepartmentLabel')}</span>
                   <span className="font-bold text-foreground text-sm">
-                    {activePopoverDesk.zone || 'Open Plan'}
+                    {activePopoverDesk.zone || t('officeMap.popover.openPlan')}
                   </span>
                 </div>
               </div>
@@ -981,11 +983,11 @@ export function OfficeMap() {
               {/* Desk Re-assignment Controls */}
               <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="text-xs text-muted-foreground">
-                  Re-assign this workstation to another team member:
+                  {t('officeMap.popover.reassignPrompt')}
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Input
-                    placeholder="Target User ID..."
+                    placeholder={t('officeMap.popover.targetUserIdPlaceholder')}
                     value={targetUserIdInput}
                     onChange={(e: any) => setTargetUserIdInput(e.target.value)}
                     className="text-xs max-w-[200px] h-8"
@@ -996,7 +998,7 @@ export function OfficeMap() {
                     onClick={handleAssignDesk}
                     disabled={assignDeskMutation.isPending || !targetUserIdInput.trim()}
                   >
-                    Assign
+                    {t('officeMap.popover.assignBtn')}
                   </Button>
                 </div>
               </div>
@@ -1016,41 +1018,41 @@ export function OfficeMap() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-600">
               {editorMode === 'edit' ? <Edit2 className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-              {editorMode === 'edit' ? `Edit Office Map — ${formData.name || 'Location'}` : 'Create New Office Location & Map'}
+              {editorMode === 'edit' ? t('officeMap.editorModal.titleEdit', { name: formData.name || 'Location' }) : t('officeMap.editorModal.titleCreate')}
             </DialogTitle>
             <DialogDescription>
               {editorMode === 'edit'
-                ? 'Update office details, access credentials, and manage floor plan layouts & desks.'
-                : 'Configure facility profile, Wi-Fi credentials, and define initial floor plans and workstations.'}
+                ? t('officeMap.editorModal.descEdit')
+                : t('officeMap.editorModal.descCreate')}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <Tabs value={editorTab} onValueChange={setEditorTab} className="w-full">
             <TabsList className="grid grid-cols-3 mb-4">
-              <TabsTrigger value="details">Facility Details</TabsTrigger>
-              <TabsTrigger value="access">Access & Wi-Fi</TabsTrigger>
-              <TabsTrigger value="floors">Floors & Desks</TabsTrigger>
+              <TabsTrigger value="details">{t('officeMap.editorModal.tabs.details')}</TabsTrigger>
+              <TabsTrigger value="access">{t('officeMap.editorModal.tabs.access')}</TabsTrigger>
+              <TabsTrigger value="floors">{t('officeMap.editorModal.tabs.floors')}</TabsTrigger>
             </TabsList>
 
             {/* Tab 1: Facility Details */}
             <TabsContent value="details" className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Facility Name *</label>
+                  <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.facilityName')}</label>
                   <Input
                     data-testid="edit-office-name-input"
-                    placeholder="e.g. San Francisco Innovation Hub"
+                    placeholder={t('officeMap.editorModal.details.facilityPlaceholder')}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Location Code *</label>
+                  <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.locationCode')}</label>
                   <Input
                     data-testid="edit-office-code-input"
-                    placeholder="e.g. SF-HQ-01"
+                    placeholder={t('officeMap.editorModal.details.locationCodePlaceholder')}
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   />
@@ -1058,10 +1060,10 @@ export function OfficeMap() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Street Address *</label>
+                <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.streetAddress')}</label>
                 <Input
                   data-testid="edit-street-input"
-                  placeholder="e.g. 500 Howard Street, Suite 400"
+                  placeholder={t('officeMap.editorModal.details.streetPlaceholder')}
                   value={formData.street}
                   onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                 />
@@ -1069,17 +1071,17 @@ export function OfficeMap() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">City *</label>
+                  <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.city')}</label>
                   <Input
                     data-testid="edit-city-input"
-                    placeholder="San Francisco"
+                    placeholder={t('officeMap.editorModal.details.cityPlaceholder')}
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">State / Province</label>
+                  <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.state')}</label>
                   <Input
                     placeholder="CA"
                     value={formData.state}
@@ -1088,7 +1090,7 @@ export function OfficeMap() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Postal / Zip Code</label>
+                  <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.postalCode')}</label>
                   <Input
                     placeholder="94105"
                     value={formData.zip}
@@ -1097,9 +1099,9 @@ export function OfficeMap() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Country *</label>
+                  <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.details.country')}</label>
                   <Input
-                    placeholder="USA"
+                    placeholder={t('officeMap.editorModal.details.countryPlaceholder')}
                     value={formData.country}
                     onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   />
@@ -1115,7 +1117,7 @@ export function OfficeMap() {
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 h-4 w-4"
                 />
                 <label htmlFor="isPrimaryCheckbox" className="text-xs font-medium cursor-pointer">
-                  Set as Primary Headquarters / Default Office Location
+                  {t('officeMap.editorModal.details.isPrimaryLabel')}
                 </label>
               </div>
             </TabsContent>
@@ -1125,11 +1127,11 @@ export function OfficeMap() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Wifi className="h-3.5 w-3.5 text-emerald-500" /> Wi-Fi Network Name (SSID)
+                    <Wifi className="h-3.5 w-3.5 text-emerald-500" /> {t('officeMap.editorModal.access.wifiSsd')}
                   </label>
                   <Input
                     data-testid="edit-wifi-ssd-input"
-                    placeholder="e.g. Talnova-Secure-5G"
+                    placeholder={t('officeMap.editorModal.access.wifiSsdPlaceholder')}
                     value={formData.wifiSsd}
                     onChange={(e) => setFormData({ ...formData, wifiSsd: e.target.value })}
                   />
@@ -1137,11 +1139,11 @@ export function OfficeMap() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Key className="h-3.5 w-3.5 text-indigo-500" /> Wi-Fi Password
+                    <Key className="h-3.5 w-3.5 text-indigo-500" /> {t('officeMap.editorModal.access.wifiPassword')}
                   </label>
                   <Input
                     data-testid="edit-wifi-pass-input"
-                    placeholder="e.g. WelcomeTalnova2026!"
+                    placeholder={t('officeMap.editorModal.access.wifiPasswordPlaceholder')}
                     value={formData.wifiPassword}
                     onChange={(e) => setFormData({ ...formData, wifiPassword: e.target.value })}
                   />
@@ -1150,22 +1152,22 @@ export function OfficeMap() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-500" /> Building Access Code / Lobby PIN
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-500" /> {t('officeMap.editorModal.access.accessCode')}
                 </label>
                 <Input
                   data-testid="edit-access-code-input"
-                  placeholder="e.g. KEY-5004"
+                  placeholder={t('officeMap.editorModal.access.accessCodePlaceholder')}
                   value={formData.buildingAccessCode}
                   onChange={(e) => setFormData({ ...formData, buildingAccessCode: e.target.value })}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Arrival Instructions</label>
+                <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.access.arrivalInstructions')}</label>
                 <textarea
                   rows={2}
                   className="w-full px-3 py-2 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  placeholder="e.g. Check in with security at the main lobby desk on Floor 1. Bring photo ID."
+                  placeholder={t('officeMap.editorModal.access.arrivalPlaceholder')}
                   value={formData.arrivalInstructions}
                   onChange={(e) => setFormData({ ...formData, arrivalInstructions: e.target.value })}
                 />
@@ -1173,12 +1175,12 @@ export function OfficeMap() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Car className="h-3.5 w-3.5 text-blue-500" /> Parking Information
+                  <Car className="h-3.5 w-3.5 text-blue-500" /> {t('officeMap.editorModal.access.parkingInfo')}
                 </label>
                 <textarea
                   rows={2}
                   className="w-full px-3 py-2 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  placeholder="e.g. Underground parking garage entry located on 5th Street. Validate ticket with lobby security."
+                  placeholder={t('officeMap.editorModal.access.parkingPlaceholder')}
                   value={formData.parkingInfo}
                   onChange={(e) => setFormData({ ...formData, parkingInfo: e.target.value })}
                 />
@@ -1189,7 +1191,7 @@ export function OfficeMap() {
             <TabsContent value="floors" className="space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b">
                 <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Layers className="h-4 w-4 text-indigo-600" /> Configured Floors ({formData.floors.length})
+                  <Layers className="h-4 w-4 text-indigo-600" /> {t('officeMap.editorModal.floors.configuredFloors', { count: formData.floors.length })}
                 </div>
 
                 <Button
@@ -1200,7 +1202,7 @@ export function OfficeMap() {
                   onClick={handleAddFloor}
                   className="text-xs h-8 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Floor
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('officeMap.editorModal.floors.addFloor')}
                 </Button>
               </div>
 
@@ -1217,7 +1219,7 @@ export function OfficeMap() {
                         : 'bg-muted/40 hover:bg-muted text-foreground border-border'
                     }`}
                   >
-                    Floor {fl.floorNumber}
+                    {t('officeMap.editorModal.floors.floorTab', { floorNumber: fl.floorNumber })}
                     {formData.floors.length > 1 && (
                       <span
                         onClick={(e) => {
@@ -1237,7 +1239,7 @@ export function OfficeMap() {
               {formData.floors[editorFloorIndex] && (
                 <div className="p-4 border rounded-lg bg-card space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">Floor Name</label>
+                    <label className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.floors.floorName')}</label>
                     <Input
                       value={formData.floors[editorFloorIndex].floorName}
                       onChange={(e) => {
@@ -1245,25 +1247,25 @@ export function OfficeMap() {
                         updated[editorFloorIndex].floorName = e.target.value;
                         setFormData({ ...formData, floors: updated });
                       }}
-                      placeholder="e.g. Floor 2 — Engineering & Product"
+                      placeholder={t('officeMap.editorModal.floors.floorNamePlaceholder')}
                       className="text-xs"
                     />
                   </div>
 
                   {/* Add Desk Form */}
                   <div className="p-3 border rounded-md bg-muted/20 space-y-2">
-                    <div className="text-xs font-semibold text-foreground">Add Workstation / Desk to Floor</div>
+                    <div className="text-xs font-semibold text-foreground">{t('officeMap.editorModal.floors.addDeskTitle')}</div>
                     <div className="flex flex-col sm:flex-row items-center gap-2">
                       <Input
                         data-testid="new-desk-input"
-                        placeholder="Desk Number (e.g. 201-A)"
+                        placeholder={t('officeMap.editorModal.floors.deskNumberPlaceholder')}
                         value={newDeskNumber}
                         onChange={(e) => setNewDeskNumber(e.target.value)}
                         className="text-xs h-8"
                       />
                       <Input
                         data-testid="new-zone-input"
-                        placeholder="Zone / Department (e.g. DevOps)"
+                        placeholder={t('officeMap.editorModal.floors.zonePlaceholder')}
                         value={newDeskZone}
                         onChange={(e) => setNewDeskZone(e.target.value)}
                         className="text-xs h-8"
@@ -1275,7 +1277,7 @@ export function OfficeMap() {
                         onClick={handleAddDeskToFloor}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 shrink-0 w-full sm:w-auto"
                       >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Desk
+                        <Plus className="h-3.5 w-3.5 mr-1" /> {t('officeMap.editorModal.floors.addDeskBtn')}
                       </Button>
                     </div>
                   </div>
@@ -1283,12 +1285,12 @@ export function OfficeMap() {
                   {/* Desks List Table */}
                   <div className="space-y-2">
                     <div className="text-xs font-semibold text-muted-foreground">
-                      Desks on this floor ({formData.floors[editorFloorIndex].desks.length}):
+                      {t('officeMap.editorModal.floors.desksOnFloor', { count: formData.floors[editorFloorIndex].desks.length })}
                     </div>
                     <div className="max-h-48 overflow-y-auto border rounded-md divide-y text-xs">
                       {formData.floors[editorFloorIndex].desks.length === 0 ? (
                         <div className="p-3 text-center text-muted-foreground">
-                          No desks added yet. Use the form above to add desks.
+                          {t('officeMap.editorModal.floors.emptyDesks')}
                         </div>
                       ) : (
                         formData.floors[editorFloorIndex].desks.map((d) => (
@@ -1300,9 +1302,9 @@ export function OfficeMap() {
                               <Badge variant="outline" className="font-bold text-indigo-600 bg-indigo-50/50">
                                 {d.deskNumber}
                               </Badge>
-                              <span className="font-medium text-foreground">{d.zone || 'Workstation'}</span>
+                              <span className="font-medium text-foreground">{d.zone || t('officeMap.editorModal.floors.defaultZone')}</span>
                               <span className="text-[11px] text-muted-foreground">
-                                {d.assignedUserName ? `(Occupied: ${d.assignedUserName})` : '(Available)'}
+                                {d.assignedUserName ? t('officeMap.editorModal.floors.occupiedLabel', { name: d.assignedUserName }) : t('officeMap.editorModal.floors.availableLabel')}
                               </span>
                             </div>
 
@@ -1333,7 +1335,7 @@ export function OfficeMap() {
               type="button"
               onClick={() => setIsEditorOpen(false)}
             >
-              Cancel
+              {t('officeMap.editorModal.buttons.cancel')}
             </Button>
             <Button
               data-testid="save-map-btn"
@@ -1343,10 +1345,10 @@ export function OfficeMap() {
               disabled={createLocationMutation.isPending || updateLocationMutation.isPending}
             >
               {createLocationMutation.isPending || updateLocationMutation.isPending
-                ? 'Saving...'
+                ? t('officeMap.editorModal.buttons.saving')
                 : editorMode === 'edit'
-                ? 'Save Changes'
-                : 'Create Office Location'}
+                ? t('officeMap.editorModal.buttons.saveChanges')
+                : t('officeMap.editorModal.buttons.createLocation')}
             </Button>
           </DialogFooter>
         </DialogContent>

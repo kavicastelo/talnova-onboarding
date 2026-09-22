@@ -10,6 +10,7 @@ import {
 import { Badge } from '../Badge';
 import { Progress } from '../Progress';
 import { Card, CardContent } from '../Card';
+import { useTranslation } from 'react-i18next';
 
 export interface IJourneyStage {
   id: string;
@@ -136,6 +137,7 @@ export const JourneyPathVisualizer: React.FC<JourneyPathVisualizerProps> = ({
   stages = DEFAULT_STAGES,
   onStageSelect,
 }) => {
+  const { t } = useTranslation('journeys');
   const [activeStageId, setActiveStageId] = useState<string>(stages[1]?.id || stages[0]?.id);
   const selectedStage = stages.find((s) => s.id === activeStageId) || stages[0];
 
@@ -154,7 +156,7 @@ export const JourneyPathVisualizer: React.FC<JourneyPathVisualizerProps> = ({
             </span>
             <h3 className="text-base font-semibold text-foreground tracking-tight">{journeyTitle}</h3>
             <Badge variant="outline" className="capitalize text-xs bg-background/80">
-              State: {caseState}
+              {t('visualizer.state', { state: caseState, defaultValue: 'State: {{state}}' })}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -164,7 +166,7 @@ export const JourneyPathVisualizer: React.FC<JourneyPathVisualizerProps> = ({
         <div className="flex items-center gap-4 min-w-[220px]">
           <div className="flex-1 space-y-1">
             <div className="flex justify-between text-xs font-medium">
-              <span className="text-muted-foreground">Journey Velocity</span>
+              <span className="text-muted-foreground">{t('visualizer.journeyVelocity', 'Journey Velocity')}</span>
               <span className="text-primary font-bold">{overallPercent}%</span>
             </div>
             <Progress value={overallPercent} className="h-2" />

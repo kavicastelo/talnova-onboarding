@@ -1,8 +1,15 @@
 {
   "list": {
     "title": "හඳුන්වාදීමේ ගමන් මාර්ග",
+    "myJourneysTitle": "මගේ හඳුන්වාදීමේ ගමන් මාර්ග",
+    "subtitleAdmin": "සේවක හඳුන්වාදීමේ මාර්ග, අදියර දොරටු සහ ස්වයංක්‍රීය පැවරුම් කළමනාකරණය කර නිරීක්ෂණය කරන්න.",
+    "subtitleEmployee": "ඔබට පවරා ඇති හඳුන්වාදීමේ මාර්ග නිරීක්ෂණය කර සම්පූර්ණ කරන්න.",
     "createNew": "නව ගමන් මාර්ගයක් සාදන්න",
     "searchPlaceholder": "ගමන් මාර්ග සොයන්න…",
+    "tabs": {
+      "templates": "ගමන් මාර්ග ආකෘති",
+      "autonomous": "ස්වයංක්‍රීය මාර්ගගත කිරීම"
+    },
     "columns": {
       "title": "මාතෘකාව",
       "status": "තත්ත්වය",
@@ -11,11 +18,45 @@
       "lastUpdated": "අවසන් යාවත්කාලීන කිරීම",
       "actions": "ක්‍රියා"
     },
+    "actions": {
+      "edit": "සංස්කරණය",
+      "duplicate": "පිටපත් කරන්න",
+      "archive": "සංරක්ෂිත කරන්න"
+    },
+    "copySuffix": "පිටපත",
+    "itemLabel": "ගමන් මාර්ග",
     "empty": "ගමන් මාර්ග කිසිවක් හමු නොවීය. ඔබගේ පළමු හඳුන්වාදීමේ ගමන් මාර්ගය සාදන්න.",
     "filterAll": "සියල්ල",
     "filterActive": "සක්‍රීය",
     "filterDraft": "කටුපිටපත්",
-    "filterArchived": "සංරක්ෂිත"
+    "filterArchived": "සංරක්ෂිත",
+    "error": {
+      "title": "ගමන් මාර්ග පූරණය කිරීම අසාර්ථක විය",
+      "default": "දෝෂයක් සිදු විය.",
+      "retry": "නැවත උත්සාහ කරන්න"
+    },
+    "duplicateModal": {
+      "title": "ගමන් මාර්ගය පිටපත් කරන්න",
+      "newTitle": "නව මාතෘකාව",
+      "placeholder": "උදා. Engineering Onboarding (පිටපත)",
+      "cancel": "අවලංගු කරන්න",
+      "duplicating": "පිටපත් කරමින්...",
+      "duplicateBtn": "පිටපත් කරන්න"
+    },
+    "archiveModal": {
+      "title": "ගමන් මාර්ගය සංරක්ෂණය කරන්න",
+      "description": "මෙම ගමන් මාර්ගය සංරක්ෂණය කිරීමට ඔබට විශ්වාසද? ලියාපදිංචි වූ සේවකයින්ට තවදුරටත් එයට ප්‍රවේශ විය නොහැක.",
+      "cancel": "අවලංගු කරන්න",
+      "archiving": "සංරක්ෂණය කරමින්...",
+      "archiveBtn": "සංරක්ෂණය කරන්න"
+    },
+    "toasts": {
+      "duplicateSuccess": "ගමන් මාර්ගය සාර්ථකව පිටපත් කරන ලදී",
+      "duplicateFailed": "ගමන් මාර්ගය පිටපත් කිරීම අසාර්ථක විය",
+      "archiveSuccess": "ගමන් මාර්ගය සාර්ථකව සංරක්ෂණය කරන ලදී",
+      "archiveFailed": "ගමන් මාර්ගය සංරක්ෂණය කිරීම අසාර්ථක විය",
+      "overrideSuccess": "අතින් ප්‍රතිස්ථාපනය යොදන ලදී: {{title}} වෙත නැවත පවරන ලදී"
+    }
   },
   "builder": {
     "title": "ගමන් මාර්ග නිර්මාපකය",
@@ -26,6 +67,477 @@
     "saveDraft": "කටුපිටපත ලෙස සුරකින්න",
     "unsavedWarning": "ඔබ සුරකි නොමැති වෙනස්කම් ඇත.",
     "publishSuccess": "ගමන් මාර්ගය සාර්ථකව ප්‍රකාශයට පත් කරන ලදී.",
-    "saveSuccess": "ගමන් මාර්ගය සුරකින ලදී."
+    "saveSuccess": "ගමන් මාර්ගය සුරකින ලදී.",
+    "header": {
+      "newJourneyFallback": "නව ගමන් මාර්ගය",
+      "defaultTitleFallback": "ඉංජිනේරු ඇතුළත් කිරීම",
+      "statusActive": "ක්‍රියාකාරී",
+      "statusDraft": "කටුපිටපත",
+      "unsavedChanges": "● සුරැකි නැති වෙනස්කම්",
+      "notSavedYet": "තවමත් සුරකින ලද්දේ නැත",
+      "draftSaved": "✓ කටුපිටපත සුරකින ලදී",
+      "saveDraft": "කටුපිටපත සුරකින්න",
+      "savingDraft": "සුරකිමින් පවතී...",
+      "publishJourney": "ගමන් මාර්ගය ප්‍රකාශයට පත් කරන්න",
+      "publishing": "ප්‍රකාශයට පත් කරමින් පවතී...",
+      "finish": "අවසන් කරන්න",
+      "finishExit": "අවසන් කර පිටවන්න",
+      "saveAndNext": "සුරකින්න සහ ඊළඟට",
+      "saveAndPublish": "සුරකින්න සහ ගමන් මාර්ගය ප්‍රකාශයට පත් කරන්න",
+      "backTooltip": "නැවත ගමන් මාර්ග වෙත"
+    },
+    "tabs": {
+      "settings": "1. සැකසුම්",
+      "builder": "2. නිර්මාපකය",
+      "assignments": "3. පැවරුම්"
+    },
+    "settingsTab": {
+      "title": "ගමන් මාර්ග සැකසුම්",
+      "generalTitle": "සාමාන්‍ය විස්තර",
+      "journeyTitleLabel": "ගමන් මාර්ග මාතෘකාව",
+      "descriptionLabel": "විස්තරය",
+      "categoryLabel": "ප්‍රවර්ගය",
+      "categoryPlaceholder": "ප්‍රවර්ගය තෝරන්න",
+      "categorySearchPlaceholder": "ප්‍රවර්ගය සොයන්න...",
+      "rulesTitle": "ඉගෙනුම් රීති සහ සීමාවන්",
+      "sequentialTitle": "අනුක්‍රමිකව සම්පූර්ණ කිරීම අවශ්‍යයි",
+      "sequentialDesc": "සේවකයින් පාඩම් අනුපිළිවෙලින් සම්පූර්ණ කළ යුතුය.",
+      "skipTitle": "පාඩම් මඟ හැරීමට ඉඩ දෙන්න",
+      "skipDesc": "පාඩම් සම්පූර්ණ කර ඇති බවට සලකුණු නොකර මඟ හැරීමට පරිශීලකයින්ට ඉඩ දෙයි.",
+      "retakesTitle": "නැවත උත්සාහ කිරීමට ඉඩ දෙන්න",
+      "retakesDesc": "ප්‍රශ්නාවලි කිහිප වතාවක් නැවත උත්සාහ කිරීමට පරිශීලකයින්ට ඉඩ දෙයි.",
+      "maxRetakesLabel": "උපරිම නැවත උත්සාහ කිරීම් ගණන",
+      "certificateTitle": "සහතික සැකසුම්",
+      "awardCertificateTitle": "සම්පූර්ණ වූ පසු සහතිකය ප්‍රදානය කරන්න",
+      "awardCertificateDesc": "සියලුම මොඩියුල අවසන් වූ පසු සහතික කළ අක්තපත්‍රයක් උත්පාදනය කරන්න.",
+      "passingScoreLabel": "සමත් වීමේ ලකුණු අවශ්‍යතාවය (%)",
+      "saveDraftBtn": "කටුපිටපත සුරකින්න",
+      "saveNextBtn": "සුරකින්න සහ ඊළඟට"
+    },
+    "curriculum": {
+      "outlineTitle": "විෂය මාලාව",
+      "emptyOutline": "විෂය මාලාව ගොඩනැගීම ආරම්භ කිරීමට ඔබගේ පළමු මොඩියුලය එක් කරන්න.",
+      "addModuleTooltip": "මොඩියුලයක් එක් කරන්න",
+      "addLessonTooltip": "පාඩමක් එක් කරන්න",
+      "removeModuleTooltip": "මොඩියුලය ඉවත් කරන්න",
+      "removeLessonTooltip": "පාඩම ඉවත් කරන්න",
+      "backToCurriculum": "නැවත විෂය මාලාවට",
+      "lessonSubheader": "{{type}} පාඩම • {{duration}}",
+      "selectLessonPrompt": "අන්තර්ගතය සංස්කරණය කිරීමට විෂය මාලාවේ පැති තීරුවෙන් පාඩමක් තෝරන්න.",
+      "lessonTypes": {
+        "article": "ලිපිය",
+        "video": "වීඩියෝ",
+        "quiz": "ප්‍රශ්නාවලිය",
+        "pdf": "PDF ලේඛනය",
+        "document": "MS Office ලේඛනය (Word/Excel)",
+        "audio": "ශ්‍රව්‍ය ධාවකය",
+        "image": "රූප නරඹන්නා",
+        "task": "කාර්ය පිරික්සුම"
+      },
+      "videoEditor": {
+        "title": "වීඩියෝ මූලාශ්‍රය",
+        "uploadTitle": "වීඩියෝ ගොනුව උඩුගත කරන්න",
+        "uploadDesc": "MP4, WebM හෝ Ogg වීඩියෝ ගොනුවක් උඩුගත කරන්න.",
+        "chooseFile": "ගොනුව තෝරන්න",
+        "uploadingPercent": "උඩුගත කරමින් ({{percent}}%)",
+        "embedTitle": "වීඩියෝ URL කාවද්දන්න",
+        "embedDesc": "YouTube, Vimeo, හෝ සෘජු MP4 URL එකක් අලවන්න.",
+        "embedPlaceholder": "https://example.com/video.mp4",
+        "previewTitle": "වීඩියෝ පෙරදසුන"
+      },
+      "articleEditor": {
+        "editTab": "සංස්කරණය",
+        "previewTab": "පෙරදසුන",
+        "bold": "තද පැහැති",
+        "italic": "ඇල අකුරු",
+        "header": "ශීර්ෂය",
+        "code": "කේතය",
+        "list": "ලැයිස්තුව",
+        "uploadMedia": "රූපය/ගොනුව උඩුගත කරන්න",
+        "markdownPlaceholder": "ඔබගේ අන්තර්ගතය Markdown ආකෘතියෙන් මෙහි ලියන්න...",
+        "emptyMarkdown": "තවමත් කිසිදු අන්තර්ගතයක් ලියා නොමැත. පෙළ එක් කිරීමට සංස්කාරකය භාවිතා කරන්න."
+      },
+      "fileEditor": {
+        "sourceTitle": "{{type}} ගොනු මූලාශ්‍රය",
+        "uploadTitle": "ගොනුව උඩුගත කරන්න",
+        "uploadPdfDesc": "PDF ලේඛනයක් උඩුගත කරන්න.",
+        "uploadDocDesc": "Word, Excel හෝ PowerPoint ලේඛනයක් උඩුගත කරන්න.",
+        "uploadAudioDesc": "MP3, WAV හෝ M4A ශ්‍රව්‍ය ගොනුවක් උඩුගත කරන්න.",
+        "uploadImageDesc": "PNG, JPG, JPEG හෝ SVG රූපයක් උඩුගත කරන්න.",
+        "chooseFile": "ගොනුව තෝරන්න",
+        "uploadingPercent": "උඩුගත කරමින් ({{percent}}%)",
+        "urlTitle": "ගොනු URL",
+        "urlDesc": "නැතහොත් ගොනුවට පොදු සබැඳියක් අලවන්න.",
+        "urlPlaceholder": "https://example.com/file",
+        "previewTitle": "පෙරදසුන / වත්මන් සබැඳිය",
+        "openNewTab": "නව ටැබයක විවෘත කරන්න",
+        "pdfLivePreview": "PDF ලේඛන සජීවී පෙරදසුන",
+        "fullScreen": "සම්පූර්ණ තිරය"
+      },
+      "quizEditor": {
+        "title": "ප්‍රශ්නාවලිය",
+        "desc": "ඔබගේ සේවකයින් සඳහා බහුවරණ ප්‍රශ්න එක් කරන්න.",
+        "addQuestion": "ප්‍රශ්නයක් එක් කරන්න",
+        "emptyQuestions": "තවමත් ප්‍රශ්න කිසිවක් එක් කර නොමැත. ආරම්භ කිරීමට \"ප්‍රශ්නයක් එක් කරන්න\" ක්ලික් කරන්න.",
+        "questionNumber": "ප්‍රශ්නය {{number}}",
+        "typeLabel": "වර්ගය:",
+        "types": {
+          "singleChoice": "තනි තේරීම",
+          "multipleChoice": "බහුවරණ",
+          "trueFalse": "සත්‍ය / අසත්‍ය"
+        },
+        "pointsLabel": "ලකුණු:",
+        "removeQuestion": "ප්‍රශ්නය ඉවත් කරන්න",
+        "questionTextLabel": "ප්‍රශ්න පෙළ",
+        "questionPlaceholder": "උදා. අපගේ ප්‍රධාන පාරිභෝගික වටිනාකම් යෝජනාව කුමක්ද?",
+        "optionsLabel": "විකල්ප",
+        "multipleChoiceHint": "කොටු සලකුණු කිරීම භාවිතයෙන් නිවැරදි පිළිතුර(තුරු) තෝරන්න",
+        "singleChoiceHint": "රේඩියෝ බොත්තම් භාවිතයෙන් නිවැරදි පිළිතුර තෝරන්න",
+        "trueFalseHint": "නිවැරදි පිළිතුර තෝරන්න (සත්‍ය හෝ අසත්‍ය)",
+        "optionPlaceholder": "විකල්පය {{number}}",
+        "addOption": "විකල්පයක් එක් කරන්න"
+      },
+      "lessonSidebar": {
+        "title": "පාඩම් සැකසුම්",
+        "estimatedTime": "ඇස්තමේන්තුගත කාලය",
+        "minutesLabel": "මිනිත්තු",
+        "completionRule": "සම්පූර්ණ කිරීමේ රීතිය",
+        "completionRules": {
+          "video": "වීඩියෝවෙන් 90% ක් නරඹන්න",
+          "button": "සම්පූර්ණ කිරීමේ බොත්තම ක්ලික් කරන්න",
+          "quiz": "අමුණා ඇති ප්‍රශ්නාවලිය සමත් වන්න"
+        },
+        "lessonDescLabel": "පාඩම් විස්තරය",
+        "lessonDescPlaceholder": "මෙම පාඩම සඳහා කෙටි සාරාංශයක් හෝ පිටපතක් එක් කරන්න..."
+      }
+    },
+    "assignmentsTab": {
+      "draftWarningTitle": "ප්‍රකාශයට පත් කිරීම අවශ්‍යයි",
+      "draftWarningDesc": "මෙම ගමන් මාර්ගය දැනට කටුපිටපතකි. සේවකයින්ට කටුපිටපත් ගමන් මාර්ග බැලීමට හෝ තමන්ටම පවරා ගැනීමට නොහැක. පොදු ප්‍රවේශය හෝ පැවරුම් ලුහුබැඳීම සක්‍රිය කිරීමට ඔබ පළමුව මෙම ගමන් මාර්ගය ප්‍රකාශයට පත් කළ යුතුය.",
+      "visibility": {
+        "title": "ප්‍රවේශ දෘශ්‍යතාව",
+        "publicTitle": "පොදු ප්‍රවේශය",
+        "publicDesc": "ඕනෑම ආයතන සාමාජිකයෙකුට ඔවුන්ගේ උපකරණ පුවරුවෙන් මෙම ගමන් මාර්ගය සොයාගෙන තමන්ම ලියාපදිංචි විය හැක.",
+        "restrictedTitle": "සීමාසහිත",
+        "restrictedDesc": "පරිපාලකයෙකු විසින් විශේෂයෙන් ඉලක්ක කරන ලද/පවරන ලද සේවකයින්ට පමණක් මෙම ගමන් මාර්ගයට ප්‍රවේශ විය හැක.",
+        "activeBadge": "ක්‍රියාකාරී"
+      },
+      "bulk": {
+        "title": "සේවක පැවරුම් තොග වශයෙන් ඉලක්ක කිරීම",
+        "desc": "නම, දෙපාර්තමේන්තුව අනුව සොයන්න, පෙරහන් කරන්න, සේවකයින් කිහිප දෙනෙකු තෝරන්න, සහ පරිමාණයෙන් මෙම ගමන් මාර්ගය පවරන්න (10,000+ සේවකයින් සඳහා සහය දක්වයි).",
+        "assignSelectedBtn": "තෝරාගත් {{label}} {{count}} ක් පවරන්න",
+        "employeeSingle": "සේවකයා",
+        "employeePlural": "සේවකයින්",
+        "searchPlaceholder": "නම, විද්‍යුත් තැපෑල, දෙපාර්තමේන්තුව අනුව සේවකයින් සොයන්න...",
+        "allDepartments": "සියලුම දෙපාර්තමේන්තු",
+        "searchDeptPlaceholder": "දෙපාර්තමේන්තුව සොයන්න...",
+        "pageSizeOption": "පිටුවකට {{size}} බැගින්",
+        "selectPage": "පිටුව තෝරන්න ({{count}})",
+        "selectAllMatched": "ගැළපෙන සියල්ල තෝරන්න ({{count}})",
+        "clearSelection": "තේරීම හිස් කරන්න",
+        "selectedCount": "{{count}} ක් තෝරා ඇත",
+        "tableHeaders": {
+          "employee": "සේවකයා",
+          "department": "දෙපාර්තමේන්තුව",
+          "role": "භූමිකාව",
+          "status": "තත්ත්වය"
+        },
+        "noEmployeesFound": "සෙවුම් නිර්ණායකවලට ගැළපෙන සේවකයින් හමු නොවීය.",
+        "assignedBadge": "පවරා ඇත",
+        "availableBadge": "ලබා ගත හැකිය",
+        "itemLabel": "සේවකයින්"
+      },
+      "enrollments": {
+        "titlePublic": "ලියාපදිංචි කිරීම් සහ ප්‍රගතිය",
+        "titleRestricted": "පවරන ලද සේවකයින්",
+        "personCount": "පුද්ගලයා {{count}}",
+        "personCount_other": "පුද්ගලයින් {{count}}",
+        "emptyTitle": "තවමත් සක්‍රිය ප්‍රගති ලොගයන් නොමැත.",
+        "emptyPublicDesc": "සේවකයින් ලියාපදිංචි වී ඉගෙනීම ආරම්භ කළ පසු පොදු ගමන් මාර්ග ප්‍රගති ලොග මෙහි පෙන්වයි.",
+        "emptyRestrictedDesc": "ඔවුන්ගේ ප්‍රගතිය නිරීක්ෂණය කිරීම ආරම්භ කිරීමට ඉහත සේවකයින්ට මෙම ගමන් මාර්ගය පවරන්න.",
+        "tableHeaders": {
+          "employee": "සේවකයා",
+          "status": "තත්ත්වය",
+          "progress": "ප්‍රගතිය",
+          "assignedDate": "පැවරූ දිනය",
+          "actions": "ක්‍රියා"
+        },
+        "statusCompleted": "සම්පූර්ණයි",
+        "statusInProgress": "ක්‍රියාත්මක වෙමින්",
+        "statusAssigned": "පවරා ඇත",
+        "statusOverdue": "කල් ඉකුත් වූ",
+        "issuedBadge": "නිකුත් කරන ලදී",
+        "viewCertificate": "බලන්න",
+        "issueCertificateBtn": "සහතිකය නිකුත් කරන්න",
+        "issuingCertificate": "නිකුත් කරමින්...",
+        "itemLabel": "පැවරුම්",
+        "prevBuilderBtn": "පෙර: නිර්මාපකය",
+        "savePublishBtn": "සුරකින්න සහ ගමන් මාර්ගය ප්‍රකාශයට පත් කරන්න",
+        "finishExitBtn": "අවසන් කර පිටවන්න"
+      }
+    },
+    "modals": {
+      "addModule": {
+        "title": "මොඩියුලයක් එක් කරන්න",
+        "label": "මොඩියුල මාතෘකාව",
+        "placeholder": "උදා. ආරම්භ කිරීම",
+        "cancel": "අවලංගු කරන්න",
+        "confirm": "මොඩියුලය එක් කරන්න"
+      },
+      "addLesson": {
+        "title": "පාඩමක් එක් කරන්න",
+        "titleLabel": "පාඩම් මාතෘකාව",
+        "titlePlaceholder": "උදා. Git හැඳින්වීම",
+        "typeLabel": "පාඩම් වර්ගය",
+        "cancel": "අවලංගු කරන්න",
+        "confirm": "පාඩම එක් කරන්න"
+      },
+      "confirmDelete": {
+        "title": "ඉවත් කිරීම තහවුරු කරන්න",
+        "moduleDesc": "ඔබට මෙම මොඩියුලය සහ එහි සියලුම පාඩම් ඉවත් කිරීමට අවශ්‍ය බව සහතිකද? මෙම ක්‍රියාව අහෝසි කළ නොහැක.",
+        "lessonDesc": "ඔබට මෙම පාඩම ඉවත් කිරීමට අවශ්‍ය බව සහතිකද? මෙම ක්‍රියාව අහෝසි කළ නොහැක.",
+        "cancel": "අවලංගු කරන්න",
+        "confirm": "මකන්න"
+      },
+      "unsavedChanges": {
+        "title": "සුරැකි නැති වෙනස්කම්",
+        "desc": "මෙම ගමන් මාර්ගයේ ඔබ සුරැකි නොමැති වෙනස්කම් ඇත. ඔබ දැන් පිටව ගියහොත්, ඔබගේ ප්‍රගතිය නැති වනු ඇත. වෙනස්කම් ඉවත දමා පිටවීමට ඔබට සහතිකද?",
+        "stay": "රැඳී සිටින්න",
+        "discard": "ඉවත දමා පිටවන්න"
+      }
+    },
+    "error": {
+      "title": "ගමන් මාර්ග නිර්මාපකය පූරණය කිරීම අසාර්ථක විය",
+      "fallback": "ඉල්ලන ලද ගමන් මාර්ග විස්තර ලබා ගැනීමට නොහැකි විය.",
+      "retry": "නැවත උත්සාහ කරන්න"
+    },
+    "toasts": {
+      "draftSaved": "ගමන් මාර්ග කටුපිටපත සුරකින ලදී!",
+      "draftSavedSuccess": "කටුපිටපත සාර්ථකව සුරකින ලදී!",
+      "publishedSuccess": "ගමන් මාර්ගය සාර්ථකව ප්‍රකාශයට පත් කරන ලදී!",
+      "publishFailed": "ගමන් මාර්ගය ප්‍රකාශයට පත් කිරීම අසාර්ථක විය.",
+      "fileUploaded": "ගොනුව සාර්ථකව උඩුගත කරන ලදී!",
+      "uploadFailed": "ගොනුව උඩුගත කිරීම අසාර්ථක විය.",
+      "accessUpdated": "ප්‍රවේශ ප්‍රතිපත්තිය {{policy}} වෙත යාවත්කාලීන කරන ලදී.",
+      "accessUpdateFailed": "ප්‍රවේශ ප්‍රතිපත්තිය යාවත්කාලීන කිරීම අසාර්ථක විය.",
+      "policyPublic": "පොදු",
+      "policyRestricted": "සීමාසහිත",
+      "selectEmployeeRequired": "කරුණාකර අවම වශයෙන් එක් සේවකයෙකු තෝරන්න.",
+      "saveJourneyFirst": "කරුණාකර පළමුව ගමන් මාර්ගය සුරකින්න.",
+      "bulkAssignedSuccess": "සේවකයින් {{count}} දෙනෙකුට සාර්ථකව ගමන් මාර්ගය පවරන ලදී!",
+      "bulkAssignFailed": "ගමන් මාර්ගය තොග වශයෙන් පැවරීම අසාර්ථක විය.",
+      "certificateIssuedSuccess": "සහතිකය සාර්ථකව නිකුත් කරන ලදී!",
+      "certificateIssueFailed": "සහතිකය නිකුත් කිරීම අසාර්ථක විය"
+    }
+  },
+  "aiBuilder": {
+    "title": "AI පාඨමාලා සහ ගමන් මාර්ග නිර්මාපකය",
+    "subtitle": "තනි ක්ලික් කිරීමකින් මිනිස් සමාලෝචන අනුමැතිය සහිතව සමාගම් දැනුම මත පදනම් වූ සම්පූර්ණ හඳුන්වාදීමේ විෂයමාලා, පාඩම් අන්තර්ගතය සහ ප්‍රශ්නාවලි උත්පාදනය කරන්න.",
+    "banner": {
+      "blockedLabel": "පාඨමාලා සංස්ලේෂණය අවහිර කර ඇත: ",
+      "defaultReason": "පාඨමාලා සංස්ලේෂණය කිරීමට පෙර ඔබගේ සංවිධානය සඳහා AI සැපයුම්කාර ඒකාබද්ධතාවක් වින්‍යාස කළ යුතුය.",
+      "configureBtn": "සැකසුම් තුළ AI වින්‍යාස කරන්න",
+      "contactAdmin": "AI සැපයුම්කරුවෙකු වින්‍යාස කිරීමට කරුණාකර ඔබගේ පරිපාලක අමතන්න."
+    },
+    "generator": {
+      "cardTitle": "AI හඳුන්වාදීමේ විෂයමාලා උත්පාදක යන්ත්‍රය",
+      "cardDesc": "ව්‍යුහගත ඉගෙනුම් පාඨමාලාවක් සංස්ලේෂණය කිරීමට භූමිකාවක්, මාතෘකාවක් ඇතුළත් කරන්න හෝ ප්‍රතිපත්ති ලේඛනයක් උඩුගත කරන්න.",
+      "topicLabel": "හඳුන්වාදීමේ මාතෘකාව, ප්‍රතිපත්ති ලේඛනය, හෝ විමසුම",
+      "attachedFile": "අමුණා ඇත: {{name}}",
+      "uploadFile": "ප්‍රතිපත්ති ගොනුව උඩුගත කරන්න",
+      "promptPlaceholder": "උදා. 2026 ව්‍යවසාය දත්ත රහස්‍යතා සහ GDPR මාර්ගෝපදේශ",
+      "targetRole": "ඉලක්කගත භූමිකාව",
+      "rolePlaceholder": "උදා. සියලු සේවකයින්",
+      "department": "දෙපාර්තමේන්තුව",
+      "deptPlaceholder": "උදා. අනුකූලතාව",
+      "courseLevel": "පාඨමාලා මට්ටම",
+      "levels": {
+        "beginner": "ආරම්භක",
+        "intermediate": "මධ්‍යම",
+        "advanced": "උසස්"
+      },
+      "modules": "මොඩියුල",
+      "moduleOption": "මොඩියුල {{count}}",
+      "btnBlocked": "පාඨමාලාව උත්පාදනය කිරීමට AI වින්‍යාසය අවශ්‍යයි",
+      "btnSynthesizing": "පාඨමාලාව සහ ප්‍රශ්නාවලි සංස්ලේෂණය කරමින් පවතී...",
+      "btnGenerate": "පාඨමාලා කටුපිටපත උත්පාදනය කරන්න"
+    },
+    "editor": {
+      "title": "පාඨමාලා කටුපිටපත් පෙරදසුන සහ සංස්කාරකය",
+      "subtitle": "උත්පාදනය කරන ලද විෂය නිර්දේශය සමාලෝචනය කරන්න, මොඩියුල මාතෘකා සංස්කරණය කරන්න, සහ පාඨමාලාව කෙලින්ම LMS වෙත සුරකින්න.",
+      "savingToLMS": "පාඨමාලාව සුරකිමින් පවතී...",
+      "saveToLMS": "පාඨමාලාව LMS වෙත සුරකින්න",
+      "approveAndPublish": "අනුමත කර ප්‍රකාශයට පත් කරන්න",
+      "modulesGenerated": "මොඩියුල {{count}} උත්පාදනය කරන ලදී",
+      "moduleIndex": "මොඩියුලය {{index}}:",
+      "saveModuleTitle": "සුරකින්න",
+      "editModuleTitle": "මොඩියුල මාතෘකාව සංස්කරණය කරන්න",
+      "regenerateBtn": "නැවත උත්පාදනය කරන්න",
+      "minsDuration": "මිනිත්තු {{minutes}}",
+      "quizAssessment": "ප්‍රශ්නාවලි ඇගයීම (ප්‍රශ්න {{count}}):",
+      "correctOption": "✓ (නිවැරදි)"
+    },
+    "queue": {
+      "title": "සියලුම පාඨමාලා කටුපිටපත් පෝලිම",
+      "empty": "පෙර පාඨමාලා කටුපිටපත් කිසිවක් හමු නොවීය.",
+      "modulesBadge": "මොඩියුල {{count}}"
+    },
+    "toasts": {
+      "attachedDoc": "ලේඛනය අමුණන ලදී: {{name}}",
+      "promptRequired": "කරුණාකර පාඨමාලා විමසුමක් ඇතුළත් කරන්න හෝ ප්‍රතිපත්ති ලේඛනයක් උඩුගත කරන්න.",
+      "generatedSuccess": "AI මගින් \"{{title}}\" පාඨමාලා කටුපිටපත උත්පාදනය කරන ලදී!",
+      "generateFailed": "AI පාඨමාලා කටුපිටපත උත්පාදනය කිරීමට නොහැකි විය",
+      "moduleTitleUpdated": "මොඩියුල {{index}} මාතෘකාව \"{{title}}\" ලෙස යාවත්කාලීන කරන ලදී",
+      "noDraftToSave": "සුරැකීමට කිසිදු පාඨමාලා කටුපිටපතක් නොමැත",
+      "courseSavedSuccess": "පාඨමාලාව සාර්ථකව සුරකින ලදී",
+      "saveCourseFailed": "පාඨමාලාව LMS වෙත සුරැකීමට නොහැකි විය",
+      "publishedSuccess": "පාඨමාලා කටුපිටපත සජීවී ගමන් මාර්ග වෙත ප්‍රකාශයට පත් කරන ලදී!",
+      "publishFailed": "කටුපිටපත ගමන් මාර්ග වෙත ප්‍රකාශයට පත් කිරීමට නොහැකි විය",
+      "moduleRegenerated": "මොඩියුල අන්තර්ගතය AI සමඟ නැවත උත්පාදනය කරන ලදී!",
+      "draftDeleted": "පාඨමාලා කටුපිටපත මකා දමන ලදී."
+    }
+  },
+  "certificates": {
+    "title": "මගේ සහතික",
+    "subtitle": "ඔබ සම්පූර්ණ කළ ඇතුළත් වීමේ ගමන් සඳහා සත්‍යාපිත ඩිජිටල් සහතික බලන්න, බාගන්න සහ බෙදාගන්න.",
+    "verifiedCredential": "සත්‍යාපිත සහතිකය",
+    "issuedDate": "නිකුත් කළ දිනය: {{date}}",
+    "na": "අදාළ නොවේ",
+    "credentialId": "සහතික ID:",
+    "viewAndDownload": "සහතිකය බලන්න සහ බාගන්න",
+    "verifyPublicLink": "පොදු සබැඳිය සත්‍යාපනය කරන්න",
+    "copyLink": "සබැඳිය පිටපත් කරන්න",
+    "shareLinkedIn": "LinkedIn හි බෙදාගන්න",
+    "itemLabel": "සහතික",
+    "fallbackJourneyTitle": "සේවක ඇතුළත් වීමේ ගමන",
+    "error": {
+      "title": "සහතික පූරණය කිරීම අසාර්ථක විය",
+      "desc": "ඔබගේ සහතික පූරණය කිරීමට නොහැකි විය.",
+      "retry": "නැවත උත්සාහ කරන්න"
+    },
+    "empty": {
+      "title": "කිසිදු සහතිකයක් හමු නොවීය",
+      "desc": "සත්‍යාපිත නිම කිරීමේ සහතිකයක් ලබා ගැනීමට ඔබට පවරා ඇති ඕනෑම පුහුණු හෝ ඇතුළත් වීමේ ගමනක් සම්පූර්ණ කරන්න.",
+      "goToDashboard": "උපකරණ පුවරුවට යන්න"
+    },
+    "modal": {
+      "title": "සහතිකය බලන්න",
+      "fallbackRecipient": "ජේන් ඩෝ",
+      "fallbackJourney": "සාමාන්‍ය ඇතුළත් වීම",
+      "fallbackOrg": "Talnova",
+      "close": "වසන්න",
+      "downloadPrint": "සහතිකය බාගන්න / මුද්‍රණය කරන්න"
+    },
+    "toasts": {
+      "linkedInOpened": "LinkedIn බෙදාගැනීමේ සබැඳිය විවෘත විය!",
+      "copiedLink": "සහතිකයේ සබැඳිය පසුපුවරුවට පිටපත් කරන ලදී!"
+    },
+    "publicViewer": {
+      "verifying": "ඩිජිටල් සහතිකය සත්‍යාපනය කරමින් පවතී...",
+      "invalidTitle": "වලංගු නොවන හෝ අවලංගු කරන ලද සහතිකයකි",
+      "invalidDesc": "ඉල්ලූ සහතිකය සොයාගත නොහැකි විය, නැතහොත් නිකුත් කළ ආයතනය විසින් එය අවලංගු කර ඇත.",
+      "goToOnboarding": "Talnova Onboarding වෙත යන්න",
+      "verifiedAuthentic": "සත්‍යාපිත අව්‍යාජ සහතිකයකි",
+      "printLocalCopy": "දේශීය පිටපතක් බෙදාගන්න / මුද්‍රණය කරන්න",
+      "notFound": "සහතික කිසිවක් හමු නොවීය"
+    }
+  },
+  "viewer": {
+    "translating": "පරිවර්තනය වෙමින් පවතී...",
+    "complianceGateWarning": "LMS පාඨමාලා වෙත ප්‍රවේශ වීමට පෙර අනිවාර්ය අනුකූලතා ලේඛන අත්සන් කළ යුතුය.",
+    "complianceGateLessonWarning": "පාඩම් සම්පූර්ණ කිරීමට පෙර අනිවාර්ය අනුකූලතා ලේඛන අත්සන් කළ යුතුය.",
+    "complianceGateQuizWarning": "ප්‍රශ්නාවලි ඉදිරිපත් කිරීමට පෙර අනිවාර්ය අනුකූලතා ලේඛන අත්සන් කළ යුතුය.",
+    "complianceBanner": {
+      "title": "අනුකූලතා පූර්වාවශ්‍යතාව සක්‍රියයි:",
+      "desc": "පාඩම් සම්පූර්ණ කිරීමට පෙර ආයතනික ප්‍රතිපත්තියට අනුව අත්සන් නොකළ අනුකූලතා ගිවිසුම් {{count}} ක් ඔබ සතුව ඇත.",
+      "signBtn": "අවශ්‍ය ලේඛනය අත්සන් කරන්න"
+    },
+    "offlineSync": {
+      "reconnecting": "නැවත ජාලයට සම්බන්ධ වෙමින් පවතී...",
+      "syncedCount": "සබැඳි: සේවාදායකයට පාඩම් {{count}} ක් සමමුහුර්ත කරන ලදී.",
+      "markedOffline": "නොබැඳි: පාඩම සම්පූර්ණ වූ ලෙස ලකුණු කරන ලදී. IndexedDB නොබැඳි පෝලිමට සුරකින ලදී.",
+      "savedOfflineQueue": "IndexedDB නොබැඳි පෝලිමට සුරකින ලදී. සම්බන්ධතාවය ප්‍රතිස්ථාපනය වූ විට ප්‍රගතිය සමමුහුර්ත වනු ඇත.",
+      "offlineToggle": "⚡ නොබැඳි (සබැඳිව සමමුහුර්ත කිරීමට ක්ලික් කරන්න)",
+      "onlineToggle": "📶 සබැඳි (නොබැඳි මාදිලියට මාරු වීමට ක්ලික් කරන්න)",
+      "toggleTitle": "PWA ජාල නොබැඳි/සබැඳි සමාකරණය මාරු කරන්න",
+      "offlineSimulated": "ජාලය නොබැඳි මාදිලියට සකසන ලදී (DevTools Offline)."
+    },
+    "toasts": {
+      "lessonCompletedAuto": "පාඩම ස්වයංක්‍රීයව සම්පූර්ණ විය!",
+      "moduleNotFound": "මොඩියුල සන්දර්භය හමු නොවීය.",
+      "quizPassed": "සුභ පැතුම්! ඔබ {{score}}% ක ලකුණු ප්‍රමාණයක් ලබා ගනිමින් ප්‍රශ්නාවලිය සමත් විය!",
+      "quizFailed": "ඔබ ලබා ගත්තේ {{score}}% කි, එය සමත් වීමේ ලකුණු ප්‍රමාණය වන {{passingScore}}% ට වඩා අඩුය.",
+      "quizSubmitFailed": "ප්‍රශ්නාවලිය ඉදිරිපත් කිරීම අසාර්ථක විය.",
+      "updateCompletionFailed": "පාඩම සම්පූර්ණ කිරීම යාවත්කාලීන කිරීම අසාර්ථක විය"
+    },
+    "error": {
+      "title": "පාඨමාලාව පූරණය කිරීම අසාර්ථක විය",
+      "desc": "පාඨමාලා විෂය නිර්දේශය ලබාගත නොහැක.",
+      "retry": "නැවත උත්සාහ කරන්න"
+    },
+    "sidebar": {
+      "dashboard": "උපකරණ පුවරුව",
+      "collapse": "පැති තීරුව හකුළන්න",
+      "show": "පැති තීරුව පෙන්වන්න"
+    },
+    "nav": {
+      "previous": "පෙර",
+      "next": "ඊළඟ"
+    },
+    "lessonTypes": {
+      "audioLesson": "ශ්‍රව්‍ය පාඩම",
+      "audioPlayback": "ශ්‍රව්‍ය ධාවනය",
+      "pdfReader": "PDF කියවනය",
+      "openPdf": "PDF විවෘත කරන්න",
+      "attachedDoc": "අමුණන ලද ලේඛනය",
+      "docAttachment": "Word/Excel/Powerpoint ඇමුණුම",
+      "downloadFile": "ගොනුව බාගන්න",
+      "checklistTasks": "පිරික්සුම් ලැයිස්තු කාර්යයන්",
+      "pdfViewer": "PDF ලේඛන නරඹනය",
+      "noPdf": "මෙම පාඩමට කිසිදු PDF ලේඛනයක් අමුණා නැත."
+    },
+    "video": {
+      "requirementMet": "✓ වීඩියෝ කාලසීමාවෙන් 90% ක් නරඹා ඇත. දැන් ඔබට පාඩම සම්පූර්ණ කළ හැක.",
+      "requirementPending": "පාඩම සම්පූර්ණ කිරීම සක්‍රීය කිරීමට අවම වශයෙන් වීඩියෝවෙන් 90% ක් නරඹන්න ({{percent}}% නරඹා ඇත)",
+      "simulateWatch": "(95% ක් නැරඹූ බව අනුකරණය කරන්න)",
+      "simulateWatchTitle": "95% ක් වීඩියෝව නැරඹූ බව අනුකරණය කරන්න"
+    },
+    "completion": {
+      "completed": "සම්පූර්ණයි",
+      "markAsComplete": "සම්පූර්ණ වූ ලෙස සලකුණු කරන්න"
+    },
+    "quiz": {
+      "passedTitle": "ඇගයීම සමත් විය!",
+      "resultsTitle": "ප්‍රශ්නාවලි ඇගයීම් ප්‍රතිඵල",
+      "passedDesc": "සුභ පැතුම්! ඔබ ඇගයීම් අවශ්‍යතා සමත් විය.",
+      "failedDesc": "මෙවර ඇගයීම සමත් වීමට ප්‍රමාණවත් ලකුණු ඔබ ලබාගෙන නැත.",
+      "yourScore": "ඔබගේ ලකුණු",
+      "passingScore": "සමත් ලකුණු",
+      "attemptNo": "උත්සාහ අංකය",
+      "completedBadge": "සම්පූර්ණයි",
+      "verificationIncomplete": "සත්‍යාපනය අසම්පූර්ණයි",
+      "returnRoadmap": "මාර්ග සිතියමට ආපසු යන්න",
+      "retakeQuiz": "නැවත ප්‍රශ්නාවලිය කරන්න",
+      "retryQuiz": "ප්‍රශ්නාවලිය නැවත උත්සාහ කරන්න",
+      "assessmentTitle": "පාඩම් ඇගයීම",
+      "assessmentInstructions": "ඔබගේ ඉගෙනීම සත්‍යාපනය කිරීමට පහත ප්‍රශ්නවලට පිළිතුරු සපයන්න. සමත් වීමට ඔබට අවම වශයෙන් {{passingScore}}% ක් අවශ්‍ය වේ.",
+      "singleChoice": "තනි තේරීම් විකල්පය තෝරන්න",
+      "trueFalse": "සත්‍ය හෝ අසත්‍ය තෝරන්න",
+      "multipleChoice": "බහුවිධ තේරීම් වලට අවසර ඇත",
+      "points": "ලකුණු {{points}}",
+      "submitAssessment": "ඇගයීම ඉදිරිපත් කරන්න"
+    },
+    "emptyLesson": "ඉගෙනීම ආරම්භ කිරීමට මාතෘකාවක් තෝරන්න.",
+    "noContent": "තවමත් කිසිදු අන්තර්ගතයක් ලියා නොමැත."
+  },
+  "override": {
+    "employeeLabel": "සේවකයා",
+    "activeJourney": "ක්‍රියාකාරී ගමන",
+    "selectJourneyPlaceholder": "ගමන් අච්චුව සොයා තෝරන්න...",
+    "reasonPlaceholder": "උදා. අභිරුචි කළ තාක්ෂණික මාර්ග සිතියමක් සහ ප්‍රාදේශීය ව්‍යවස්ථාපිත සත්‍යාපනයක් අවශ්‍ය වන ඉංජිනේරු ශාඛාවට අංශ අතර අභ්‍යන්තර මාරුවීමක්..."
+  },
+  "visualizer": {
+    "journeyVelocity": "ගමන් වේගය",
+    "state": "තත්ත්වය: {{state}}"
   }
 }

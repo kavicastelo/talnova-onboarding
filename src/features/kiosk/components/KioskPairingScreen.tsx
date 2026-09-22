@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Monitor, HelpCircle, ArrowRight, CheckCircle } from 'lucide-react';
 import { kioskService } from '../services/kiosk.service';
+import { useTranslation } from 'react-i18next';
 
 interface KioskPairingScreenProps {
   onPairSuccess: (device: any, token: string) => void;
 }
 
 export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSuccess }) => {
+  const { t } = useTranslation('kiosk');
   const [deviceId, setDeviceId] = useState('');
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
@@ -102,49 +104,49 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
         {isSuccess ? (
           <div className="flex flex-col items-center justify-center py-12 text-center animate-fade-in">
             <CheckCircle className="h-16 w-16 text-emerald-500 animate-bounce" />
-            <h2 className="mt-4 text-2xl font-bold text-slate-100">Device Linked!</h2>
-            <p className="mt-2 text-slate-400 text-sm">Initializing Kiosk secure workspace...</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-100">{t('pairing.deviceLinked', 'Device Linked!')}</h2>
+            <p className="mt-2 text-slate-400 text-sm">{t('pairing.initializingWorkspace', 'Initializing Kiosk secure workspace...')}</p>
           </div>
         ) : step === 1 ? (
           <form onSubmit={handleStartPairing} className="space-y-6">
             <div className="flex flex-col items-center text-center">
               <Monitor className="h-12 w-12 text-emerald-500 mb-3" />
-              <h2 className="text-2xl font-bold text-slate-100">Setup Kiosk Device</h2>
-              <p className="mt-2 text-sm text-slate-400">Specify this device's name and physical location inside your building.</p>
+              <h2 className="text-2xl font-bold text-slate-100">{t('pairing.setupDevice', 'Setup Kiosk Device')}</h2>
+              <p className="mt-2 text-sm text-slate-400">{t('pairing.setupSubtitle', "Specify this device's name and physical location inside your building.")}</p>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Device Name
+                  {t('pairing.deviceName', 'Device Name')}
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
-                  placeholder="e.g. Factory Entrance Gate A"
+                  placeholder={t('pairing.deviceNamePlaceholder', 'e.g. Factory Entrance Gate A')}
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Location / Zone
+                  {t('pairing.locationZone', 'Location / Zone')}
                 </label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
-                  placeholder="e.g. Ground Floor Main Lobby"
+                  placeholder={t('pairing.locationPlaceholder', 'e.g. Ground Floor Main Lobby')}
                   required
                 />
               </div>
 
               <div className="rounded-lg bg-slate-950/50 border border-slate-900 p-3 text-[11px] text-slate-500 font-mono flex items-center justify-between">
                 <span>HW ID: {deviceId.substring(0, 18)}...</span>
-                <span className="text-slate-600">Locked</span>
+                <span className="text-slate-600">{t('pairing.locked', 'Locked')}</span>
               </div>
             </div>
 
@@ -154,7 +156,7 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
               type="submit"
               className="w-full rounded-lg bg-emerald-500 p-3 font-bold text-slate-950 hover:bg-emerald-400 transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/10 active:scale-95"
             >
-              <span>Continue Setup</span>
+              <span>{t('pairing.continueSetup', 'Continue Setup')}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>
@@ -162,9 +164,9 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
           <div className="space-y-6">
             <div className="flex flex-col items-center text-center">
               <ShieldCheck className="h-12 w-12 text-emerald-500 mb-3" />
-              <h2 className="text-2xl font-bold text-slate-100">Enter Pairing Code</h2>
+              <h2 className="text-2xl font-bold text-slate-100">{t('pairing.enterPairingCode', 'Enter Pairing Code')}</h2>
               <p className="mt-2 text-sm text-slate-400">
-                Type the 6-digit code displayed in your Admin Portal for <strong>{name}</strong>.
+                {t('pairing.typeCodeDesc', { name, defaultValue: 'Type the 6-digit code displayed in your Admin Portal for {{name}}.' })}
               </p>
             </div>
 
@@ -205,7 +207,7 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                 onClick={handleClear}
                 className="h-14 rounded-lg bg-slate-950/50 border border-slate-900 hover:bg-slate-900 text-xs font-semibold tracking-wider text-slate-400 transition"
               >
-                CLEAR
+                {t('pairing.clear', 'CLEAR')}
               </button>
               <button
                 disabled={isLoading}
@@ -219,17 +221,17 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                 onClick={handleBackspace}
                 className="h-14 rounded-lg bg-slate-950/50 border border-slate-900 hover:bg-slate-900 text-xs font-semibold tracking-wider text-slate-400 transition"
               >
-                BACK
+                {t('pairing.back', 'BACK')}
               </button>
             </div>
 
             <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-900">
               <button onClick={() => setStep(1)} className="hover:text-slate-400 transition">
-                Change details
+                {t('pairing.changeDetails', 'Change details')}
               </button>
               <span className="flex items-center space-x-1">
                 <HelpCircle className="h-3 w-3" />
-                <span>Pairing mode</span>
+                <span>{t('pairing.pairingMode', 'Pairing mode')}</span>
               </span>
             </div>
           </div>

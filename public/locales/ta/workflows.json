@@ -1,0 +1,184 @@
+{
+  "title": "பணிப்பாய்வு தானியங்கி பொறிமுறை",
+  "subtitle": "பயணங்களை தானாக ஒதுக்குவதற்கும், பணிகளை வழங்குவதற்கும், மற்றும் எச்சரிக்கைகளை அனுப்புவதற்கும் நிகழ்வு சார்ந்த தானியங்கி விதிகள்.",
+  "executionLogs": "செயல்படுத்தல் பதிவுகள்",
+  "createRule": "விதியை உருவாக்கு",
+  "tabs": {
+    "rules": "செயலில் உள்ள பணிப்பாய்வு விதிகள்",
+    "logs": "தணிக்கை செயல்படுத்தல் வரலாறு"
+  },
+  "filters": {
+    "searchPlaceholder": "பணிப்பாய்வு விதிகளைத் தேடுங்கள்...",
+    "allTriggers": "அனைத்து நிகழ்வு தூண்டுதல்கள்",
+    "userCreated": "புதிய பயனர் உருவாக்கப்பட்டது",
+    "journeyCompleted": "பயணம் முடிந்தது",
+    "taskCompleted": "பணி முடிந்தது",
+    "stageEntered": "நிலை உள்ளிடப்பட்டது",
+    "checkinDue": "இணக்க சரிபார்ப்பு நிலுவையில் உள்ளது",
+    "milestoneCompleted": "மைல்கல் முடிந்தது"
+  },
+  "triggers": {
+    "user_created": "புதிய பயனர் உருவாக்கப்பட்டது",
+    "journey_completed": "பயணம் முடிந்தது",
+    "task_completed": "பணி முடிந்தது",
+    "stage_entered": "நிலை உள்ளிடப்பட்டது",
+    "checkin_due": "இணக்க சரிபார்ப்பு நிலுவையில் உள்ளது",
+    "milestone_completed": "மைல்கல் முடிந்தது"
+  },
+  "status": {
+    "success": "வெற்றி",
+    "partialFailure": "பகுதி தோல்வி",
+    "pendingDelay": "தாமதம் நிலுவையில் உள்ளது",
+    "failed": "தோல்வி",
+    "active": "செயலில்",
+    "inactive": "செயலற்றது"
+  },
+  "rulesList": {
+    "loading": "பணிப்பாய்வு விதிகள் ஏற்றப்படுகின்றன...",
+    "empty": "இன்னும் பணிப்பாய்வு விதிகள் உருவாக்கப்படவில்லை. விதியை உருவாக்குவதன் மூலம் சேர்க்கை நடவடிக்கைகளை தானியங்குபடுத்துங்கள்.",
+    "emptyTitle": "பணிப்பாய்வு விதிகள் எதுவும் கட்டமைக்கப்படவில்லை",
+    "emptyDesc": "கற்றல் பாதைகளையும் செயல்பாட்டுப் பணிகளையும் தானாக ஒதுக்க பணிப்பாய்வு விதிகளை உருவாக்கவும்.",
+    "testRun": "சோதனை ஓட்டம்",
+    "priority": "முன்னுரிமை: {{priority}}",
+    "conditions": "நிபந்தனைகள் ({{count}})",
+    "actions": "நடவடிக்கைகள் ({{count}})",
+    "rulesLabel": "விதிகள்",
+    "conditionsHeader": "நிபந்தனைகள்:",
+    "conditionIf": "IF",
+    "actionsTriggered": "தூண்டப்பட்ட நடவடிக்கைகள்:",
+    "updatedAt": "புதுப்பிக்கப்பட்டது {{date}}",
+    "deleteRuleTitle": "விதியை நீக்கு"
+  },
+  "logsList": {
+    "loading": "செயல்படுத்தல் பதிவுகள் ஏற்றப்படுகின்றன...",
+    "empty": "இன்னும் செயல்படுத்தல் பதிவுகள் பதிவு செய்யப்படவில்லை.",
+    "timestamp": "நேரமுத்திரை",
+    "rule": "தூண்டப்பட்ட விதி",
+    "user": "இலக்கு பயனர்",
+    "status": "செயல்படுத்தல் நிலை",
+    "logsLabel": "பதிவுகள்",
+    "headerTrigger": "தூண்டுதல் நிகழ்வு",
+    "headerRule": "பணிப்பாய்வு விதி",
+    "headerTarget": "இலக்கு பணியாளர்",
+    "headerStatus": "நிலை",
+    "headerSteps": "செயல்படுத்தப்பட்ட படிகள்",
+    "headerExecutedAt": "செயல்படுத்தப்பட்ட நேரம்",
+    "defaultRuleName": "பணிப்பாய்வு விதி",
+    "stepsCount": "{{count}} படிகள்"
+  },
+  "validation": {
+    "titleRequired": "விதியின் பெயர் தேவை.",
+    "actionRequired": "குறைந்தது ஒரு நடவடிக்கை படி தேவை.",
+    "journeyRequired": "பயண ஒதுக்கீட்டிற்கு இலக்கு மாதிரி தேவை.",
+    "checklistRequired": "இலக்கு சரிபார்ப்புப் பட்டியல் மாதிரி தேவை.",
+    "taskTitleRequired": "பணி உருவாக்கத்திற்கு பணியின் தலைப்பு தேவை.",
+    "failedSave": "பணிப்பாய்வு விதியைச் சேமிக்க முடியவில்லை."
+  },
+  "builderModal": {
+    "title": "தானியங்கி பணிப்பாய்வு விதியை உள்ளமைக்கவும்",
+    "desc": "நிகழ்வு தூண்டுதல்கள், மதிப்பீட்டு வடிப்பான்கள் மற்றும் கீழ்நிலை நடவடிக்கை படிகளை வரையறுக்கவும்.",
+    "nameLabel": "பணிப்பாய்வு விதி பெயர் *",
+    "namePlaceholder": "எ.கா. பொறியியல் நாள் 1 சேர்க்கை அமைப்பு",
+    "descLabel": "விளக்கம்",
+    "triggerLabel": "நிகழ்வு தூண்டுதல் *",
+    "priorityLabel": "முன்னுரிமை (அதிகமானது முதலில் இயங்கும்)",
+    "conditionsTitle": "IF வடிகட்டி நிபந்தனைகள் (விருப்பத்திற்குரியது)",
+    "addCondition": "நிபந்தனையைச் சேர்",
+    "conditionFields": {
+      "department": "துறை",
+      "role": "பங்கு",
+      "jobTitle": "பணி பதவி"
+    },
+    "conditionOperators": {
+      "equals": "சமம்",
+      "notEquals": "சமமற்றது",
+      "contains": "கொண்டுள்ளது"
+    },
+    "conditionValuePlaceholder": "மதிப்பு",
+    "removeCondition": "நிபந்தனையை நீக்கு",
+    "actionsTitle": "THEN நடவடிக்கைகள் பைப்லைன் *",
+    "addAction": "நடவடிக்கை படியைச் சேர்",
+    "stepLabel": "படி {{number}}",
+    "removeAction": "நடவடிக்கையை நீக்கு",
+    "actionTypes": {
+      "assignJourney": "சேர்க்கை பயணத்தை ஒதுக்கு",
+      "assignChecklist": "சரிபார்ப்புப் பட்டியல் மாதிரியை ஒதுக்கு",
+      "createTask": "செயல்பாட்டுப் பணியை உருவாக்கு",
+      "sendNotification": "பல சேனல் அறிவிப்பை அனுப்பு",
+      "assignDocument": "மின் கையொப்ப ஆவண மாதிரியை ஒதுக்கு",
+      "triggerBuddy": "நண்பர் (Buddy) இணைப்பைத் தூண்டு",
+      "triggerWebhook": "வெளிச்செல்லும் Webhook-ஐத் தூண்டு",
+      "assignMilestone": "மைல்கல் சரிபார்ப்பு திட்டத்தை ஒதுக்கு"
+    },
+    "triggers": {
+      "user_created": "ON_USER_CREATED (புதிய பயனர் உருவாக்கப்பட்டது / பணியமர்த்தப்பட்டது)",
+      "journey_completed": "ON_JOURNEY_COMPLETED (பயணம் முடிந்தது)",
+      "task_completed": "ON_TASK_COMPLETED (பணி முடிந்தது)",
+      "stage_entered": "ON_STAGE_ENTERED (நிலை உள்ளிடப்பட்டது)",
+      "milestone_completed": "ON_MILESTONE_COMPLETED (மைல்கல் சரிபார்ப்பு முடிந்தது)"
+    },
+    "milestoneTemplateLabel": "மைல்கல் மாதிரி (விருப்பத்திற்குரியது)",
+    "milestoneAutoDetect": "இலக்கு நாள் அடிப்படையில் தானாக கண்டறியவும்",
+    "milestoneDayOption": "நாள் {{day}} - {{title}}",
+    "targetDayLabel": "இலக்கு நாள் (எ.கா. 30, 60, 90, 180)",
+    "targetDayOption": "நாள் {{day}} மைல்கல்",
+    "selectJourneyPlaceholder": "பயண மாதிரியைத் தேர்ந்தெடுக்கவும்",
+    "selectDocumentPlaceholder": "ஆவண மாதிரியைத் தேர்ந்தெடுக்கவும்",
+    "buddyPlaceholder": "கிடைக்கும் நண்பரைத் தானாகத் தேர்ந்தெடுக்கவும் அல்லது தேடவும்...",
+    "buddySearchPlaceholder": "பெயர், துறை மூலம் நண்பரைத் தேடுங்கள்...",
+    "buddyAutoOption": "நிறுவனத்தில் உள்ள பொருத்தமான நண்பரைத் தானாகத் தேர்ந்தெடுக்கவும்",
+    "unnamedEmployee": "பெயரிடப்படாதவர்",
+    "employeeRoleFallback": "பணியாளர்",
+    "webhookPlaceholder": "Webhook இலக்கு URL (எ.கா. https://api.hris.com/v1/webhook)",
+    "checklistTemplateLabel": "சரிபார்ப்புப் பட்டியல் மாதிரி *",
+    "selectChecklistPlaceholder": "சரிபார்ப்புப் பட்டியல் மாதிரியைத் தேர்ந்தெடுக்கவும்",
+    "checklistItemsCount": "({{count}} உருப்படிகள்)",
+    "taskTitlePlaceholder": "பணி தலைப்பு (எ.கா. IT பணிநிலைய ஏற்பாடு) *",
+    "taskDescPlaceholder": "பணி விளக்கம் / வழிமுறைகள் (விருப்பத்திற்குரியது)",
+    "assignedRoleLabel": "ஒதுக்கப்பட்ட பங்கு",
+    "roles": {
+      "employee": "புதிய பணியாளர்",
+      "manager": "நேரடி மேலாளர்",
+      "it_admin": "IT நிர்வாகி",
+      "hr_admin": "HR நிர்வாகி",
+      "buddy": "ஒதுக்கப்பட்ட நண்பர்"
+    },
+    "categoryLabel": "வகை",
+    "categories": {
+      "general": "பொதுவானது",
+      "it_setup": "IT அமைவு",
+      "equipment": "வன்பொருள் / உபகரணங்கள்",
+      "hr_paperwork": "HR ஆவணங்கள்",
+      "training": "பயிற்சி"
+    },
+    "stageLabel": "நிலை",
+    "stages": {
+      "preboarding": "சேர்க்கைக்கு முந்தையது",
+      "day_1": "நாள் 1",
+      "week_1": "வாரம் 1",
+      "month_1": "மாதம் 1",
+      "custom": "விருப்பப்படியான"
+    },
+    "priorityLabelTask": "முன்னுரிமை",
+    "priorities": {
+      "low": "குறைந்த",
+      "normal": "சாதாரண",
+      "high": "அதிக",
+      "critical": "மிக முக்கியமான"
+    },
+    "dueInLabel": "முடிவு நாள் (தூண்டப்பட்ட நாளிலிருந்து நாட்கள்)",
+    "cancel": "ரத்து செய்",
+    "save": "சேமித்து செயல்படுத்து",
+    "saving": "சேமிக்கப்படுகிறது..."
+  },
+  "testRunModal": {
+    "title": "பணிப்பாய்வு சோதனை ஓட்டத்தைத் தூண்டு",
+    "desc": "\"{{name}}\" க்கான விதி நிபந்தனைகளை மதிப்பிடவும் நடவடிக்கைகளை செயல்படுத்தவும் ஒரு இலக்கு பணியாளரைத் தேர்ந்தெடுக்கவும்.",
+    "targetEmployeeLabel": "இலக்கு பணியாளர் *",
+    "targetEmployeePlaceholder": "இலக்கு பணியாளரைத் தேடித் தேர்ந்தெடுக்கவும்...",
+    "searchEmployeePlaceholder": "பெயர், மின்னஞ்சல் மூலம் பணியாளரைத் தேடுங்கள்...",
+    "cancel": "ரத்து செய்",
+    "execute": "சோதனை ஓட்டத்தை இயக்கு",
+    "running": "இயங்குகிறது..."
+  }
+}

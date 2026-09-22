@@ -7,6 +7,7 @@ import {
 import { KioskStepType, KioskInteractionType } from '../../../types/kiosk/step.types';
 import { KioskBlockType } from '../../../types/kiosk/block.types';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface KioskBuilderInnerProps {
   journeyId: string;
@@ -14,6 +15,7 @@ interface KioskBuilderInnerProps {
 }
 
 const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit }) => {
+  const { t } = useTranslation('kiosk');
   const {
     journey,
     hasUnsavedChanges,
@@ -51,7 +53,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
     return (
       <div className="flex h-[80vh] w-full flex-col items-center justify-center bg-slate-950 text-white">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
-        <p className="mt-4 text-slate-400">Loading Journey Builder...</p>
+        <p className="mt-4 text-slate-400">{t('builder.loading', 'Loading Journey Builder...')}</p>
       </div>
     );
   }
@@ -74,7 +76,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
   const handleSave = async () => {
     try {
       await saveJourney();
-      toast.success('Draft saved successfully');
+      toast.success(t('builder.toastDraftSaved', 'Draft saved successfully'));
     } catch (err: any) {
       toast.error(err?.message || 'Failed to save draft');
     }
@@ -84,18 +86,18 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
     const valid = validateJourney();
     if (!valid) {
       setActiveTab('journey'); // focus settings to view validation errors
-      toast.error('Cannot publish: Journey has validation errors.');
+      toast.error(t('builder.toastCannotPublish', 'Cannot publish: Journey has validation errors.'));
       return;
     }
     try {
       const result = await publishJourney();
       if (result) {
-        toast.success('Kiosk journey published successfully!');
+        toast.success(t('builder.toastJourneyPublished', 'Kiosk journey published successfully!'));
       } else {
-        toast.error('Failed to publish kiosk journey');
+        toast.error(t('builder.toastFailedPublish', 'Failed to publish kiosk journey'));
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to publish kiosk journey');
+      toast.error(err?.message || t('builder.toastFailedPublish', 'Failed to publish kiosk journey'));
     }
   };
 
@@ -152,7 +154,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
               <Layers className="w-4 h-4 text-emerald-400" />
-              <span>Step Hierarchy</span>
+              <span>{t('builder.stepHierarchy', 'Step Hierarchy')}</span>
             </h3>
             <div className="relative">
               <button
@@ -252,7 +254,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           {hasUnsavedChanges && (
             <div className="text-[11px] text-amber-400 bg-amber-500/5 border border-amber-500/20 p-2 rounded-lg flex items-center space-x-1.5 animate-pulse">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>Unsaved changes on draft.</span>
+              <span>{t('builder.unsavedChanges', 'Unsaved changes on draft.')}</span>
             </div>
           )}
           <div className="flex space-x-2">
@@ -269,7 +271,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               className="flex-1 rounded-lg bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 transition flex items-center justify-center space-x-1.5"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Publish</span>
+              <span>{t('builder.publish', 'Publish')}</span>
             </button>
           </div>
           <button
@@ -287,7 +289,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
         <div className="absolute top-4 left-6 right-6 flex items-center justify-between z-10 bg-slate-900/80 backdrop-blur-sm pb-2">
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Active Preview Canvas</span>
+            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">{t('builder.activePreviewCanvas', 'Active Preview Canvas')}</span>
           </div>
           <button
             onClick={() => setPreviewMode(!previewMode)}
@@ -324,7 +326,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               )}
 
               <h2 className="text-3xl font-extrabold text-white tracking-tight">
-                {activeStep.title || <span className="text-slate-600 italic">Untitled Step</span>}
+                {activeStep.title || <span className="text-slate-600 italic">{t('builder.untitledStep', 'Untitled Step')}</span>}
               </h2>
 
               {/* RENDER BLOCKS IN PREVIEW CONTAINER */}
@@ -447,8 +449,8 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           ) : (
             <div className="text-center text-slate-600 text-sm max-w-sm my-auto">
               <Layers className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-              <p className="font-semibold text-slate-500">No Step Selected</p>
-              <p className="mt-1 text-xs text-slate-500">Choose or create a step from the left hierarchy panel to begin designing layout blocks.</p>
+              <p className="font-semibold text-slate-500">{t('builder.noStepSelected', 'No Step Selected')}</p>
+              <p className="mt-1 text-xs text-slate-500">{t('builder.noStepSelectedDesc', 'Choose or create a step from the left hierarchy panel to begin designing layout blocks.')}</p>
             </div>
           )}
         </div>
@@ -499,7 +501,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           {activeTab === 'journey' && (
             <div className="space-y-5 animate-fade-in">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Journey Title</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.journeyTitle', 'Journey Title')}</label>
                 <input
                   type="text"
                   value={journey.title || ''}
@@ -509,7 +511,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Description</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.description', 'Description')}</label>
                 <textarea
                   value={journey.description || ''}
                   onChange={(e) => updateJourneyDetails({ description: e.target.value })}
@@ -520,7 +522,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Idle Timeout (s)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.idleTimeout', 'Idle Timeout (s)')}</label>
                   <input
                     type="number"
                     value={journey.settings?.idleTimeoutSeconds || 60}
@@ -539,7 +541,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Supported Langs</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.supportedLangs', 'Supported Langs')}</label>
                   <div className="flex space-x-2 pt-1">
                     {['en', 'es'].map((lang) => {
                       const active = journey.languages ? journey.languages.includes(lang) : false;
@@ -573,8 +575,8 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               <div className="space-y-3 pt-3 border-t border-slate-900">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-300">Lock with secure PIN</h4>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Require 4-digit code to play or edit.</p>
+                    <h4 className="text-xs font-semibold text-slate-300">{t('builder.lockWithPin', 'Lock with secure PIN')}</h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{t('builder.lockWithPinDesc', 'Require 4-digit code to play or edit.')}</p>
                   </div>
                   <button
                     onClick={() => updateJourneyDetails({
@@ -603,7 +605,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
                 {journey.settings?.security?.protectionType === 'pin' && (
                   <div className="animate-fade-in">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">4-Digit Access PIN</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.accessPin', '4-Digit Access PIN')}</label>
                     <input
                       type="text"
                       maxLength={4}
@@ -652,7 +654,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
           {activeTab === 'step' && activeStep && (
             <div className="space-y-5 animate-fade-in">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Step Title</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.stepTitle', 'Step Title')}</label>
                 <input
                   type="text"
                   value={activeStep.title || ''}
@@ -662,7 +664,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Step Type Layout</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.stepTypeLayout', 'Step Type Layout')}</label>
                 <select
                   value={activeStep.type}
                   onChange={(e) => updateStep(activeStep.id, { type: e.target.value as KioskStepType })}
@@ -675,10 +677,10 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               </div>
 
               <div className="pt-4 border-t border-slate-900 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Step User Interaction</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('builder.stepUserInteraction', 'Step User Interaction')}</h4>
                 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Interaction Mechanism</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.interactionMechanism', 'Interaction Mechanism')}</label>
                   <select
                     value={activeStep.interaction?.type || 'none'}
                     onChange={(e) => updateStep(activeStep.id, {
@@ -705,7 +707,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                 {activeStep.interaction?.type === 'yes_no' && (
                   <div className="space-y-3 animate-fade-in">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">If YES, route to step:</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.ifYesRoute', 'If YES, route to step:')}</label>
                       <select
                         value={activeStep.interaction.correctStepId || ''}
                         onChange={(e) => updateStep(activeStep.id, {
@@ -721,7 +723,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">If NO, route to step:</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.ifNoRoute', 'If NO, route to step:')}</label>
                       <select
                         value={activeStep.interaction.incorrectStepId || ''}
                         onChange={(e) => updateStep(activeStep.id, {
@@ -741,7 +743,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                 {/* Conditional Settings: Hold Duration */}
                 {activeStep.interaction?.type === 'hold_to_confirm' && (
                   <div className="animate-fade-in">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Press Hold Duration (ms)</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{t('builder.pressHoldDuration', 'Press Hold Duration (ms)')}</label>
                     <input
                       type="number"
                       value={activeStep.interaction.holdDurationMs || 2000}
@@ -757,7 +759,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                 {activeStep.interaction?.type === 'hotspot' && (
                   <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-900">
-                      <span className="text-xs text-slate-300">Add target hotspot:</span>
+                      <span className="text-xs text-slate-300">{t('builder.addTargetHotspot', 'Add target hotspot:')}</span>
                       <button
                         onClick={() => setHotspotToolActive(!hotspotToolActive)}
                         className={`px-3 py-1 rounded text-xs font-semibold transition ${
@@ -795,7 +797,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                             Hotspot #{hsIdx + 1} (x: {hs.x}%, y: {hs.y}%)
                           </div>
                           <div>
-                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Route click to step:</label>
+                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.routeClickToStep', 'Route click to step:')}</label>
                             <select
                               value={hs.actionStepId || ''}
                               onChange={(e) => {
@@ -842,19 +844,19 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
               <div className="space-y-4 pt-3 border-t border-slate-900">
                 <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <Globe className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Multilingual Content Assets</span>
+                  <span>{t('builder.multilingualAssets', 'Multilingual Content Assets')}</span>
                 </div>
 
                 {/* English Content configuration */}
                 <div className="bg-slate-950 border border-slate-900 p-4 rounded-xl space-y-3">
                   <h5 className="text-xs font-bold text-slate-300 flex items-center space-x-1">
                     <span className="w-2.5 h-2.5 rounded bg-emerald-500" />
-                    <span>English (EN)</span>
+                    <span>{t('builder.englishLabel', 'English (EN)')}</span>
                   </h5>
 
                   {activeBlock.type === 'text' && (
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Text Value</label>
+                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.textValue', 'Text Value')}</label>
                       <textarea
                         value={activeBlock.mediaReferences?.en?.textValue || ''}
                         onChange={(e) => {
@@ -874,7 +876,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
                   {(activeBlock.type === 'image' || activeBlock.type === 'video') && (
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Asset URL / path</label>
+                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.assetUrlPath', 'Asset URL / path')}</label>
                       <input
                         type="text"
                         value={activeBlock.mediaReferences?.en?.embedUrl || ''}
@@ -895,7 +897,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
                   {/* Narration voiceover asset */}
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Voiceover audio path</label>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.voiceoverAudioPath', 'Voiceover audio path')}</label>
                     <input
                       type="text"
                       value={activeBlock.mediaReferences?.en?.audioUploadId || ''}
@@ -909,7 +911,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                         });
                       }}
                       className="w-full rounded border border-slate-900 bg-slate-950 p-2 text-xs text-slate-200 focus:border-emerald-500 focus:outline-none transition"
-                      placeholder="audio-upload-uuid"
+                      placeholder={t('builder.audioUploadUuidPlaceholder', 'audio-upload-uuid')}
                     />
                   </div>
                 </div>
@@ -918,12 +920,12 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                 <div className="bg-slate-950 border border-slate-900 p-4 rounded-xl space-y-3">
                   <h5 className="text-xs font-bold text-slate-300 flex items-center space-x-1">
                     <span className="w-2.5 h-2.5 rounded bg-sky-500" />
-                    <span>Sinhala (SI)</span>
+                    <span>{t('builder.sinhalaLabel', 'Sinhala (SI)')}</span>
                   </h5>
 
                   {activeBlock.type === 'text' && (
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Text Value</label>
+                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.textValue', 'Text Value')}</label>
                       <textarea
                         value={activeBlock.mediaReferences?.si?.textValue || ''}
                         onChange={(e) => {
@@ -943,7 +945,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
                   {(activeBlock.type === 'image' || activeBlock.type === 'video') && (
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Asset URL / path</label>
+                      <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.assetUrlPath', 'Asset URL / path')}</label>
                       <input
                         type="text"
                         value={activeBlock.mediaReferences?.si?.embedUrl || ''}
@@ -964,7 +966,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
                   {/* Narration voiceover asset */}
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Voiceover audio path</label>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">{t('builder.voiceoverAudioPath', 'Voiceover audio path')}</label>
                     <input
                       type="text"
                       value={activeBlock.mediaReferences?.si?.audioUploadId || ''}
@@ -978,7 +980,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
                         });
                       }}
                       className="w-full rounded border border-slate-900 bg-slate-950 p-2 text-xs text-slate-200 focus:border-emerald-500 focus:outline-none transition"
-                      placeholder="audio-upload-uuid"
+                      placeholder={t('builder.audioUploadUuidPlaceholder', 'audio-upload-uuid')}
                     />
                   </div>
                 </div>

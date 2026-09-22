@@ -9,7 +9,50 @@
       "avgTimeToComplete": "Keskimääräinen suoritusaika"
     },
     "recentActivity": "Viimeaikainen toiminta",
-    "completionsOverTime": "Suoritukset ajan mittaan"
+    "recentActivityDesc": "Viimeisimmät työntekijöiden toimet ja perehdytyksen virstanpylväät",
+    "completionsOverTime": "Suoritukset ajan mittaan",
+    "subtitle": "Yleiskatsaus organisaatiosi oppimisen edistymisestä.",
+    "error": {
+      "title": "Hallintapaneelin lataaminen epäonnistui",
+      "defaultMessage": "Virhe ladattaessa hallintapaneelin tilastoja.",
+      "retry": "Yritä uudelleen"
+    },
+    "launchpad": {
+      "inviteNewHire": {
+        "title": "Kutsu uusi työntekijä",
+        "desc": "Lisää työntekijä tai CSV-massatuonti"
+      },
+      "aiBuilder": {
+        "title": "Luo koulutus tekoälyllä",
+        "desc": "Tekoälypohjainen kurssinrakentaja"
+      },
+      "journeyTemplates": {
+        "title": "Perehdytyspohjat",
+        "desc": "Opetussuunnitelmat ja vaiheiden rakennus"
+      },
+      "pendingDocuments": {
+        "title": "Odottavat asiakirjat",
+        "desc": "Vaaditut asiakirjat ja allekirjoitukset"
+      },
+      "kioskDevices": {
+        "title": "Kioskilaitteiden yhteenveto",
+        "desc": "Päätelaitteiden tila ja kirjautumiset"
+      },
+      "hrOps": {
+        "title": "HR-toiminnot",
+        "desc": "Luovutukset ja valmistumiset"
+      },
+      "exceptions": {
+        "title": "Poikkeukset",
+        "desc": "Karanteenitapaukset ja SLA"
+      }
+    },
+    "chart": {
+      "completionsLabel": "Suoritukset"
+    },
+    "pagination": {
+      "activities": "toimintoa"
+    }
   },
   "employee": {
     "title": "Tervetuloa takaisin",
@@ -19,7 +62,199 @@
     "inProgress": "Kesken",
     "continuelearning": "Jatka oppimista",
     "startJourney": "Aloita perehdytyspolku",
-    "noJourneys": "Sinulle ei ole vielä määritetty perehdytyspolkuja."
+    "noJourneys": "Sinulle ei ole vielä määritetty perehdytyspolkuja.",
+    "error": {
+      "title": "Hallintapaneelin lataus epäonnistui",
+      "desc": "Työntekijätietojasi ei voitu ladata.",
+      "retry": "Yritä uudelleen"
+    },
+    "toasts": {
+      "enrollSuccess": "Ilmoittautuminen polulle onnistui!",
+      "enrollFailed": "Ilmoittautuminen epäonnistui.",
+      "taskCompleted": "Tehtävä merkitty suoritetuksi!",
+      "taskReverted": "Tehtävän tila palautettu odottavaksi",
+      "taskFailed": "Tehtävän päivitys epäonnistui",
+      "handoverSuccess": "Onnittelut! Olet suorittanut kaikki perehdytysvaiheet ja siirtynyt aktiiviseen työtilaan.",
+      "equipmentConfirmed": "Laitteiston vastaanotto vahvistettu! Tila päivitetty: Toimitettu.",
+      "copilotActivated": "Perehdytyksen Copilot-apuri aktivoitu"
+    },
+    "stages": {
+      "stage0": {
+        "title": "Perehdytyspaketin valmistelu käynnissä",
+        "desc": "Räätälöityä perehdytyssuunnitelmaasi, vaatimustenmukaisuusasiakirjojasi ja IT-tarkistuslistojasi kootaan HR- ja IT-tiimin toimesta.",
+        "action": "Tutustu tiimiluetteloon"
+      },
+      "stage1": {
+        "title": "Vaihe 1: Vaatimustenmukaisuuden sähköiset allekirjoitukset (Edellytys)",
+        "desc": "Tarkista ja allekirjoita vaaditut laki- ja käytäntöasiakirjat ennen koulutusmoduulien aloittamista.",
+        "action": "Allekirjoita odottavat asiakirjat"
+      },
+      "stage2": {
+        "title": "Vaihe 2: Operatiiviset & IT-käyttöönottotarkistuslistat",
+        "desc": "Suorita sinulle määritetyt IT-valmistelut ja työpaikan tarkistuslistatehtävät.",
+        "action": "Näytä operatiiviset tehtävät"
+      },
+      "stage3": {
+        "title": "Vaihe 3: LMS-moduuli: {{title}}",
+        "fallbackTitle": "Oppimissuunnitelma",
+        "desc": "Suorita oppimisen moduulit ja tietotestit ({{progress}} % suoritettu).",
+        "action": "Jatka LMS-moduulia"
+      },
+      "stage4": {
+        "title": "Vaihe 4: Vertaismentorointi & 30 päivän katselmoinnin luovutus",
+        "desc": "Kaikki koulutus- ja operatiiviset käyttöönottotehtävät ovat valmiit! Käy 30 päivän tavoitteesi läpi kumppanisi kanssa perehdytyksen luovutuksen viimeistelemiseksi.",
+        "action": "Tarkista virstanpylväät ja kumppani"
+      }
+    },
+    "workspace": {
+      "celebrationTitle": "Perehdytys suoritettu! Tervetuloa Talnovaan.",
+      "celebrationDesc": "Kaikki lakisääteiset velvoitteet, operatiiviset tarkistuslistat, kurssit ja virstanpylväät on kuitattu.",
+      "viewCertBtn": "Näytä sertifikaatti",
+      "phaseBadge": "Vaihe 5: Aktiivinen työntekijän työtila • Perehdytys suoritettu",
+      "welcomeBack": "Tervetuloa takaisin, {{name}}!",
+      "welcomeBackDesc": "Perehdytysmatkasi on 100 % valmis. Käytä aktiivista työtilaasi, tietopankkiasi ja tiimityökalujasi alla.",
+      "askCopilot": "Kysy Copilotilta",
+      "viewCerts": "Näytä sertifikaatit ({{count}})",
+      "certPreview": {
+        "badge": "Suoritustodistus",
+        "verified": "Vahvistettu aito",
+        "title": "Perehdytyksen suoritusertifikaatti",
+        "desc": "Myönnetty henkilölle {{name}} kaikkien perehdytysohjelman vaatimusten suorittamisesta.",
+        "certId": "Sertifikaatin tunniste",
+        "issueDate": "Myöntöpäivämäärä",
+        "openViewer": "Avaa sertifikaattien katseluohjelma"
+      },
+      "stats": {
+        "learningModules": "Oppimisen moduulit",
+        "completed": "{{count}} suoritettu",
+        "fulfillment": "100 % kurssin täyttymys",
+        "requiredDocs": "Vaaditut asiakirjat",
+        "verified": "Vahvistettu",
+        "signedPolicies": "Kaikki salassapitosopimukset ja käytännöt allekirjoitettu",
+        "myBuddy": "Perehdytyskumppanini",
+        "connected": "Yhdistetty",
+        "assigned": "Määritetty",
+        "peerMentorship": "Vertaismentorointi aktiivinen",
+        "milestones": "Suoriutumisen virstanpylväät",
+        "activeCount": "{{count}} aktiivista",
+        "day30Plus": "Päivä 30+",
+        "checkinReviews": "Jatkuvat katselmointitarkistukset",
+        "leaderboard": "Pisteet & tulostaulu",
+        "xpValue": "350 XP",
+        "rankCohort": "Sijoitus #3 ryhmässä"
+      },
+      "portals": {
+        "kbTitle": "Tietopankki & RAG AI",
+        "kbDesc": "Hae yrityksen ohjeita, käytäntöartikkeleita ja kysy tekoälyltä reaaliajassa.",
+        "kbBtn": "Avaa tietopankki",
+        "dirTitle": "Tiimiluettelo & toimistokartta",
+        "dirDesc": "Löydä kollegat, tarkastele osastorakennetta ja selaa toimiston istumajärjestystä.",
+        "dirBtn": "Näytä tiimiluettelo",
+        "milestonesTitle": "30/60/90 päivän virstanpylväät",
+        "milestonesDesc": "Tarkastele aktiivisia 30, 60 ja 90 päivän edistymiskatselmuksiasi esihenkilösi kanssa.",
+        "milestonesBtn": "Avaa virstanpylväät"
+      }
+    },
+    "roadmap": {
+      "badge": "Ohjattu perehdytyspolku • {{status}}",
+      "awaitingAssignments": "Odottaa määrityksiä",
+      "stageActive": "Vaihe {{stage}} / 4 aktiivinen",
+      "welcome": "Tervetuloa Northwindiin, {{name}}!",
+      "welcomeDesc": "Seuraa vaiheittaista perehdytystiekarttaasi alla suorittaaksesi käyttöönoton, vaatimustenmukaisuuden, oppimisen moduulit ja tiimiintegraation.",
+      "hero": {
+        "activeStage": "Aktiivinen perehdytysvaihe: {{stage}}",
+        "curriculumSetup": "Opintosuunnitelman valmistelu",
+        "stepNum": "Vaihe {{step}}",
+        "totalComplete": "{{percent}} % koko tiekartasta valmiina",
+        "handoverBtn": "Suorita luovutus ja avaa työtila"
+      },
+      "stepper": {
+        "step1": "1. Sähköiset allekirjoitukset",
+        "completed": "✓ Suoritettu",
+        "unsigned": "{{count}} allekirjoittamatonta",
+        "step2": "2. IT- ja käyttöönottotehtävät",
+        "pending": "{{count}} odottaa",
+        "step3": "3. LMS-moduulit",
+        "done": "{{percent}} % valmis",
+        "zeroAssigned": "0 määritetty",
+        "step4": "4. Kumppani & virstanpylväät",
+        "handoverDone": "✓ Luovutus suoritettu",
+        "readyHandover": "Valmis luovutukseen",
+        "upcoming": "Tulossa"
+      },
+      "milestone": {
+        "trackTitle": "Päivän {{day}} virstanpylväspolku",
+        "dayBadge": "Päivä {{day}}",
+        "targetDueDate": "Määräpäivä: {{date}}",
+        "selfCheckinPending": "Itsearviointi odottaa",
+        "goalsCompletedLabel": "Virstanpylvään tavoitteet suoritettu:",
+        "goalsCount": "{{completed}} / {{total}} ({{percent}} %)",
+        "submittedDesc": "Itsearviointi lähetetty! Odottaa esihenkilön katselmointia ja hyväksyntää.",
+        "pendingDesc": "Suorita tavoitteesi ja lähetä itsearviointisi ennen tavoitepäivämäärää.",
+        "viewStatus": "Näytä virstanpylvään tila",
+        "completeCheckin": "Suorita itsearviointi"
+      },
+      "equipment": {
+        "title": "Määritetyt laitteet & työpisteen valmistelu",
+        "items": "{{count}} laite",
+        "items_other": "{{count}} laitetta",
+        "desc": "Seuraa lähetystä, toimitusta ja vahvista työvälineidesi fyysinen vastaanotto.",
+        "preparing": "Valmistellaan",
+        "serial": "Sarjanumero:",
+        "trackPackage": "Seuraa lähetystä ({{courier}})",
+        "trackCourier": "Kuriiri",
+        "trackingUponDispatch": "Seuranta saatavilla lähetyksen jälkeen",
+        "received": "Vastaanotettu",
+        "confirmReceipt": "Vahvista vastaanotto"
+      },
+      "gamification": {
+        "title": "Pisteet & tulostaulu",
+        "desc": "Ansaitse pisteitä suorittamalla vaatimustenmukaisuuden virstanpylväitä ja nouse perehdytyksen tulostaululla.",
+        "viewLeaderboard": "Näytä tulostaulu",
+        "xpPoints": "XP-pistettä",
+        "rank": "Sijoitus #3 nykyisessä perehdytysryhmässä"
+      },
+      "overview": {
+        "title": "Perehdytyksen osajärjestelmien yleiskatsaus",
+        "desc": "Nopea tilannekatsaus vaatimustenmukaisuuteen, operatiiviseen tehtäväjonoon, kumppanipariin ja virstanpylväisiin.",
+        "reqDocs": "Vaaditut asiakirjat",
+        "unsigned": "{{count}} allekirjoittamatonta",
+        "eSigReqs": "Sähköisen allekirjoituksen vaatimukset",
+        "tasksSetup": "Tehtävät & IT-valmistelu",
+        "openTasks": "{{count}} avoinna",
+        "opChecklists": "Operatiiviset tarkistuslistat",
+        "myBuddy": "Perehdytyskumppanini",
+        "paired": "Paritettu",
+        "autoAssign": "Automaattinen määritys",
+        "peerSupport": "Vertaismentorituki",
+        "milestonesTitle": "30/60/90 virstanpylväät",
+        "activeCount": "{{count}} aktiivista",
+        "schedule": "Aikataulu",
+        "checkpoints": "Suorituskyvyn tarkistuspisteet"
+      },
+      "checklist": {
+        "title": "Henkilökohtainen perehdytystarkistuslista",
+        "desc": "Seuraa ja suorita henkilökohtaiset operatiiviset käyttöönottotehtäväsi.",
+        "viewAll": "Näytä kaikki tehtävät →",
+        "normal": "normaali"
+      },
+      "assigned": {
+        "assignedDate": "Määritetty {{date}}",
+        "reviewCourse": "Kertaa kurssi",
+        "startCourse": "Aloita kurssi",
+        "itemLabel": "perehdytyspolut"
+      },
+      "public": {
+        "title": "Tutustu julkisiin perehdytyspolkuihin",
+        "selfEnroll": "Itseilmoittautuminen",
+        "noDesc": "Kuvausta ei ole annettu.",
+        "general": "Yleinen",
+        "modules": "{{count}} moduulia",
+        "enrolling": "Ilmoittaudutaan...",
+        "enrollStart": "Ilmoittaudu ja aloita",
+        "itemLabel": "perehdytyspolut"
+      }
+    }
   },
   "superAdmin": {
     "title": "Pääylläpitäjän hallintapaneeli",
@@ -28,6 +263,50 @@
       "activeOrgs": "Aktiiviset organisaatiot",
       "totalRevenue": "Kokonaisliikevaihto",
       "totalUsers": "Käyttäjiä yhteensä"
+    }
+  },
+  "leaderboard": {
+    "title": "Pelillistäminen ja tulostaulu",
+    "subtitle": "Ansaitse pisteitä, avaa mikrotunnustuksia ja ylläpidä oppimisputkia koko perehdytysmatkasi ajan.",
+    "claimPractice": "Lunasta harjoitus +25 pistettä",
+    "toastAwarded": "+25 XP myönnetty! Jatka mahtavaa työtä!",
+    "stats": {
+      "yourProgress": "Edistymisesi",
+      "levelBadge": "Taso {{level}}",
+      "pointsUnit": "pistettä",
+      "levelProgress": "Tason edistyminen",
+      "activeStreak": "Aktiivinen putki",
+      "daysUnit": "päivää",
+      "longestStreakLabel": "Pisin putki:",
+      "longestStreakDays": "{{count}} päivää",
+      "microCredentials": "Mikrotunnustukset",
+      "badgesUnit": "Merkkiä",
+      "unlockedCredentials": "Avatut mikrotunnustukset"
+    },
+    "badges": {
+      "title": "Avatut merkit ja saavutukset",
+      "description": "Ansaitse merkkejä suorittamalla perehdytystehtäviä, virstanpylväitä ja tietovisoja.",
+      "empty": "Ei vielä avattuja merkkejä. Suorita perehdytysmoduuleja ansaitaksesi ensimmäisen merkkisi!"
+    },
+    "table": {
+      "title": "Organisaation tulostaulu",
+      "description": "Parhaat perehtyvät oppijat koko organisaatiossasi.",
+      "pts": "{{points}} pistettä",
+      "streakMeta": "Taso {{level}} • 🔥 {{streak}} pv putki",
+      "columns": {
+        "rank": "Sijoitus",
+        "employee": "Työntekijä",
+        "department": "Osasto",
+        "level": "Taso",
+        "streak": "Putki",
+        "points": "Pisteet"
+      },
+      "lvlBadge": "Taso {{level}}",
+      "streakDays": "{{count}} pv",
+      "pointsValue": "{{count}} pistettä"
+    },
+    "pagination": {
+      "learners": "oppijaa"
     }
   }
 }

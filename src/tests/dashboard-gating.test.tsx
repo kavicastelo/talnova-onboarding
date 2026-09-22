@@ -11,7 +11,7 @@ import { HROperations } from '../pages/HROperations';
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, optionsOrDefault?: any) => {
       const map: Record<string, string> = {
         'admin.title': 'Dashboard',
         'admin.stats.totalEmployees': 'Total Employees',
@@ -22,8 +22,21 @@ vi.mock('react-i18next', () => ({
         'admin.recentActivity': 'Recent Activity',
         'employee.assignedJourneys': 'Assigned Journeys',
         'employee.noJourneys': 'No journeys assigned yet',
+        'kpis.pendingDocuments': 'Pending Documents',
+        'kpis.overdueMilestones': 'Overdue Milestones',
+        'kpis.unassignedBuddies': 'Unassigned Buddies',
+        'admin.launchpad.inviteNewHire.title': 'Invite New Hire',
+        'admin.launchpad.aiBuilder.title': 'Generate Course with AI',
+        'admin.launchpad.journeyTemplates.title': 'Journey Templates',
+        'admin.launchpad.pendingDocuments.title': 'Pending Documents',
+        'admin.launchpad.kioskDevices.title': 'Kiosk Device Summary',
+        'admin.launchpad.hrOps.title': 'HR Operations',
+        'admin.launchpad.exceptions.title': 'Exceptions',
       };
-      return map[key] || key;
+      if (map[key]) return map[key];
+      if (typeof optionsOrDefault === 'string') return optionsOrDefault;
+      if (optionsOrDefault && typeof optionsOrDefault.defaultValue === 'string') return optionsOrDefault.defaultValue;
+      return key;
     },
   }),
 }));

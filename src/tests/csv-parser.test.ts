@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert";
 import { parseDelimitedText } from "../utils/csv-parser.ts";
 import { autoDetectColumnMapping } from "../utils/column-mapper.ts";

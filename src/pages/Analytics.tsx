@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   CardContent,
@@ -63,6 +64,7 @@ import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
 
 export function Analytics() {
+  const { t } = useTranslation('analytics');
   const [department, setDepartment] = useState('All');
   const [range, setRange] = useState('30d');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -104,15 +106,15 @@ export function Analytics() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Compliance CSV report exported successfully!');
+      toast.success(t('toasts.exportSuccess', { defaultValue: 'Compliance CSV report exported successfully!' }));
     } catch {
-      toast.error('Failed to export CSV report');
+      toast.error(t('toasts.exportError', { defaultValue: 'Failed to export CSV report' }));
     }
   };
 
   const handleCreateReport = () => {
     if (!reportTitle.trim() || !recipientsInput.trim()) {
-      toast.error('Please fill in report title and recipient emails.');
+      toast.error(t('toasts.validationError', { defaultValue: 'Please fill in report title and recipient emails.' }));
       return;
     }
 
@@ -130,14 +132,14 @@ export function Analytics() {
       },
       {
         onSuccess: () => {
-          toast.success('Scheduled report created!');
+          toast.success(t('toasts.reportCreated', { defaultValue: 'Scheduled report created!' }));
           setIsReportModalOpen(false);
           setReportTitle('');
           setRecipientsInput('');
           refetchReports();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to create scheduled report');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.createReportError', { defaultValue: 'Failed to create scheduled report' }));
         },
       }
     );
@@ -146,7 +148,7 @@ export function Analytics() {
   const handleDeleteReport = (id: string) => {
     deleteReportMutation.mutate(id, {
       onSuccess: () => {
-        toast.success('Scheduled report deleted.');
+        toast.success(t('toasts.reportDeleted', { defaultValue: 'Scheduled report deleted.' }));
         refetchReports();
       },
     });
@@ -186,10 +188,10 @@ export function Analytics() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <TrendingUp className="h-7 w-7 text-indigo-600" />
-            Company Analytics & Onboarding Telemetry
+            {t('title', { defaultValue: 'Company Analytics & Onboarding Telemetry' })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time cohort velocity, onboarding funnel drop-off stages, and departmental productivity ramp-up.
+            {t('subtitle', { defaultValue: 'Real-time cohort velocity, onboarding funnel drop-off stages, and departmental productivity ramp-up.' })}
           </p>
         </div>
 
@@ -198,7 +200,9 @@ export function Analytics() {
           {/* Department Filter Dropdown */}
           <div className="flex items-center gap-1.5 bg-background border rounded-md px-2.5 py-1.5 shadow-sm">
             <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-xs font-semibold text-muted-foreground">Dept:</span>
+            <span className="text-xs font-semibold text-muted-foreground">
+              {t('filters.deptLabel', { defaultValue: 'Dept:' })}
+            </span>
             <select
               data-testid="analytics-department-select"
               value={department}
@@ -207,7 +211,7 @@ export function Analytics() {
             >
               {departmentOptions.map((dept) => (
                 <option key={dept} value={dept}>
-                  {dept === 'All' ? 'All Departments' : dept}
+                  {dept === 'All' ? t('filterDept', { defaultValue: 'All Departments' }) : dept}
                 </option>
               ))}
             </select>
@@ -216,25 +220,27 @@ export function Analytics() {
           {/* Date Range Selector */}
           <div className="flex items-center gap-1.5 bg-background border rounded-md px-2.5 py-1.5 shadow-sm">
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-xs font-semibold text-muted-foreground">Range:</span>
+            <span className="text-xs font-semibold text-muted-foreground">
+              {t('filters.rangeLabel', { defaultValue: 'Range:' })}
+            </span>
             <select
               data-testid="analytics-range-select"
               value={range}
               onChange={(e) => setRange(e.target.value)}
               className="text-xs bg-transparent border-0 focus:outline-none font-medium cursor-pointer"
             >
-              <option value="30d">Last 30 Days</option>
-              <option value="90d">Last 90 Days</option>
-              <option value="all">All Time</option>
+              <option value="30d">{t('filterRange.30d', { defaultValue: 'Last 30 Days' })}</option>
+              <option value="90d">{t('filterRange.90d', { defaultValue: 'Last 90 Days' })}</option>
+              <option value="all">{t('filterRange.all', { defaultValue: 'All Time' })}</option>
             </select>
           </div>
 
           <Button variant="outline" size="sm" onClick={() => setIsReportModalOpen(true)}>
-            <Calendar className="h-4 w-4 mr-1.5" /> Reports
+            <Calendar className="h-4 w-4 mr-1.5" /> {t('reportsBtn', { defaultValue: 'Reports' })}
           </Button>
 
           <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium" onClick={handleExportCSV}>
-            <Download className="h-4 w-4 mr-1.5" /> Export CSV
+            <Download className="h-4 w-4 mr-1.5" /> {t('exportCSV', { defaultValue: 'Export CSV' })}
           </Button>
         </div>
       </div>
@@ -244,45 +250,64 @@ export function Analytics() {
         {/* Active Onboarding */}
         <Card data-testid="metric-active-onboarding" className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Active Onboarding</span>
+            <span className="text-xs text-muted-foreground font-semibold">
+              {t('kpis.activeCohort', { defaultValue: 'Active Onboarding' })}
+            </span>
             <Users className="h-4 w-4 text-blue-600" />
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">{overview?.activeOnboarding ?? 0}</div>
           <p className="text-[11px] text-muted-foreground mt-1">
-            {department !== 'All' ? `Filtered by ${department}` : 'Across all departments'}
+            {department !== 'All'
+              ? t('kpis.filteredBy', { department, defaultValue: `Filtered by ${department}` })
+              : t('kpis.acrossAll', { defaultValue: 'Across all departments' })}
           </p>
         </Card>
 
         {/* Avg Completion Days */}
         <Card data-testid="metric-avg-completion" className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Avg Completion Time</span>
+            <span className="text-xs text-muted-foreground font-semibold">
+              {t('kpis.avgDays', { defaultValue: 'Avg Completion Time' })}
+            </span>
             <Clock className="h-4 w-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">
-            {overview?.avgCompletionDays ?? timeStats?.averageCompletionDays ?? 14} Days
+            {t('kpis.daysUnit', {
+              count: overview?.avgCompletionDays ?? timeStats?.averageCompletionDays ?? 14,
+              defaultValue: `${overview?.avgCompletionDays ?? timeStats?.averageCompletionDays ?? 14} Days`
+            })}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">Fastest: 6d • Industry benchmark: 21d</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {t('kpis.benchmarkNote', { defaultValue: 'Fastest: 6d • Industry benchmark: 21d' })}
+          </p>
         </Card>
 
         {/* Retention Rate */}
         <Card data-testid="metric-retention-rate" className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Retention Rate</span>
+            <span className="text-xs text-muted-foreground font-semibold">
+              {t('kpis.retention', { defaultValue: 'Retention Rate' })}
+            </span>
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">{overview?.retentionRate ?? 96}%</div>
-          <p className="text-[11px] text-emerald-600 font-medium mt-1">+2.4% vs previous cohort</p>
+          <p className="text-[11px] text-emerald-600 font-medium mt-1">
+            {t('kpis.retentionSub', { defaultValue: '+2.4% vs previous cohort' })}
+          </p>
         </Card>
 
         {/* Overall Completion Rate */}
         <Card data-testid="metric-completion-rate" className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Funnel Conversion</span>
+            <span className="text-xs text-muted-foreground font-semibold">
+              {t('kpis.milestoneCompletion', { defaultValue: 'Funnel Conversion' })}
+            </span>
             <Award className="h-4 w-4 text-amber-600" />
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">{overview?.completionRate ?? 78}%</div>
-          <p className="text-[11px] text-muted-foreground mt-1">Day 90 Full Productivity</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {t('kpis.productivitySub', { defaultValue: 'Day 90 Full Productivity' })}
+          </p>
         </Card>
       </div>
 
@@ -296,18 +321,20 @@ export function Analytics() {
               </div>
               <div>
                 <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                  Milestones & Probation SLA Performance (30/60/90/180D)
+                  {t('milestonesCard.title', { defaultValue: 'Milestones & Probation SLA Performance (30/60/90/180D)' })}
                   <Badge variant="outline" className="text-[10px] border-indigo-300 text-indigo-700 dark:text-indigo-300">
-                    Live Operational SLA
+                    {t('milestonesCard.badge', { defaultValue: 'Live Operational SLA' })}
                   </Badge>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Evaluation completion rates, direct report review queues, and escalation health metrics.
+                  {t('milestonesCard.desc', { defaultValue: 'Evaluation completion rates, direct report review queues, and escalation health metrics.' })}
                 </CardDescription>
               </div>
             </div>
             <Button size="sm" variant="outline" asChild className="text-xs h-8">
-              <a href="/milestones">Open Milestones Console &rarr;</a>
+              <a href="/milestones">
+                {t('milestonesCard.openConsole', { defaultValue: 'Open Milestones Console →' })}
+              </a>
             </Button>
           </div>
         </CardHeader>
@@ -315,34 +342,49 @@ export function Analytics() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
             <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Total Milestones
+                {t('milestonesCard.totalMilestones', { defaultValue: 'Total Milestones' })}
               </span>
               <div className="text-xl font-bold text-foreground mt-1">{totalMilestones}</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Assigned check-ins</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {t('milestonesCard.assignedCheckins', { defaultValue: 'Assigned check-ins' })}
+              </p>
             </div>
 
             <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Sign-off Rate
+                {t('milestonesCard.signOffRate', { defaultValue: 'Sign-off Rate' })}
               </span>
               <div className="text-xl font-bold text-emerald-600 mt-1">{milestoneCompletionRate}%</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{completedMilestones} of {totalMilestones} approved</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {t('milestonesCard.approvedOfTotal', {
+                  completed: completedMilestones,
+                  total: totalMilestones,
+                  defaultValue: `${completedMilestones} of ${totalMilestones} approved`
+                })}
+              </p>
             </div>
 
             <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                On-Time SLA
+                {t('milestonesCard.onTimeSla', { defaultValue: 'On-Time SLA' })}
               </span>
               <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{onTimeSlaRate}%</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{overdueMilestones} escalated/breached</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {t('milestonesCard.escalatedBreached', {
+                  count: overdueMilestones,
+                  defaultValue: `${overdueMilestones} escalated/breached`
+                })}
+              </p>
             </div>
 
             <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Pending Reviews
+                {t('milestonesCard.pendingReviews', { defaultValue: 'Pending Reviews' })}
               </span>
               <div className="text-xl font-bold text-amber-600 mt-1">{pendingReviewMilestones}</div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Awaiting manager sign-off</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {t('milestonesCard.awaitingSignoff', { defaultValue: 'Awaiting manager sign-off' })}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -357,10 +399,10 @@ export function Analytics() {
               <div>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-indigo-600" />
-                  Onboarding Funnel & Drop-off Telemetry
+                  {t('charts.funnelTitle', { defaultValue: 'Onboarding Funnel & Drop-off Telemetry' })}
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  Attrition drop-off percentage through Day 1 to Day 90 milestone stages.
+                  {t('charts.funnelDesc', { defaultValue: 'Attrition drop-off percentage through Day 1 to Day 90 milestone stages.' })}
                 </CardDescription>
               </div>
               <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
@@ -386,8 +428,13 @@ export function Analytics() {
                 />
                 <Tooltip
                   formatter={(val: any, _name: any, item: any) => [
-                    `${val}% active (${item.payload.count} learners, drop-off: ${item.payload.dropOff}%)`,
-                    'Completion'
+                    t('charts.funnelTooltip', {
+                      val,
+                      count: item.payload.count,
+                      dropOff: item.payload.dropOff,
+                      defaultValue: `${val}% active (${item.payload.count} learners, drop-off: ${item.payload.dropOff}%)`
+                    }),
+                    t('charts.completion', { defaultValue: 'Completion' })
                   ]}
                   contentStyle={{
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -426,14 +473,14 @@ export function Analytics() {
               <div>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <LineChartIcon className="h-5 w-5 text-emerald-600" />
-                  Productivity Ramp-up Curve
+                  {t('charts.productivityTitle', { defaultValue: 'Productivity Ramp-up Curve' })}
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  Measured velocity from day 1 onboarding to full workplace autonomy.
+                  {t('charts.productivityDesc', { defaultValue: 'Measured velocity from day 1 onboarding to full workplace autonomy.' })}
                 </CardDescription>
               </div>
               <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
-                Target: 95%
+                {t('charts.targetBadge', { defaultValue: 'Target: 95%' })}
               </Badge>
             </div>
           </CardHeader>
@@ -444,7 +491,10 @@ export function Analytics() {
                 <XAxis dataKey="day" fontSize={11} />
                 <YAxis domain={[0, 100]} unit="%" fontSize={11} />
                 <Tooltip
-                  formatter={(val: any) => [`${val}% Productive`, 'Autonomy']}
+                  formatter={(val: any) => [
+                    t('charts.productiveTooltip', { val, defaultValue: `${val}% Productive` }),
+                    t('charts.autonomy', { defaultValue: 'Autonomy' })
+                  ]}
                   contentStyle={{
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     borderRadius: '8px',
@@ -473,13 +523,17 @@ export function Analytics() {
           <CardHeader className="pb-3 border-b">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Zap className="h-5 w-5 text-amber-500" />
-              Module & Quiz Bottleneck Analysis
+              {t('bottlenecks.title', { defaultValue: 'Module & Quiz Bottleneck Analysis' })}
             </CardTitle>
-            <CardDescription className="text-xs">Modules with lowest quiz pass rates and student drop-offs.</CardDescription>
+            <CardDescription className="text-xs">
+              {t('bottlenecks.desc', { defaultValue: 'Modules with lowest quiz pass rates and student drop-offs.' })}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {(bottlenecks?.moduleBottlenecks || []).length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground text-xs">No quiz bottleneck data recorded yet.</div>
+              <div className="p-6 text-center text-muted-foreground text-xs">
+                {t('bottlenecks.noData', { defaultValue: 'No quiz bottleneck data recorded yet.' })}
+              </div>
             ) : (
               <div>
                 <div className="divide-y text-xs">
@@ -487,7 +541,12 @@ export function Analytics() {
                     <div key={m.moduleId} className="p-3.5 flex justify-between items-center">
                       <div>
                         <div className="font-semibold text-foreground">{m.title}</div>
-                        <div className="text-muted-foreground">{m.attempts} total quiz attempt(s)</div>
+                        <div className="text-muted-foreground">
+                          {t('bottlenecks.totalQuizAttempts', {
+                            count: m.attempts,
+                            defaultValue: `${m.attempts} total quiz attempt(s)`
+                          })}
+                        </div>
                       </div>
                       <div className="text-right">
                         <Badge
@@ -498,9 +557,17 @@ export function Analytics() {
                               : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                           }
                         >
-                          {m.passRate}% Pass Rate
+                          {t('bottlenecks.passRate', {
+                            rate: m.passRate,
+                            defaultValue: `${m.passRate}% Pass Rate`
+                          })}
                         </Badge>
-                        <div className="text-muted-foreground mt-0.5">Avg Score: {m.averageScore}%</div>
+                        <div className="text-muted-foreground mt-0.5">
+                          {t('bottlenecks.avgScore', {
+                            score: m.averageScore,
+                            defaultValue: `Avg Score: ${m.averageScore}%`
+                          })}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -515,7 +582,7 @@ export function Analytics() {
                     pageSize={bottlenecksPagination.pageSize}
                     onPageChange={bottlenecksPagination.setPage}
                     onPageSizeChange={bottlenecksPagination.setPageSize}
-                    itemLabel="modules"
+                    itemLabel={t('bottlenecks.modulesLabel', { defaultValue: 'modules' })}
                   />
                 </div>
               </div>
@@ -528,13 +595,17 @@ export function Analytics() {
           <CardHeader className="pb-3 border-b">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-indigo-600" />
-              Difficult Quiz Questions Item Analysis
+              {t('bottlenecks.difficultQuestions', { defaultValue: 'Difficult Quiz Questions Item Analysis' })}
             </CardTitle>
-            <CardDescription className="text-xs">Questions with highest incorrect answer rates.</CardDescription>
+            <CardDescription className="text-xs">
+              {t('bottlenecks.difficultQuestionsDesc', { defaultValue: 'Questions with highest incorrect answer rates.' })}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {(bottlenecks?.difficultQuestions || []).length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground text-xs">No difficult question items recorded yet.</div>
+              <div className="p-6 text-center text-muted-foreground text-xs">
+                {t('bottlenecks.noQuestions', { defaultValue: 'No difficult question items recorded yet.' })}
+              </div>
             ) : (
               <div>
                 <div className="divide-y text-xs">
@@ -542,10 +613,18 @@ export function Analytics() {
                     <div key={q.questionId} className="p-3.5 flex justify-between items-center">
                       <div>
                         <div className="font-semibold text-foreground">{q.questionText}</div>
-                        <div className="text-muted-foreground">{q.attempts} total attempt(s)</div>
+                        <div className="text-muted-foreground">
+                          {t('bottlenecks.totalAttempts', {
+                            count: q.attempts,
+                            defaultValue: `${q.attempts} total attempt(s)`
+                          })}
+                        </div>
                       </div>
                       <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                        {q.incorrectRate}% Incorrect
+                        {t('bottlenecks.incorrectRate', {
+                          rate: q.incorrectRate,
+                          defaultValue: `${q.incorrectRate}% Incorrect`
+                        })}
                       </Badge>
                     </div>
                   ))}
@@ -560,7 +639,7 @@ export function Analytics() {
                     pageSize={questionsPagination.pageSize}
                     onPageChange={questionsPagination.setPage}
                     onPageSizeChange={questionsPagination.setPageSize}
-                    itemLabel="questions"
+                    itemLabel={t('bottlenecks.questionsLabel', { defaultValue: 'questions' })}
                   />
                 </div>
               </div>
@@ -573,15 +652,21 @@ export function Analytics() {
       <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Scheduled Compliance Reports</DialogTitle>
-            <DialogDescription>Automate recurring CSV analytics reports delivered via email.</DialogDescription>
+            <DialogTitle>
+              {t('scheduledReports.modalTitle', { defaultValue: 'Scheduled Compliance Reports' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('scheduledReports.modalDesc', { defaultValue: 'Automate recurring CSV analytics reports delivered via email.' })}
+            </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Report Schedule Title</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('scheduledReports.titleLabel', { defaultValue: 'Report Schedule Title' })}
+              </label>
               <Input
-                placeholder="e.g. Weekly Executive Compliance Digest"
+                placeholder={t('scheduledReports.titlePlaceholder', { defaultValue: 'e.g. Weekly Executive Compliance Digest' })}
                 value={reportTitle}
                 onChange={(e: any) => setReportTitle(e.target.value)}
               />
@@ -589,22 +674,26 @@ export function Analytics() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Frequency</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  {t('scheduledReports.frequency', { defaultValue: 'Frequency' })}
+                </label>
                 <select
                   className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none"
                   value={frequency}
                   onChange={(e: any) => setFrequency(e.target.value)}
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="daily">{t('scheduledReports.frequencies.daily', { defaultValue: 'Daily' })}</option>
+                  <option value="weekly">{t('scheduledReports.frequencies.weekly', { defaultValue: 'Weekly' })}</option>
+                  <option value="monthly">{t('scheduledReports.frequencies.monthly', { defaultValue: 'Monthly' })}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Recipients (Comma separated)</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  {t('scheduledReports.recipientsLabel', { defaultValue: 'Recipients (Comma separated)' })}
+                </label>
                 <Input
-                  placeholder="hr@company.com, exec@company.com"
+                  placeholder={t('scheduledReports.recipientsPlaceholder', { defaultValue: 'hr@company.com, exec@company.com' })}
                   value={recipientsInput}
                   onChange={(e: any) => setRecipientsInput(e.target.value)}
                 />
@@ -612,21 +701,32 @@ export function Analytics() {
             </div>
 
             <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCreateReport}>
-              <Plus className="h-4 w-4 mr-2" /> Add Scheduled Report Schedule
+              <Plus className="h-4 w-4 mr-2" />
+              {t('scheduledReports.addBtn', { defaultValue: 'Add Scheduled Report Schedule' })}
             </Button>
 
             {/* List Existing Schedules */}
             <div className="space-y-2 pt-2 border-t">
-              <h4 className="text-xs font-semibold text-muted-foreground">Active Schedules</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground">
+                {t('scheduledReports.activeSchedules', { defaultValue: 'Active Schedules' })}
+              </h4>
               {(scheduledReports || []).length === 0 ? (
-                <div className="text-xs text-muted-foreground">No active scheduled reports.</div>
+                <div className="text-xs text-muted-foreground">
+                  {t('scheduledReports.noSchedules', { defaultValue: 'No active scheduled reports.' })}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {reportsPagination.paginatedData.map((r) => (
                     <div key={r._id} className="p-2.5 bg-muted/20 border rounded-md flex justify-between items-center text-xs">
                       <div>
                         <div className="font-semibold">{r.title}</div>
-                        <div className="text-muted-foreground">{r.frequency.toUpperCase()} • Recipients: {r.recipients.join(', ')}</div>
+                        <div className="text-muted-foreground">
+                          {t('scheduledReports.recipientsList', {
+                            frequency: r.frequency.toUpperCase(),
+                            recipients: r.recipients.join(', '),
+                            defaultValue: `${r.frequency.toUpperCase()} • Recipients: ${r.recipients.join(', ')}`
+                          })}
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
@@ -647,7 +747,7 @@ export function Analytics() {
                     pageSize={reportsPagination.pageSize}
                     onPageChange={reportsPagination.setPage}
                     onPageSizeChange={reportsPagination.setPageSize}
-                    itemLabel="reports"
+                    itemLabel={t('scheduledReports.reportsLabel', { defaultValue: 'reports' })}
                   />
                 </div>
               )}
@@ -656,7 +756,7 @@ export function Analytics() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
-              Close
+              {t('scheduledReports.close', { defaultValue: 'Close' })}
             </Button>
           </DialogFooter>
         </DialogContent>

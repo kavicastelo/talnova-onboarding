@@ -1,0 +1,184 @@
+{
+  "title": "Työnkulkujen automaatiomoottori",
+  "subtitle": "Tapahtumapohjaiset säännöt polkujen automaattiseen määrittämiseen, tehtävien jakamiseen ja monikanavaisiin ilmoituksiin.",
+  "executionLogs": "Suorituslokit",
+  "createRule": "Luo sääntö",
+  "tabs": {
+    "rules": "Aktiiviset työnkulkusäännöt",
+    "logs": "Suoritushistorian tarkastus"
+  },
+  "filters": {
+    "searchPlaceholder": "Hae työnkulkusääntöjä...",
+    "allTriggers": "Kaikki tapahtumalaukaisimet",
+    "userCreated": "Uusi käyttäjä luotu",
+    "journeyCompleted": "Polku suoritettu",
+    "taskCompleted": "Tehtävä suoritettu",
+    "stageEntered": "Vaiheeseen siirrytty",
+    "checkinDue": "Katsaus erääntyy",
+    "milestoneCompleted": "Virstanpylväs suoritettu"
+  },
+  "triggers": {
+    "user_created": "Uusi käyttäjä luotu",
+    "journey_completed": "Polku suoritettu",
+    "task_completed": "Tehtävä suoritettu",
+    "stage_entered": "Vaiheeseen siirrytty",
+    "checkin_due": "Katsaus erääntyy",
+    "milestone_completed": "Virstanpylväs suoritettu"
+  },
+  "status": {
+    "success": "Onnistui",
+    "partialFailure": "Osittainen epäonnistuminen",
+    "pendingDelay": "Odottaa viivettä",
+    "failed": "Epäonnistui",
+    "active": "Aktiivinen",
+    "inactive": "Ei käytössä"
+  },
+  "rulesList": {
+    "loading": "Ladataan työnkulkusääntöjä...",
+    "empty": "Ei vielä luotuja työnkulkusääntöjä. Automatisoi perehdytystoimintoja luomalla sääntö.",
+    "emptyTitle": "Ei määritettyjä työnkulkusääntöjä",
+    "emptyDesc": "Luo automatisoituja työnkulkusääntöjä määrittääksesi oppimispolkuja ja toiminnallisia tehtäviä automaattisesti.",
+    "testRun": "Testiajo",
+    "priority": "Prioriteetti: {{priority}}",
+    "conditions": "Ehdot ({{count}})",
+    "actions": "Toiminnot ({{count}})",
+    "rulesLabel": "sääntöä",
+    "conditionsHeader": "Ehdot:",
+    "conditionIf": "JOS",
+    "actionsTriggered": "Käynnistetyt toiminnot:",
+    "updatedAt": "Päivitetty {{date}}",
+    "deleteRuleTitle": "Poista sääntö"
+  },
+  "logsList": {
+    "loading": "Ladataan suorituslokeja...",
+    "empty": "Ei vielä tallennettuja suorituslokeja.",
+    "timestamp": "Aikaleima",
+    "rule": "Lauennut sääntö",
+    "user": "Kohdekäyttäjä",
+    "status": "Suoritustila",
+    "logsLabel": "lokia",
+    "headerTrigger": "Laukaisutapahtuma",
+    "headerRule": "Työnkulkusääntö",
+    "headerTarget": "Kohdetyöntekijä",
+    "headerStatus": "Tila",
+    "headerSteps": "Suoritetut vaiheet",
+    "headerExecutedAt": "Suoritettu",
+    "defaultRuleName": "Työnkulkusääntö",
+    "stepsCount": "{{count}} vaihetta"
+  },
+  "validation": {
+    "titleRequired": "Säännön nimi on pakollinen.",
+    "actionRequired": "Vähintään yksi toimintovaihe vaaditaan.",
+    "journeyRequired": "Kohdepohja vaaditaan polun määrittämiseen.",
+    "checklistRequired": "Tarkistuslistapohja vaaditaan.",
+    "taskTitleRequired": "Tehtävän otsikko vaaditaan tehtävän luomiseen.",
+    "failedSave": "Työnkulkusäännön tallennus epäonnistui."
+  },
+  "builderModal": {
+    "title": "Määritä automatisoitu työnkulkusääntö",
+    "desc": "Määritä tapahtumalaukaisimet, arviointisuodattimet ja jatkotoimenpiteiden vaiheet.",
+    "nameLabel": "Työnkulkusäännön nimi *",
+    "namePlaceholder": "esim. Suunnittelutiimin ensimmäisen päivän perehdytys",
+    "descLabel": "Kuvaus",
+    "triggerLabel": "Tapahtumalaukaisin *",
+    "priorityLabel": "Prioriteetti (korkeampi suoritetaan ensin)",
+    "conditionsTitle": "JOS-suodatusehdot (valinnainen)",
+    "addCondition": "Lisää ehto",
+    "conditionFields": {
+      "department": "Osasto",
+      "role": "Rooli",
+      "jobTitle": "Nimike"
+    },
+    "conditionOperators": {
+      "equals": "On yhtä kuin",
+      "notEquals": "Ei ole yhtä kuin",
+      "contains": "Sisältää"
+    },
+    "conditionValuePlaceholder": "Arvo",
+    "removeCondition": "Poista ehto",
+    "actionsTitle": "NIIN-toimintoputki *",
+    "addAction": "Lisää toimintovaihe",
+    "stepLabel": "Vaihe {{number}}",
+    "removeAction": "Poista toiminto",
+    "actionTypes": {
+      "assignJourney": "Määritä perehdytyspolku",
+      "assignChecklist": "Määritä tarkistuslistapohja",
+      "createTask": "Luo toiminnallinen tehtävä",
+      "sendNotification": "Lähetä monikanavainen ilmoitus",
+      "assignDocument": "Määritä sähköisen allekirjoituksen asiakirjapohja",
+      "triggerBuddy": "Käynnistä perehdytyskummin yhdistäminen",
+      "triggerWebhook": "Käynnistä lähtevä webhook",
+      "assignMilestone": "Määritä virstanpylväiden katsausohjelma"
+    },
+    "triggers": {
+      "user_created": "ON_USER_CREATED (Uusi käyttäjä luotu / palkattu)",
+      "journey_completed": "ON_JOURNEY_COMPLETED (Polku suoritettu)",
+      "task_completed": "ON_TASK_COMPLETED (Tehtävä suoritettu)",
+      "stage_entered": "ON_STAGE_ENTERED (Vaiheeseen siirrytty)",
+      "milestone_completed": "ON_MILESTONE_COMPLETED (Virstanpylväskatsaus suoritettu)"
+    },
+    "milestoneTemplateLabel": "Virstanpylväspohja (valinnainen)",
+    "milestoneAutoDetect": "Tunnista automaattisesti kohdepäivän mukaan",
+    "milestoneDayOption": "Päivä {{day}} - {{title}}",
+    "targetDayLabel": "Kohdepäivä (esim. 30, 60, 90, 180)",
+    "targetDayOption": "Päivän {{day}} virstanpylväs",
+    "selectJourneyPlaceholder": "Valitse polkupohja",
+    "selectDocumentPlaceholder": "Valitse asiakirjapohja",
+    "buddyPlaceholder": "Valitse vapaa kummi automaattisesti tai hae...",
+    "buddySearchPlaceholder": "Hae kummia nimen, osaston mukaan...",
+    "buddyAutoOption": "Valitse organisaatiosta vapaa kummi automaattisesti",
+    "unnamedEmployee": "Nimetön",
+    "employeeRoleFallback": "Työntekijä",
+    "webhookPlaceholder": "Webhookin kohde-URL (esim. https://api.hris.com/v1/webhook)",
+    "checklistTemplateLabel": "Tarkistuslistapohja *",
+    "selectChecklistPlaceholder": "Valitse tarkistuslistapohja",
+    "checklistItemsCount": "({{count}} kohdetta)",
+    "taskTitlePlaceholder": "Tehtävän otsikko (esim. IT-työaseman valmistelu) *",
+    "taskDescPlaceholder": "Tehtävän kuvaus / ohjeet (valinnainen)",
+    "assignedRoleLabel": "Määritetty roolille",
+    "roles": {
+      "employee": "Uusi työntekijä",
+      "manager": "Esimies",
+      "it_admin": "IT-ylläpitäjä",
+      "hr_admin": "HR-ylläpitäjä",
+      "buddy": "Nimetty kummi"
+    },
+    "categoryLabel": "Kategoria",
+    "categories": {
+      "general": "Yleinen",
+      "it_setup": "IT-asennus",
+      "equipment": "Laitteisto / varusteet",
+      "hr_paperwork": "HR-asiakirjat",
+      "training": "Koulutus"
+    },
+    "stageLabel": "Vaihe",
+    "stages": {
+      "preboarding": "Ennen aloitusta",
+      "day_1": "Päivä 1",
+      "week_1": "Viikko 1",
+      "month_1": "Kuukausi 1",
+      "custom": "Mukautettu"
+    },
+    "priorityLabelTask": "Prioriteetti",
+    "priorities": {
+      "low": "Matala",
+      "normal": "Normaali",
+      "high": "Korkea",
+      "critical": "Kriittinen"
+    },
+    "dueInLabel": "Määräaika (päivää laukaisusta)",
+    "cancel": "Peruuta",
+    "save": "Tallenna ja aktivoi",
+    "saving": "Tallennetaan..."
+  },
+  "testRunModal": {
+    "title": "Käynnistä työnkulun testiajo",
+    "desc": "Valitse kohdetyöntekijä säännön ehtojen arvioimiseksi ja toimintojen suorittamiseksi säännölle \"{{name}}\".",
+    "targetEmployeeLabel": "Kohdetyöntekijä *",
+    "targetEmployeePlaceholder": "Hae ja valitse kohdetyöntekijä...",
+    "searchEmployeePlaceholder": "Hae työntekijää nimen, sähköpostin mukaan...",
+    "cancel": "Peruuta",
+    "execute": "Suorita testiajo",
+    "running": "Suoritetaan..."
+  }
+}

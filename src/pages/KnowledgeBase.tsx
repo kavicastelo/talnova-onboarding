@@ -165,7 +165,7 @@ export function KnowledgeBase() {
   const handleCreateArticleFromGap = (gap: any) => {
     handleStartCreate();
     setArtTitle(gap.question);
-    setArtSummary(`Company policy and guidance regarding: ${gap.question}`);
+    setArtSummary(t('toasts.articleSummaryGap', { question: gap.question }));
     setMainTab('articles');
   };
 
@@ -221,7 +221,7 @@ export function KnowledgeBase() {
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artTitle.trim()) {
-      toast.error('Title is required');
+      toast.error(t('toasts.titleRequired'));
       return;
     }
 
@@ -230,7 +230,7 @@ export function KnowledgeBase() {
       content: content.trim()
     })).filter((b) => b.content.length > 0);
 
-    const tagsArray = artTags.split(',').map((t) => t.trim()).filter(Boolean);
+    const tagsArray = artTags.split(',').map((tTag) => tTag.trim()).filter(Boolean);
 
     try {
       if (isCreating) {
@@ -241,7 +241,7 @@ export function KnowledgeBase() {
           contentBlocks: blocks,
           tags: tagsArray
         });
-        toast.success('Article created successfully as draft');
+        toast.success(t('toasts.articleCreatedDraft'));
         setIsCreating(false);
       } else {
         await updateArtMutation.mutateAsync({
@@ -254,43 +254,43 @@ export function KnowledgeBase() {
             tags: tagsArray
           }
         });
-        toast.success('Article updated successfully');
+        toast.success(t('toasts.articleUpdated'));
         setIsEditing(false);
         setActiveArticle(null);
       }
     } catch (err) {
-      toast.error('Failed to save article changes.');
+      toast.error(t('toasts.saveArticleFailed'));
     }
   };
 
   const handleDeleteArticle = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this article?')) return;
+    if (!window.confirm(t('toasts.confirmDeleteArticle'))) return;
     try {
       await deleteArtMutation.mutateAsync(id);
-      toast.success('Article deleted successfully');
+      toast.success(t('toasts.articleDeleted'));
       setActiveArticle(null);
     } catch (err) {
-      toast.error('Failed to delete article.');
+      toast.error(t('toasts.deleteArticleFailed'));
     }
   };
 
   const handlePublishArticle = async (id: string) => {
     try {
       await publishArtMutation.mutateAsync(id);
-      toast.success('Article published successfully!');
+      toast.success(t('toasts.articlePublished'));
       setActiveArticle(null);
     } catch (err) {
-      toast.error('Failed to publish article.');
+      toast.error(t('toasts.publishArticleFailed'));
     }
   };
 
   const handleArchiveArticle = async (id: string) => {
     try {
       await archiveArtMutation.mutateAsync(id);
-      toast.success('Article archived successfully.');
+      toast.success(t('toasts.articleArchived'));
       setActiveArticle(null);
     } catch (err) {
-      toast.error('Failed to archive article.');
+      toast.error(t('toasts.archiveArticleFailed'));
     }
   };
 
@@ -313,7 +313,7 @@ export function KnowledgeBase() {
   const handleSaveQl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!qlTitle.trim() || !qlUrl.trim()) {
-      toast.error('Title and URL are required');
+      toast.error(t('toasts.qlTitleUrlRequired'));
       return;
     }
 
@@ -323,7 +323,7 @@ export function KnowledgeBase() {
           id: editingQl.id,
           data: { title: qlTitle, url: qlUrl, icon: qlIcon }
         });
-        toast.success('Quick Link updated');
+        toast.success(t('toasts.qlUpdated'));
       } else {
         await createQlMutation.mutateAsync({
           title: qlTitle,
@@ -331,21 +331,21 @@ export function KnowledgeBase() {
           icon: qlIcon,
           order: (quickLinks?.length || 0) + 1
         });
-        toast.success('Quick Link added');
+        toast.success(t('toasts.qlAdded'));
       }
       setIsQlModalOpen(false);
     } catch (err) {
-      toast.error('Failed to save Quick Link');
+      toast.error(t('toasts.qlSaveFailed'));
     }
   };
 
   const handleDeleteQl = async (id: string) => {
-    if (!window.confirm('Delete this Quick Link?')) return;
+    if (!window.confirm(t('toasts.confirmDeleteQl'))) return;
     try {
       await deleteQlMutation.mutateAsync(id);
-      toast.success('Quick Link deleted');
+      toast.success(t('toasts.qlDeleted'));
     } catch (err) {
-      toast.error('Failed to delete Quick Link');
+      toast.error(t('toasts.qlDeleteFailed'));
     }
   };
 
@@ -361,10 +361,10 @@ export function KnowledgeBase() {
     return (
       <div className="max-w-md mx-auto text-center p-8 border rounded-lg space-y-4 my-12">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Failed to Load Knowledge Base</h2>
-        <p className="text-muted-foreground">An error occurred while communicating with the backend.</p>
+        <h2 className="text-xl font-bold">{t('error.title')}</h2>
+        <p className="text-muted-foreground">{t('error.message')}</p>
         <Button onClick={handleRetry} className="mx-auto">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('error.retry')}
         </Button>
       </div>
     );
@@ -385,7 +385,7 @@ export function KnowledgeBase() {
                 setIsEditing(false);
               }}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
+              <ArrowLeft className="mr-2 h-4 w-4" /> {t('reader.backToList')}
             </Button>
 
             <div className="flex items-center gap-2">
@@ -397,7 +397,7 @@ export function KnowledgeBase() {
                   data-testid="slideshow-view-btn"
                   className="gap-1.5 border-indigo-500/30 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
                 >
-                  <MonitorPlay className="h-4 w-4" /> Slideshow View
+                  <MonitorPlay className="h-4 w-4" /> {t('reader.slideshowView')}
                 </Button>
               )}
 
@@ -405,20 +405,20 @@ export function KnowledgeBase() {
               {activeArticle && isAdmin && (
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => handleStartEdit(activeArticle)}>
-                    <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Edit
+                    <Edit2 className="mr-1.5 h-3.5 w-3.5" /> {t('reader.edit')}
                   </Button>
                   {activeArticle.publishingStatus === 'draft' && (
                     <Button variant="default" size="sm" onClick={() => handlePublishArticle(activeArticle.id)}>
-                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Publish
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> {t('reader.publish')}
                     </Button>
                   )}
                   {activeArticle.publishingStatus === 'published' && (
                     <Button variant="outline" size="sm" onClick={() => handleArchiveArticle(activeArticle.id)}>
-                      <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
+                      <Archive className="mr-1.5 h-3.5 w-3.5" /> {t('reader.archive')}
                     </Button>
                   )}
                   <Button variant="destructive" size="sm" onClick={() => handleDeleteArticle(activeArticle.id)}>
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> {t('reader.delete')}
                   </Button>
                 </div>
               )}
@@ -428,20 +428,20 @@ export function KnowledgeBase() {
           {isCreating || isEditing ? (
             <form onSubmit={handleSaveArticle} className="space-y-4 max-w-3xl mx-auto">
               <h2 className="text-2xl font-bold tracking-tight">
-                {isCreating ? 'Create New Article' : 'Edit Article'}
+                {isCreating ? t('editor.createTitle') : t('editor.editTitle')}
               </h2>
               <div>
-                <label className="text-sm font-semibold mb-1 block">Article Title</label>
+                <label className="text-sm font-semibold mb-1 block">{t('editor.articleTitle')}</label>
                 <Input
                   value={artTitle}
                   onChange={(e: any) => setArtTitle(e.target.value)}
-                  placeholder="e.g. Code of Conduct"
+                  placeholder={t('editor.articleTitlePlaceholder')}
                   required
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="text-sm font-semibold mb-1 block">Category</label>
+                  <label className="text-sm font-semibold mb-1 block">{t('editor.category')}</label>
                   <select
                     value={artCategory}
                     onChange={(e) => setArtCategory(e.target.value)}
@@ -453,39 +453,39 @@ export function KnowledgeBase() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold mb-1 block">Tags (comma-separated)</label>
+                  <label className="text-sm font-semibold mb-1 block">{t('editor.tags')}</label>
                   <Input
                     value={artTags}
                     onChange={(e: any) => setArtTags(e.target.value)}
-                    placeholder="e.g. handbook, legal, conduct"
+                    placeholder={t('editor.tagsPlaceholder')}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold mb-1 block">Short Summary</label>
+                <label className="text-sm font-semibold mb-1 block">{t('editor.summary')}</label>
                 <Input
                   value={artSummary}
                   onChange={(e: any) => setArtSummary(e.target.value)}
-                  placeholder="Quick summary of this article..."
+                  placeholder={t('editor.summaryPlaceholder')}
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold mb-1 block">Content (separate paragraphs with double line-breaks)</label>
+                <label className="text-sm font-semibold mb-1 block">{t('editor.content')}</label>
                 <textarea
                   value={artContent}
                   onChange={(e) => setArtContent(e.target.value)}
                   rows={8}
-                  placeholder="Write details here..."
+                  placeholder={t('editor.contentPlaceholder')}
                   className="w-full p-3 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
                   required
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" type="button" onClick={() => { setIsCreating(false); setIsEditing(false); }}>
-                  Cancel
+                  {t('editor.cancel')}
                 </Button>
                 <Button type="submit">
-                  Save Changes
+                  {t('editor.saveChanges')}
                 </Button>
               </div>
             </form>
@@ -549,7 +549,7 @@ export function KnowledgeBase() {
                 onClick={() => navigate('/kb/slideshow')}
                 className="gap-2 border-indigo-500/30 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
               >
-                <MonitorPlay className="h-4 w-4" /> Live Slideshow Mode
+                <MonitorPlay className="h-4 w-4" /> {t('liveSlideshowMode')}
               </Button>
               {isAdmin && (
                 <>
@@ -561,10 +561,10 @@ export function KnowledgeBase() {
                     className="gap-1.5"
                   >
                     <Sparkles className="h-4 w-4 text-indigo-500" />
-                    {triggerReindexMutation.isPending ? 'Indexing...' : 'Re-Index Knowledge'}
+                    {triggerReindexMutation.isPending ? t('indexing') : t('reindexKnowledge')}
                   </Button>
                   <Button onClick={handleStartCreate} className="gap-1.5">
-                    <Plus className="h-4 w-4" /> New Article
+                    <Plus className="h-4 w-4" /> {t('newArticle')}
                   </Button>
                 </>
               )}
@@ -583,7 +583,7 @@ export function KnowledgeBase() {
                     : 'text-muted-foreground hover:bg-muted/60'
                 }`}
               >
-                <Book className="h-4 w-4" /> Articles & Guidelines
+                <Book className="h-4 w-4" /> {t('tabs.articles')}
               </button>
               <button
                 onClick={() => setMainTab('gaps')}
@@ -594,10 +594,10 @@ export function KnowledgeBase() {
                     : 'text-muted-foreground hover:bg-muted/60'
                 }`}
               >
-                <AlertCircle className="h-4 w-4 text-amber-500" /> Knowledge Gaps
+                <AlertCircle className="h-4 w-4 text-amber-500" /> {t('tabs.gaps')}
                 {unresolvedGapsCount > 0 && (
                   <Badge className="ml-1 px-1.5 py-0.2 text-[10px] bg-amber-500 text-white hover:bg-amber-600">
-                    {unresolvedGapsCount} missing
+                    {t('tabs.missingCount', { count: unresolvedGapsCount })}
                   </Badge>
                 )}
               </button>
@@ -609,13 +609,13 @@ export function KnowledgeBase() {
             <div className="space-y-6" data-testid="knowledge-gaps-dashboard">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-card p-4 rounded-xl border">
                 <div>
-                  <h2 className="text-base font-bold text-foreground">Missing Company Information Requests</h2>
+                  <h2 className="text-base font-bold text-foreground">{t('gaps.title')}</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Questions asked by team members that could not be verified in official company documentation.
+                    {t('gaps.subtitle')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Filter:</span>
+                  <span className="text-xs text-muted-foreground">{t('gaps.filterLabel')}</span>
                   {(['unresolved', 'resolved', 'all'] as const).map((filter) => (
                     <Button
                       key={filter}
@@ -624,7 +624,7 @@ export function KnowledgeBase() {
                       className="text-xs h-7 capitalize"
                       onClick={() => setGapFilter(filter)}
                     >
-                      {filter}
+                      {t(`gaps.filters.${filter}`, { defaultValue: filter })}
                     </Button>
                   ))}
                 </div>
@@ -637,9 +637,9 @@ export function KnowledgeBase() {
               ) : gaps.length === 0 ? (
                 <Card className="p-12 text-center border-dashed">
                   <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-                  <h3 className="font-semibold text-base">No Knowledge Gaps Found</h3>
+                  <h3 className="font-semibold text-base">{t('gaps.emptyTitle')}</h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                    All employee questions asked to the AI Assistant have matched approved company documents, or existing gaps have been resolved.
+                    {t('gaps.emptySubtitle')}
                   </p>
                 </Card>
               ) : (
@@ -651,7 +651,7 @@ export function KnowledgeBase() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-bold text-sm text-foreground">"{gap.question}"</span>
                             <Badge variant="outline" className="text-xs font-semibold bg-indigo-500/10 text-indigo-600 border-indigo-500/20">
-                              {gap.occurrenceCount}x asked
+                              {t('gaps.occurrenceCount', { count: gap.occurrenceCount })}
                             </Badge>
                             <Badge
                               className={`text-[10px] capitalize ${
@@ -668,17 +668,17 @@ export function KnowledgeBase() {
 
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> Last asked: {new Date(gap.lastAskedAt || gap.updatedAt).toLocaleDateString()}
+                              <Clock className="h-3 w-3" /> {t('gaps.lastAsked', { date: new Date(gap.lastAskedAt || gap.updatedAt).toLocaleDateString() })}
                             </span>
-                            {gap.category && <span>Category: {gap.category}</span>}
+                            {gap.category && <span>{t('gaps.categoryLabel', { category: gap.category })}</span>}
                             {gap.requestedBy?.length > 0 && (
-                              <span>Requesters: {gap.requestedBy.length} team member(s)</span>
+                              <span>{t('gaps.requestersCount', { count: gap.requestedBy.length })}</span>
                             )}
                           </div>
 
                           {gap.status === 'resolved' && gap.resolutionNotes && (
                             <div className="mt-2 text-xs p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/15 text-foreground">
-                              <span className="font-semibold text-emerald-600 block mb-0.5">Approved Quick Answer:</span>
+                              <span className="font-semibold text-emerald-600 block mb-0.5">{t('gaps.approvedQuickAnswer')}</span>
                               {gap.resolutionNotes}
                             </div>
                           )}
@@ -692,7 +692,7 @@ export function KnowledgeBase() {
                               className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                               onClick={() => handleOpenQuickAnswer(gap)}
                             >
-                              <Plus className="h-3.5 w-3.5 mr-1" /> Quick Answer
+                              <Plus className="h-3.5 w-3.5 mr-1" /> {t('gaps.quickAnswerBtn')}
                             </Button>
                             <Button
                               size="sm"
@@ -700,7 +700,7 @@ export function KnowledgeBase() {
                               className="h-8 text-xs"
                               onClick={() => handleCreateArticleFromGap(gap)}
                             >
-                              <FileText className="h-3.5 w-3.5 mr-1" /> Full Article
+                              <FileText className="h-3.5 w-3.5 mr-1" /> {t('gaps.fullArticleBtn')}
                             </Button>
                             <Button
                               size="sm"
@@ -708,7 +708,7 @@ export function KnowledgeBase() {
                               className="h-8 text-xs text-muted-foreground hover:text-destructive"
                               onClick={() => dismissGapMutation.mutate(gap._id)}
                             >
-                              Dismiss
+                              {t('gaps.dismissBtn')}
                             </Button>
                           </div>
                         )}
@@ -804,7 +804,7 @@ export function KnowledgeBase() {
                             <div className="flex items-center justify-between pt-4 mt-2 border-t text-xs text-muted-foreground">
                               <span>{article.readTime}</span>
                               <span className="flex items-center text-primary font-medium group-hover:translate-x-1 transition-transform">
-                                Read <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                                {t('reader.read')} <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                               </span>
                             </div>
                           </Card>
@@ -834,14 +834,14 @@ export function KnowledgeBase() {
                         <h2 className="font-bold text-base">{t('quickLinks')}</h2>
                         {isAdmin && (
                           <Button variant="ghost" size="sm" onClick={() => handleOpenQlModal()} className="h-8 gap-1 text-xs text-primary">
-                            <Plus className="h-3.5 w-3.5" /> Add
+                            <Plus className="h-3.5 w-3.5" /> {t('quickLinkModal.addBtn')}
                           </Button>
                         )}
                       </div>
 
                       <div className="space-y-2">
                         {quickLinks && quickLinks.length === 0 ? (
-                          <div className="text-xs text-muted-foreground text-center py-4">No quick links available.</div>
+                          <div className="text-xs text-muted-foreground text-center py-4">{t('noQuickLinks')}</div>
                         ) : (
                           quickLinks?.map((link: any) => {
                             const IconComponent = iconMap[link.icon] || LinkIcon;
@@ -890,9 +890,9 @@ export function KnowledgeBase() {
       <Dialog open={quickAnswerModalOpen} onOpenChange={setQuickAnswerModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Provide Quick Answer</DialogTitle>
+            <DialogTitle className="text-base font-bold">{t('quickAnswerModal.title')}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Resolving: <span className="font-semibold text-foreground">"{selectedGap?.question}"</span>
+              {t('quickAnswerModal.resolving', { question: selectedGap?.question })}
             </DialogDescription>
           </DialogHeader>
 
@@ -900,26 +900,26 @@ export function KnowledgeBase() {
             <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block text-foreground">
-                  Authoritative Company Answer
+                  {t('quickAnswerModal.label')}
                 </label>
                 <textarea
                   data-testid="quick-answer-textarea"
                   rows={4}
                   value={quickAnswerText}
                   onChange={(e) => setQuickAnswerText(e.target.value)}
-                  placeholder="Enter official policy or answer (e.g. Business casual dress code, or 20 days annual leave...)"
+                  placeholder={t('quickAnswerModal.placeholder')}
                   className="w-full p-2.5 border rounded-lg bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/40 focus:outline-none"
                   required
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  This answer will be immediately indexed into the knowledge retrieval vector store so the AI Assistant can answer future questions accurately.
+                  {t('quickAnswerModal.helper')}
                 </p>
               </div>
             </DialogBody>
 
             <DialogFooter>
               <Button variant="outline" size="sm" type="button" onClick={() => setQuickAnswerModalOpen(false)}>
-                Cancel
+                {t('quickAnswerModal.cancel')}
               </Button>
               <Button
                 size="sm"
@@ -928,7 +928,7 @@ export function KnowledgeBase() {
                 disabled={resolveQuickAnswerMutation.isPending || !quickAnswerText.trim()}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {resolveQuickAnswerMutation.isPending ? 'Publishing & Indexing...' : 'Publish & Train AI'}
+                {resolveQuickAnswerMutation.isPending ? t('quickAnswerModal.publishing') : t('quickAnswerModal.publishBtn')}
               </Button>
             </DialogFooter>
           </form>
@@ -940,57 +940,57 @@ export function KnowledgeBase() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">
-              {editingQl ? 'Edit Quick Link' : 'Add Quick Link'}
+              {editingQl ? t('quickLinkModal.editTitle') : t('quickLinkModal.addTitle')}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Configure internal tools, support pages, or helpful links.
+              {t('quickLinkModal.description')}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveQl} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block text-foreground">Title</label>
+                <label className="text-xs font-semibold mb-1 block text-foreground">{t('quickLinkModal.titleLabel')}</label>
                 <Input
                   value={qlTitle}
                   onChange={(e: any) => setQlTitle(e.target.value)}
-                  placeholder="e.g. IT Helpdesk"
+                  placeholder={t('quickLinkModal.titlePlaceholder')}
                   className="bg-background border-border text-foreground text-xs"
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold mb-1 block text-foreground">URL</label>
+                <label className="text-xs font-semibold mb-1 block text-foreground">{t('quickLinkModal.urlLabel')}</label>
                 <Input
                   value={qlUrl}
                   onChange={(e: any) => setQlUrl(e.target.value)}
-                  placeholder="https://..."
+                  placeholder={t('quickLinkModal.urlPlaceholder')}
                   className="bg-background border-border text-foreground text-xs"
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold mb-1 block text-foreground">Icon Style</label>
+                <label className="text-xs font-semibold mb-1 block text-foreground">{t('quickLinkModal.iconStyle')}</label>
                 <select
                   value={qlIcon}
                   onChange={(e) => setQlIcon(e.target.value)}
                   className="w-full h-9 px-3 border border-border rounded-xl bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
-                  <option value="Link">Link icon</option>
-                  <option value="HelpCircle">Question / Help</option>
-                  <option value="Users">Users / Directory</option>
-                  <option value="Book">Book / Library</option>
-                  <option value="Globe">Web / Globe</option>
+                  <option value="Link">{t('quickLinkModal.icons.link')}</option>
+                  <option value="HelpCircle">{t('quickLinkModal.icons.help')}</option>
+                  <option value="Users">{t('quickLinkModal.icons.users')}</option>
+                  <option value="Book">{t('quickLinkModal.icons.book')}</option>
+                  <option value="Globe">{t('quickLinkModal.icons.globe')}</option>
                 </select>
               </div>
             </DialogBody>
 
             <DialogFooter>
               <Button variant="outline" size="sm" type="button" onClick={() => setIsQlModalOpen(false)}>
-                Cancel
+                {t('quickLinkModal.cancel')}
               </Button>
               <Button size="sm" type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                Save Link
+                {t('quickLinkModal.save')}
               </Button>
             </DialogFooter>
           </form>
@@ -999,3 +999,5 @@ export function KnowledgeBase() {
     </div>
   );
 }
+
+export default KnowledgeBase;

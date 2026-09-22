@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -30,6 +31,7 @@ export function MobileBottomNav() {
   const location = useLocation();
   const { role, can, hasFeature } = useRole();
   const { toggleSidebar } = useSidebar();
+  const { t } = useTranslation(['nav', 'common']);
 
   let navItems: MobileNavItem[] = [
     { title: 'Home', url: '/', icon: LayoutDashboard },
@@ -97,10 +99,10 @@ export function MobileBottomNav() {
       <button
         onClick={toggleSidebar}
         className="flex flex-col items-center justify-center p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="Open Navigation Menu"
+        aria-label={t('nav:openNavMenu', 'Open Navigation Menu')}
       >
         <Menu className="h-5 w-5" />
-        <span className="text-[10px] mt-0.5">More</span>
+        <span className="text-[10px] mt-0.5">{t('nav:more', 'More')}</span>
       </button>
     </div>
   );

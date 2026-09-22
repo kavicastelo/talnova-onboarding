@@ -46,7 +46,7 @@ export function Register() {
         setInviteData(data);
       })
       .catch((err) => {
-        setInviteError(getErrorMessage(err) || 'Invitation token is invalid or has expired.');
+        setInviteError(getErrorMessage(err) || t('register.invitation.invalidFallback'));
       })
       .finally(() => {
         setIsVerifying(false);
@@ -58,12 +58,12 @@ export function Register() {
     if (!inviteToken) return;
 
     if (invitePassword.length < 8) {
-      toast.error('Password must be at least 8 characters long.');
+      toast.error(t('register.invitation.toastPasswordMinLength'));
       return;
     }
 
     if (invitePassword !== confirmPassword) {
-      toast.error('Passwords do not match. Please re-enter your password.');
+      toast.error(t('register.invitation.toastPasswordsDoNotMatch'));
       return;
     }
 
@@ -85,10 +85,10 @@ export function Register() {
       setRole(assignedRole);
       setRoles(assignedRoles);
 
-      toast.success('Welcome aboard! Your account has been activated.');
+      toast.success(t('register.invitation.toastActivated'));
       navigate('/');
     } catch (err: any) {
-      toast.error(getErrorMessage(err) || 'Failed to activate account.');
+      toast.error(getErrorMessage(err) || t('register.invitation.toastFailed'));
     } finally {
       setAcceptLoading(false);
     }
@@ -110,7 +110,7 @@ export function Register() {
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgName || !orgSlug) {
-      toast.error('Please enter the organization name and workspace URL.');
+      toast.error(t('register.toastOrgAndUrlRequired'));
       return;
     }
     setStep(2);
@@ -119,12 +119,12 @@ export function Register() {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !email || !password) {
-      toast.error('Please fill in all administrator details.');
+      toast.error(t('register.toastAdminDetailsRequired'));
       return;
     }
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      toast.error(t('register.toastPasswordMinLength'));
       return;
     }
 
@@ -148,7 +148,7 @@ export function Register() {
       setRole(userRole);
       setRoles([userRole]);
 
-      toast.success('Workspace created successfully!');
+      toast.success(t('register.toastWorkspaceCreated'));
       navigate('/');
     } catch (err: any) {
       toast.error(getErrorMessage(err));
@@ -178,20 +178,20 @@ export function Register() {
             {isVerifying ? (
               <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
                 <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-                <p className="text-sm text-gray-400">Verifying your team invitation...</p>
+                <p className="text-sm text-gray-400">{t('register.invitation.verifying')}</p>
               </div>
             ) : inviteError ? (
               <div className="py-6 flex flex-col items-center justify-center space-y-4 text-center">
                 <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center">
                   <AlertCircle className="h-8 w-8" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Invalid or Expired Invitation</h2>
+                <h2 className="text-xl font-bold text-white">{t('register.invitation.invalidTitle')}</h2>
                 <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
                   {inviteError}
                 </p>
                 <div className="pt-2">
                   <Button asChild variant="outline" className="border-white/10 text-white hover:bg-white/5">
-                    <Link to="/login">Go to Sign In</Link>
+                    <Link to="/login">{t('register.invitation.goToSignIn')}</Link>
                   </Button>
                 </div>
               </div>
@@ -206,20 +206,20 @@ export function Register() {
                     </div>
                   )}
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-3">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Team Invitation
+                    <ShieldCheck className="h-3.5 w-3.5" /> {t('register.invitation.badge')}
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                    Welcome, {inviteData.fullName || inviteData.firstName || 'Team Member'}!
+                    {t('register.invitation.welcome', { name: inviteData.fullName || inviteData.firstName || t('register.invitation.welcomeFallback') })}
                   </h2>
                   <p className="mt-1.5 text-xs sm:text-sm text-gray-400 max-w-sm">
-                    You have been invited to join <span className="font-semibold text-white">{inviteData.organizationName}</span> on Talnova Onboarding. Set your password to activate your account.
+                    {t('register.invitation.invitedNotice', { org: inviteData.organizationName })}
                   </p>
                 </div>
 
                 <form className="mt-8 space-y-4" onSubmit={handleAcceptInvitation}>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Account Email
+                      {t('register.invitation.accountEmail')}
                     </label>
                     <div className="relative mt-1">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -236,7 +236,7 @@ export function Register() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Create Password
+                      {t('register.invitation.createPassword')}
                     </label>
                     <div className="relative mt-1">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -247,7 +247,7 @@ export function Register() {
                         required
                         value={invitePassword}
                         onChange={(e) => setInvitePassword(e.target.value)}
-                        placeholder="Minimum 8 characters"
+                        placeholder={t('register.invitation.passwordPlaceholder')}
                         className={`block w-full rounded-lg border bg-white/[0.05] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:ring-2 ${
                           invitePassword.length > 0 && invitePassword.length < 8
                             ? 'border-rose-500/50 focus:border-rose-500 focus:ring-rose-500/20'
@@ -264,14 +264,14 @@ export function Register() {
                     </div>
                     {invitePassword.length > 0 && invitePassword.length < 8 && (
                       <p className="mt-1 text-xs text-rose-400 font-medium">
-                        Password must be at least 8 characters.
+                        {t('register.invitation.passwordMinLength')}
                       </p>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Confirm Password
+                      {t('register.invitation.confirmPassword')}
                     </label>
                     <div className="relative mt-1">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -282,7 +282,7 @@ export function Register() {
                         required
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-type your password"
+                        placeholder={t('register.invitation.confirmPasswordPlaceholder')}
                         className={`block w-full rounded-lg border bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:ring-2 ${
                           confirmPassword.length > 0 && confirmPassword !== invitePassword
                             ? 'border-rose-500/50 focus:border-rose-500 focus:ring-rose-500/20'
@@ -292,7 +292,7 @@ export function Register() {
                     </div>
                     {confirmPassword.length > 0 && confirmPassword !== invitePassword && (
                       <p className="mt-1 text-xs text-rose-400 font-medium">
-                        Passwords do not match.
+                        {t('register.invitation.passwordsDoNotMatch')}
                       </p>
                     )}
                   </div>
@@ -306,7 +306,7 @@ export function Register() {
                       <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     ) : (
                       <>
-                        Activate Account & Sign In
+                        {t('register.invitation.activateSubmit')}
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
@@ -315,9 +315,9 @@ export function Register() {
 
                 <div className="text-center mt-6">
                   <p className="text-xs text-gray-500">
-                    Already have your password set?{' '}
+                    {t('register.invitation.alreadySet')}{' '}
                     <Link to="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
-                      Sign in directly
+                      {t('register.invitation.signInDirectly')}
                     </Link>
                   </p>
                 </div>
@@ -363,7 +363,7 @@ export function Register() {
                         required
                         value={orgName}
                         onChange={(e) => autoGenerateSlug(e.target.value)}
-                        placeholder="Acme Corp"
+                        placeholder={t('register.orgNamePlaceholder', 'Acme Corp')}
                         className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                       />
                     </div>
@@ -371,7 +371,7 @@ export function Register() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Workspace URL
+                      {t('register.workspaceUrl')}
                     </label>
                     <div className="relative mt-1 flex rounded-lg shadow-sm">
                       <span className="inline-flex items-center rounded-l-lg border border-r-0 border-white/10 bg-white/[0.02] px-3 text-sm text-gray-500">
@@ -382,7 +382,7 @@ export function Register() {
                         required
                         value={orgSlug}
                         onChange={(e) => setOrgSlug(e.target.value)}
-                        placeholder="acme-corp"
+                        placeholder={t('register.workspaceUrlPlaceholder', 'acme-corp')}
                         className="block w-full rounded-r-lg border border-white/10 bg-white/[0.05] py-2.5 px-3 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                       />
                     </div>
@@ -390,7 +390,7 @@ export function Register() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Support Email
+                      {t('register.supportEmail')}
                     </label>
                     <div className="relative mt-1">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -400,7 +400,7 @@ export function Register() {
                         type="email"
                         value={supportEmail}
                         onChange={(e) => setSupportEmail(e.target.value)}
-                        placeholder="support@acme.com"
+                        placeholder={t('register.supportEmailPlaceholder')}
                         className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                       />
                     </div>
@@ -411,7 +411,7 @@ export function Register() {
                   type="submit"
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 py-2.5 text-white hover:from-emerald-600 hover:to-emerald-700"
                 >
-                  Continue
+                  {t('register.continue')}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </form>
@@ -432,7 +432,7 @@ export function Register() {
                           required
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          placeholder="Jane"
+                          placeholder={t('register.firstNamePlaceholder')}
                           className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                         />
                       </div>
@@ -447,7 +447,7 @@ export function Register() {
                         required
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Doe"
+                        placeholder={t('register.lastNamePlaceholder')}
                         className="mt-1 block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 px-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                       />
                     </div>
@@ -466,7 +466,7 @@ export function Register() {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="jane@acme.com"
+                        placeholder={t('register.emailPlaceholder')}
                         className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                       />
                     </div>
@@ -485,7 +485,7 @@ export function Register() {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder={t('register.passwordPlaceholder')}
                         className={`block w-full rounded-lg border bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:ring-2 ${
                           password.length > 0 && password.length < 8
                             ? 'border-rose-500/50 focus:border-rose-500 focus:ring-rose-500/20'
@@ -495,7 +495,7 @@ export function Register() {
                     </div>
                     {password.length > 0 && password.length < 8 && (
                       <p id="password-hint" className="mt-1 text-xs text-rose-500 font-medium">
-                        Password must be at least 8 characters.
+                        {t('register.passwordHint')}
                       </p>
                     )}
                   </div>
@@ -509,7 +509,7 @@ export function Register() {
                     className="flex items-center justify-center gap-2 rounded-lg border-white/10 bg-transparent text-white hover:bg-white/5"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    Back
+                    {t('register.back')}
                   </Button>
                   <Button
                     type="submit"

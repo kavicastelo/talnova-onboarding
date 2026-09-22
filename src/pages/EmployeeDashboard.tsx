@@ -59,7 +59,7 @@ export function EmployeeDashboard() {
     return employee?.status === 'Active';
   });
 
-  const openTasksCount = (tasksData?.tasks || []).filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length;
+  const openTasksCount = (tasksData?.tasks || []).filter((tk: any) => tk.status !== 'completed' && tk.status !== 'cancelled').length;
   const pendingDocs = (docInbox || []).filter((d: any) => d.status === 'pending');
   const pendingDocsCount = pendingDocs.length;
 
@@ -69,11 +69,11 @@ export function EmployeeDashboard() {
       { journeyId, employeeId: employee.id },
       {
         onSuccess: () => {
-          toast.success('Successfully enrolled in the journey!');
+          toast.success(t('employee.toasts.enrollSuccess', 'Successfully enrolled in the journey!'));
           refetch();
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to enroll.');
+          toast.error(err?.message || t('employee.toasts.enrollFailed', 'Failed to enroll.'));
         }
       }
     );
@@ -85,10 +85,10 @@ export function EmployeeDashboard() {
       { id: task._id, status: nextStatus },
       {
         onSuccess: () => {
-          toast.success(nextStatus === 'completed' ? 'Task marked as completed!' : 'Task status reverted to pending');
+          toast.success(nextStatus === 'completed' ? t('employee.toasts.taskCompleted', 'Task marked as completed!') : t('employee.toasts.taskReverted', 'Task status reverted to pending'));
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || 'Failed to update task');
+          toast.error(err?.response?.data?.message || t('employee.toasts.taskFailed', 'Failed to update task'));
         }
       }
     );
@@ -145,10 +145,10 @@ export function EmployeeDashboard() {
     return (
       <div className="max-w-md mx-auto text-center p-8 border rounded-lg space-y-4 my-12">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Failed to Load Dashboard</h2>
-        <p className="text-muted-foreground">{(error as any)?.message || 'Your employee record could not be loaded.'}</p>
+        <h2 className="text-xl font-bold">{t('employee.error.title', 'Failed to Load Dashboard')}</h2>
+        <p className="text-muted-foreground">{(error as any)?.message || t('employee.error.desc', 'Your employee record could not be loaded.')}</p>
         <Button onClick={() => refetch()} className="mx-auto">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('employee.error.retry', 'Retry')}
         </Button>
       </div>
     );
@@ -173,41 +173,42 @@ export function EmployeeDashboard() {
   // Stage 4: Peer Mentorship & 30-Day Check-in Handover
   // Stage 5: Active Employee Workspace (Unlocked post-handover portal)
   let currentStageIndex = 1;
-  let activeStageTitle = 'Compliance & E-Signatures';
-  let activeStageDescription = 'Review and sign required legal & policy documents before proceeding.';
+  let activeStageTitle = t('employee.stages.stage1.title', 'Stage 1: Compliance E-Signatures (Prerequisite)');
+  let activeStageDescription = t('employee.stages.stage1.desc', 'Review and sign required legal & policy documents before proceeding with your training modules.');
   let activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0]._id}/sign` : '/documents';
-  let activeStageActionText = 'Sign Pending Documents';
+  let activeStageActionText = t('employee.stages.stage1.action', 'Sign Pending Documents');
 
   if (isUnassignedNewUser) {
     currentStageIndex = 0;
-    activeStageTitle = 'Onboarding Package Setup in Progress';
-    activeStageDescription = 'Your customized onboarding curriculum, compliance paperwork, and IT checklists are being assembled by HR & IT.';
+    activeStageTitle = t('employee.stages.stage0.title', 'Onboarding Package Setup in Progress');
+    activeStageDescription = t('employee.stages.stage0.desc', 'Your customized onboarding curriculum, compliance paperwork, and IT checklists are being assembled by HR & IT.');
     activeStageActionPath = '/directory';
-    activeStageActionText = 'Explore Team Directory';
+    activeStageActionText = t('employee.stages.stage0.action', 'Explore Team Directory');
   } else if (hasFeature('digital_signatures') && pendingDocsCount > 0) {
     currentStageIndex = 1;
-    activeStageTitle = 'Stage 1: Compliance E-Signatures (Prerequisite)';
-    activeStageDescription = 'Review and sign required legal & policy documents before proceeding with your training modules.';
+    activeStageTitle = t('employee.stages.stage1.title', 'Stage 1: Compliance E-Signatures (Prerequisite)');
+    activeStageDescription = t('employee.stages.stage1.desc', 'Review and sign required legal & policy documents before proceeding with your training modules.');
     activeStageActionPath = pendingDocs.length > 0 ? `/documents/${pendingDocs[0]._id}/sign` : '/documents';
-    activeStageActionText = 'Sign Pending Documents';
+    activeStageActionText = t('employee.stages.stage1.action', 'Sign Pending Documents');
   } else if (openTasksCount > 0) {
     currentStageIndex = 2;
-    activeStageTitle = 'Stage 2: Operational & IT Setup Checklists';
-    activeStageDescription = 'Complete your assigned IT provisioning and workplace checklist tasks.';
+    activeStageTitle = t('employee.stages.stage2.title', 'Stage 2: Operational & IT Setup Checklists');
+    activeStageDescription = t('employee.stages.stage2.desc', 'Complete your assigned IT provisioning and workplace checklist tasks.');
     activeStageActionPath = '/tasks';
-    activeStageActionText = 'View Operational Tasks';
+    activeStageActionText = t('employee.stages.stage2.action', 'View Operational Tasks');
   } else if (hasAssignedJourneys && !allJourneysCompleted) {
     currentStageIndex = 3;
-    activeStageTitle = `Stage 3: LMS Module: ${activeJourney?.title || 'Learning Curriculum'}`;
-    activeStageDescription = `Complete learning modules and knowledge checks (${activeJourney?.progress || 0}% completed).`;
+    const fallbackCurriculum = t('employee.stages.stage3.fallbackTitle', 'Learning Curriculum');
+    activeStageTitle = t('employee.stages.stage3.title', { title: activeJourney?.title || fallbackCurriculum, defaultValue: `Stage 3: LMS Module: ${activeJourney?.title || fallbackCurriculum}` });
+    activeStageDescription = t('employee.stages.stage3.desc', { progress: activeJourney?.progress || 0, defaultValue: `Complete learning modules and knowledge checks (${activeJourney?.progress || 0}% completed).` });
     activeStageActionPath = activeJourney ? `/course/${activeJourney.id}` : '/journeys';
-    activeStageActionText = 'Continue LMS Module';
+    activeStageActionText = t('employee.stages.stage3.action', 'Continue LMS Module');
   } else {
     currentStageIndex = 4;
-    activeStageTitle = 'Stage 4: Peer Mentorship & 30-Day Check-in Handover';
-    activeStageDescription = 'All training and operational setup tasks are complete! Review your 30-day goals with your buddy to finalize onboarding handover.';
+    activeStageTitle = t('employee.stages.stage4.title', 'Stage 4: Peer Mentorship & 30-Day Check-in Handover');
+    activeStageDescription = t('employee.stages.stage4.desc', 'All training and operational setup tasks are complete! Review your 30-day goals with your buddy to finalize onboarding handover.');
     activeStageActionPath = '/milestones';
-    activeStageActionText = 'Review Milestones & Buddy';
+    activeStageActionText = t('employee.stages.stage4.action', 'Review Milestones & Buddy');
   }
 
   // Calculate Overall Progress Score (0 to 100)
@@ -239,15 +240,15 @@ export function EmployeeDashboard() {
               <Award className="h-6 w-6 text-yellow-300" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">Onboarding Completed! Welcome to Talnova.</h2>
+              <h2 className="text-xl font-bold tracking-tight">{t('employee.workspace.celebrationTitle', 'Onboarding Completed! Welcome to Talnova.')}</h2>
               <p className="text-xs text-emerald-100 mt-0.5">
-                All legal compliance, operational checklists, courses, and milestones are signed off.
+                {t('employee.workspace.celebrationDesc', 'All legal compliance, operational checklists, courses, and milestones are signed off.')}
               </p>
             </div>
           </div>
           <Button asChild variant="secondary" id="view-certificate-btn" className="font-semibold text-emerald-900 bg-white hover:bg-emerald-50 shrink-0 shadow-sm">
             <Link to="/certificates">
-              View Certificate
+              {t('employee.workspace.viewCertBtn', 'View Certificate')}
             </Link>
           </Button>
         </div>
@@ -256,14 +257,14 @@ export function EmployeeDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                Phase 5: Active Employee Workspace • Onboarding Completed
+                {t('employee.workspace.phaseBadge', 'Phase 5: Active Employee Workspace • Onboarding Completed')}
               </span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome Back, {user?.name || employee?.fullName || employee?.name || 'Team Member'}!
+              {t('employee.workspace.welcomeBack', { name: user?.name || employee?.fullName || employee?.name || 'Team Member', defaultValue: `Welcome Back, ${user?.name || employee?.fullName || employee?.name || 'Team Member'}!` })}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Your onboarding journey is 100% complete. Access your active workspace, knowledge base, and team tools below.
+              {t('employee.workspace.welcomeBackDesc', 'Your onboarding journey is 100% complete. Access your active workspace, knowledge base, and team tools below.')}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -272,16 +273,16 @@ export function EmployeeDashboard() {
                 id="btn-copilot-drawer-completed"
                 data-testid="btn-copilot-drawer"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2"
-                onClick={() => toast.info('Onboarding Copilot drawer activated')}
+                onClick={() => toast.info(t('employee.toasts.copilotActivated', 'Onboarding Copilot drawer activated'))}
               >
                 <Bot className="h-4 w-4" />
-                <span>Ask Copilot</span>
+                <span>{t('employee.workspace.askCopilot', 'Ask Copilot')}</span>
               </Button>
             )}
             <Button variant="outline" asChild>
               <Link to="/certificates">
                 <Award className="mr-2 h-4 w-4 text-emerald-600" />
-                View Certificates ({employee.certificatesCount || 1})
+                {t('employee.workspace.viewCerts', { count: employee.certificatesCount || 1, defaultValue: `View Certificates (${employee.certificatesCount || 1})` })}
               </Link>
             </Button>
           </div>
@@ -292,31 +293,31 @@ export function EmployeeDashboard() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Award className="h-4 w-4" /> Completion Credential
+                <Award className="h-4 w-4" /> {t('employee.workspace.certPreview.badge', 'Completion Credential')}
               </span>
               <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded font-medium">
-                Verified Authentic
+                {t('employee.workspace.certPreview.verified', 'Verified Authentic')}
               </span>
             </div>
-            <CardTitle className="text-lg">Certificate of Onboarding Completion</CardTitle>
+            <CardTitle className="text-lg">{t('employee.workspace.certPreview.title', 'Certificate of Onboarding Completion')}</CardTitle>
             <CardDescription>
-              Issued to {user?.name || employee?.fullName || employee?.name || 'Team Member'} for completing all onboarding curriculum requirements.
+              {t('employee.workspace.certPreview.desc', { name: user?.name || employee?.fullName || employee?.name || 'Team Member', defaultValue: `Issued to ${user?.name || employee?.fullName || employee?.name || 'Team Member'} for completing all onboarding curriculum requirements.` })}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-muted/40 rounded-lg text-xs font-mono">
               <div>
-                <span className="text-muted-foreground block text-[10px] uppercase">Certificate ID</span>
+                <span className="text-muted-foreground block text-[10px] uppercase">{t('employee.workspace.certPreview.certId', 'Certificate ID')}</span>
                 <span className="font-semibold text-foreground">{assignedJourneys[0]?.certificate?.certificateId || 'CERT-ONB-COMPLETED'}</span>
               </div>
               <div>
-                <span className="text-muted-foreground block text-[10px] uppercase">Issue Date</span>
+                <span className="text-muted-foreground block text-[10px] uppercase">{t('employee.workspace.certPreview.issueDate', 'Issue Date')}</span>
                 <span className="font-semibold text-foreground">{assignedJourneys[0]?.certificate?.issuedAt ? new Date(assignedJourneys[0].certificate.issuedAt).toLocaleDateString() : new Date().toLocaleDateString()}</span>
               </div>
               <div className="col-span-2 sm:col-span-1 flex sm:justify-end items-center">
                 <Button asChild size="sm" variant="outline" className="w-full sm:w-auto text-xs">
                   <Link to="/certificates">
-                    Open Certificate Viewer
+                    {t('employee.workspace.certPreview.openViewer', 'Open Certificate Viewer')}
                   </Link>
                 </Button>
               </div>
@@ -328,22 +329,22 @@ export function EmployeeDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-indigo-500/20">
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs uppercase font-semibold">Learning Modules</CardDescription>
-              <CardTitle className="text-2xl font-bold text-indigo-600">{assignedJourneys.length} Completed</CardTitle>
+              <CardDescription className="text-xs uppercase font-semibold">{t('employee.workspace.stats.learningModules', 'Learning Modules')}</CardDescription>
+              <CardTitle className="text-2xl font-bold text-indigo-600">{t('employee.workspace.stats.completed', { count: assignedJourneys.length, defaultValue: `${assignedJourneys.length} Completed` })}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">100% course fulfillment</p>
+              <p className="text-xs text-muted-foreground">{t('employee.workspace.stats.fulfillment', '100% course fulfillment')}</p>
             </CardContent>
           </Card>
 
           {hasFeature('digital_signatures') && (
             <Card data-testid="card-required-documents-active" className="bg-gradient-to-br from-emerald-500/10 via-background to-background border-emerald-500/20">
               <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase font-semibold">Required Documents</CardDescription>
-                <CardTitle className="text-2xl font-bold text-emerald-600">Verified</CardTitle>
+                <CardDescription className="text-xs uppercase font-semibold">{t('employee.workspace.stats.requiredDocs', 'Required Documents')}</CardDescription>
+                <CardTitle className="text-2xl font-bold text-emerald-600">{t('employee.workspace.stats.verified', 'Verified')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">All NDAs & policies signed</p>
+                <p className="text-xs text-muted-foreground">{t('employee.workspace.stats.signedPolicies', 'All NDAs & policies signed')}</p>
               </CardContent>
             </Card>
           )}
@@ -351,13 +352,13 @@ export function EmployeeDashboard() {
           {hasFeature('buddy_connection') && (
             <Card data-testid="card-my-buddy-active" className="bg-gradient-to-br from-blue-500/10 via-background to-background border-blue-500/20">
               <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase font-semibold">My Buddy</CardDescription>
+                <CardDescription className="text-xs uppercase font-semibold">{t('employee.workspace.stats.myBuddy', 'My Buddy')}</CardDescription>
                 <CardTitle className="text-2xl font-bold text-blue-600">
-                  {buddyAssignment?.buddyUserId ? 'Connected' : 'Assigned'}
+                  {buddyAssignment?.buddyUserId ? t('employee.workspace.stats.connected', 'Connected') : t('employee.workspace.stats.assigned', 'Assigned')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">Peer mentorship active</p>
+                <p className="text-xs text-muted-foreground">{t('employee.workspace.stats.peerMentorship', 'Peer mentorship active')}</p>
               </CardContent>
             </Card>
           )}
@@ -365,13 +366,13 @@ export function EmployeeDashboard() {
           {hasFeature('milestone_ratings') && (
             <Card className="bg-gradient-to-br from-amber-500/10 via-background to-background border-amber-500/20">
               <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase font-semibold">Performance Milestones</CardDescription>
+                <CardDescription className="text-xs uppercase font-semibold">{t('employee.workspace.stats.milestones', 'Performance Milestones')}</CardDescription>
                 <CardTitle className="text-2xl font-bold text-amber-600">
-                  {milestones.length > 0 ? `${milestones.length} Active` : 'Day 30+'}
+                  {milestones.length > 0 ? t('employee.workspace.stats.activeCount', { count: milestones.length, defaultValue: `${milestones.length} Active` }) : t('employee.workspace.stats.day30Plus', 'Day 30+')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">Ongoing check-in reviews</p>
+                <p className="text-xs text-muted-foreground">{t('employee.workspace.stats.checkinReviews', 'Ongoing check-in reviews')}</p>
               </CardContent>
             </Card>
           )}
@@ -379,11 +380,11 @@ export function EmployeeDashboard() {
           {hasFeature('gamified_milestones') && (
             <Card data-testid="widget-points-leaderboard-active" className="bg-gradient-to-br from-purple-500/10 via-background to-background border-purple-500/20">
               <CardHeader className="pb-2">
-                <CardDescription className="text-xs uppercase font-semibold">Points & Leaderboard</CardDescription>
-                <CardTitle className="text-2xl font-bold text-purple-600">350 XP</CardTitle>
+                <CardDescription className="text-xs uppercase font-semibold">{t('employee.workspace.stats.leaderboard', 'Points & Leaderboard')}</CardDescription>
+                <CardTitle className="text-2xl font-bold text-purple-600">{t('employee.workspace.stats.xpValue', '350 XP')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">Rank #3 in cohort</p>
+                <p className="text-xs text-muted-foreground">{t('employee.workspace.stats.rankCohort', 'Rank #3 in cohort')}</p>
               </CardContent>
             </Card>
           )}
@@ -395,15 +396,15 @@ export function EmployeeDashboard() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-indigo-600" />
-                Knowledge Base & RAG AI
+                {t('employee.workspace.portals.kbTitle', 'Knowledge Base & RAG AI')}
               </CardTitle>
               <CardDescription>
-                Search company SOPs, policy articles, and ask AI questions in real-time.
+                {t('employee.workspace.portals.kbDesc', 'Search company SOPs, policy articles, and ask AI questions in real-time.')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="secondary" className="w-full" asChild>
-                <Link to="/kb">Open Knowledge Base</Link>
+                <Link to="/kb">{t('employee.workspace.portals.kbBtn', 'Open Knowledge Base')}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -412,15 +413,15 @@ export function EmployeeDashboard() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Users className="h-5 w-5 text-indigo-600" />
-                Team Directory & Office Map
+                {t('employee.workspace.portals.dirTitle', 'Team Directory & Office Map')}
               </CardTitle>
               <CardDescription>
-                Find colleagues, view department structures, and navigate office seating.
+                {t('employee.workspace.portals.dirDesc', 'Find colleagues, view department structures, and navigate office seating.')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="secondary" className="w-full" asChild>
-                <Link to="/directory">View Team Directory</Link>
+                <Link to="/directory">{t('employee.workspace.portals.dirBtn', 'View Team Directory')}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -430,15 +431,15 @@ export function EmployeeDashboard() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Flag className="h-5 w-5 text-indigo-600" />
-                  30/60/90 Day Milestones
+                  {t('employee.workspace.portals.milestonesTitle', '30/60/90 Day Milestones')}
                 </CardTitle>
                 <CardDescription>
-                  Review your active 30-day, 60-day, and 90-day progress check-ins with your manager.
+                  {t('employee.workspace.portals.milestonesDesc', 'Review your active 30-day, 60-day, and 90-day progress check-ins with your manager.')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button variant="secondary" className="w-full" asChild>
-                  <Link to="/milestones">Open Milestones</Link>
+                  <Link to="/milestones">{t('employee.workspace.portals.milestonesBtn', 'Open Milestones')}</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -455,14 +456,19 @@ export function EmployeeDashboard() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/20">
-              Guided Onboarding Roadmap • {isUnassignedNewUser ? 'Awaiting Assignments' : `Stage ${currentStageIndex} of 4 Active`}
+              {t('employee.roadmap.badge', {
+                status: isUnassignedNewUser
+                  ? t('employee.roadmap.awaitingAssignments', 'Awaiting Assignments')
+                  : t('employee.roadmap.stageActive', { stage: currentStageIndex, defaultValue: `Stage ${currentStageIndex} of 4 Active` }),
+                defaultValue: `Guided Onboarding Roadmap • ${isUnassignedNewUser ? 'Awaiting Assignments' : `Stage ${currentStageIndex} of 4 Active`}`
+              })}
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Welcome to Northwind, {user?.name || 'Jane'}!
+            {t('employee.roadmap.welcome', { name: user?.name || 'Jane', defaultValue: `Welcome to Northwind, ${user?.name || 'Jane'}!` })}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Follow your step-by-step onboarding roadmap below to complete your setup, compliance, learning modules, and team integration.
+            {t('employee.roadmap.welcomeDesc', 'Follow your step-by-step onboarding roadmap below to complete your setup, compliance, learning modules, and team integration.')}
           </p>
         </div>
         {hasFeature('onboarding_copilot') && (
@@ -470,10 +476,10 @@ export function EmployeeDashboard() {
             id="btn-copilot-drawer"
             data-testid="btn-copilot-drawer"
             className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-sm flex items-center gap-2"
-            onClick={() => toast.info('Onboarding Copilot drawer activated')}
+            onClick={() => toast.info(t('employee.toasts.copilotActivated', 'Onboarding Copilot drawer activated'))}
           >
             <Bot className="h-4 w-4" />
-            <span>Ask Copilot</span>
+            <span>{t('employee.workspace.askCopilot', 'Ask Copilot')}</span>
           </Button>
         )}
       </div>
@@ -484,10 +490,15 @@ export function EmployeeDashboard() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
               <BookOpen className="h-5 w-5" />
-              Active Onboarding Stage: {isUnassignedNewUser ? 'Curriculum Setup' : `Step ${currentStageIndex}`}
+              {t('employee.roadmap.hero.activeStage', {
+                stage: isUnassignedNewUser
+                  ? t('employee.roadmap.hero.curriculumSetup', 'Curriculum Setup')
+                  : t('employee.roadmap.hero.stepNum', { step: currentStageIndex, defaultValue: `Step ${currentStageIndex}` }),
+                defaultValue: `Active Onboarding Stage: ${isUnassignedNewUser ? 'Curriculum Setup' : `Step ${currentStageIndex}`}`
+              })}
             </CardTitle>
             <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-              {overallProgressPercent}% Total Roadmap Complete
+              {t('employee.roadmap.hero.totalComplete', { percent: overallProgressPercent, defaultValue: `${overallProgressPercent}% Total Roadmap Complete` })}
             </span>
           </div>
           <Progress value={overallProgressPercent} className="h-2 mt-2 bg-indigo-500/10" />
@@ -511,12 +522,12 @@ export function EmployeeDashboard() {
                     onClick={() => {
                       localStorage.setItem(handoverStorageKey, 'true');
                       setIsHandoverAcknowledged(true);
-                      toast.success('Congratulations! You have completed all onboarding stages and transitioned to the Active Employee Workspace.');
+                      toast.success(t('employee.toasts.handoverSuccess', 'Congratulations! You have completed all onboarding stages and transitioned to the Active Employee Workspace.'));
                     }}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Complete Handover & Unlock Workspace
+                    {t('employee.roadmap.hero.handoverBtn', 'Complete Handover & Unlock Workspace')}
                   </Button>
                 )}
               </div>
@@ -529,35 +540,35 @@ export function EmployeeDashboard() {
               <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 1 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
                 <div className="flex items-center gap-1.5 mb-1 font-bold">
                   <FileText className="h-4 w-4 text-indigo-600" />
-                  <span>1. E-Signatures</span>
+                  <span>{t('employee.roadmap.stepper.step1', '1. E-Signatures')}</span>
                 </div>
-                <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 ? '✓ Completed' : `${pendingDocsCount} Unsigned`}</p>
+                <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 ? t('employee.roadmap.stepper.completed', '✓ Completed') : t('employee.roadmap.stepper.unsigned', { count: pendingDocsCount, defaultValue: `${pendingDocsCount} Unsigned` })}</p>
               </div>
             )}
 
             <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 2 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
               <div className="flex items-center gap-1.5 mb-1 font-bold">
                 <CheckSquare className="h-4 w-4 text-indigo-600" />
-                <span>2. IT & Setup Tasks</span>
+                <span>{t('employee.roadmap.stepper.step2', '2. IT & Setup Tasks')}</span>
               </div>
-              <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 && openTasksCount === 0 ? '✓ Completed' : `${openTasksCount} Pending`}</p>
+              <p className="text-muted-foreground">{!isUnassignedNewUser && pendingDocsCount === 0 && openTasksCount === 0 ? t('employee.roadmap.stepper.completed', '✓ Completed') : t('employee.roadmap.stepper.pending', { count: openTasksCount, defaultValue: `${openTasksCount} Pending` })}</p>
             </div>
 
             <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 3 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
               <div className="flex items-center gap-1.5 mb-1 font-bold">
                 <PlayCircle className="h-4 w-4 text-indigo-600" />
-                <span>3. LMS Modules</span>
+                <span>{t('employee.roadmap.stepper.step3', '3. LMS Modules')}</span>
               </div>
-              <p className="text-muted-foreground">{hasAssignedJourneys ? (allJourneysCompleted ? '✓ Completed' : `${activeJourney?.progress || 0}% Done`) : '0 Assigned'}</p>
+              <p className="text-muted-foreground">{hasAssignedJourneys ? (allJourneysCompleted ? t('employee.roadmap.stepper.completed', '✓ Completed') : t('employee.roadmap.stepper.done', { percent: activeJourney?.progress || 0, defaultValue: `${activeJourney?.progress || 0}% Done` })) : t('employee.roadmap.stepper.zeroAssigned', '0 Assigned')}</p>
             </div>
 
             {(hasFeature('buddy_connection') || hasFeature('milestone_ratings')) && (
               <div className={`p-3 rounded-lg border text-xs font-medium ${currentStageIndex === 4 ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800' : 'bg-muted/40 opacity-70'}`}>
                 <div className="flex items-center gap-1.5 mb-1 font-bold">
                   <Users className="h-4 w-4 text-indigo-600" />
-                  <span>4. Buddy & Milestones</span>
+                  <span>{t('employee.roadmap.stepper.step4', '4. Buddy & Milestones')}</span>
                 </div>
-                <p className="text-muted-foreground">{isOnboardingFullyCompleted ? '✓ Handover Done' : (currentStageIndex === 4 ? 'Ready for Handover' : 'Upcoming')}</p>
+                <p className="text-muted-foreground">{isOnboardingFullyCompleted ? t('employee.roadmap.stepper.handoverDone', '✓ Handover Done') : (currentStageIndex === 4 ? t('employee.roadmap.stepper.readyHandover', 'Ready for Handover') : t('employee.roadmap.stepper.upcoming', 'Upcoming'))}</p>
               </div>
             )}
           </div>
@@ -587,13 +598,13 @@ export function EmployeeDashboard() {
                   </div>
                   <div>
                     <CardTitle className="text-base font-bold flex items-center gap-2">
-                      {activeMilestone.milestoneTitle || `Day ${activeMilestone.targetDay} Milestone Track`}
+                      {activeMilestone.milestoneTitle || t('employee.roadmap.milestone.trackTitle', { day: activeMilestone.targetDay, defaultValue: `Day ${activeMilestone.targetDay} Milestone Track` })}
                       <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 text-[10px]">
-                        Day {activeMilestone.targetDay}
+                        {t('employee.roadmap.milestone.dayBadge', { day: activeMilestone.targetDay, defaultValue: `Day ${activeMilestone.targetDay}` })}
                       </Badge>
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Target Due Date: {new Date(activeMilestone.dueDate).toLocaleDateString()}
+                      {t('employee.roadmap.milestone.targetDueDate', { date: new Date(activeMilestone.dueDate).toLocaleDateString(), defaultValue: `Target Due Date: ${new Date(activeMilestone.dueDate).toLocaleDateString()}` })}
                     </CardDescription>
                   </div>
                 </div>
@@ -607,7 +618,7 @@ export function EmployeeDashboard() {
                       : 'border-purple-500/30 text-purple-600'
                     }`}
                 >
-                  {activeMilestone.status ? activeMilestone.status.replace(/_/g, ' ') : 'Self Check-in Pending'}
+                  {activeMilestone.status ? activeMilestone.status.replace(/_/g, ' ') : t('employee.roadmap.milestone.selfCheckinPending', 'Self Check-in Pending')}
                 </Badge>
               </div>
             </CardHeader>
@@ -615,8 +626,8 @@ export function EmployeeDashboard() {
               {totalGoalsCount > 0 && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs font-semibold text-foreground">
-                    <span className="text-muted-foreground">Milestone Goals Completed:</span>
-                    <span>{goalsCompletedCount} of {totalGoalsCount} ({goalsPercent}%)</span>
+                    <span className="text-muted-foreground">{t('employee.roadmap.milestone.goalsCompletedLabel', 'Milestone Goals Completed:')}</span>
+                    <span>{t('employee.roadmap.milestone.goalsCount', { completed: goalsCompletedCount, total: totalGoalsCount, percent: goalsPercent, defaultValue: `${goalsCompletedCount} of ${totalGoalsCount} (${goalsPercent}%)` })}</span>
                   </div>
                   <Progress value={goalsPercent} className="h-2 bg-purple-500/10" />
                 </div>
@@ -625,12 +636,12 @@ export function EmployeeDashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-border/50">
                 <p className="text-xs text-muted-foreground">
                   {isSelfCheckinDone
-                    ? 'Self check-in submitted! Awaiting manager review and sign-off.'
-                    : 'Complete your goals and submit your self-reflection check-in before the target due date.'}
+                    ? t('employee.roadmap.milestone.submittedDesc', 'Self check-in submitted! Awaiting manager review and sign-off.')
+                    : t('employee.roadmap.milestone.pendingDesc', 'Complete your goals and submit your self-reflection check-in before the target due date.')}
                 </p>
                 <Button size="sm" asChild className="bg-purple-600 hover:bg-purple-700 text-white shrink-0 text-xs">
                   <Link to="/milestones">
-                    {isSelfCheckinDone ? 'View Milestone Status' : 'Complete Self Check-in'}
+                    {isSelfCheckinDone ? t('employee.roadmap.milestone.viewStatus', 'View Milestone Status') : t('employee.roadmap.milestone.completeCheckin', 'Complete Self Check-in')}
                   </Link>
                 </Button>
               </div>
@@ -647,10 +658,10 @@ export function EmployeeDashboard() {
         ];
         // Deduplicate by _id
         const seenIds = new Set<string>();
-        const hardwareList = allRelevantTasks.filter((t: any) => {
-          if (!t || seenIds.has(t._id)) return false;
-          seenIds.add(t._id);
-          return t.hardwareMetadata || t.category === 'it_setup' || t.category === 'equipment';
+        const hardwareList = allRelevantTasks.filter((hwTask: any) => {
+          if (!hwTask || seenIds.has(hwTask._id)) return false;
+          seenIds.add(hwTask._id);
+          return hwTask.hardwareMetadata || hwTask.category === 'it_setup' || hwTask.category === 'equipment';
         });
 
         if (hardwareList.length === 0) return null;
@@ -665,13 +676,13 @@ export function EmployeeDashboard() {
                   </div>
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
-                      Assigned Equipment & Workstation Setup
+                      {t('employee.roadmap.equipment.title', 'Assigned Equipment & Workstation Setup')}
                       <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-600 border-cyan-500/20">
-                        {hardwareList.length} {hardwareList.length === 1 ? 'Item' : 'Items'}
+                        {t('employee.roadmap.equipment.items', { count: hardwareList.length, defaultValue: `${hardwareList.length} ${hardwareList.length === 1 ? 'Item' : 'Items'}` })}
                       </Badge>
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Track shipment, delivery, and confirm physical receipt of your work equipment.
+                      {t('employee.roadmap.equipment.desc', 'Track shipment, delivery, and confirm physical receipt of your work equipment.')}
                     </CardDescription>
                   </div>
                 </div>
@@ -679,15 +690,15 @@ export function EmployeeDashboard() {
             </CardHeader>
             <CardContent className="space-y-3 pt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {hardwareList.map((t: any) => {
-                  const meta = t.hardwareMetadata || {};
+                {hardwareList.map((hwItem: any) => {
+                  const meta = hwItem.hardwareMetadata || {};
                   const isDelivered = meta.mdmStatus === 'delivered' || !!meta.receivedConfirmedAt;
                   const isDispatched = meta.mdmStatus === 'dispatched';
-                  const deviceLabel = meta.deviceType ? meta.deviceType.replace(/_/g, ' ') : t.title;
+                  const deviceLabel = meta.deviceType ? meta.deviceType.replace(/_/g, ' ') : hwItem.title;
 
                   return (
                     <div
-                      key={t._id}
+                      key={hwItem._id}
                       className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
                         isDelivered
                           ? 'border-emerald-500/30 bg-emerald-500/5'
@@ -702,7 +713,7 @@ export function EmployeeDashboard() {
                               <span className="text-[10px] font-mono text-muted-foreground">({meta.assetTag})</span>
                             )}
                           </p>
-                          <p className="text-[11px] text-muted-foreground truncate">{t.title}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{hwItem.title}</p>
                         </div>
                         <Badge
                           variant="outline"
@@ -714,13 +725,13 @@ export function EmployeeDashboard() {
                               : 'bg-muted text-muted-foreground'
                           }`}
                         >
-                          {meta.mdmStatus ? meta.mdmStatus.replace(/_/g, ' ') : 'Preparing'}
+                          {meta.mdmStatus ? meta.mdmStatus.replace(/_/g, ' ') : t('employee.roadmap.equipment.preparing', 'Preparing')}
                         </Badge>
                       </div>
 
                       {meta.serialNumber && (
                         <p className="text-[11px] text-muted-foreground font-mono">
-                          Serial: <span className="text-foreground">{meta.serialNumber}</span>
+                          {t('employee.roadmap.equipment.serial', 'Serial:')} <span className="text-foreground">{meta.serialNumber}</span>
                         </p>
                       )}
 
@@ -732,33 +743,33 @@ export function EmployeeDashboard() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-600 hover:text-cyan-700 underline"
                           >
-                            <Truck className="h-3.5 w-3.5" /> Track Package ({meta.courierProvider || 'Courier'}) <ExternalLink className="h-3 w-3" />
+                            <Truck className="h-3.5 w-3.5" /> {t('employee.roadmap.equipment.trackPackage', { courier: meta.courierProvider || t('employee.roadmap.equipment.trackCourier', 'Courier'), defaultValue: `Track Package (${meta.courierProvider || 'Courier'})` })} <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : (
                           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Tracking available upon dispatch
+                            <Clock className="h-3 w-3" /> {t('employee.roadmap.equipment.trackingUponDispatch', 'Tracking available upon dispatch')}
                           </span>
                         )}
 
                         {isDelivered ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Received
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {t('employee.roadmap.equipment.received', 'Received')}
                           </span>
                         ) : (
                           <Button
                             size="sm"
                             onClick={() => {
                               confirmReceiptMut.mutate(
-                                { id: t._id },
+                                { id: hwItem._id },
                                 {
-                                  onSuccess: () => toast.success('Equipment receipt confirmed! Status updated to Delivered.'),
+                                  onSuccess: () => toast.success(t('employee.toasts.equipmentConfirmed', 'Equipment receipt confirmed! Status updated to Delivered.')),
                                 }
                               );
                             }}
                             disabled={confirmReceiptMut.isPending}
                             className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                           >
-                            <Check className="h-3 w-3" /> Confirm Receipt
+                            <Check className="h-3 w-3" /> {t('employee.roadmap.equipment.confirmReceipt', 'Confirm Receipt')}
                           </Button>
                         )}
                       </div>
@@ -778,24 +789,24 @@ export function EmployeeDashboard() {
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-amber-500" />
-                Points & Leaderboard
+                {t('employee.roadmap.gamification.title', 'Points & Leaderboard')}
               </CardTitle>
               <CardDescription>
-                Earn points for completing compliance milestones and climb the onboarding leaderboard.
+                {t('employee.roadmap.gamification.desc', 'Earn points for completing compliance milestones and climb the onboarding leaderboard.')}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/leaderboard">View Leaderboard</Link>
+              <Link to="/leaderboard">{t('employee.roadmap.gamification.viewLeaderboard', 'View Leaderboard')}</Link>
             </Button>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-6">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-bold text-amber-600">350</span>
-                <span className="text-xs text-muted-foreground uppercase font-semibold">XP Points</span>
+                <span className="text-xs text-muted-foreground uppercase font-semibold">{t('employee.roadmap.gamification.xpPoints', 'XP Points')}</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Rank <span className="font-semibold text-foreground">#3</span> in current onboarding cohort
+                {t('employee.roadmap.gamification.rank', 'Rank #3 in current onboarding cohort')}
               </div>
             </div>
           </CardContent>
@@ -805,9 +816,9 @@ export function EmployeeDashboard() {
       {/* Operational Onboarding Container Overview Cards */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Onboarding Sub-Systems Overview</CardTitle>
+          <CardTitle className="text-lg">{t('employee.roadmap.overview.title', 'Onboarding Sub-Systems Overview')}</CardTitle>
           <CardDescription>
-            Quick status breakdown across your compliance, operational task queue, buddy pairing, and milestones.
+            {t('employee.roadmap.overview.desc', 'Quick status breakdown across your compliance, operational task queue, buddy pairing, and milestones.')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -815,42 +826,42 @@ export function EmployeeDashboard() {
             {hasFeature('digital_signatures') && (
               <Link to="/documents" data-testid="card-required-documents" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase">Required Documents</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">{t('employee.roadmap.overview.reqDocs', 'Required Documents')}</span>
                   <FileText className="h-4 w-4 text-indigo-600" />
                 </div>
-                <p className="text-xl font-bold">{pendingDocsCount} Unsigned</p>
-                <p className="text-xs text-muted-foreground mt-1">E-signature requirements</p>
+                <p className="text-xl font-bold">{t('employee.roadmap.overview.unsigned', { count: pendingDocsCount, defaultValue: `${pendingDocsCount} Unsigned` })}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('employee.roadmap.overview.eSigReqs', 'E-signature requirements')}</p>
               </Link>
             )}
 
             <Link to="/tasks" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">Tasks & IT Setup</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase">{t('employee.roadmap.overview.tasksSetup', 'Tasks & IT Setup')}</span>
                 <CheckSquare className="h-4 w-4 text-indigo-600" />
               </div>
-              <p className="text-xl font-bold">{openTasksCount} Open</p>
-              <p className="text-xs text-muted-foreground mt-1">Operational checklists</p>
+              <p className="text-xl font-bold">{t('employee.roadmap.overview.openTasks', { count: openTasksCount, defaultValue: `${openTasksCount} Open` })}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('employee.roadmap.overview.opChecklists', 'Operational checklists')}</p>
             </Link>
 
             {hasFeature('buddy_connection') && (
               <Link to="/buddy" data-testid="card-my-buddy" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase">My Buddy</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">{t('employee.roadmap.overview.myBuddy', 'My Buddy')}</span>
                   <Users className="h-4 w-4 text-indigo-600" />
                 </div>
-                <p className="text-xl font-bold">{buddyAssignment?.buddyUserId ? 'Paired' : 'Auto-Assign'}</p>
-                <p className="text-xs text-muted-foreground mt-1">Peer mentor support</p>
+                <p className="text-xl font-bold">{buddyAssignment?.buddyUserId ? t('employee.roadmap.overview.paired', 'Paired') : t('employee.roadmap.overview.autoAssign', 'Auto-Assign')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('employee.roadmap.overview.peerSupport', 'Peer mentor support')}</p>
               </Link>
             )}
 
             {hasFeature('milestone_ratings') && (
               <Link to="/milestones" data-testid="card-milestones" className="p-3 bg-white dark:bg-slate-900 border rounded-xl hover:border-indigo-500 transition-all flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase">30/60/90 Milestones</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">{t('employee.roadmap.overview.milestonesTitle', '30/60/90 Milestones')}</span>
                   <Flag className="h-4 w-4 text-indigo-600" />
                 </div>
-                <p className="text-xl font-bold">{milestones.length > 0 ? `${milestones.length} Active` : 'Schedule'}</p>
-                <p className="text-xs text-muted-foreground mt-1">Performance checkpoints</p>
+                <p className="text-xl font-bold">{milestones.length > 0 ? t('employee.roadmap.overview.activeCount', { count: milestones.length, defaultValue: `${milestones.length} Active` }) : t('employee.roadmap.overview.schedule', 'Schedule')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('employee.roadmap.overview.checkpoints', 'Performance checkpoints')}</p>
               </Link>
             )}
           </div>
@@ -864,23 +875,23 @@ export function EmployeeDashboard() {
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-indigo-500" />
-                Personal Onboarding Checklist
+                {t('employee.roadmap.checklist.title', 'Personal Onboarding Checklist')}
               </CardTitle>
               <CardDescription>
-                Track and complete your personal operational setup tasks.
+                {t('employee.roadmap.checklist.desc', 'Track and complete your personal operational setup tasks.')}
               </CardDescription>
             </div>
             <Link to="/tasks" className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">
-              View All Tasks &rarr;
+              {t('employee.roadmap.checklist.viewAll', 'View All Tasks →')}
             </Link>
           </CardHeader>
           <CardContent>
             <div className="space-y-2.5">
-              {(tasksData?.tasks || []).map((t: any) => {
-                const isDone = t.status === 'completed';
+              {(tasksData?.tasks || []).map((taskItem: any) => {
+                const isDone = taskItem.status === 'completed';
                 return (
                   <div
-                    key={t._id}
+                    key={taskItem._id}
                     className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isDone
                       ? 'border-emerald-500/30 bg-emerald-500/5 opacity-80'
                       : 'border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:border-indigo-500/50'
@@ -888,7 +899,7 @@ export function EmployeeDashboard() {
                   >
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => handleToggleTask(t)}
+                        onClick={() => handleToggleTask(taskItem)}
                         className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${isDone
                           ? 'bg-emerald-500 border-emerald-500 text-white'
                           : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
@@ -898,15 +909,15 @@ export function EmployeeDashboard() {
                       </button>
                       <div>
                         <p className={`text-sm font-medium ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                          {t.title}
+                          {taskItem.title}
                         </p>
-                        {t.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1">{t.description}</p>
+                        {taskItem.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-1">{taskItem.description}</p>
                         )}
                       </div>
                     </div>
                     <span className="text-xs px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold border border-white/10 text-muted-foreground">
-                      {t.priority || 'normal'}
+                      {taskItem.priority || t('employee.roadmap.checklist.normal', 'normal')}
                     </span>
                   </div>
                 );
@@ -919,11 +930,11 @@ export function EmployeeDashboard() {
       {/* Assigned Journeys & Modules */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight mb-4">
-          {t('employee.assignedJourneys')}
+          {t('employee.assignedJourneys', 'Assigned Journeys')}
         </h2>
         {!assignedJourneys || assignedJourneys.length === 0 ? (
           <div className="col-span-full py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
-            {t('employee.noJourneys')}
+            {t('employee.noJourneys', 'No journeys assigned yet.')}
           </div>
         ) : (
           <div className="space-y-4">
@@ -935,17 +946,17 @@ export function EmployeeDashboard() {
                       {j.title}
                     </CardTitle>
                     <CardDescription>
-                      {j.status === 'Completed' ? t('employee.completedJourneys') : t('employee.inProgress')}
+                      {j.status === 'Completed' ? t('employee.completedJourneys', 'Completed') : t('employee.inProgress', 'In Progress')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                       <Clock className="h-4 w-4" />
-                      <span>Assigned {j.assignedAt}</span>
+                      <span>{t('employee.roadmap.assigned.assignedDate', { date: j.assignedAt, defaultValue: `Assigned ${j.assignedAt}` })}</span>
                     </div>
                     <Button variant={j.status === 'Completed' ? 'outline' : 'default'} className="w-full" asChild>
                       <Link to={`/course/${j.id}`}>
-                        {j.status === 'Completed' ? 'Review Course' : 'Start Course'}
+                        {j.status === 'Completed' ? t('employee.roadmap.assigned.reviewCourse', 'Review Course') : t('employee.roadmap.assigned.startCourse', 'Start Course')}
                       </Link>
                     </Button>
                   </CardContent>
@@ -962,7 +973,7 @@ export function EmployeeDashboard() {
               pageSize={assignedPagination.pageSize}
               onPageChange={assignedPagination.setPage}
               onPageSizeChange={assignedPagination.setPageSize}
-              itemLabel="journeys"
+              itemLabel={t('employee.roadmap.assigned.itemLabel', 'journeys')}
             />
           </div>
         )}
@@ -971,8 +982,8 @@ export function EmployeeDashboard() {
       {availablePublicJourneys.length > 0 && (
         <div className="mt-8 space-y-4">
           <h2 className="text-xl font-semibold tracking-tight mb-4 flex items-center gap-2">
-            Explore Public Journeys
-            <span className="text-xs font-normal text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/10">Self-Enroll</span>
+            {t('employee.roadmap.public.title', 'Explore Public Journeys')}
+            <span className="text-xs font-normal text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/10">{t('employee.roadmap.public.selfEnroll', 'Self-Enroll')}</span>
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {publicPagination.paginatedData.map((j: any) => (
@@ -982,21 +993,21 @@ export function EmployeeDashboard() {
                     {j.title}
                   </CardTitle>
                   <CardDescription className="line-clamp-2">
-                    {j.description || 'No description provided.'}
+                    {j.description || t('employee.roadmap.public.noDesc', 'No description provided.')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                    <span>{j.category || 'General'}</span>
+                    <span>{j.category || t('employee.roadmap.public.general', 'General')}</span>
                     <span>•</span>
-                    <span>{j.modules?.length || 0} modules</span>
+                    <span>{t('employee.roadmap.public.modules', { count: j.modules?.length || 0, defaultValue: `${j.modules?.length || 0} modules` })}</span>
                   </div>
                   <Button
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
                     onClick={() => handleEnroll(j.id)}
                     disabled={assignJourneyMut.isPending}
                   >
-                    {assignJourneyMut.isPending ? 'Enrolling...' : 'Enroll & Start'}
+                    {assignJourneyMut.isPending ? t('employee.roadmap.public.enrolling', 'Enrolling...') : t('employee.roadmap.public.enrollStart', 'Enroll & Start')}
                   </Button>
                 </CardContent>
               </Card>
@@ -1012,7 +1023,7 @@ export function EmployeeDashboard() {
             pageSize={publicPagination.pageSize}
             onPageChange={publicPagination.setPage}
             onPageSizeChange={publicPagination.setPageSize}
-            itemLabel="journeys"
+            itemLabel={t('employee.roadmap.public.itemLabel', 'journeys')}
           />
         </div>
       )}

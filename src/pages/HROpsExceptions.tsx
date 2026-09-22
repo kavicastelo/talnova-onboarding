@@ -37,8 +37,10 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { useEmployees } from '../hooks/useEmployees';
 import { employeeService } from '../services/employee.service';
 import { Zap, TrendingDown, Scale, ShieldCheck, Layers } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export const HROpsExceptions: React.FC = () => {
+  const { t } = useTranslation(['hr', 'common']);
   const [mainSection, setMainSection] = useState<'quarantined' | 'velocity_risk' | 'outbox_sync' | 'legal_holds'>('quarantined');
   const [activeTab, setActiveTab] = useState<'all' | 'paused' | 'provisioning_failed' | 'handover_pending'>('all');
   const [search, setSearch] = useState('');
@@ -86,12 +88,12 @@ export const HROpsExceptions: React.FC = () => {
     if (!selectedCase) return;
 
     if (!reason || reason.trim().length < 10) {
-      toast.error('Audit Compliance Error: Resolution reason must be at least 10 characters.');
+      toast.error(t('workbench.diagnosticModal.minCharsError'));
       return;
     }
 
     if (action === 'override_journey' && !selectedJourneyId) {
-      toast.error('Please select a target Journey Template for override.');
+      toast.error(t('workbench.diagnosticModal.templateRequiredError'));
       return;
     }
 
@@ -115,13 +117,13 @@ export const HROpsExceptions: React.FC = () => {
       },
       {
         onSuccess: (res) => {
-          toast.success(res.message || 'Exception successfully resolved and automation resumed.');
+          toast.success(res.message || t('workbench.diagnosticModal.successToast'));
           setIsDiagnosticModalOpen(false);
           setSelectedCase(null);
           refetch();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to resolve onboarding exception.');
+          toast.error(err?.response?.data?.message || err?.message || t('workbench.diagnosticModal.errorToast'));
         },
       }
     );
@@ -130,7 +132,7 @@ export const HROpsExceptions: React.FC = () => {
   const handleSaveLegalHold = async () => {
     if (!selectedHoldEmployee) return;
     if (!holdReason || holdReason.trim().length < 10) {
-      toast.error('Audit Compliance Error: Legal hold justification must be at least 10 characters.');
+      toast.error(t('workbench.holdModal.minCharsError'));
       return;
     }
 
@@ -141,13 +143,13 @@ export const HROpsExceptions: React.FC = () => {
         legalHold: targetHoldState,
         reason: holdReason.trim(),
       });
-      toast.success(res.message || `Legal hold ${targetHoldState ? 'placed' : 'released'} successfully.`);
+      toast.success(res.message || (targetHoldState ? t('workbench.holdModal.placedSuccess') : t('workbench.holdModal.releasedSuccess')));
       setIsLegalHoldModalOpen(false);
       setSelectedHoldEmployee(null);
       setHoldReason('');
       refetchEmployees();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update legal hold status.');
+      toast.error(err?.response?.data?.message || err?.message || t('workbench.holdModal.errorToast'));
     } finally {
       setIsSettingHold(false);
     }
@@ -167,20 +169,20 @@ export const HROpsExceptions: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <ShieldAlert className="h-7 w-7 text-rose-600" />
-            HR Ops Exception Workbench
+            {t('workbench.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Authoritative operational control center to inspect quarantined cases, execute manual overrides, and resume autonomous orchestration.
+            {t('workbench.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link to="/hr-ops">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back to HR Operations
+              <ArrowLeft className="h-4 w-4 mr-2" /> {t('workbench.backToOps')}
             </Link>
           </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Refresh Queue
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> {t('workbench.refreshQueue')}
           </Button>
         </div>
       </div>
@@ -194,7 +196,7 @@ export const HROpsExceptions: React.FC = () => {
           className="flex items-center gap-2"
         >
           <ShieldAlert className="h-4 w-4 text-rose-500" />
-          Quarantined Cases ({totalCases})
+          {t('workbench.nav.quarantined', { count: totalCases })}
         </Button>
         <Button
           variant={mainSection === 'velocity_risk' ? 'default' : 'outline'}
@@ -203,7 +205,7 @@ export const HROpsExceptions: React.FC = () => {
           className="flex items-center gap-2"
         >
           <TrendingDown className="h-4 w-4 text-amber-500" />
-          Drop-Off Risk Sentinel
+          {t('workbench.nav.velocityRisk')}
         </Button>
         <Button
           variant={mainSection === 'outbox_sync' ? 'default' : 'outline'}
@@ -212,7 +214,7 @@ export const HROpsExceptions: React.FC = () => {
           className="flex items-center gap-2"
         >
           <Layers className="h-4 w-4 text-indigo-500" />
-          HRIS & Outbox Health
+          {t('workbench.nav.outboxSync')}
         </Button>
         <Button
           variant={mainSection === 'legal_holds' ? 'default' : 'outline'}
@@ -221,7 +223,7 @@ export const HROpsExceptions: React.FC = () => {
           className="flex items-center gap-2"
         >
           <Scale className="h-4 w-4 text-rose-500" />
-          Legal Hold Guardrails (SOC 2)
+          {t('workbench.nav.legalHolds')}
         </Button>
       </div>
 
@@ -232,44 +234,44 @@ export const HROpsExceptions: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-rose-500">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-semibold">Quarantined Cases</span>
+                <span className="text-xs text-muted-foreground font-semibold">{t('workbench.quarantined.kpiQuarantined')}</span>
                 <AlertOctagon className="h-4 w-4 text-rose-500" />
               </div>
               <div className="text-2xl font-bold mt-2">{totalCases}</div>
-              <p className="text-[11px] text-muted-foreground mt-1">Requiring HR Ops intervention</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.quarantined.kpiQuarantinedDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-amber-500">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-semibold">Rule Conflicts / Paused</span>
+                <span className="text-xs text-muted-foreground font-semibold">{t('workbench.quarantined.kpiRuleConflicts')}</span>
                 <Clock className="h-4 w-4 text-amber-500" />
               </div>
               <div className="text-2xl font-bold mt-2">
                 {cases.filter((c) => c.state === 'paused').length}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Ambiguous metadata or manual hold</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.quarantined.kpiRuleConflictsDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-red-600">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-semibold">Provisioning Failures</span>
+                <span className="text-xs text-muted-foreground font-semibold">{t('workbench.quarantined.kpiProvisioningFailures')}</span>
                 <AlertTriangle className="h-4 w-4 text-red-600" />
               </div>
               <div className="text-2xl font-bold mt-2">
                 {cases.filter((c) => c.state === 'provisioning_failed').length}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Integration or resource errors</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.quarantined.kpiProvisioningFailuresDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-indigo-500">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-semibold">Handover Pending</span>
+                <span className="text-xs text-muted-foreground font-semibold">{t('workbench.quarantined.kpiHandoverPending')}</span>
                 <UserCheck className="h-4 w-4 text-indigo-500" />
               </div>
               <div className="text-2xl font-bold mt-2">
                 {cases.filter((c) => c.state === 'handover_pending').length}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Awaiting formal manager sign-off</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.quarantined.kpiHandoverPendingDesc')}</p>
             </Card>
           </div>
 
@@ -280,10 +282,10 @@ export const HROpsExceptions: React.FC = () => {
                 <div>
                   <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <Wrench className="h-5 w-5 text-indigo-600" />
-                    Active Exception Triage Queue
+                    {t('workbench.quarantined.queueTitle')}
                   </CardTitle>
                   <CardDescription>
-                    Cases quarantined by autonomous engines due to rule conflicts, metadata mismatch, or SLA breach.
+                    {t('workbench.quarantined.queueSubtitle')}
                   </CardDescription>
                 </div>
 
@@ -294,7 +296,7 @@ export const HROpsExceptions: React.FC = () => {
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Filter by name, email, department..."
+                      placeholder={t('workbench.quarantined.searchPlaceholder')}
                       className="text-xs h-8 pl-8 w-48 sm:w-64"
                     />
                   </div>
@@ -304,7 +306,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="h-8 text-xs"
                     onClick={() => setActiveTab('all')}
                   >
-                    All ({totalCases})
+                    {t('workbench.quarantined.filterAll', { count: totalCases })}
                   </Button>
                   <Button
                     variant={activeTab === 'paused' ? 'default' : 'outline'}
@@ -312,7 +314,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="h-8 text-xs"
                     onClick={() => setActiveTab('paused')}
                   >
-                    Paused
+                    {t('workbench.quarantined.filterPaused')}
                   </Button>
                   <Button
                     variant={activeTab === 'provisioning_failed' ? 'default' : 'outline'}
@@ -320,7 +322,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="h-8 text-xs"
                     onClick={() => setActiveTab('provisioning_failed')}
                   >
-                    Failed
+                    {t('workbench.quarantined.filterFailed')}
                   </Button>
                   <Button
                     variant={activeTab === 'handover_pending' ? 'default' : 'outline'}
@@ -328,7 +330,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="h-8 text-xs"
                     onClick={() => setActiveTab('handover_pending')}
                   >
-                    Handover
+                    {t('workbench.quarantined.filterHandover')}
                   </Button>
                 </div>
               </div>
@@ -338,14 +340,14 @@ export const HROpsExceptions: React.FC = () => {
               {isLoading ? (
                 <div className="p-12 text-center text-muted-foreground">
                   <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-indigo-600" />
-                  Loading quarantined exceptions...
+                  {t('workbench.quarantined.loading')}
                 </div>
               ) : cases.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-                  <h3 className="font-semibold text-foreground">Zero Quarantined Exceptions</h3>
+                  <h3 className="font-semibold text-foreground">{t('workbench.quarantined.emptyTitle')}</h3>
                   <p className="text-xs max-w-sm mx-auto mt-1">
-                    Autonomous engines are successfully classifying, assigning, and provisioning all incoming onboarding journeys.
+                    {t('workbench.quarantined.emptyDesc')}
                   </p>
                 </div>
               ) : (
@@ -353,11 +355,11 @@ export const HROpsExceptions: React.FC = () => {
                   <table className="w-full text-left text-sm border-collapse">
                     <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase border-b">
                       <tr>
-                        <th className="p-4">Employee</th>
-                        <th className="p-4">Quarantine State</th>
-                        <th className="p-4">Autonomous Rule Trigger</th>
-                        <th className="p-4">Stall Duration</th>
-                        <th className="p-4 text-right">Actions</th>
+                        <th className="p-4">{t('workbench.quarantined.columns.employee')}</th>
+                        <th className="p-4">{t('workbench.quarantined.columns.quarantineState')}</th>
+                        <th className="p-4">{t('workbench.quarantined.columns.ruleTrigger')}</th>
+                        <th className="p-4">{t('workbench.quarantined.columns.stallDuration')}</th>
+                        <th className="p-4 text-right">{t('workbench.quarantined.columns.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y text-xs">
@@ -367,8 +369,8 @@ export const HROpsExceptions: React.FC = () => {
                             <div className="text-foreground font-semibold">{c.employee?.name}</div>
                             <div className="text-muted-foreground text-[11px]">{c.employee?.email}</div>
                             <div className="text-muted-foreground text-[10px] flex items-center gap-1 mt-0.5">
-                              <Building className="h-3 w-3" /> {c.employee?.department || 'Unassigned'} •{' '}
-                              <Briefcase className="h-3 w-3" /> {c.employee?.jobTitle || 'Unassigned'}
+                              <Building className="h-3 w-3" /> {c.employee?.department || t('workbench.quarantined.unassigned')} •{' '}
+                              <Briefcase className="h-3 w-3" /> {c.employee?.jobTitle || t('workbench.quarantined.unassigned')}
                             </div>
                           </td>
                           <td className="p-4">
@@ -382,30 +384,30 @@ export const HROpsExceptions: React.FC = () => {
                                   : 'bg-indigo-50 text-indigo-700 border-indigo-300'
                               }
                             >
-                              {c.state.replace('_', ' ').toUpperCase()}
+                              {t(`directory.states.${c.state === 'provisioning_failed' ? 'failed' : c.state === 'handover_pending' ? 'pending' : c.state}`, { defaultValue: c.state.replace('_', ' ').toUpperCase() })}
                             </Badge>
                           </td>
                           <td className="p-4 max-w-xs">
                             <div className="text-xs text-foreground font-medium truncate">
                               {c.ruleConflicts && c.ruleConflicts.length > 0
-                                ? `Conflict: ${c.ruleConflicts[0]}`
+                                ? t('workbench.quarantined.conflictPrefix', { conflict: c.ruleConflicts[0] })
                                 : c.resolvedPlan?.confidence
-                                ? `Confidence: ${Math.round(c.resolvedPlan.confidence * 100)}% (${c.resolvedPlan.matchReason || 'Autonomous'})`
-                                : 'Manual Hold / Provisioning Exception'}
+                                ? t('workbench.quarantined.confidenceMatch', { percent: Math.round(c.resolvedPlan.confidence * 100), reason: c.resolvedPlan.matchReason || t('workbench.quarantined.autonomousMatch') })
+                                : t('workbench.quarantined.manualHoldException')}
                             </div>
                             <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                               {c.history && c.history.length > 0
                                 ? c.history[c.history.length - 1].reason
-                                : 'Awaiting manual resolution'}
+                                : t('workbench.quarantined.awaitingResolution')}
                             </div>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-1 font-semibold text-rose-600">
                               <Clock className="h-3.5 w-3.5" />
-                              <span>{c.slaDeadline ? 'SLA Alert' : 'Active'}</span>
+                              <span>{c.slaDeadline ? t('workbench.quarantined.slaAlert') : t('workbench.quarantined.slaActive')}</span>
                             </div>
                             <div className="text-[11px] text-muted-foreground">
-                              {c.daysQuarantined} day{c.daysQuarantined === 1 ? '' : 's'} stalled
+                              {t(c.daysQuarantined === 1 ? 'workbench.quarantined.stalledDays_one' : 'workbench.quarantined.stalledDays_other', { count: c.daysQuarantined })}
                             </div>
                           </td>
                           <td className="p-4 text-right">
@@ -414,7 +416,7 @@ export const HROpsExceptions: React.FC = () => {
                               className="bg-indigo-600 hover:bg-indigo-700 text-white"
                               onClick={() => handleOpenDiagnostic(c)}
                             >
-                              <Wrench className="h-3.5 w-3.5 mr-1" /> Diagnose & Override
+                              <Wrench className="h-3.5 w-3.5 mr-1" /> {t('workbench.quarantined.diagnoseBtn')}
                             </Button>
                           </td>
                         </tr>
@@ -433,29 +435,29 @@ export const HROpsExceptions: React.FC = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-amber-500">
-              <span className="text-xs text-muted-foreground font-semibold">Stalled Onboarding Rate</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.velocity.kpiStalledRate')}</span>
               <div className="text-2xl font-bold mt-2">
-                {employees.filter((e) => e.progress < 30 && e.status === 'Onboarding').length} At-Risk
+                {t('workbench.velocity.kpiStalledCount', { count: employees.filter((e) => e.progress < 30 && e.status === 'Onboarding').length })}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">&gt; 3 days without progress</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.velocity.kpiStalledDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-emerald-500">
-              <span className="text-xs text-muted-foreground font-semibold">Cohort Velocity Index</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.velocity.kpiVelocityIndex')}</span>
               <div className="text-2xl font-bold mt-2">84.2%</div>
-              <p className="text-[11px] text-muted-foreground mt-1">Average milestone completion cadence</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.velocity.kpiVelocityDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-indigo-500">
-              <span className="text-xs text-muted-foreground font-semibold">Automated Interventions</span>
-              <div className="text-2xl font-bold mt-2">18 Dispatched</div>
-              <p className="text-[11px] text-muted-foreground mt-1">Slack & email nudges sent this week</p>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.velocity.kpiInterventions')}</span>
+              <div className="text-2xl font-bold mt-2">{t('workbench.velocity.kpiInterventionsCount', { count: 18 })}</div>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.velocity.kpiInterventionsDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm border-l-4 border-l-purple-500">
-              <span className="text-xs text-muted-foreground font-semibold">Rescue Resolution Rate</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.velocity.kpiRescueRate')}</span>
               <div className="text-2xl font-bold mt-2">92.4%</div>
-              <p className="text-[11px] text-muted-foreground mt-1">Resumed within 48h of intervention</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.velocity.kpiRescueDesc')}</p>
             </Card>
           </div>
 
@@ -465,10 +467,10 @@ export const HROpsExceptions: React.FC = () => {
                 <div>
                   <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <TrendingDown className="h-5 w-5 text-amber-500" />
-                    Drop-Off Risk Early Warning Sentinel
+                    {t('workbench.velocity.title')}
                   </CardTitle>
                   <CardDescription>
-                    Heuristic engine predicting new hire stall points and dispatching multi-channel rescue cadences.
+                    {t('workbench.velocity.subtitle')}
                   </CardDescription>
                 </div>
               </div>
@@ -478,11 +480,11 @@ export const HROpsExceptions: React.FC = () => {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase border-b">
                     <tr>
-                      <th className="p-4">Employee</th>
-                      <th className="p-4">Department / Role</th>
-                      <th className="p-4">Progress & Velocity</th>
-                      <th className="p-4">Risk Rating</th>
-                      <th className="p-4 text-right">Omnichannel Intervention</th>
+                      <th className="p-4">{t('workbench.velocity.columns.employee')}</th>
+                      <th className="p-4">{t('workbench.velocity.columns.deptRole')}</th>
+                      <th className="p-4">{t('workbench.velocity.columns.progressVelocity')}</th>
+                      <th className="p-4">{t('workbench.velocity.columns.riskRating')}</th>
+                      <th className="p-4 text-right">{t('workbench.velocity.columns.intervention')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y text-xs">
@@ -503,9 +505,9 @@ export const HROpsExceptions: React.FC = () => {
                           </td>
                           <td className="p-4 max-w-xs">
                             <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="font-semibold">{emp.progress || 25}% overall</span>
+                              <span className="font-semibold">{t('workbench.velocity.overallProgress', { percent: emp.progress || 25 })}</span>
                               <span className="text-[11px] font-mono text-muted-foreground">
-                                Velocity: {velocityScore}/100
+                                {t('workbench.velocity.velocityScore', { score: velocityScore })}
                               </span>
                             </div>
                             <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
@@ -528,7 +530,7 @@ export const HROpsExceptions: React.FC = () => {
                                   : 'bg-emerald-50 text-emerald-700 border-emerald-300'
                               }
                             >
-                              {isHighRisk ? 'CRITICAL DROP-OFF RISK' : isMedRisk ? 'MODERATE STALL' : 'HEALTHY PACE'}
+                              {isHighRisk ? t('workbench.velocity.riskCritical') : isMedRisk ? t('workbench.velocity.riskModerate') : t('workbench.velocity.riskHealthy')}
                             </Badge>
                           </td>
                           <td className="p-4 text-right">
@@ -538,20 +540,20 @@ export const HROpsExceptions: React.FC = () => {
                                 variant="outline"
                                 className="h-7 text-[11px] text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                                 onClick={() => {
-                                  toast.success(`Slack rescue nudge dispatched to @${emp.name.toLowerCase().replace(' ', '.')} and their manager.`);
+                                  toast.success(t('workbench.velocity.slackToast', { handle: emp.name.toLowerCase().replace(' ', '.') }));
                                 }}
                               >
-                                <Zap className="h-3 w-3 mr-1" /> Slack Nudge
+                                <Zap className="h-3 w-3 mr-1" /> {t('workbench.velocity.slackNudge')}
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-7 text-[11px] text-foreground hover:bg-muted"
                                 onClick={() => {
-                                  toast.success(`Manager 1-on-1 check-in calendar invite generated for ${emp.name}.`);
+                                  toast.success(t('workbench.velocity.escalationToast', { name: emp.name }));
                                 }}
                               >
-                                <UserCheck className="h-3 w-3 mr-1" /> Escalation
+                                <UserCheck className="h-3 w-3 mr-1" /> {t('workbench.velocity.escalation')}
                               </Button>
                             </div>
                           </td>
@@ -573,46 +575,46 @@ export const HROpsExceptions: React.FC = () => {
             <div className="flex items-center gap-3">
               <Layers className="h-6 w-6 text-indigo-600 shrink-0" />
               <div>
-                <span className="font-bold">Transactional Outbox Pattern Active (2PC Guaranteed Delivery)</span>
+                <span className="font-bold">{t('workbench.outbox.bannerTitle')}</span>
                 <p className="text-indigo-800 text-[11px] mt-0.5">
-                  All external HRIS employee sync events and enterprise JIT provisioning flows write to the MongoDB Transactional Outbox before dispatch, ensuring zero message loss and idempotent replay.
+                  {t('workbench.outbox.bannerSubtitle')}
                 </p>
               </div>
             </div>
-            <Badge className="bg-indigo-600 text-white hover:bg-indigo-700">Audit Compliant</Badge>
+            <Badge className="bg-indigo-600 text-white hover:bg-indigo-700">{t('workbench.outbox.auditCompliant')}</Badge>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <Card className="p-4 bg-card border shadow-sm">
-              <span className="text-xs text-muted-foreground font-semibold">BambooHR Webhook</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.outbox.bambooTitle')}</span>
               <div className="text-lg font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4" /> Healthy (200 OK)
+                <CheckCircle2 className="h-4 w-4" /> {t('workbench.outbox.healthy200')}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Last event: 4 mins ago</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.outbox.bambooDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm">
-              <span className="text-xs text-muted-foreground font-semibold">Workday Core HR</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.outbox.workdayTitle')}</span>
               <div className="text-lg font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4" /> Healthy (200 OK)
+                <CheckCircle2 className="h-4 w-4" /> {t('workbench.outbox.healthy200')}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">JIT Provisioning Active</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.outbox.workdayDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm">
-              <span className="text-xs text-muted-foreground font-semibold">Gusto / Rippling</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.outbox.gustoTitle')}</span>
               <div className="text-lg font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4" /> Polling (Sync Active)
+                <CheckCircle2 className="h-4 w-4" /> {t('workbench.outbox.pollingSync')}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Bi-directional delta sync</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.outbox.gustoDesc')}</p>
             </Card>
 
             <Card className="p-4 bg-card border shadow-sm">
-              <span className="text-xs text-muted-foreground font-semibold">Dead-Letter Queue (DLQ)</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('workbench.outbox.dlqTitle')}</span>
               <div className="text-lg font-bold text-slate-700 mt-1 flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" /> 0 Dead-Letter Events
+                <ShieldCheck className="h-4 w-4 text-emerald-600" /> {t('workbench.outbox.dlqEvents')}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Clean pipeline state</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('workbench.outbox.dlqDesc')}</p>
             </Card>
           </div>
 
@@ -622,19 +624,19 @@ export const HROpsExceptions: React.FC = () => {
                 <div>
                   <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <History className="h-5 w-5 text-indigo-600" />
-                    Live Transactional Outbox Ingestion Stream
+                    {t('workbench.outbox.title')}
                   </CardTitle>
                   <CardDescription>
-                    Real-time ledger of dispatched state events, cryptographic payload signatures, and replay triggers.
+                    {t('workbench.outbox.subtitle')}
                   </CardDescription>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="text-xs h-8"
-                  onClick={() => toast.success('Transactional Outbox buffer verified. Zero pending retries.')}
+                  onClick={() => toast.success(t('workbench.outbox.rescanToast'))}
                 >
-                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Re-scan DLQ Buffer
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> {t('workbench.outbox.rescanBtn')}
                 </Button>
               </div>
             </CardHeader>
@@ -643,12 +645,12 @@ export const HROpsExceptions: React.FC = () => {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase border-b">
                     <tr>
-                      <th className="p-4">Event ID / Idempotency Key</th>
-                      <th className="p-4">Event Topic</th>
-                      <th className="p-4">Target Channel</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4">Timestamp</th>
-                      <th className="p-4 text-right">HITL Action</th>
+                      <th className="p-4">{t('workbench.outbox.columns.eventId')}</th>
+                      <th className="p-4">{t('workbench.outbox.columns.topic')}</th>
+                      <th className="p-4">{t('workbench.outbox.columns.channel')}</th>
+                      <th className="p-4">{t('workbench.outbox.columns.status')}</th>
+                      <th className="p-4">{t('workbench.outbox.columns.timestamp')}</th>
+                      <th className="p-4 text-right">{t('workbench.outbox.columns.action')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y text-xs font-mono">
@@ -700,9 +702,9 @@ export const HROpsExceptions: React.FC = () => {
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs"
-                            onClick={() => toast.success(`Idempotent replay dispatched for event ${item.id}.`)}
+                            onClick={() => toast.success(t('workbench.outbox.replayToast', { id: item.id }))}
                           >
-                            <RefreshCw className="h-3 w-3 mr-1" /> Replay
+                            <RefreshCw className="h-3 w-3 mr-1" /> {t('workbench.outbox.replayBtn')}
                           </Button>
                         </td>
                       </tr>
@@ -724,10 +726,10 @@ export const HROpsExceptions: React.FC = () => {
               <Scale className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <span className="font-bold text-sm">
-                  Statutory Legal Hold & E-Signature Audit Retention Protocol (§UQ-03 / SOC 2 CC6.1)
+                  {t('workbench.legalHolds.bannerTitle')}
                 </span>
                 <p className="text-rose-800 text-[11px] leading-relaxed">
-                  When an employee departs or is terminated via HRIS webhooks, automated data deletion routines are <strong>strictly suspended</strong> if a Legal Hold is active on the employee profile. All signed compliance forms, SHA-256 cryptographic proof certificates, and onboarding journey audit events are frozen and retained indefinitely until explicitly released by authorized HR / Legal Counsel.
+                  {t('workbench.legalHolds.bannerSubtitle')}
                 </p>
               </div>
             </div>
@@ -739,10 +741,10 @@ export const HROpsExceptions: React.FC = () => {
                 <div>
                   <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <Scale className="h-5 w-5 text-rose-600" />
-                    Legal Hold & Preservation Registry
+                    {t('workbench.legalHolds.title')}
                   </CardTitle>
                   <CardDescription>
-                    Enforce, inspect, or lift legal holds on employees to govern document retention and prevent accidental data loss.
+                    {t('workbench.legalHolds.subtitle')}
                   </CardDescription>
                 </div>
               </div>
@@ -752,12 +754,12 @@ export const HROpsExceptions: React.FC = () => {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase border-b">
                     <tr>
-                      <th className="p-4">Employee</th>
-                      <th className="p-4">Employment Status</th>
-                      <th className="p-4">Legal Hold Status</th>
-                      <th className="p-4">Retention Policy</th>
-                      <th className="p-4">Audit Justification</th>
-                      <th className="p-4 text-right">Actions</th>
+                      <th className="p-4">{t('workbench.legalHolds.columns.employee')}</th>
+                      <th className="p-4">{t('workbench.legalHolds.columns.status')}</th>
+                      <th className="p-4">{t('workbench.legalHolds.columns.legalHold')}</th>
+                      <th className="p-4">{t('workbench.legalHolds.columns.retentionPolicy')}</th>
+                      <th className="p-4">{t('workbench.legalHolds.columns.justification')}</th>
+                      <th className="p-4 text-right">{t('workbench.legalHolds.columns.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y text-xs">
@@ -776,25 +778,25 @@ export const HROpsExceptions: React.FC = () => {
                         <td className="p-4">
                           {emp.legalHold ? (
                             <Badge className="bg-rose-600 text-white font-bold flex items-center gap-1 w-fit">
-                              <Scale className="h-3 w-3" /> ACTIVE LEGAL HOLD
+                              <Scale className="h-3 w-3" /> {t('workbench.legalHolds.activeBadge')}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-300">
-                              Standard Retention
+                              {t('workbench.legalHolds.standardRetention')}
                             </Badge>
                           )}
                         </td>
                         <td className="p-4">
                           <span className="font-mono text-xs font-semibold">
                             {emp.legalHold ? (
-                              <span className="text-rose-600">INDEFINITE (LOCKED)</span>
+                              <span className="text-rose-600">{t('workbench.legalHolds.indefiniteLocked')}</span>
                             ) : (
-                              '7-Year Statutory Purge'
+                              t('workbench.legalHolds.statutoryPurge')
                             )}
                           </span>
                         </td>
                         <td className="p-4 max-w-xs truncate text-muted-foreground">
-                          {emp.legalHoldReason || (emp.legalHold ? 'Litigation Hold / Audit Preservation' : '—')}
+                          {emp.legalHoldReason || (emp.legalHold ? t('workbench.legalHolds.defaultJustification') : '—')}
                         </td>
                         <td className="p-4 text-right">
                           <Button
@@ -812,7 +814,7 @@ export const HROpsExceptions: React.FC = () => {
                             }}
                           >
                             <Scale className="h-3.5 w-3.5 mr-1" />
-                            {emp.legalHold ? 'Release Hold' : 'Place Legal Hold'}
+                            {emp.legalHold ? t('workbench.legalHolds.releaseHoldBtn') : t('workbench.legalHolds.placeHoldBtn')}
                           </Button>
                         </td>
                       </tr>
@@ -835,10 +837,10 @@ export const HROpsExceptions: React.FC = () => {
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  Diagnose & Execute Manual Override
+                  {t('workbench.diagnosticModal.title')}
                 </DialogTitle>
                 <DialogDescription>
-                  Review automated quarantine telemetry, correct metadata, and resume workflow execution.
+                  {t('workbench.diagnosticModal.subtitle')}
                 </DialogDescription>
               </div>
             </div>
@@ -853,7 +855,7 @@ export const HROpsExceptions: React.FC = () => {
                     {selectedCase.employee?.name}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {selectedCase.employee?.email} • State:{' '}
+                    {selectedCase.employee?.email} • {t('workbench.diagnosticModal.stateLabel')}{' '}
                     <span className="font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">
                       {selectedCase.state}
                     </span>
@@ -867,7 +869,7 @@ export const HROpsExceptions: React.FC = () => {
                       : 'bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs w-fit'
                   }
                 >
-                  {selectedCase.severity.toUpperCase()} SEVERITY
+                  {t('workbench.diagnosticModal.severitySuffix', { severity: selectedCase.severity.toUpperCase() })}
                 </Badge>
               </div>
 
@@ -875,10 +877,10 @@ export const HROpsExceptions: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <AlertOctagon className="h-3.5 w-3.5 text-rose-600" />
-                  Quarantine Diagnostic Trace
+                  {t('workbench.diagnosticModal.traceLabel')}
                 </label>
                 <div className="p-3.5 bg-rose-500/5 border border-rose-500/20 rounded-xl font-mono text-xs text-rose-900 dark:text-rose-200 break-words whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
-                  {selectedCase.failure?.message || selectedCase.stateReason || 'No technical error trace recorded.'}
+                  {selectedCase.failure?.message || selectedCase.stateReason || t('workbench.diagnosticModal.noTraceRecorded')}
                 </div>
               </div>
 
@@ -887,16 +889,16 @@ export const HROpsExceptions: React.FC = () => {
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <History className="h-3.5 w-3.5 text-muted-foreground" />
-                    Lifecycle Transition Audit Trail
+                    {t('workbench.diagnosticModal.auditTrailLabel')}
                   </label>
                   <div className="p-3 bg-muted/20 border border-border/60 rounded-xl max-h-36 overflow-y-auto space-y-2">
-                    {selectedCase.transitions.map((t, idx) => (
+                    {selectedCase.transitions.map((tTrans, idx) => (
                       <div key={idx} className="text-xs flex flex-col sm:flex-row sm:items-center justify-between text-muted-foreground gap-1 border-b border-border/30 pb-1.5 last:border-0 last:pb-0">
                         <span className="font-mono">
-                          {t.from || 'start'} → <span className="font-semibold text-foreground">{t.to}</span>
-                          {t.reason ? ` (${t.reason})` : ''}
+                          {tTrans.from || t('workbench.diagnosticModal.startState')} → <span className="font-semibold text-foreground">{tTrans.to}</span>
+                          {tTrans.reason ? ` (${tTrans.reason})` : ''}
                         </span>
-                        <span className="text-[11px] shrink-0 font-mono">{new Date(t.at).toLocaleString()}</span>
+                        <span className="text-[11px] shrink-0 font-mono">{new Date(tTrans.at).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -906,7 +908,7 @@ export const HROpsExceptions: React.FC = () => {
               {/* Override Action Selection */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Select Override Action
+                  {t('workbench.diagnosticModal.actionLabel')}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <Button
@@ -916,7 +918,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="text-xs rounded-xl"
                     onClick={() => setAction('override_journey')}
                   >
-                    Override Journey
+                    {t('workbench.diagnosticModal.actions.overrideJourney')}
                   </Button>
                   <Button
                     type="button"
@@ -925,7 +927,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="text-xs rounded-xl"
                     onClick={() => setAction('retry')}
                   >
-                    Retry Auto
+                    {t('workbench.diagnosticModal.actions.retryAuto')}
                   </Button>
                   <Button
                     type="button"
@@ -934,7 +936,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="text-xs rounded-xl"
                     onClick={() => setAction('force_activate')}
                   >
-                    Force Activate
+                    {t('workbench.diagnosticModal.actions.forceActivate')}
                   </Button>
                   <Button
                     type="button"
@@ -943,7 +945,7 @@ export const HROpsExceptions: React.FC = () => {
                     className="text-xs rounded-xl"
                     onClick={() => setAction('cancel')}
                   >
-                    Cancel Case
+                    {t('workbench.diagnosticModal.actions.cancelCase')}
                   </Button>
                 </div>
               </div>
@@ -953,17 +955,17 @@ export const HROpsExceptions: React.FC = () => {
                 <div className="space-y-1.5 p-3.5 bg-muted/20 border border-border/60 rounded-xl">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <FileText className="h-3.5 w-3.5 text-indigo-600" />
-                    Target Journey Template
+                    {t('workbench.diagnosticModal.targetTemplate')}
                   </label>
                   <SearchableSelect
                     options={journeyOptions}
                     value={selectedJourneyId}
                     onChange={setSelectedJourneyId}
-                    placeholder="Search and select authoritative Journey Template..."
-                    searchPlaceholder="Search journey template..."
+                    placeholder={t('workbench.diagnosticModal.selectTemplatePlaceholder')}
+                    searchPlaceholder={t('workbench.diagnosticModal.searchTemplatePlaceholder')}
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Non-destructive: Pre-existing signed compliance forms and completed tasks will remain intact.
+                    {t('workbench.diagnosticModal.nonDestructiveNote')}
                   </p>
                 </div>
               )}
@@ -971,20 +973,20 @@ export const HROpsExceptions: React.FC = () => {
               {/* Optional Inline Employment Metadata Updates */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Correct Department</label>
+                  <label className="text-xs font-semibold text-muted-foreground">{t('workbench.diagnosticModal.correctDept')}</label>
                   <Input
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    placeholder="e.g. Engineering, Sales..."
+                    placeholder={t('workbench.diagnosticModal.deptPlaceholder')}
                     className="text-xs rounded-xl"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Correct Job Title</label>
+                  <label className="text-xs font-semibold text-muted-foreground">{t('workbench.diagnosticModal.correctJobTitle')}</label>
                   <Input
                     value={jobTitle}
                     onChange={(e) => setJobTitle(e.target.value)}
-                    placeholder="e.g. Senior Software Engineer"
+                    placeholder={t('workbench.diagnosticModal.jobTitlePlaceholder')}
                     className="text-xs rounded-xl"
                   />
                 </div>
@@ -994,20 +996,20 @@ export const HROpsExceptions: React.FC = () => {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    Regulatory Audit Justification <span className="text-rose-500">*</span>
+                    {t('workbench.diagnosticModal.justificationLabel')} <span className="text-rose-500">*</span>
                   </label>
                   <span
                     className={`text-[11px] font-mono ${
                       reason.trim().length >= 10 ? 'text-emerald-600 font-semibold' : 'text-rose-500'
                     }`}
                   >
-                    {reason.trim().length} / 10 min chars
+                    {t('workbench.diagnosticModal.minChars', { count: reason.trim().length })}
                   </span>
                 </div>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Provide explicit operational rationale for this manual intervention (e.g. 'Overriding to Singapore Branch Engineering template after manual HR review of employment contract')..."
+                  placeholder={t('workbench.diagnosticModal.justificationPlaceholder')}
                   className="w-full p-3 text-xs rounded-xl border border-border bg-background focus:ring-2 focus:ring-indigo-500 min-h-[85px] resize-none"
                 />
               </div>
@@ -1016,7 +1018,7 @@ export const HROpsExceptions: React.FC = () => {
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsDiagnosticModalOpen(false)}>
-              Close
+              {t('workbench.diagnosticModal.close')}
             </Button>
             <Button
               size="sm"
@@ -1026,11 +1028,11 @@ export const HROpsExceptions: React.FC = () => {
             >
               {resolveMutation.isPending ? (
                 <>
-                  <RefreshCw className="h-4 w-4 animate-spin mr-1.5" /> Executing Override...
+                  <RefreshCw className="h-4 w-4 animate-spin mr-1.5" /> {t('workbench.diagnosticModal.executing')}
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-4 w-4 mr-1.5" /> Apply Resolution & Resume Automation
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" /> {t('workbench.diagnosticModal.submit')}
                 </>
               )}
             </Button>
@@ -1048,12 +1050,12 @@ export const HROpsExceptions: React.FC = () => {
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold">
-                  {selectedHoldEmployee?.legalHold ? 'Release Legal Hold' : 'Place Statutory Legal Hold'}
+                  {selectedHoldEmployee?.legalHold ? t('workbench.holdModal.releaseTitle') : t('workbench.holdModal.placeTitle')}
                 </DialogTitle>
                 <DialogDescription>
                   {selectedHoldEmployee?.legalHold
-                    ? 'Lifting this hold will resume standard statutory document retention and scheduled purge routines.'
-                    : 'Placing a legal hold locks all e-signatures, cryptographic certificates, and audit logs from automated purge.'}
+                    ? t('workbench.holdModal.releaseSubtitle')
+                    : t('workbench.holdModal.placeSubtitle')}
                 </DialogDescription>
               </div>
             </div>
@@ -1064,26 +1066,26 @@ export const HROpsExceptions: React.FC = () => {
               <div className="p-3.5 bg-muted/40 rounded-xl border border-border/60 space-y-1">
                 <div className="font-semibold text-foreground text-sm">{selectedHoldEmployee.name}</div>
                 <div className="text-muted-foreground">{selectedHoldEmployee.email} • {selectedHoldEmployee.department}</div>
-                <div className="text-[11px] font-mono text-indigo-600">ID: {selectedHoldEmployee.id}</div>
+                <div className="text-[11px] font-mono text-indigo-600">{t('workbench.holdModal.employeeId', { id: selectedHoldEmployee.id })}</div>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <label className="font-bold text-muted-foreground uppercase tracking-wider">
-                    SOC 2 / Legal Justification <span className="text-rose-500">*</span>
+                    {t('workbench.holdModal.justificationLabel')} <span className="text-rose-500">*</span>
                   </label>
                   <span
                     className={`font-mono text-[11px] ${
                       holdReason.trim().length >= 10 ? 'text-emerald-600 font-semibold' : 'text-rose-500'
                     }`}
                   >
-                    {holdReason.trim().length} / 10 min chars
+                    {t('workbench.holdModal.minChars', { count: holdReason.trim().length })}
                   </span>
                 </div>
                 <textarea
                   value={holdReason}
                   onChange={(e) => setHoldReason(e.target.value)}
-                  placeholder="Enter explicit legal matter name, regulatory subpoena ID, or audit preservation order..."
+                  placeholder={t('workbench.holdModal.justificationPlaceholder')}
                   className="w-full p-3 rounded-xl border border-border bg-background focus:ring-2 focus:ring-rose-500 min-h-[90px] resize-none"
                 />
               </div>
@@ -1092,7 +1094,7 @@ export const HROpsExceptions: React.FC = () => {
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsLegalHoldModalOpen(false)} disabled={isSettingHold}>
-              Cancel
+              {t('workbench.holdModal.cancel')}
             </Button>
             <Button
               size="sm"
@@ -1106,15 +1108,15 @@ export const HROpsExceptions: React.FC = () => {
             >
               {isSettingHold ? (
                 <>
-                  <RefreshCw className="h-4 w-4 animate-spin mr-1.5" /> Updating Hold...
+                  <RefreshCw className="h-4 w-4 animate-spin mr-1.5" /> {t('workbench.holdModal.updating')}
                 </>
               ) : selectedHoldEmployee?.legalHold ? (
                 <>
-                  <Scale className="h-4 w-4 mr-1.5" /> Confirm Release
+                  <Scale className="h-4 w-4 mr-1.5" /> {t('workbench.holdModal.confirmRelease')}
                 </>
               ) : (
                 <>
-                  <Scale className="h-4 w-4 mr-1.5" /> Confirm Legal Hold
+                  <Scale className="h-4 w-4 mr-1.5" /> {t('workbench.holdModal.confirmPlace')}
                 </>
               )}
             </Button>

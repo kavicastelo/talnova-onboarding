@@ -16,9 +16,11 @@ import {
   BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function KnowledgeBaseSlideshow() {
   const navigate = useNavigate();
+  const { t } = useTranslation('kb');
   const { data: articles = [], isLoading, isError } = useKbArticles({ status: 'published' });
   
   const [selectedArticleIndex, setSelectedArticleIndex] = useState<number>(0);
@@ -47,7 +49,7 @@ export function KnowledgeBaseSlideshow() {
         type: 'title',
         title: selectedArticle.title,
         category: selectedArticle.category,
-        summary: selectedArticle.summary || 'Internal Knowledge Base Resource Guide',
+        summary: selectedArticle.summary || t('slideshow.defaultSummary'),
       }
     ];
 
@@ -75,7 +77,7 @@ export function KnowledgeBaseSlideshow() {
     }
 
     return list;
-  }, [selectedArticle]);
+  }, [selectedArticle, t]);
 
   // Handle slide transitions and autoplay progress
   useEffect(() => {
@@ -137,14 +139,14 @@ export function KnowledgeBaseSlideshow() {
         e.preventDefault();
         setIsPlaying((prev) => {
           const nextState = !prev;
-          toast.success(nextState ? 'Slideshow RESUMED' : 'Slideshow HELD', { duration: 1500 });
+          toast.success(nextState ? t('slideshow.toasts.resumed') : t('slideshow.toasts.held'), { duration: 1500 });
           return nextState;
         });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [t]);
 
   // Reset slide index when changing articles manually
   const handleSelectArticle = (index: number) => {
@@ -205,7 +207,7 @@ export function KnowledgeBaseSlideshow() {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-zinc-950 text-white">
         <RefreshCw className="h-10 w-10 animate-spin text-primary" />
-        <p className="mt-4 text-zinc-400 text-sm">Preparing Presentation Slides...</p>
+        <p className="mt-4 text-zinc-400 text-sm">{t('slideshow.loading')}</p>
       </div>
     );
   }
@@ -214,12 +216,12 @@ export function KnowledgeBaseSlideshow() {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-zinc-950 text-white p-6 text-center">
         <BookOpen className="h-16 w-16 text-zinc-600 mb-4" />
-        <h2 className="text-2xl font-bold">No Slides Available</h2>
+        <h2 className="text-2xl font-bold">{t('slideshow.emptyTitle')}</h2>
         <p className="text-zinc-400 max-w-md mt-2">
-          There are no published articles in the Knowledge Base to display in the presentation view.
+          {t('slideshow.emptySubtitle')}
         </p>
         <Button onClick={() => navigate('/kb')} className="mt-6">
-          Back to Knowledge Base
+          {t('slideshow.backToKb')}
         </Button>
       </div>
     );
@@ -237,7 +239,7 @@ export function KnowledgeBaseSlideshow() {
         <div className="flex items-center gap-3">
           <BookOpen className="h-5 w-5 text-indigo-400" />
           <span className="text-sm font-semibold tracking-wider uppercase text-zinc-400">
-            Talnova Digital Display Board
+            {t('slideshow.displayBoard')}
           </span>
         </div>
 
@@ -284,7 +286,7 @@ export function KnowledgeBaseSlideshow() {
             size="icon" 
             onClick={toggleFullscreen}
             className="text-zinc-400 hover:text-white hover:bg-zinc-800"
-            title="Toggle Fullscreen"
+            title={t('slideshow.toggleFullscreen')}
           >
             {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </Button>
@@ -294,7 +296,7 @@ export function KnowledgeBaseSlideshow() {
             size="icon" 
             onClick={() => navigate('/kb')}
             className="text-zinc-400 hover:text-white hover:bg-zinc-800"
-            title="Exit Slideshow"
+            title={t('slideshow.exitSlideshow')}
           >
             <X className="h-5 w-5" />
           </Button>
@@ -315,7 +317,7 @@ export function KnowledgeBaseSlideshow() {
         {/* Navigation - Left Arrow */}
         <button 
           data-testid="slideshow-prev-btn"
-          aria-label="Previous slide"
+          aria-label={t('slideshow.prevSlide')}
           onClick={handlePrev}
           className="absolute left-6 w-14 h-14 rounded-full flex items-center justify-center bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all hover:scale-105 z-10"
         >
@@ -338,7 +340,7 @@ export function KnowledgeBaseSlideshow() {
             {isHeld && (
               <div className="absolute top-6 right-6 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-semibold text-amber-400 animate-pulse uppercase tracking-wider z-20">
                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                {isHovered ? 'HOLD ACTIVE' : 'PAUSED'}
+                {isHovered ? t('slideshow.holdActive') : t('slideshow.paused')}
               </div>
             )}
             
@@ -379,7 +381,7 @@ export function KnowledgeBaseSlideshow() {
                     <div className="space-y-4">
                       <img 
                         src={currentSlide.embedUrl || '/placeholder.png'} 
-                        alt="Slide Asset" 
+                        alt={t('slideshow.slideAsset')} 
                         className="max-h-[350px] mx-auto rounded-lg border border-zinc-800 object-contain shadow-lg"
                       />
                       {currentSlide.content && (
@@ -400,7 +402,7 @@ export function KnowledgeBaseSlideshow() {
 
             {/* Slide counter */}
             <div className="absolute bottom-6 right-8 text-xs font-mono text-zinc-500">
-              Slide {currentSlideIndex + 1} of {slides.length}
+              {t('slideshow.slideCounter', { current: currentSlideIndex + 1, total: slides.length })}
             </div>
             
             <div className="absolute bottom-6 left-8 text-xs font-semibold text-zinc-500 uppercase tracking-widest">
@@ -412,7 +414,7 @@ export function KnowledgeBaseSlideshow() {
         {/* Navigation - Right Arrow */}
         <button 
           data-testid="slideshow-next-btn"
-          aria-label="Next slide"
+          aria-label={t('slideshow.nextSlide')}
           onClick={handleNext}
           className="absolute right-6 w-14 h-14 rounded-full flex items-center justify-center bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all hover:scale-105 z-10"
         >
@@ -423,7 +425,7 @@ export function KnowledgeBaseSlideshow() {
       {/* Control Bar */}
       <div className="h-16 shrink-0 flex items-center justify-between border-t border-zinc-800/60 bg-zinc-900/90 px-8 z-10">
         <div className="text-xs text-zinc-500 font-mono">
-          Auto-advancing every {intervalMs / 1000}s • Loop Active
+          {t('slideshow.autoAdvance', { seconds: intervalMs / 1000 })}
         </div>
 
         <div className="flex items-center gap-4">
@@ -439,9 +441,11 @@ export function KnowledgeBaseSlideshow() {
         </div>
 
         <div className="text-xs text-zinc-400 font-medium">
-          Article {selectedArticleIndex + 1} of {articles.length}
+          {t('slideshow.articleCounter', { current: selectedArticleIndex + 1, total: articles.length })}
         </div>
       </div>
     </div>
   );
 }
+
+export default KnowledgeBaseSlideshow;

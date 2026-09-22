@@ -51,6 +51,24 @@ export const LANG_STORAGE_KEY = 'talnova_lang';
 
 /** i18next namespaces */
 export const I18N_NAMESPACES = [
-  'common', 'auth', 'nav', 'dashboard', 'journeys', 'kb', 'settings', 'validation',
+  'common',
+  'auth',
+  'nav',
+  'dashboard',
+  'journeys',
+  'kb',
+  'settings',
+  'validation',
+  'tasks',
+  'manager',
+  'hr',
+  'directory',
+  'documents',
+  'milestones',
+  'buddy',
+  'analytics',
+  'workflows',
+  'kiosk',
+  'integrations',
 ] as const;
 export type I18nNamespace = (typeof I18N_NAMESPACES)[number];

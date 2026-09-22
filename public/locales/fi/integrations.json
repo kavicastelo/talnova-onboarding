@@ -1,0 +1,235 @@
+{
+  "title": "Kertakirjautuminen ja hakemistointegraatiot",
+  "subtitle": "Määritä yrityksen identiteetintarjoajat (SAML 2.0 / OIDC), SCIM-hakemistojen provisiointi ja automatisoidut roolimääritykset.",
+  "saveConfig": "Tallenna määritykset",
+  "provider": "Identiteetintarjoaja",
+  "domains": "Sallitut sähköpostiverkkotunnukset",
+  "domainsPlaceholder": "esim. yritys.fi, acme.org",
+  "issuerUrl": "Entiteettitunnus / myöntäjän URL",
+  "ssoUrl": "IdP:n kertakirjautumisen URL",
+  "x509Cert": "X.509-varmenne (PEM-muoto)",
+  "enforceSSO": "Pakota kertakirjautuminen kaikille verkkotunnuksen jäsenille",
+  "roleMappings": "Ryhmästä rooliin -määritykset",
+  "addGroupMapping": "Lisää ryhmämääritys",
+  "idpGroup": "IdP-ryhmän nimi",
+  "assignedRole": "Määritetty portaalirooli",
+  "status": {
+    "active": "Aktiivinen",
+    "disabled": "Pois käytöstä"
+  },
+  "calendar": {
+    "title": "Kalenterin ja kokousten integrointi",
+    "subtitle": "Yhdistä perehdytystoiminnot Google Kalenteriin, Outlookiin ja iCal-syötteisiin automaattisilla 1-on-1-kokouslinkeillä.",
+    "syncBtn": "iCal-tilauksen synkronointi",
+    "scheduleBtn": "Ajoita katsaus",
+    "banner": {
+      "feedActive": "Kalenterisyöte aktiivinen",
+      "timezone": "Aikavyöhyke: {{timezone}}",
+      "title": "Synkronoi perehdytysaikataulu ulkoisen kalenterin kanssa",
+      "desc": "Tilaa henkilökohtainen .ics-syötteesi Google Kalenterissa, Apple Kalenterissa tai Outlookissa.",
+      "copyFeedBtn": "Kopioi .ICS-syötelinkki"
+    },
+    "roster": {
+      "title": "Ajoitetut perehdytyskokoukset",
+      "desc": "Tulevat 1-on-1-katsaukset, kummin tervetuliaiskahvit ja perehdytysistunnot.",
+      "loading": "Ladataan kalenteriaikataulua...",
+      "empty": "Ei ajoitettuja perehdytyskokouksia.",
+      "statusCancelled": "Peruutettu",
+      "statusScheduled": "Ajoitettu",
+      "agendaLabel": "Esityslista:",
+      "notesLabel": "Keskustelumuistiinpanot:",
+      "joinVideoCall": "Liity videopuheluun",
+      "downloadIcs": "Lataa .ics",
+      "editNotes": "Muokkaa muistiinpanoja",
+      "addNotes": "Lisää muistiinpanoja",
+      "cancelMeeting": "Peruuta",
+      "eventsLabel": "tapahtumaa"
+    },
+    "categories": {
+      "manager_1on1": "Esimiehen 1-on-1",
+      "buddy_coffee": "Kummin tervetuliaiskahvit",
+      "orientation": "Perehdytysistunto",
+      "training": "Tekninen koulutus",
+      "custom": "Mukautettu kokous"
+    },
+    "scheduleModal": {
+      "title": "Ajoita 1-on-1-perehdytyskatsaus",
+      "desc": "Luo kokoustapahtuma tiimin jäsenen, esityslistan ja kalenterisynkronoinnin kanssa.",
+      "meetingTitleLabel": "Kokouksen otsikko *",
+      "meetingTitlePlaceholder": "esim. Viikon 1 katsaus ja palaute",
+      "categoryLabel": "Kategoria",
+      "attendeeLabel": "Kohdetyöntekijä *",
+      "attendeePlaceholder": "Hae ja valitse työntekijä...",
+      "attendeeSearchPlaceholder": "Hae osallistujaa nimen, sähköpostin mukaan...",
+      "directReportFallback": "Tiimin jäsen",
+      "unnamedAttendee": "Nimetön",
+      "dateLabel": "Päivämäärä *",
+      "startTimeLabel": "Aloitusaika *",
+      "endTimeLabel": "Päättymisaika *",
+      "agendaLabel": "Keskustelun esityslista",
+      "agendaPlaceholder": "Käy läpi kehitysympäristön asennus, tiimikanavat ja kysymykset.",
+      "locationLabel": "Videopuhelun linkki",
+      "locationPlaceholder": "https://meet.google.com/abc-defg-hij",
+      "cancelBtn": "Peruuta",
+      "confirmBtn": "Vahvista ja ajoita"
+    },
+    "notesModal": {
+      "title": "Kirjaa keskustelumuistiinpanot",
+      "desc": "Kirjaa havainnot, esteet ja sovitut seuraavat askeleet kokoukselle {{title}}.",
+      "notesLabel": "1-on-1-keskustelumuistiinpanot",
+      "notesPlaceholder": "Perehdytys etenee suunnitellusti. Keskusteltiin tavoitteista.",
+      "cancelBtn": "Peruuta",
+      "saveBtn": "Tallenna muistiinpanot"
+    },
+    "syncModal": {
+      "title": "iCal-kalenteritilaussyöte",
+      "desc": "Kopioi henkilökohtainen .ics-URL tilataksesi Google Kalenterissa, Outlookissa tai Apple Kalenterissa.",
+      "urlLabel": "iCal (.ics) -syötteen URL",
+      "note": "Talnovassa perehdytyskokouksiin tehdyt päivitykset synkronoituvat automaattisesti kalenteriisi.",
+      "closeBtn": "Sulje"
+    },
+    "validation": {
+      "requiredFields": "Täytä kaikki pakolliset kentät.",
+      "endTimeAfterStart": "Päättymisajan on oltava alkamisajan jälkeen"
+    },
+    "toasts": {
+      "scheduledSuccess": "Kokous ajoitettu onnistuneesti!",
+      "scheduleFailed": "Kokouksen ajoitus epäonnistui",
+      "notesSaved": "Keskustelumuistiinpanot tallennettu onnistuneesti.",
+      "notesFailed": "Muistiinpanojen tallennus epäonnistui",
+      "downloadedIcs": "Kalenterikutsu (.ics) ladattu",
+      "downloadFailed": "Kalenterikutsun vienti epäonnistui",
+      "cancelledSuccess": "Kokoustapahtuma peruutettu.",
+      "cancelFailed": "Kokouksen peruutus epäonnistui",
+      "copiedIcs": "iCal-syötteen URL kopioitu leikepöydälle!"
+    },
+    "confirmCancel": "Haluatko varmasti peruuttaa tämän kokoustapahtuman?"
+  },
+  "hris": {
+    "header": {
+      "title": "HRIS- ja henkilöstöintegraatiot",
+      "subtitle": "Yhdistä ulkoiset HRIS-järjestelmät, määritä saapuvat HMAC-webhookit, mukauta kenttävastaavuudet ja valvo synkronointitelemetriaa ja DLQ-jonoja."
+    },
+    "marketplace": {
+      "title": "Integraatiot ja liittimet",
+      "connectedBadge": "{{count}} yhdistetty",
+      "connected": "Yhdistetty",
+      "available": "Saatavilla",
+      "readyForSetup": "Valmis käyttöönottoon",
+      "connectBtn": "Yhdistä",
+      "tenantSubdomain": "Asiakkaan aliverkkotunnus:",
+      "tenantSubdomainDefault": "Oletus",
+      "lastSynced": "Viimeksi synkronoitu:",
+      "lastSyncedFallback": "Juuri nyt",
+      "syncBtn": "Synkronoi nyt",
+      "testBtn": "Testaa rajapinta",
+      "webhookBtn": "Webhook",
+      "mappingBtn": "Vastaavuudet",
+      "logsBtn": "Lokit",
+      "disconnectBtn": "Katkaise yhteys",
+      "connectors": {
+        "bamboohr": {
+          "category": "HRIS ja henkilöstötiedot",
+          "description": "Kaksisuuntainen työntekijöiden synkronointi, nimikkeiden vastaavuudet, osastoluokitus ja automaattinen perehdytyksen käynnistys.",
+          "badge": "Suosittu"
+        },
+        "workday": {
+          "category": "Yritystason HCM",
+          "description": "Yritystason HCM-henkilöstön vastaanotto, organisaatiohierarkiat ja roolipohjainen provisiointi REST/SOAP-rajapintojen kautta.",
+          "badge": "Yritystaso"
+        },
+        "rippling": {
+          "category": "HR- ja IT-provisiointi",
+          "description": "Yhtenäinen työntekijätietojen synkronointi, osastomääritykset ja välitön roolien kartoitus laitteisto- ja ohjelmistoperehdytykseen.",
+          "badge": "Nopea asennus"
+        },
+        "personio": {
+          "category": "Eurooppalainen All-in-One HR",
+          "description": "Saumaton eurooppalaisten työntekijöiden perehdytys, osastojen synkronointi sekä automaattiset poissaolo- ja työsuhdepäivitykset.",
+          "badge": "Vakio"
+        }
+      }
+    },
+    "telemetry": {
+      "title": "Synkronoinnin telemetria ja Dead-Letter Queue (DLQ) -lokit",
+      "desc": "Tarkastele suorituslokeja, luotujen/päivitettyjen työntekijöiden määriä ja epäonnistuneita DLQ-tapahtumia yhdellä napsautuksella tehtävällä uudelleenyrityksellä.",
+      "closeBtn": "Sulje",
+      "empty": "Synkronointilokeja ei ole vielä tallennettu.",
+      "processedSummary": "Käsitelty {{processedCount}} tietuetta ({{createdUsersCount}} luotu, {{updatedUsersCount}} päivitetty)",
+      "errorCount": "Havaittu {{count}} virhettä DLQ-jonossa:",
+      "pendingStatus": "odottaa",
+      "resolvedStatus": "ratkaistu",
+      "defaultErrorReason": "Tietueen validointi epäonnistui",
+      "retryBtn": "Yritä tietuetta uudelleen",
+      "itemLabel": "lokit"
+    },
+    "connectModal": {
+      "title": "Määritä {{provider}}",
+      "desc": "Määritä yhteystiedot, synkronointitoiminnot ja luokittelukenttien vastaavuudet.",
+      "tabs": {
+        "credentials": "Tunnisteet",
+        "rules": "Synkronointisäännöt",
+        "mappings": "Kenttävastaavuudet"
+      },
+      "subdomainLabel": "Yrityksen aliverkkotunnus",
+      "subdomainPlaceholder": "acmetest",
+      "subdomainHint": "Kirjoita \"acmetest\" ajaaksesi testiympäristössä.",
+      "apiKeyLabel": "API-avain / salainen tunniste",
+      "apiKeyPlaceholder": "test_api_key_123",
+      "apiKeyRequired": "API-avain vaaditaan yhteyden muodostamiseen palveluun {{provider}}",
+      "conflictResolution": {
+        "title": "Ristiriitojen ratkaisukäytäntö",
+        "hrisWinsTitle": "HRIS voittaa (suositus)",
+        "hrisWinsDesc": "HRIS toimii ensisijaisena totuuslähteenä. Palvelussa {{provider}} tehdyt muutokset korvaavat Talnovan paikalliset muokkaukset.",
+        "talnovaWinsTitle": "Talnova voittaa",
+        "talnovaWinsDesc": "Säilytä suoraan Talnovan perehdytysprofiileihin tehdyt manuaaliset järjestelmänvalvojan muokkaukset."
+      },
+      "autoProvision": {
+        "title": "Automatisoi perehdytyspolut",
+        "desc": "Määritä työnkulut ja asiakirjat automaattisesti, kun uusi työntekijä synkronoidaan."
+      },
+      "mappings": {
+        "desc": "Kartoita ulkoisen HRIS-järjestelmän kentät Talnovan sisäisiin kenttiin:",
+        "externalPlaceholder": "Ulkoinen kenttä",
+        "internalPlaceholder": "Sisäinen kenttä",
+        "addMappingBtn": "Lisää kenttävastaavuus"
+      },
+      "cancelBtn": "Peruuta",
+      "saveBtn": "Tallenna ja testaa yhteys",
+      "savingBtn": "Tallennetaan..."
+    },
+    "webhookModal": {
+      "title": "Webhook-määritys: {{name}}",
+      "desc": "Määritä reaaliaikaiset työntekijätapahtumat (palkkaus, profiilin päivitykset, työsuhteen päättyminen) HRIS-järjestelmästäsi.",
+      "fallbackName": "HRIS-palveluntarjoaja",
+      "urlLabel": "Webhookin kohde-URL",
+      "secretLabel": "HMAC-SHA256 Webhook-salaisuus",
+      "reveal": "Näytä",
+      "hide": "Piilota",
+      "rotateTooltip": "Kierrätä HMAC-salaisuus",
+      "secretNote": "Sisällytä tämä HMAC-allekirjoitus x-signature-otsakkeeseen lähettäessäsi webhook-pyyntöjä.",
+      "checklistTitle": "Palveluntarjoajan asennuksen tarkistuslista:",
+      "checklistItem1": "Rekisteröi kohde-URL BambooHR/Workday-webhook-tilauksiisi.",
+      "checklistItem2": "Tilaa employee.created-, employee.updated- ja employee.terminated -tapahtumat.",
+      "checklistItem3": "Varmista, että HMAC-SHA256-allekirjoitus on käytössä annetulla salaisuudella.",
+      "doneBtn": "Valmis"
+    },
+    "toasts": {
+      "secretRotated": "Webhookin HMAC-salaisuus kierrätettiin onnistuneesti",
+      "secretRotateFailed": "Webhook-salaisuuden kierrätys epäonnistui",
+      "retrySuccess": "Tietue käsiteltiin uudelleen onnistuneesti!",
+      "retryFailed": "Tietueen uudelleenkäsittely epäonnistui",
+      "copied": "Kopioitu leikepöydälle",
+      "apiKeyRequired": "API-avain vaaditaan yhteyden muodostamiseen",
+      "connectedSuccess": "{{name}} yhdistetty onnistuneesti!",
+      "connectFailed": "Integraation yhdistäminen epäonnistui",
+      "syncQueued": "Henkilöstön synkronointi lisätty jonoon onnistuneesti! (ID: {{syncId}})",
+      "syncFailed": "Synkronoinnin käynnistys epäonnistui",
+      "disconnectedSuccess": "{{provider}} irrotettu onnistuneesti.",
+      "disconnectFailed": "Yhteyden katkaisu epäonnistui",
+      "testSuccess": "Yhteys vahvistettu! Vasteaika: {{latencyMs}} ms",
+      "testFailed": "Yhteystesti epäonnistui",
+      "productionSyncName": "{{provider}} -tuotantosynkronointi"
+    }
+  }
+}

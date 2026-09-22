@@ -1,4 +1,5 @@
 
+import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react';
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ interface LanguageSwitcherProps {
  */
 export function LanguageSwitcher({ variant = 'icon' }: LanguageSwitcherProps) {
   const { language, setLanguage } = useLanguage();
+  const { t } = useTranslation(['common', 'settings']);
 
   return (
     <DropdownMenu>
@@ -39,7 +41,7 @@ export function LanguageSwitcher({ variant = 'icon' }: LanguageSwitcherProps) {
         <Button
           variant="ghost"
           size={variant === 'icon' ? 'icon' : 'sm'}
-          aria-label="Switch language"
+          aria-label={t('common:switchLanguage', 'Switch language')}
           className="gap-1.5"
         >
           <Globe className="h-4 w-4" />
@@ -52,7 +54,7 @@ export function LanguageSwitcher({ variant = 'icon' }: LanguageSwitcherProps) {
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel className="flex items-center gap-2">
           <Globe className="h-3.5 w-3.5" />
-          Language
+          {t('settings:sections.language', 'Language')}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {SUPPORTED_LOCALES.map((code) => (

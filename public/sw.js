@@ -1,5 +1,5 @@
 /* eslint-env serviceworker */
-const CACHE_NAME = 'talnova-v1';
+const CACHE_NAME = 'talnova-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Interceptor: Cache-First for assets, Network-First for API
+// Fetch Interceptor: Cache-First for assets, Network-First for API and Locales
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -43,6 +43,22 @@ self.addEventListener('fetch', (event) => {
 
   // Network-First strategy for API endpoints
   if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Network-First strategy for translation bundles (never fall back to index.html!)
+  if (url.pathname.startsWith('/locales/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -88,8 +104,10 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // If an asset fails offline, try fallback
-        return caches.match('/index.html');
+        if (event.request.headers.get('accept')?.includes('text/html')) {
+          return caches.match('/index.html');
+        }
+        return new Response(null, { status: 404, statusText: 'Not Found' });
       });
     })
   );
