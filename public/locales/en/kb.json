@@ -11,9 +11,181 @@
   "readTime_other": "{{count}} mins read",
   "noArticles": "No articles found.",
   "noResults": "No results for \"{{query}}\".",
+  "liveSlideshowMode": "Live Slideshow Mode",
+  "reindexKnowledge": "Re-Index Knowledge",
+  "indexing": "Indexing...",
+  "newArticle": "New Article",
+  "noArticlesFound": "No articles found",
+  "noArticlesDesc": "Try adjusting your search or selecting a different category.",
+  "noQuickLinks": "No quick links available.",
+  "reader": {
+    "backToList": "Back to List",
+    "slideshowView": "Slideshow View",
+    "edit": "Edit",
+    "publish": "Publish",
+    "archive": "Archive",
+    "delete": "Delete",
+    "read": "Read"
+  },
+  "editor": {
+    "createTitle": "Create New Article",
+    "editTitle": "Edit Article",
+    "articleTitle": "Article Title",
+    "articleTitlePlaceholder": "e.g. Code of Conduct",
+    "category": "Category",
+    "tags": "Tags (comma-separated)",
+    "tagsPlaceholder": "e.g. handbook, legal, conduct",
+    "summary": "Short Summary",
+    "summaryPlaceholder": "Quick summary of this article...",
+    "content": "Content (separate paragraphs with double line-breaks)",
+    "contentPlaceholder": "Write details here...",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes"
+  },
+  "tabs": {
+    "articles": "Articles & Guidelines",
+    "gaps": "Knowledge Gaps",
+    "missingCount": "{{count}} missing"
+  },
+  "gaps": {
+    "title": "Missing Company Information Requests",
+    "subtitle": "Questions asked by team members that could not be verified in official company documentation.",
+    "filterLabel": "Filter:",
+    "filters": {
+      "unresolved": "unresolved",
+      "resolved": "resolved",
+      "all": "all"
+    },
+    "emptyTitle": "No Knowledge Gaps Found",
+    "emptySubtitle": "All employee questions asked to the AI Assistant have matched approved company documents, or existing gaps have been resolved.",
+    "occurrenceCount": "{{count}}x asked",
+    "lastAsked": "Last asked: {{date}}",
+    "categoryLabel": "Category: {{category}}",
+    "requestersCount": "Requesters: {{count}} team member(s)",
+    "approvedQuickAnswer": "Approved Quick Answer:",
+    "quickAnswerBtn": "Quick Answer",
+    "fullArticleBtn": "Full Article",
+    "dismissBtn": "Dismiss"
+  },
+  "error": {
+    "title": "Failed to Load Knowledge Base",
+    "message": "An error occurred while communicating with the backend.",
+    "retry": "Retry"
+  },
+  "quickAnswerModal": {
+    "title": "Provide Quick Answer",
+    "resolving": "Resolving: \"{{question}}\"",
+    "label": "Authoritative Company Answer",
+    "placeholder": "Enter official policy or answer (e.g. Business casual dress code, or 20 days annual leave...)",
+    "helper": "This answer will be immediately indexed into the knowledge retrieval vector store so the AI Assistant can answer future questions accurately.",
+    "cancel": "Cancel",
+    "publishing": "Publishing & Indexing...",
+    "publishBtn": "Publish & Train AI"
+  },
+  "quickLinkModal": {
+    "addTitle": "Add Quick Link",
+    "editTitle": "Edit Quick Link",
+    "description": "Configure internal tools, support pages, or helpful links.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. IT Helpdesk",
+    "urlLabel": "URL",
+    "urlPlaceholder": "https://...",
+    "iconStyle": "Icon Style",
+    "icons": {
+      "link": "Link icon",
+      "help": "Question / Help",
+      "users": "Users / Directory",
+      "book": "Book / Library",
+      "globe": "Web / Globe"
+    },
+    "cancel": "Cancel",
+    "save": "Save Link",
+    "addBtn": "Add"
+  },
+  "toasts": {
+    "titleRequired": "Title is required",
+    "articleCreatedDraft": "Article created successfully as draft",
+    "articleUpdated": "Article updated successfully",
+    "saveArticleFailed": "Failed to save article changes.",
+    "confirmDeleteArticle": "Are you sure you want to delete this article?",
+    "articleDeleted": "Article deleted successfully",
+    "deleteArticleFailed": "Failed to delete article.",
+    "articlePublished": "Article published successfully!",
+    "publishArticleFailed": "Failed to publish article.",
+    "articleArchived": "Article archived successfully.",
+    "archiveArticleFailed": "Failed to archive article.",
+    "qlTitleUrlRequired": "Title and URL are required",
+    "qlUpdated": "Quick Link updated",
+    "qlAdded": "Quick Link added",
+    "qlSaveFailed": "Failed to save Quick Link",
+    "confirmDeleteQl": "Delete this Quick Link?",
+    "qlDeleted": "Quick Link deleted",
+    "qlDeleteFailed": "Failed to delete Quick Link",
+    "articleSummaryGap": "Company policy and guidance regarding: {{question}}",
+    "quickAnswerPublished": "Quick answer published and indexed for AI assistant!",
+    "gapResolved": "Knowledge gap resolved with article!",
+    "gapDismissed": "Knowledge gap dismissed"
+  },
   "slideshow": {
     "previous": "Previous",
     "next": "Next",
-    "backToKb": "Back to Knowledge Base"
+    "backToKb": "Back to Knowledge Base",
+    "defaultSummary": "Internal Knowledge Base Resource Guide",
+    "loading": "Preparing Presentation Slides...",
+    "emptyTitle": "No Slides Available",
+    "emptySubtitle": "There are no published articles in the Knowledge Base to display in the presentation view.",
+    "displayBoard": "Talnova Digital Display Board",
+    "toggleFullscreen": "Toggle Fullscreen",
+    "exitSlideshow": "Exit Slideshow",
+    "prevSlide": "Previous slide",
+    "nextSlide": "Next slide",
+    "holdActive": "HOLD ACTIVE",
+    "paused": "PAUSED",
+    "slideAsset": "Slide Asset",
+    "slideCounter": "Slide {{current}} of {{total}}",
+    "autoAdvance": "Auto-advancing every {{seconds}}s • Loop Active",
+    "articleCounter": "Article {{current}} of {{total}}",
+    "toasts": {
+      "resumed": "Slideshow RESUMED",
+      "held": "Slideshow HELD"
+    }
+  },
+  "assistant": {
+    "title": "AI Onboarding Assistant",
+    "subtitle": "Tenant-safe AI assistant answering onboarding questions using authorized company knowledge base articles.",
+    "newChat": "New Conversation Thread",
+    "banner": {
+      "requiredLabel": "AI Integration Required: ",
+      "defaultReason": "Your organization administrator has not configured an AI provider yet.",
+      "configureBtn": "Configure AI Provider",
+      "contactAdmin": "Please contact your workspace administrator to enable AI features."
+    },
+    "sidebar": {
+      "title": "Chat History",
+      "empty": "No previous conversations."
+    },
+    "emptyState": {
+      "title": "How can I assist your onboarding today?",
+      "subtitle": "Ask about company policies, required documents, or assigned learning journeys.",
+      "prompts": {
+        "policies": "What company policies do I need to read?",
+        "buddy": "Who is my assigned onboarding buddy?",
+        "tasks": "How do I complete my pending tasks?"
+      }
+    },
+    "messages": {
+      "gapNotice": "Knowledge gap logged. Workspace administrators have been notified to add this company policy.",
+      "sourceCitations": "Source Citations:",
+      "synthesizing": "Synthesizing company knowledge response..."
+    },
+    "input": {
+      "placeholderAvailable": "Ask AI Onboarding Assistant a question...",
+      "placeholderDisabled": "AI integration required to send queries...",
+      "send": "Send"
+    },
+    "feedbackSuccess": "Thank you for rating this response!",
+    "errors": {
+      "generateFailed": "Failed to generate AI response"
+    }
   }
 }

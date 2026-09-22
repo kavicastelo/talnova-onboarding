@@ -42,8 +42,10 @@ import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 import { useRole } from '../context/RoleContext';
+import { useTranslation } from 'react-i18next';
 
 export const HROperations: React.FC = () => {
+  const { t } = useTranslation(['hr', 'common']);
   const { hasFeature } = useRole();
   const navigate = useNavigate();
   const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
@@ -65,7 +67,7 @@ export const HROperations: React.FC = () => {
   // Bulk Action State
   const [bulkAction, setBulkAction] = useState<'assign_journey' | 'request_document' | 'send_reminder'>('send_reminder');
   const [selectedJourneyId, setSelectedJourneyId] = useState('');
-  const [bulkMessage, setBulkMessage] = useState('Please complete your pending onboarding tasks.');
+  const [bulkMessage, setBulkMessage] = useState('');
 
   const { data: metrics } = useHRDashboard();
   const { data: exceptions, isLoading: exceptionsLoading, refetch: refetchExceptions } = useHRExceptions();
@@ -124,7 +126,7 @@ export const HROperations: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success(`Onboarding paused for ${activeEmpUser.name}`);
+          toast.success(t('pauseModal.successToast', { name: activeEmpUser.name }));
           setIsPauseModalOpen(false);
           setPauseReason('');
           refetchEmployees();
@@ -142,7 +144,7 @@ export const HROperations: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success(`Onboarding resumed for ${emp.name}`);
+          toast.success(t('directory.resumeSuccessToast', { name: emp.name }));
           refetchEmployees();
           refetchExceptions();
         },
@@ -160,7 +162,7 @@ export const HROperations: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success(`Onboarding due dates extended by ${extensionDays} days for ${activeEmpUser.name}`);
+          toast.success(t('extendModal.successToast', { days: extensionDays, name: activeEmpUser.name }));
           setIsExtendModalOpen(false);
           refetchEmployees();
           refetchExceptions();
@@ -175,7 +177,7 @@ export const HROperations: React.FC = () => {
       { userId: targetId },
       {
         onSuccess: (res: any) => {
-          toast.success(res?.message || `Handover verified! ${emp.name} transitioned to Active.`);
+          toast.success(res?.message || t('handoverModal.success', { name: emp.name }));
           setIsHandoverModalOpen(false);
           refetchEmployees();
           refetchExceptions();
@@ -184,8 +186,8 @@ export const HROperations: React.FC = () => {
           const errData = err?.response?.data || {};
           const openTasks = errData.openTasks;
           const msg = errData.error === 'ONBOARDING_INCOMPLETE'
-            ? `Handover blocked: ONBOARDING_INCOMPLETE (${openTasks} open task remaining)`
-            : (errData.message || err?.message || 'Handover blocked');
+            ? t('handoverModal.blockedIncomplete', { openTasks })
+            : (errData.message || err?.message || t('handoverModal.blockedGeneric'));
           toast.error(msg);
         },
       }
@@ -199,7 +201,7 @@ export const HROperations: React.FC = () => {
 
   const handleExecuteBulkAction = () => {
     if (selectedEmpIds.length === 0) {
-      toast.error('Please select at least one employee.');
+      toast.error(t('bulkModal.selectAtLeastOne'));
       return;
     }
 
@@ -209,19 +211,20 @@ export const HROperations: React.FC = () => {
         employeeIds: selectedEmpIds,
         payload: {
           journeyId: selectedJourneyId,
-          message: bulkMessage,
+          message: bulkMessage || t('bulkModal.defaultMessage'),
         },
       },
       {
         onSuccess: (data) => {
-          toast.success(`Bulk action completed for ${data.processedCount} employees!`);
+          toast.success(t('bulkModal.successToast', { count: data.processedCount }));
           setIsBulkModalOpen(false);
           setSelectedEmpIds([]);
+          setBulkMessage('');
           refetchEmployees();
           refetchExceptions();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to execute bulk action');
+          toast.error(err?.response?.data?.message || err?.message || t('bulkModal.errorToast'));
         },
       }
     );
@@ -234,10 +237,10 @@ export const HROperations: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <ShieldAlert className="h-7 w-7 text-indigo-600" />
-            HR Operations & Administration
+            {t('title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Central operational control panel for employee lifecycle monitoring, exception escalation, and bulk actions.
+            {t('subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -245,17 +248,17 @@ export const HROperations: React.FC = () => {
             className="bg-rose-600 hover:bg-rose-700 text-white"
             onClick={() => navigate('/hr-ops/exceptions')}
           >
-            <AlertOctagon className="h-4 w-4 mr-2" /> Exception Workbench
+            <AlertOctagon className="h-4 w-4 mr-2" /> {t('buttons.exceptionWorkbench')}
           </Button>
           <Button variant="outline" onClick={() => setIsReportModalOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" /> Compliance Audit Report
+            <FileSpreadsheet className="h-4 w-4 mr-2" /> {t('buttons.complianceReport')}
           </Button>
           {selectedEmpIds.length > 0 && (
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={() => setIsBulkModalOpen(true)}
             >
-              <Send className="h-4 w-4 mr-2" /> Bulk Action ({selectedEmpIds.length})
+              <Send className="h-4 w-4 mr-2" /> {t('buttons.bulkAction', { count: selectedEmpIds.length })}
             </Button>
           )}
         </div>
@@ -265,52 +268,52 @@ export const HROperations: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card className="p-4 bg-card border shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Active Onboardees</span>
+            <span className="text-xs text-muted-foreground font-semibold">{t('kpis.activeOnboardees')}</span>
             <Users className="h-4 w-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-bold mt-2">{metrics?.activeOnboardees ?? '-'}</div>
-          <p className="text-[11px] text-muted-foreground mt-1">In active onboarding</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{t('kpis.activeOnboardeesDesc')}</p>
         </Card>
 
         <Card className="p-4 bg-card border shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold">Compliance Rate</span>
+            <span className="text-xs text-muted-foreground font-semibold">{t('kpis.complianceRate')}</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold mt-2">{metrics?.journeyComplianceRate ?? '-'}%</div>
-          <p className="text-[11px] text-muted-foreground mt-1">Learning completion rate</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{t('kpis.complianceRateDesc')}</p>
         </Card>
 
         {hasFeature('digital_signatures') && (
           <Card data-testid="kpi-pending-documents" className="p-4 bg-card border shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-semibold">Pending Documents</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('kpis.pendingDocuments')}</span>
               <FileText className="h-4 w-4 text-amber-600" />
             </div>
             <div className="text-2xl font-bold mt-2">{metrics?.pendingDocuments ?? '-'}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Awaiting signature</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t('kpis.pendingDocumentsDesc')}</p>
           </Card>
         )}
 
         {(hasFeature('milestone_approval') || hasFeature('milestone_ratings')) && (
           <Card data-testid="kpi-overdue-milestones" className="p-4 bg-card border shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-semibold">Overdue Milestones</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('kpis.overdueMilestones')}</span>
               <AlertTriangle className="h-4 w-4 text-red-600" />
             </div>
             <div className="text-2xl font-bold mt-2">{metrics?.overdueMilestones ?? '-'}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Needs HR intervention</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t('kpis.overdueMilestonesDesc')}</p>
           </Card>
         )}
 
         {(hasFeature('buddy_assignment') || hasFeature('buddy_connection')) && (
           <Card data-testid="kpi-unassigned-buddies" className="p-4 bg-card border shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-semibold">Unassigned Buddies</span>
+              <span className="text-xs text-muted-foreground font-semibold">{t('kpis.unassignedBuddies')}</span>
               <UserX className="h-4 w-4 text-purple-600" />
             </div>
             <div className="text-2xl font-bold mt-2">{metrics?.unassignedBuddiesCount ?? '-'}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Missing peer buddy</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t('kpis.unassignedBuddiesDesc')}</p>
           </Card>
         )}
       </div>
@@ -320,15 +323,15 @@ export const HROperations: React.FC = () => {
         <CardHeader className="pb-3 border-b bg-red-500/5">
           <CardTitle className="text-base font-semibold text-red-700 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-600" />
-            Onboarding Exception & Risk Escalation Queue
+            {t('queue.title')}
           </CardTitle>
-          <CardDescription>Employees requiring immediate HR intervention due to compliance bottlenecks.</CardDescription>
+          <CardDescription>{t('queue.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {exceptionsLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Scanning compliance risks...</div>
+            <div className="p-8 text-center text-muted-foreground">{t('queue.scanning')}</div>
           ) : (exceptions || []).length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">✅ No onboarding exceptions flagged. All compliance tasks are on track!</div>
+            <div className="p-8 text-center text-muted-foreground">{t('queue.empty')}</div>
           ) : (
             <div>
               <div className="divide-y">
@@ -351,7 +354,7 @@ export const HROperations: React.FC = () => {
                               : 'bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]'
                           }
                         >
-                          {exc.riskLevel.toUpperCase()} RISK
+                          {t('queue.riskBadge', { risk: t(`queue.riskLevels.${exc.riskLevel}`, { defaultValue: exc.riskLevel.toUpperCase() }) })}
                         </Badge>
                       </div>
 
@@ -374,7 +377,7 @@ export const HROperations: React.FC = () => {
                           setIsExtendModalOpen(true);
                         }}
                       >
-                        <Calendar className="h-3.5 w-3.5 mr-1" /> Extend Due Date
+                        <Calendar className="h-3.5 w-3.5 mr-1" /> {t('queue.extendDueDate')}
                       </Button>
                       <Button
                         variant="outline"
@@ -385,7 +388,7 @@ export const HROperations: React.FC = () => {
                           setIsPauseModalOpen(true);
                         }}
                       >
-                        <Pause className="h-3.5 w-3.5 mr-1" /> Pause
+                        <Pause className="h-3.5 w-3.5 mr-1" /> {t('queue.pause')}
                       </Button>
                     </div>
                   </div>
@@ -402,7 +405,7 @@ export const HROperations: React.FC = () => {
                   pageSize={excPagination.pageSize}
                   onPageChange={excPagination.setPage}
                   onPageSizeChange={excPagination.setPageSize}
-                  itemLabel="exceptions"
+                  itemLabel={t('queue.exceptionsLabel')}
                 />
               </div>
             </div>
@@ -417,20 +420,20 @@ export const HROperations: React.FC = () => {
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Users className="h-5 w-5 text-indigo-600" />
-                Employee Onboarding Lifecycle Directory
+                {t('directory.title')}
               </CardTitle>
-              <CardDescription>Manage active onboarding progress, pause states, and authoritative handover verification.</CardDescription>
+              <CardDescription>{t('directory.subtitle')}</CardDescription>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Input
-                placeholder="Search employees..."
+                placeholder={t('directory.searchPlaceholder')}
                 value={search}
                 onChange={(e: any) => setSearch(e.target.value)}
                 className="h-9 w-full sm:w-64"
               />
               {selectedEmpIds.length > 0 && (
                 <Button size="sm" onClick={() => setIsBulkModalOpen(true)}>
-                  Bulk Actions ({selectedEmpIds.length})
+                  {t('directory.bulkActionsBtn', { count: selectedEmpIds.length })}
                 </Button>
               )}
             </div>
@@ -447,7 +450,7 @@ export const HROperations: React.FC = () => {
               }`}
               onClick={() => setActiveDirectoryTab('ready')}
             >
-              <CheckCircle2 className="h-4 w-4" /> Ready for Handover
+              <CheckCircle2 className="h-4 w-4" /> {t('directory.tabs.readyForHandover')}
               <span className="text-xs ml-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold">
                 {searchedEmployees.filter((e: any) => e.status !== 'Active' && e.onboardingState !== 'completed').length}
               </span>
@@ -461,7 +464,7 @@ export const HROperations: React.FC = () => {
               }`}
               onClick={() => setActiveDirectoryTab('completed')}
             >
-              <Users className="h-4 w-4" /> Completed Archive
+              <Users className="h-4 w-4" /> {t('directory.tabs.completedArchive')}
               <span className="text-xs ml-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
                 {searchedEmployees.filter((e: any) => e.status === 'Active' || e.onboardingState === 'completed').length}
               </span>
@@ -475,7 +478,7 @@ export const HROperations: React.FC = () => {
               }`}
               onClick={() => setActiveDirectoryTab('drilldown')}
             >
-              <AlertTriangle className="h-4 w-4 text-red-500" /> Drop-off & Overdue Drilldown
+              <AlertTriangle className="h-4 w-4 text-red-500" /> {t('directory.tabs.dropoffDrilldown')}
               <span className="text-xs ml-1 px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 font-bold">
                 {(exceptions || []).length}
               </span>
@@ -489,7 +492,7 @@ export const HROperations: React.FC = () => {
               }`}
               onClick={() => setActiveDirectoryTab('all')}
             >
-              All Employees ({searchedEmployees.length})
+              {t('directory.tabs.allEmployees', { count: searchedEmployees.length })}
             </button>
           </div>
         </CardHeader>
@@ -502,17 +505,17 @@ export const HROperations: React.FC = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-muted/40 text-xs text-muted-foreground border-b uppercase">
                     <tr>
-                      <th className="p-3 font-semibold">Employee</th>
-                      <th className="p-3 font-semibold">Risk Level</th>
-                      <th className="p-3 font-semibold">Bottleneck / Overdue Issues</th>
-                      <th className="p-3 font-semibold text-right">Intervention</th>
+                      <th className="p-3 font-semibold">{t('directory.columns.employee')}</th>
+                      <th className="p-3 font-semibold">{t('directory.columns.riskLevel')}</th>
+                      <th className="p-3 font-semibold">{t('directory.columns.issues')}</th>
+                      <th className="p-3 font-semibold text-right">{t('directory.columns.intervention')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {(exceptions || []).length === 0 ? (
                       <tr>
                         <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                          ✅ No drop-off or overdue exceptions flagged. All onboardees are on track!
+                          {t('directory.emptyDrilldown')}
                         </td>
                       </tr>
                     ) : (
@@ -533,7 +536,7 @@ export const HROperations: React.FC = () => {
                                   : 'bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]'
                               }
                             >
-                              {exc.riskLevel.toUpperCase()} RISK
+                              {t('queue.riskBadge', { risk: t(`queue.riskLevels.${exc.riskLevel}`, { defaultValue: exc.riskLevel.toUpperCase() }) })}
                             </Badge>
                           </td>
                           <td className="p-3">
@@ -556,7 +559,7 @@ export const HROperations: React.FC = () => {
                                   setIsExtendModalOpen(true);
                                 }}
                               >
-                                <Calendar className="h-3.5 w-3.5 mr-1" /> Extend
+                                <Calendar className="h-3.5 w-3.5 mr-1" /> {t('directory.actions.extend')}
                               </Button>
                               <Button
                                 variant="outline"
@@ -567,7 +570,7 @@ export const HROperations: React.FC = () => {
                                   setIsPauseModalOpen(true);
                                 }}
                               >
-                                <Pause className="h-3.5 w-3.5 mr-1" /> Pause
+                                <Pause className="h-3.5 w-3.5 mr-1" /> {t('directory.actions.pause')}
                               </Button>
                             </div>
                           </td>
@@ -579,7 +582,7 @@ export const HROperations: React.FC = () => {
               </div>
             </div>
           ) : employeesLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading employee directory...</div>
+            <div className="p-8 text-center text-muted-foreground">{t('directory.loading')}</div>
           ) : (
             <div>
               <div className="overflow-x-auto">
@@ -594,10 +597,10 @@ export const HROperations: React.FC = () => {
                           checked={selectedEmpIds.length === tabEmployees.length && tabEmployees.length > 0}
                         />
                       </th>
-                      <th className="p-3 font-semibold">Employee</th>
-                      <th className="p-3 font-semibold">Department</th>
-                      <th className="p-3 font-semibold">Onboarding State</th>
-                      <th className="p-3 font-semibold text-right">Lifecycle Actions</th>
+                      <th className="p-3 font-semibold">{t('directory.columns.employee')}</th>
+                      <th className="p-3 font-semibold">{t('directory.columns.department')}</th>
+                      <th className="p-3 font-semibold">{t('directory.columns.onboardingState')}</th>
+                      <th className="p-3 font-semibold text-right">{t('directory.columns.lifecycleActions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -605,10 +608,10 @@ export const HROperations: React.FC = () => {
                       <tr>
                         <td colSpan={5} className="p-8 text-center text-muted-foreground">
                           {activeDirectoryTab === 'ready'
-                            ? 'No employees currently awaiting handover sign-off.'
+                            ? t('directory.emptyReady')
                             : activeDirectoryTab === 'completed'
-                            ? 'No employees in completed archive yet.'
-                            : 'No employees found.'}
+                            ? t('directory.emptyCompleted')
+                            : t('directory.emptyGeneric')}
                         </td>
                       </tr>
                     ) : (
@@ -625,10 +628,10 @@ export const HROperations: React.FC = () => {
                           <td className="p-3">
                             <div className="font-semibold text-foreground">{emp.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {emp.email} {emp.employeeId ? `• ID: ${emp.employeeId}` : ''}
+                              {emp.email} {emp.employeeId ? t('directory.employeeId', { id: emp.employeeId }) : ''}
                             </div>
                           </td>
-                          <td className="p-3 text-xs text-muted-foreground">{emp.department || 'General'}</td>
+                          <td className="p-3 text-xs text-muted-foreground">{emp.department || t('directory.generalDepartment')}</td>
                           <td className="p-3">
                             <Badge
                               variant="outline"
@@ -640,7 +643,7 @@ export const HROperations: React.FC = () => {
                                   : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-xs'
                               }
                             >
-                              {(emp.status === 'Active' ? 'ACTIVE' : emp.onboardingState || 'active').toUpperCase()}
+                              {t(`directory.states.${emp.status === 'Active' ? 'active' : (emp.onboardingState || 'active')}`, { defaultValue: (emp.status === 'Active' ? 'ACTIVE' : emp.onboardingState || 'active').toUpperCase() })}
                             </Badge>
                           </td>
                           <td className="p-3 text-right">
@@ -652,7 +655,7 @@ export const HROperations: React.FC = () => {
                                   className="text-xs text-emerald-600"
                                   onClick={() => handleResumeOnboarding(emp)}
                                 >
-                                  <Play className="h-3 w-3 mr-1" /> Resume
+                                  <Play className="h-3 w-3 mr-1" /> {t('directory.actions.resume')}
                                 </Button>
                               ) : (
                                 <Button
@@ -664,7 +667,7 @@ export const HROperations: React.FC = () => {
                                     setIsPauseModalOpen(true);
                                   }}
                                 >
-                                  <Pause className="h-3 w-3 mr-1" /> Pause
+                                  <Pause className="h-3 w-3 mr-1" /> {t('directory.actions.pause')}
                                 </Button>
                               )}
                               <Button
@@ -676,7 +679,7 @@ export const HROperations: React.FC = () => {
                                   setIsExtendModalOpen(true);
                                 }}
                               >
-                                <Calendar className="h-3 w-3 mr-1" /> Extend
+                                <Calendar className="h-3 w-3 mr-1" /> {t('directory.actions.extend')}
                               </Button>
                               <Button
                                 id={`finalize-handover-btn-${emp.employeeId || emp.id}`}
@@ -686,7 +689,7 @@ export const HROperations: React.FC = () => {
                                 disabled={completeHandoverMutation.isPending}
                                 onClick={() => handleFinalizeHandover(emp)}
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Finalize Handover
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t('directory.actions.finalizeHandover')}
                               </Button>
                             </div>
                           </td>
@@ -707,7 +710,7 @@ export const HROperations: React.FC = () => {
                   pageSize={empPagination.pageSize}
                   onPageChange={empPagination.setPage}
                   onPageSizeChange={empPagination.setPageSize}
-                  itemLabel="employees"
+                  itemLabel={t('directory.employeesLabel')}
                 />
               </div>
             </div>
@@ -719,17 +722,17 @@ export const HROperations: React.FC = () => {
       <Dialog open={isPauseModalOpen} onOpenChange={setIsPauseModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pause Employee Onboarding</DialogTitle>
+            <DialogTitle>{t('pauseModal.title')}</DialogTitle>
             <DialogDescription>
-              Temporarily hold onboarding requirements for {activeEmpUser?.name}.
+              {t('pauseModal.desc', { name: activeEmpUser?.name })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Reason for Pause</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('pauseModal.reasonLabel')}</label>
               <Input
-                placeholder="e.g. Medical leave, delayed equipment, extended PTO"
+                placeholder={t('pauseModal.reasonPlaceholder')}
                 value={pauseReason}
                 onChange={(e: any) => setPauseReason(e.target.value)}
               />
@@ -738,10 +741,10 @@ export const HROperations: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPauseModalOpen(false)}>
-              Cancel
+              {t('pauseModal.cancel')}
             </Button>
             <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handlePauseOnboarding}>
-              Pause Onboarding
+              {t('pauseModal.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -751,15 +754,15 @@ export const HROperations: React.FC = () => {
       <Dialog open={isExtendModalOpen} onOpenChange={setIsExtendModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Extend Onboarding Due Dates</DialogTitle>
+            <DialogTitle>{t('extendModal.title')}</DialogTitle>
             <DialogDescription>
-              Grant additional time for {activeEmpUser?.name} across active assignments.
+              {t('extendModal.desc', { name: activeEmpUser?.name })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Extension Days</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('extendModal.daysLabel')}</label>
               <Input
                 type="number"
                 min="1"
@@ -772,10 +775,10 @@ export const HROperations: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsExtendModalOpen(false)}>
-              Cancel
+              {t('extendModal.cancel')}
             </Button>
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleExtendDueDate}>
-              Extend Due Dates
+              {t('extendModal.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -785,31 +788,31 @@ export const HROperations: React.FC = () => {
       <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Execute HR Bulk Action ({selectedEmpIds.length} Selected)</DialogTitle>
-            <DialogDescription>Perform batch operations across selected employee cohorts.</DialogDescription>
+            <DialogTitle>{t('bulkModal.title', { count: selectedEmpIds.length })}</DialogTitle>
+            <DialogDescription>{t('bulkModal.desc')}</DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Action Type</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('bulkModal.actionType')}</label>
               <select
                 className="w-full text-sm p-2 border rounded-md bg-background focus:outline-none"
                 value={bulkAction}
                 onChange={(e: any) => setBulkAction(e.target.value)}
               >
-                <option value="send_reminder">Send Progress Reminder Nudge</option>
-                <option value="assign_journey">Assign Learning Journey</option>
+                <option value="send_reminder">{t('bulkModal.sendReminder')}</option>
+                <option value="assign_journey">{t('bulkModal.assignJourney')}</option>
               </select>
             </div>
 
             {bulkAction === 'assign_journey' && (
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Select Learning Journey *</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('bulkModal.selectJourney')}</label>
                 <SearchableSelect
                   value={selectedJourneyId}
                   onChange={(val) => setSelectedJourneyId(val)}
-                  placeholder="Search & select journey..."
-                  searchPlaceholder="Search journey title, category..."
+                  placeholder={t('bulkModal.searchJourney')}
+                  searchPlaceholder={t('bulkModal.searchJourney')}
                   options={(journeys || []).map((j: any) => ({
                     value: j.id,
                     label: j.title,
@@ -822,9 +825,10 @@ export const HROperations: React.FC = () => {
 
             {bulkAction === 'send_reminder' && (
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Custom Nudge Message</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('bulkModal.customMessage')}</label>
                 <Input
                   value={bulkMessage}
+                  placeholder={t('bulkModal.defaultMessage')}
                   onChange={(e: any) => setBulkMessage(e.target.value)}
                 />
               </div>
@@ -833,10 +837,10 @@ export const HROperations: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsBulkModalOpen(false)}>
-              Cancel
+              {t('bulkModal.cancel')}
             </Button>
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleExecuteBulkAction}>
-              Execute Bulk Action
+              {t('bulkModal.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -846,8 +850,8 @@ export const HROperations: React.FC = () => {
       <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>HR Compliance Audit Report Summary</DialogTitle>
-            <DialogDescription>Exportable audit summary of onboarding compliance status across all employees.</DialogDescription>
+            <DialogTitle>{t('complianceModal.title')}</DialogTitle>
+            <DialogDescription>{t('complianceModal.desc')}</DialogDescription>
           </DialogHeader>
 
           <DialogBody className="p-0 sm:p-0">
@@ -861,11 +865,11 @@ export const HROperations: React.FC = () => {
                       <span className="text-muted-foreground text-[11px]">{row.department} • {row.email}</span>
                     </div>
                     <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                      {row.onboardingState}
+                      {t(`directory.states.${row.onboardingState}`, { defaultValue: (row.onboardingState || '').toUpperCase() })}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t text-[11px]">
-                    <span className="text-muted-foreground">Completion Rate:</span>
+                    <span className="text-muted-foreground">{t('complianceModal.completionRate')}</span>
                     <span className="font-bold text-indigo-600">{row.completionRate}%</span>
                   </div>
                 </div>
@@ -877,10 +881,10 @@ export const HROperations: React.FC = () => {
               <table className="w-full text-xs text-left">
                 <thead className="bg-muted/50 font-semibold border-b">
                   <tr>
-                    <th className="p-3">Employee</th>
-                    <th className="p-3">Department</th>
-                    <th className="p-3">State</th>
-                    <th className="p-3 text-right">Completion Rate</th>
+                    <th className="p-3">{t('directory.columns.employee')}</th>
+                    <th className="p-3">{t('directory.columns.department')}</th>
+                    <th className="p-3">{t('directory.columns.onboardingState')}</th>
+                    <th className="p-3 text-right">{t('complianceModal.completionRate')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -888,7 +892,7 @@ export const HROperations: React.FC = () => {
                     <tr key={row.employeeId} className="hover:bg-muted/10 transition-colors">
                       <td className="p-3 font-medium">{row.name} ({row.email})</td>
                       <td className="p-3 text-muted-foreground">{row.department}</td>
-                      <td className="p-3">{row.onboardingState}</td>
+                      <td className="p-3">{t(`directory.states.${row.onboardingState}`, { defaultValue: row.onboardingState })}</td>
                       <td className="p-3 text-right font-bold text-indigo-600">{row.completionRate}%</td>
                     </tr>
                   ))}
@@ -906,14 +910,14 @@ export const HROperations: React.FC = () => {
                 pageSize={compPagination.pageSize}
                 onPageChange={compPagination.setPage}
                 onPageSizeChange={compPagination.setPageSize}
-                itemLabel="records"
+                itemLabel={t('complianceModal.recordsLabel')}
               />
             </div>
           </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
-              Close
+              {t('complianceModal.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -925,41 +929,41 @@ export const HROperations: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald-600">
               <CheckCircle2 className="h-5 w-5" />
-              Unified Onboarding Handover & Sign-Off
+              {t('handoverModal.title')}
             </DialogTitle>
             <DialogDescription>
-              Verify mandatory onboarding compliance requirements for {activeEmpUser?.name} before transitioning lifecycle state to ACTIVE.
+              {t('handoverModal.desc', { name: activeEmpUser?.name })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-3">
             <div className="p-3 bg-muted/40 rounded-xl space-y-2 border">
               <div className="flex justify-between items-center font-medium text-foreground">
-                <span>Learning Modules & Quizzes</span>
-                <span className="text-emerald-600 font-bold">Passed</span>
+                <span>{t('handoverModal.modules')}</span>
+                <span className="text-emerald-600 font-bold">{t('handoverModal.passed')}</span>
               </div>
               <div className="flex justify-between items-center font-medium text-foreground">
-                <span>IT & Equipment Setup Tasks</span>
-                <span className="text-emerald-600 font-bold">Completed</span>
+                <span>{t('handoverModal.itSetup')}</span>
+                <span className="text-emerald-600 font-bold">{t('handoverModal.completed')}</span>
               </div>
               <div className="flex justify-between items-center font-medium text-foreground">
-                <span>Compliance E-Signatures (NDA/Policy)</span>
-                <span className="text-emerald-600 font-bold">Signed</span>
+                <span>{t('handoverModal.signatures')}</span>
+                <span className="text-emerald-600 font-bold">{t('handoverModal.signed')}</span>
               </div>
               <div className="flex justify-between items-center font-medium text-foreground">
-                <span>Onboarding Buddy Support Check-ins</span>
-                <span className="text-emerald-600 font-bold">Active</span>
+                <span>{t('handoverModal.buddy')}</span>
+                <span className="text-emerald-600 font-bold">{t('handoverModal.active')}</span>
               </div>
             </div>
 
             <p className="text-muted-foreground text-[11px]">
-              Confirming handover sign-off will issue the completion record, notify department management, and officially activate the employee account.
+              {t('handoverModal.disclaimer')}
             </p>
           </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsHandoverModalOpen(false)}>
-              Cancel
+              {t('handoverModal.cancel')}
             </Button>
             <Button
               id="modal-finalize-handover-btn"
@@ -967,7 +971,7 @@ export const HROperations: React.FC = () => {
               onClick={handleCompleteHandover}
               disabled={completeHandoverMutation.isPending}
             >
-              {completeHandoverMutation.isPending ? 'Processing Handover...' : 'Finalize Handover'}
+              {completeHandoverMutation.isPending ? t('handoverModal.processing') : t('handoverModal.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>

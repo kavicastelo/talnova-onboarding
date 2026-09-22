@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   CardContent,
@@ -115,6 +116,7 @@ const DEFAULT_FIELD_MAPPINGS: FieldMapping[] = [
 ];
 
 export function HRISIntegrations() {
+  const { t } = useTranslation('integrations');
   const { data: integrations = [], isLoading } = useIntegrations();
   const connectProviderMut = useConnectProvider();
   const syncProviderMut = useSyncProvider();
@@ -188,13 +190,12 @@ export function HRISIntegrations() {
   };
 
   const handleSaveAndConnect = () => {
+    const providerDisplayName = activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider;
     if (!apiKey.trim()) {
       setApiKeyError(
-        `API Key is required to connect to ${
-          activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider
-        }`
+        t('hris.connectModal.apiKeyRequired', { provider: providerDisplayName })
       );
-      toast.error('API Key is required to connect');
+      toast.error(t('hris.toasts.apiKeyRequired'));
       return;
     }
 
@@ -206,7 +207,9 @@ export function HRISIntegrations() {
         data: {
           subdomain: subdomain.trim(),
           apiKey: apiKey.trim(),
-          name: `${activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1)} Production Sync`,
+          name: t('hris.toasts.productionSyncName', {
+            provider: activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1),
+          }),
           fieldMappings,
           conflictPolicy,
           autoProvisionJourneys,
@@ -214,13 +217,15 @@ export function HRISIntegrations() {
       },
       {
         onSuccess: (data) => {
-          toast.success(`Connected ${data.name || 'BambooHR'} successfully!`);
+          toast.success(
+            t('hris.toasts.connectedSuccess', { name: data.name || 'BambooHR' })
+          );
           setIsConnectModalOpen(false);
           setApiKey('');
         },
         onError: (err: any) => {
           toast.error(
-            err?.response?.data?.message || err?.message || 'Failed to connect integration'
+            err?.response?.data?.message || err?.message || t('hris.toasts.connectFailed')
           );
         },
       }
@@ -231,10 +236,10 @@ export function HRISIntegrations() {
     syncProviderMut.mutate(providerName, {
       onSuccess: (res: any) => {
         const syncId = res.syncId || res.data?.syncId || 'sync_' + Date.now();
-        toast.success(`Workforce sync queued successfully! (ID: ${syncId})`);
+        toast.success(t('hris.toasts.syncQueued', { syncId }));
       },
       onError: (err: any) => {
-        toast.error(err?.response?.data?.message || err?.message || 'Failed to trigger sync');
+        toast.error(err?.response?.data?.message || err?.message || t('hris.toasts.syncFailed'));
       },
     });
   };
@@ -242,10 +247,10 @@ export function HRISIntegrations() {
   const handleDisconnect = (providerName: string) => {
     disconnectProviderMut.mutate(providerName, {
       onSuccess: () => {
-        toast.success(`Disconnected ${providerName} successfully.`);
+        toast.success(t('hris.toasts.disconnectedSuccess', { provider: providerName }));
       },
       onError: () => {
-        toast.error('Failed to disconnect');
+        toast.error(t('hris.toasts.disconnectFailed'));
       },
     });
   };
@@ -253,7 +258,7 @@ export function HRISIntegrations() {
   const handleRotateSecret = (integrationId: string) => {
     rotateSecretMut.mutate(integrationId, {
       onSuccess: (data) => {
-        toast.success('Webhook HMAC secret rotated successfully');
+        toast.success(t('hris.toasts.secretRotated'));
         if (webhookIntegration) {
           setWebhookIntegration({
             ...webhookIntegration,
@@ -262,7 +267,7 @@ export function HRISIntegrations() {
         }
       },
       onError: () => {
-        toast.error('Failed to rotate webhook secret');
+        toast.error(t('hris.toasts.secretRotateFailed'));
       },
     });
   };
@@ -272,10 +277,10 @@ export function HRISIntegrations() {
       { id: integrationId, eventId },
       {
         onSuccess: () => {
-          toast.success('Record reprocessed successfully!');
+          toast.success(t('hris.toasts.retrySuccess'));
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || 'Failed to reprocess record');
+          toast.error(err?.response?.data?.message || t('hris.toasts.retryFailed'));
         },
       }
     );
@@ -290,7 +295,7 @@ export function HRISIntegrations() {
       setHasCopiedSecret(true);
       setTimeout(() => setHasCopiedSecret(false), 2000);
     }
-    toast.success('Copied to clipboard');
+    toast.success(t('hris.toasts.copied'));
   };
 
   if (isLoading) {
@@ -317,11 +322,10 @@ export function HRISIntegrations() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Workflow className="h-7 w-7 text-indigo-600" />
-            HRIS & Workforce Integrations
+            {t('hris.header.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect external HRIS systems, configure inbound HMAC webhooks, customize field mappings,
-            and monitor sync telemetry & Dead-Letter Queues.
+            {t('hris.header.subtitle')}
           </p>
         </div>
       </div>
@@ -329,9 +333,13 @@ export function HRISIntegrations() {
       {/* Marketplace Connectors Catalog */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">Marketplace Connectors</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            {t('hris.marketplace.title')}
+          </h2>
           <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-            {integrations.filter((i) => i.status === 'active').length} Connected
+            {t('hris.marketplace.connectedBadge', {
+              count: integrations.filter((i) => i.status === 'active').length,
+            })}
           </Badge>
         </div>
 
@@ -356,7 +364,9 @@ export function HRISIntegrations() {
                       </div>
                       <div>
                         <CardTitle className="text-base font-semibold">{connector.name}</CardTitle>
-                        <span className="text-xs text-muted-foreground">{connector.category}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t(`hris.marketplace.connectors.${connector.id}.category` as any, connector.category)}
+                        </span>
                       </div>
                     </div>
                     <Badge
@@ -368,11 +378,11 @@ export function HRISIntegrations() {
                           : 'bg-zinc-100 text-zinc-600 border-zinc-300 font-medium text-xs px-2 py-0.5'
                       }
                     >
-                      {isConnected ? 'Connected' : 'Available'}
+                      {isConnected ? t('hris.marketplace.connected') : t('hris.marketplace.available')}
                     </Badge>
                   </div>
                   <CardDescription className="text-xs mt-3 leading-relaxed">
-                    {connector.description}
+                    {t(`hris.marketplace.connectors.${connector.id}.description` as any, connector.description)}
                   </CardDescription>
                 </CardHeader>
 
@@ -380,22 +390,22 @@ export function HRISIntegrations() {
                   {isConnected ? (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span>Tenant Subdomain:</span>
+                        <span>{t('hris.marketplace.tenantSubdomain')}</span>
                         <span className="font-semibold text-foreground">
                           {activeInt.subdomain
                             ? `${activeInt.subdomain}.${connector.provider}.com`
-                            : 'Default'}
+                            : t('hris.marketplace.tenantSubdomainDefault')}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>Last Synchronized:</span>
+                        <span>{t('hris.marketplace.lastSynced')}</span>
                         <span
                           data-testid={`${connector.id}-last-synced`}
                           className="font-semibold text-foreground"
                         >
                           {activeInt.lastSyncedAt
                             ? new Date(activeInt.lastSyncedAt).toLocaleString()
-                            : 'Just now'}
+                            : t('hris.marketplace.lastSyncedFallback')}
                         </span>
                       </div>
 
@@ -412,7 +422,7 @@ export function HRISIntegrations() {
                               syncProviderMut.isPending ? 'animate-spin' : ''
                             }`}
                           />
-                          Sync Now
+                          {t('hris.marketplace.syncBtn')}
                         </Button>
                         <Button
                           size="sm"
@@ -424,17 +434,17 @@ export function HRISIntegrations() {
                             testMutation.mutate(activeInt._id, {
                               onSuccess: (res) =>
                                 toast.success(
-                                  `Connection verified! Response latency: ${res.latencyMs}ms`
+                                  t('hris.toasts.testSuccess', { latencyMs: res.latencyMs })
                                 ),
                               onError: (err: any) =>
                                 toast.error(
-                                  err?.response?.data?.message || 'Connection test failed'
+                                  err?.response?.data?.message || t('hris.toasts.testFailed')
                                 ),
                             })
                           }
                           disabled={testMutation.isPending}
                         >
-                          <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> Test API
+                          <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> {t('hris.marketplace.testBtn')}
                         </Button>
                         <Button
                           size="sm"
@@ -442,7 +452,7 @@ export function HRISIntegrations() {
                           className="text-xs"
                           onClick={() => handleOpenWebhookModal(activeInt)}
                         >
-                          <Key className="h-3.5 w-3.5 mr-1 text-indigo-500" /> Webhook
+                          <Key className="h-3.5 w-3.5 mr-1 text-indigo-500" /> {t('hris.marketplace.webhookBtn')}
                         </Button>
                         <Button
                           size="sm"
@@ -450,7 +460,7 @@ export function HRISIntegrations() {
                           className="text-xs"
                           onClick={() => handleOpenConnect(connector.provider, activeInt)}
                         >
-                          <Settings2 className="h-3.5 w-3.5 mr-1 text-zinc-500" /> Mapping
+                          <Settings2 className="h-3.5 w-3.5 mr-1 text-zinc-500" /> {t('hris.marketplace.mappingBtn')}
                         </Button>
                         <Button
                           size="sm"
@@ -459,7 +469,7 @@ export function HRISIntegrations() {
                           className="text-xs"
                           onClick={() => setSelectedIntegrationId(activeInt._id)}
                         >
-                          <List className="h-3.5 w-3.5 mr-1 text-muted-foreground" /> Logs
+                          <List className="h-3.5 w-3.5 mr-1 text-muted-foreground" /> {t('hris.marketplace.logsBtn')}
                         </Button>
                         <Button
                           size="sm"
@@ -469,20 +479,20 @@ export function HRISIntegrations() {
                           onClick={() => handleDisconnect(connector.provider)}
                           disabled={disconnectProviderMut.isPending}
                         >
-                          <PowerOff className="h-3.5 w-3.5 mr-1" /> Disconnect
+                          <PowerOff className="h-3.5 w-3.5 mr-1" /> {t('hris.marketplace.disconnectBtn')}
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-muted-foreground">Ready for setup</span>
+                      <span className="text-muted-foreground">{t('hris.marketplace.readyForSetup')}</span>
                       <Button
                         size="sm"
                         data-testid={`${connector.id}-connect-btn`}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs"
                         onClick={() => handleOpenConnect(connector.provider)}
                       >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Connect
+                        <Plus className="h-3.5 w-3.5 mr-1" /> {t('hris.marketplace.connectBtn')}
                       </Button>
                     </div>
                   )}
@@ -500,20 +510,20 @@ export function HRISIntegrations() {
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Activity className="h-5 w-5 text-indigo-600" />
-                Sync Telemetry & Dead-Letter Queue (DLQ) Logs
+                {t('hris.telemetry.title')}
               </CardTitle>
               <CardDescription>
-                Review execution logs, created/updated employee counts, and failed DLQ events with 1-click retry.
+                {t('hris.telemetry.desc')}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setSelectedIntegrationId(null)}>
-              Close
+              {t('hris.telemetry.closeBtn')}
             </Button>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             {syncLogs.length === 0 ? (
               <div className="p-4 text-center text-xs text-muted-foreground">
-                No sync history logs recorded yet.
+                {t('hris.telemetry.empty')}
               </div>
             ) : (
               <div className="space-y-3">
@@ -531,8 +541,11 @@ export function HRISIntegrations() {
                         >
                           {log.status.toUpperCase()}
                         </Badge>
-                        Processed {log.processedCount} records ({log.createdUsersCount} created,{' '}
-                        {log.updatedUsersCount} updated)
+                        {t('hris.telemetry.processedSummary', {
+                          processedCount: log.processedCount,
+                          createdUsersCount: log.createdUsersCount,
+                          updatedUsersCount: log.updatedUsersCount,
+                        })}
                       </span>
                       <span className="text-muted-foreground">
                         {new Date(log.createdAt).toLocaleString()}
@@ -543,7 +556,7 @@ export function HRISIntegrations() {
                       <div className="pt-2 text-red-600 font-medium border-t mt-1 space-y-2">
                         <div className="flex items-center gap-1.5">
                           <AlertCircle className="h-4 w-4" />
-                          <span>Encountered {log.errorCount} error(s) logged to DLQ queue:</span>
+                          <span>{t('hris.telemetry.errorCount', { count: log.errorCount })}</span>
                         </div>
 
                         {/* DLQ Event Details & Remediation */}
@@ -567,11 +580,13 @@ export function HRISIntegrations() {
                                           : 'bg-amber-50 text-amber-600 border-amber-300'
                                       }
                                     >
-                                      {dlq.status || 'pending'}
+                                      {dlq.status === 'resolved'
+                                        ? t('hris.telemetry.resolvedStatus')
+                                        : t('hris.telemetry.pendingStatus')}
                                     </Badge>
                                   </div>
                                   <p className="text-red-700 dark:text-red-300">
-                                    {dlq.errorReason || 'Record validation failed'}
+                                    {dlq.errorReason || t('hris.telemetry.defaultErrorReason')}
                                   </p>
                                 </div>
                                 {dlq.status !== 'resolved' && (
@@ -582,7 +597,7 @@ export function HRISIntegrations() {
                                     onClick={() => handleRetryDLQ(selectedIntegrationId, dlq.eventId)}
                                     disabled={retryDLQMut.isPending}
                                   >
-                                    <RotateCcw className="h-3 w-3 mr-1" /> Retry Record
+                                    <RotateCcw className="h-3 w-3 mr-1" /> {t('hris.telemetry.retryBtn')}
                                   </Button>
                                 )}
                               </div>
@@ -603,7 +618,7 @@ export function HRISIntegrations() {
                   pageSize={logsPagination.pageSize}
                   onPageChange={logsPagination.setPage}
                   onPageSizeChange={logsPagination.setPageSize}
-                  itemLabel="logs"
+                  itemLabel={t('hris.telemetry.itemLabel')}
                 />
               </div>
             )}
@@ -616,10 +631,12 @@ export function HRISIntegrations() {
         <DialogContent className="max-w-lg p-0 overflow-hidden">
           <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
             <DialogTitle data-testid="connect-modal-title" className="text-lg font-bold text-foreground">
-              Configure {activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider.toUpperCase()}
+              {t('hris.connectModal.title', {
+                provider: activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider.toUpperCase(),
+              })}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Configure connection credentials, sync behavior, and taxonomy field mappings.
+              {t('hris.connectModal.desc')}
             </DialogDescription>
 
             {/* Navigation Tabs */}
@@ -633,7 +650,7 @@ export function HRISIntegrations() {
                 }`}
                 onClick={() => setConfigTab('credentials')}
               >
-                Credentials
+                {t('hris.connectModal.tabs.credentials')}
               </button>
               <button
                 type="button"
@@ -644,7 +661,7 @@ export function HRISIntegrations() {
                 }`}
                 onClick={() => setConfigTab('rules')}
               >
-                Sync Rules
+                {t('hris.connectModal.tabs.rules')}
               </button>
               <button
                 type="button"
@@ -655,7 +672,7 @@ export function HRISIntegrations() {
                 }`}
                 onClick={() => setConfigTab('mappings')}
               >
-                Field Mappings
+                {t('hris.connectModal.tabs.mappings')}
               </button>
             </div>
           </DialogHeader>
@@ -664,11 +681,13 @@ export function HRISIntegrations() {
             {configTab === 'credentials' && (
               <div className="space-y-4">
                 <div>
-                  <label className="font-semibold text-muted-foreground block mb-1">Company Subdomain</label>
+                  <label className="font-semibold text-muted-foreground block mb-1">
+                    {t('hris.connectModal.subdomainLabel')}
+                  </label>
                   <div className="flex items-center">
                     <Input
                       data-testid="bamboohr-subdomain-input"
-                      placeholder="acmetest"
+                      placeholder={t('hris.connectModal.subdomainPlaceholder')}
                       value={subdomain}
                       onChange={(e: any) => setSubdomain(e.target.value)}
                       className="rounded-r-none"
@@ -678,18 +697,18 @@ export function HRISIntegrations() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Enter "acmetest" to run in sandbox simulation mode.
+                    {t('hris.connectModal.subdomainHint')}
                   </p>
                 </div>
 
                 <div>
                   <label className="font-semibold text-muted-foreground block mb-1">
-                    API Key / Secret Token <span className="text-red-500">*</span>
+                    {t('hris.connectModal.apiKeyLabel')} <span className="text-red-500">*</span>
                   </label>
                   <Input
                     data-testid="bamboohr-apikey-input"
                     type="password"
-                    placeholder="test_api_key_123"
+                    placeholder={t('hris.connectModal.apiKeyPlaceholder')}
                     value={apiKey}
                     onChange={(e: any) => {
                       setApiKey(e.target.value);
@@ -715,7 +734,9 @@ export function HRISIntegrations() {
             {configTab === 'rules' && (
               <div className="space-y-4">
                 <div>
-                  <label className="font-semibold text-foreground block mb-1.5">Conflict Resolution Policy</label>
+                  <label className="font-semibold text-foreground block mb-1.5">
+                    {t('hris.connectModal.conflictResolution.title')}
+                  </label>
                   <div className="space-y-2">
                     <label className="flex items-start gap-2 p-2.5 border rounded-md cursor-pointer hover:bg-muted/20">
                       <input
@@ -727,9 +748,13 @@ export function HRISIntegrations() {
                         className="mt-0.5 text-indigo-600"
                       />
                       <div>
-                        <div className="font-semibold text-foreground">HRIS Wins (Recommended)</div>
+                        <div className="font-semibold text-foreground">
+                          {t('hris.connectModal.conflictResolution.hrisWinsTitle')}
+                        </div>
                         <p className="text-muted-foreground text-[11px]">
-                          HRIS remains the authoritative source of truth. Changes in BambooHR overwrite local edits in Talnova.
+                          {t('hris.connectModal.conflictResolution.hrisWinsDesc', {
+                            provider: activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider,
+                          })}
                         </p>
                       </div>
                     </label>
@@ -744,9 +769,11 @@ export function HRISIntegrations() {
                         className="mt-0.5 text-indigo-600"
                       />
                       <div>
-                        <div className="font-semibold text-foreground">Talnova Wins</div>
+                        <div className="font-semibold text-foreground">
+                          {t('hris.connectModal.conflictResolution.talnovaWinsTitle')}
+                        </div>
                         <p className="text-muted-foreground text-[11px]">
-                          Preserve manual administrator edits made directly inside Talnova onboarding profiles.
+                          {t('hris.connectModal.conflictResolution.talnovaWinsDesc')}
                         </p>
                       </div>
                     </label>
@@ -756,9 +783,11 @@ export function HRISIntegrations() {
                 <div className="pt-2 border-t">
                   <label className="flex items-center justify-between p-2.5 border rounded-md cursor-pointer hover:bg-muted/20">
                     <div>
-                      <div className="font-semibold text-foreground">Auto-provision Onboarding Journeys</div>
+                      <div className="font-semibold text-foreground">
+                        {t('hris.connectModal.autoProvision.title')}
+                      </div>
                       <p className="text-muted-foreground text-[11px]">
-                        Automatically assign workflows and documents when a new employee is synced.
+                        {t('hris.connectModal.autoProvision.desc')}
                       </p>
                     </div>
                     <input
@@ -775,14 +804,14 @@ export function HRISIntegrations() {
             {configTab === 'mappings' && (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-xs">
-                  Map external HRIS payload attributes to internal Talnova workforce fields:
+                  {t('hris.connectModal.mappings.desc')}
                 </p>
                 <div className="space-y-2">
                   {fieldMappings.map((mapping, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <Input
                         value={mapping.externalField}
-                        placeholder="External field"
+                        placeholder={t('hris.connectModal.mappings.externalPlaceholder')}
                         className="h-8 text-xs font-mono"
                         onChange={(e: any) => {
                           const updated = [...fieldMappings];
@@ -793,7 +822,7 @@ export function HRISIntegrations() {
                       <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       <Input
                         value={mapping.internalField}
-                        placeholder="Internal field"
+                        placeholder={t('hris.connectModal.mappings.internalPlaceholder')}
                         className="h-8 text-xs font-mono"
                         onChange={(e: any) => {
                           const updated = [...fieldMappings];
@@ -813,7 +842,7 @@ export function HRISIntegrations() {
                     setFieldMappings([...fieldMappings, { externalField: '', internalField: '' }])
                   }
                 >
-                  <Plus className="h-3 w-3 mr-1" /> Add Mapping
+                  <Plus className="h-3 w-3 mr-1" /> {t('hris.connectModal.mappings.addMappingBtn')}
                 </Button>
               </div>
             )}
@@ -821,7 +850,7 @@ export function HRISIntegrations() {
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsConnectModalOpen(false)}>
-              Cancel
+              {t('hris.connectModal.cancelBtn')}
             </Button>
             <Button
               size="sm"
@@ -830,7 +859,9 @@ export function HRISIntegrations() {
               onClick={handleSaveAndConnect}
               disabled={connectProviderMut.isPending}
             >
-              {connectProviderMut.isPending ? 'Saving...' : 'Save & Test Connection'}
+              {connectProviderMut.isPending
+                ? t('hris.connectModal.savingBtn')
+                : t('hris.connectModal.saveBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -842,17 +873,21 @@ export function HRISIntegrations() {
           <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
             <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
               <Key className="h-5 w-5 text-indigo-600" />
-              Webhook Setup: {webhookIntegration?.name || 'HRIS Provider'}
+              {t('hris.webhookModal.title', {
+                name: webhookIntegration?.name || t('hris.webhookModal.fallbackName'),
+              })}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Configure real-time employee events (hiring, profile updates, termination) from your HRIS.
+              {t('hris.webhookModal.desc')}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4 text-xs">
             {/* Target Webhook URL */}
             <div>
-              <label className="font-semibold text-foreground block mb-1">Webhook Target URL</label>
+              <label className="font-semibold text-foreground block mb-1">
+                {t('hris.webhookModal.urlLabel')}
+              </label>
               <div className="flex items-center gap-2">
                 <Input
                   readOnly
@@ -876,14 +911,16 @@ export function HRISIntegrations() {
             {/* HMAC Secret */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="font-semibold text-foreground">HMAC-SHA256 Webhook Secret</label>
+                <label className="font-semibold text-foreground">
+                  {t('hris.webhookModal.secretLabel')}
+                </label>
                 <button
                   type="button"
                   className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
                   onClick={() => setIsSecretRevealed(!isSecretRevealed)}
                 >
                   {isSecretRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  {isSecretRevealed ? 'Hide' : 'Reveal'}
+                  {isSecretRevealed ? t('hris.webhookModal.hide') : t('hris.webhookModal.reveal')}
                 </button>
               </div>
               <div className="flex items-center gap-2">
@@ -912,7 +949,7 @@ export function HRISIntegrations() {
                   size="sm"
                   variant="outline"
                   className="shrink-0 text-red-600 hover:bg-red-50 border-red-200"
-                  title="Rotate HMAC Secret"
+                  title={t('hris.webhookModal.rotateTooltip')}
                   onClick={() => webhookIntegration && handleRotateSecret(webhookIntegration._id)}
                   disabled={rotateSecretMut.isPending}
                 >
@@ -920,24 +957,26 @@ export function HRISIntegrations() {
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Include this HMAC signature in the <code className="bg-muted px-1 rounded">x-signature</code> header when sending webhook requests.
+                {t('hris.webhookModal.secretNote')}
               </p>
             </div>
 
             {/* Quick Setup Instructions */}
             <div className="p-3 bg-muted/20 border rounded-md space-y-1.5 text-[11px] text-muted-foreground">
-              <span className="font-semibold text-foreground block">Provider Setup Checklist:</span>
+              <span className="font-semibold text-foreground block">
+                {t('hris.webhookModal.checklistTitle')}
+              </span>
               <ul className="list-disc pl-4 space-y-0.5">
-                <li>Register the Target URL in your BambooHR/Workday Webhook subscriptions.</li>
-                <li>Subscribe to <code className="bg-muted px-1 rounded">employee.created</code>, <code className="bg-muted px-1 rounded">employee.updated</code>, and <code className="bg-muted px-1 rounded">employee.terminated</code> events.</li>
-                <li>Ensure HMAC-SHA256 signature is enabled using the provided secret.</li>
+                <li>{t('hris.webhookModal.checklistItem1')}</li>
+                <li>{t('hris.webhookModal.checklistItem2')}</li>
+                <li>{t('hris.webhookModal.checklistItem3')}</li>
               </ul>
             </div>
           </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button size="sm" onClick={() => setIsWebhookModalOpen(false)}>
-              Done
+              {t('hris.webhookModal.doneBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>

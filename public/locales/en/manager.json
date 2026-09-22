@@ -1,0 +1,102 @@
+{
+  "title": "Manager Operations & Team Oversight",
+  "subtitle": "Monitor direct reports, track onboarding progress, resolve overdue items, and sign off on completed programs.",
+  "refresh": "Refresh Data",
+  "refreshedToast": "Manager dashboard refreshed",
+  "metrics": {
+    "directReports": "Direct Reports",
+    "directReportsDesc": "Active team members under your supervision",
+    "activeOnboardings": "Active Onboardings",
+    "activeOnboardingsDesc": "Employees currently completing onboarding",
+    "teamCompletionRate": "Team Completion Rate",
+    "overdueItems": "Overdue Items",
+    "overdueItemsDesc": "Pending journeys or tasks past due date"
+  },
+  "quickActions": {
+    "milestoneApprovals": "Milestone Approvals",
+    "pendingCount": "{{count}} Pending",
+    "milestoneSubmitted": "{{count}} direct reports have submitted self check-ins awaiting your sign-off.",
+    "milestoneDesc": "Review 30-60-90 day check-ins, assess goal completion, and sign off ratings.",
+    "reviewMilestonesBtn": "Review Milestone Approvals",
+    "buddyMatching": "Buddy Matching",
+    "buddyDesc": "Assign and pair senior team mentors to new hires for peer guidance.",
+    "manageBuddyBtn": "Manage Buddy Matching",
+    "calendarSchedule": "Calendar 1-on-1 Schedule",
+    "calendarDesc": "Schedule recurring onboarding 1-on-1s and sync calendar milestones.",
+    "viewCalendarBtn": "View 1-on-1 Schedule"
+  },
+  "pendingAlert": {
+    "actionRequired_one": "Action Required: 1 Pending Milestone Evaluation",
+    "actionRequired_other": "Action Required: {{count}} Pending Milestone Evaluations",
+    "desc": "Direct reports have submitted self check-in reflections and are awaiting manager review and sign-off.",
+    "reviewAll": "Review All Milestones",
+    "day": "Day {{day}}",
+    "review": "Review",
+    "directReportFallback": "Direct Report"
+  },
+  "roster": {
+    "title": "Direct Reports Roster",
+    "subtitle": "Track individual progress, send reminders, and manage onboarding milestones.",
+    "searchPlaceholder": "Search direct reports...",
+    "loading": "Loading direct reports...",
+    "empty": "No direct reports found. Assign employees to your manager account in HR Settings.",
+    "defaultJobTitle": "Team Member",
+    "defaultDepartment": "General",
+    "columns": {
+      "employee": "Employee",
+      "deptRole": "Department & Role",
+      "journeyProgress": "Journey Progress",
+      "checklistTasks": "Checklist Tasks",
+      "status": "Status",
+      "actions": "Manager Actions"
+    },
+    "journeysDone": "{{completed}} / {{total}} Journeys Done",
+    "tasksCompleted": "{{completed}} / {{total}} Tasks Completed",
+    "overdueCount": "{{count}} Overdue",
+    "status": {
+      "overdue": "Overdue Items",
+      "completed": "Completed",
+      "onboarding": "Onboarding"
+    },
+    "actions": {
+      "viewDetails": "View Details",
+      "sendNudge": "Send Nudge",
+      "signOff": "Sign Off Onboarding"
+    },
+    "reportsLabel": "reports"
+  },
+  "nudgeModal": {
+    "title": "Send Manager Nudge",
+    "desc": "Send an instant in-app alert to encourage your direct report to complete their pending onboarding tasks.",
+    "customMessage": "Custom Message (Optional)",
+    "placeholder": "e.g. Hi! Just a quick reminder to complete your Compliance & Security training by Friday.",
+    "cancel": "Cancel",
+    "send": "Send Nudge Alert",
+    "sending": "Sending...",
+    "success": "Nudge sent successfully!",
+    "failed": "Failed to send nudge"
+  },
+  "signOffModal": {
+    "title": "Manager Onboarding Sign-Off",
+    "desc": "Formally approve and sign off on this employee's onboarding program.",
+    "notes": "Sign-Off Notes / Feedback",
+    "placeholder": "e.g. Employee completed all mandatory journeys and team orientation tasks with excellent performance.",
+    "cancel": "Cancel",
+    "approve": "Approve & Sign Off",
+    "processing": "Processing...",
+    "success": "Sign-off recorded successfully!",
+    "failed": "Failed to sign off"
+  },
+  "detailsDrawer": {
+    "title": "Direct Report Onboarding Details",
+    "loading": "Loading employee deep-dive data...",
+    "assignedJourneys": "Assigned Journeys ({{count}})",
+    "noJourneys": "No journeys assigned yet.",
+    "assignedOn": "Assigned on {{date}}",
+    "dueOn": "Due {{date}}",
+    "checklistTasks": "Checklist Tasks ({{count}})",
+    "noTasks": "No standalone checklist tasks assigned yet.",
+    "due": "Due: {{date}}",
+    "close": "Close"
+  }
+}

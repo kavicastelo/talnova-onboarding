@@ -11,9 +11,181 @@
   "readTime_other": "{{count}} min lukuaikaa",
   "noArticles": "Artikkeleita ei löytynyt.",
   "noResults": "Ei hakutuloksia haulle \"{{query}}\".",
+  "liveSlideshowMode": "Diaesitystila",
+  "reindexKnowledge": "Indeksoi uudelleen",
+  "indexing": "Indeksoidaan...",
+  "newArticle": "Uusi artikkeli",
+  "noArticlesFound": "Artikkeleita ei löytynyt",
+  "noArticlesDesc": "Kokeile muuttaa hakua tai valitse toinen kategoria.",
+  "noQuickLinks": "Ei pikalinkkejä saatavilla.",
+  "reader": {
+    "backToList": "Takaisin listaan",
+    "slideshowView": "Diaesitysnäkymä",
+    "edit": "Muokkaa",
+    "publish": "Julkaise",
+    "archive": "Arkistoi",
+    "delete": "Poista",
+    "read": "Lue"
+  },
+  "editor": {
+    "createTitle": "Luo uusi artikkeli",
+    "editTitle": "Muokkaa artikkelia",
+    "articleTitle": "Artikkelin otsikko",
+    "articleTitlePlaceholder": "esim. Toimintaperiaatteet",
+    "category": "Kategoria",
+    "tags": "Tunnisteet (pilkulla erotettuna)",
+    "tagsPlaceholder": "esim. käsikirja, oikeudellinen, käyttäytyminen",
+    "summary": "Lyhyt yhteenveto",
+    "summaryPlaceholder": "Lyhyt tiivistelmä tästä artikkelista...",
+    "content": "Sisältö (erota kappaleet kahdella rivinvaihdolla)",
+    "contentPlaceholder": "Kirjoita tiedot tähän...",
+    "cancel": "Peruuta",
+    "saveChanges": "Tallenna muutokset"
+  },
+  "tabs": {
+    "articles": "Artikkelit ja ohjeet",
+    "gaps": "Tietopuutteet",
+    "missingCount": "{{count}} puuttuu"
+  },
+  "gaps": {
+    "title": "Puuttuvat yritystietopyynnöt",
+    "subtitle": "Tiimin jäsenten kysymykset, joita ei voitu vahvistaa virallisista yrityksen asiakirjoista.",
+    "filterLabel": "Suodatin:",
+    "filters": {
+      "unresolved": "avoin",
+      "resolved": "ratkaistu",
+      "all": "kaikki"
+    },
+    "emptyTitle": "Tietopuutteita ei löytynyt",
+    "emptySubtitle": "Kaikki tekoälyavustajalle esitetyt kysymykset vastasivat hyväksyttyjä asiakirjoja tai aiemmat puutteet on ratkaistu.",
+    "occurrenceCount": "Kysytty {{count}}x",
+    "lastAsked": "Viimeksi kysytty: {{date}}",
+    "categoryLabel": "Kategoria: {{category}}",
+    "requestersCount": "Pyytäjät: {{count}} tiimiläistä",
+    "approvedQuickAnswer": "Hyväksytty pikavastaus:",
+    "quickAnswerBtn": "Pikavastaus",
+    "fullArticleBtn": "Koko artikkeli",
+    "dismissBtn": "Hylkää"
+  },
+  "error": {
+    "title": "Tietopankin lataaminen epäonnistui",
+    "message": "Taustajärjestelmän kanssa kommunikoitaessa tapahtui virhe.",
+    "retry": "Yritä uudelleen"
+  },
+  "quickAnswerModal": {
+    "title": "Anna pikavastaus",
+    "resolving": "Ratkaistaan: \"{{question}}\"",
+    "label": "Virallinen yrityksen vastaus",
+    "placeholder": "Anna virallinen käytäntö tai vastaus (esim. pukeutumiskoodi tai 20 päivän vuosiloma...)",
+    "helper": "Tämä vastaus indeksoidaan välittömästi tietokantaan, jotta tekoälyavustaja voi vastata tuleviin kysymyksiin tarkasti.",
+    "cancel": "Peruuta",
+    "publishing": "Julkaistaan ja indeksoidaan...",
+    "publishBtn": "Julkaise ja kouluta tekoälyä"
+  },
+  "quickLinkModal": {
+    "addTitle": "Lisää pikalinkki",
+    "editTitle": "Muokkaa pikalinkkiä",
+    "description": "Määritä sisäisiä työkaluja, tukisivuja tai hyödyllisiä linkkejä.",
+    "titleLabel": "Otsikko",
+    "titlePlaceholder": "esim. IT-tukipalvelu",
+    "urlLabel": "URL",
+    "urlPlaceholder": "https://...",
+    "iconStyle": "Kuvaketyyli",
+    "icons": {
+      "link": "Linkkikuvake",
+      "help": "Kysymys / Ohje",
+      "users": "Käyttäjät / Hakemisto",
+      "book": "Kirja / Kirjasto",
+      "globe": "Verkko / Maapallo"
+    },
+    "cancel": "Peruuta",
+    "save": "Tallenna linkki",
+    "addBtn": "Lisää"
+  },
+  "toasts": {
+    "titleRequired": "Otsikko vaaditaan",
+    "articleCreatedDraft": "Artikkeli luotu luonnoksena",
+    "articleUpdated": "Artikkeli päivitetty onnistuneesti",
+    "saveArticleFailed": "Artikkelin muutosten tallentaminen epäonnistui.",
+    "confirmDeleteArticle": "Haluatko varmasti poistaa tämän artikkelin?",
+    "articleDeleted": "Artikkeli poistettu onnistuneesti",
+    "deleteArticleFailed": "Artikkelin poistaminen epäonnistui.",
+    "articlePublished": "Artikkeli julkaistu onnistuneesti!",
+    "publishArticleFailed": "Artikkelin julkaiseminen epäonnistui.",
+    "articleArchived": "Artikkeli arkistoitu onnistuneesti.",
+    "archiveArticleFailed": "Artikkelin arkistointi epäonnistui.",
+    "qlTitleUrlRequired": "Otsikko ja URL vaaditaan",
+    "qlUpdated": "Pikalinkki päivitetty",
+    "qlAdded": "Pikalinkki lisätty",
+    "qlSaveFailed": "Pikalinkin tallentaminen epäonnistui",
+    "confirmDeleteQl": "Poistetaanko tämä pikalinkki?",
+    "qlDeleted": "Pikalinkki poistettu",
+    "qlDeleteFailed": "Pikalinkin poistaminen epäonnistui",
+    "articleSummaryGap": "Yrityksen käytäntö ja ohjeet koskien aihetta: {{question}}",
+    "quickAnswerPublished": "Pikavastaus julkaistu ja indeksoitu tekoälyavustajalle!",
+    "gapResolved": "Tietoaukko ratkaistu artikkelilla!",
+    "gapDismissed": "Tietoaukko hylätty"
+  },
   "slideshow": {
     "previous": "Edellinen",
     "next": "Seuraava",
-    "backToKb": "Takaisin tietopankkiin"
+    "backToKb": "Takaisin tietopankkiin",
+    "defaultSummary": "Sisäinen tietopankin resurssiopas",
+    "loading": "Valmistellaan esitysdioja...",
+    "emptyTitle": "Ei dioja saatavilla",
+    "emptySubtitle": "Tietopankissa ei ole julkaistuja artikkeleita esitysnäkymässä näytettäväksi.",
+    "displayBoard": "Talnova-digitaalitaulu",
+    "toggleFullscreen": "Koko näyttö päälle/pois",
+    "exitSlideshow": "Poistu diaesityksestä",
+    "prevSlide": "Edellinen dia",
+    "nextSlide": "Seuraava dia",
+    "holdActive": "PITO AKTIIVINEN",
+    "paused": "TAUTOITU",
+    "slideAsset": "Diasisältö",
+    "slideCounter": "Dia {{current}} / {{total}}",
+    "autoAdvance": "Automaattinen eteneminen {{seconds}}s välein • Silmukka aktiivinen",
+    "articleCounter": "Artikkeli {{current}} / {{total}}",
+    "toasts": {
+      "resumed": "Diaesitys JATKUU",
+      "held": "Diaesitys PIDETTY"
+    }
+  },
+  "assistant": {
+    "title": "Tekoälypohjainen perehdytysavustaja",
+    "subtitle": "Turvallinen tekoälyavustaja, joka vastaa perehdytyskysymyksiin yrityksen valtuutettujen tietopankkiartikkeleiden avulla.",
+    "newChat": "Uusi keskusteluketju",
+    "banner": {
+      "requiredLabel": "Tekoälyintegraatio vaaditaan: ",
+      "defaultReason": "Organisaatiosi ylläpitäjä ei ole vielä määrittänyt tekoälypalveluntarjoajaa.",
+      "configureBtn": "Määritä tekoälypalveluntarjoaja",
+      "contactAdmin": "Ota yhteyttä työtilan ylläpitäjään tekoälyominaisuuksien ottamiseksi käyttöön."
+    },
+    "sidebar": {
+      "title": "Keskusteluhistoria",
+      "empty": "Ei aiempia keskusteluja."
+    },
+    "emptyState": {
+      "title": "Kuinka voin auttaa perehdytyksessäsi tänään?",
+      "subtitle": "Kysy yrityksen käytännöistä, vaadituista asiakirjoista tai määritetyistä perehdytyspoluista.",
+      "prompts": {
+        "policies": "Mitä yrityksen käytäntöjä minun on luettava?",
+        "buddy": "Kuka on minulle nimetty perehdytyskummi?",
+        "tasks": "Miten suoritan odottavat tehtäväni?"
+      }
+    },
+    "messages": {
+      "gapNotice": "Tietopuute kirjattu. Työtilan ylläpitäjille on ilmoitettu tämän yrityskäytännön lisäämisestä.",
+      "sourceCitations": "Lähdeviittaukset:",
+      "synthesizing": "Muodostetaan vastausta yrityksen tiedoista..."
+    },
+    "input": {
+      "placeholderAvailable": "Kysy kysymys tekoälyavustajalta...",
+      "placeholderDisabled": "Kyselyjen lähettäminen vaatii tekoälyintegraation...",
+      "send": "Lähetä"
+    },
+    "feedbackSuccess": "Kiitos vastauksen arvioinnista!",
+    "errors": {
+      "generateFailed": "Tekoälyvastauksen luominen epäonnistui"
+    }
   }
 }

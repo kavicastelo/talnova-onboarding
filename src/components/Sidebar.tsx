@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { PanelLeft } from 'lucide-react';
 import { cn } from './utils';
 import { Slot } from './Slot';
@@ -426,12 +427,13 @@ SidebarMenuSubButton.displayName = 'SidebarMenuSubButton';
 export const SidebarRail = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
   ({ className, ...props }, ref) => {
     const { toggleSidebar } = useSidebar();
+    const { t } = useTranslation('common');
     return (
       <button
         ref={ref}
         type="button"
         data-slot="sidebar-rail"
-        aria-label="Toggle Sidebar"
+        aria-label={t('toggleSidebar', 'Toggle Sidebar')}
         tabIndex={-1}
         onClick={toggleSidebar}
         className={cn(

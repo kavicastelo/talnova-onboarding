@@ -1,0 +1,184 @@
+{
+  "title": "Workflow Automation Engine",
+  "subtitle": "Event-driven automation rules for auto-assigning journeys, provisioning tasks, and dispatching multi-channel alerts.",
+  "executionLogs": "Execution Logs",
+  "createRule": "Create Rule",
+  "tabs": {
+    "rules": "Active Workflow Rules",
+    "logs": "Audit Execution History"
+  },
+  "filters": {
+    "searchPlaceholder": "Search workflow rules...",
+    "allTriggers": "All Event Triggers",
+    "userCreated": "New User Created",
+    "journeyCompleted": "Journey Completed",
+    "taskCompleted": "Task Completed",
+    "stageEntered": "Stage Entered",
+    "checkinDue": "Compliance Checkin Due",
+    "milestoneCompleted": "Milestone Completed"
+  },
+  "triggers": {
+    "user_created": "New User Created",
+    "journey_completed": "Journey Completed",
+    "task_completed": "Task Completed",
+    "stage_entered": "Stage Entered",
+    "checkin_due": "Compliance Checkin Due",
+    "milestone_completed": "Milestone Completed"
+  },
+  "status": {
+    "success": "Success",
+    "partialFailure": "Partial Failure",
+    "pendingDelay": "Pending Delay",
+    "failed": "Failed",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "rulesList": {
+    "loading": "Loading workflow rules...",
+    "empty": "No workflow rules created yet. Automate onboarding actions by creating a rule.",
+    "emptyTitle": "No Workflow Rules Configured",
+    "emptyDesc": "Create automated workflow rules to auto-assign learning paths and operational tasks.",
+    "testRun": "Test Run",
+    "priority": "Priority: {{priority}}",
+    "conditions": "Conditions ({{count}})",
+    "actions": "Actions ({{count}})",
+    "rulesLabel": "rules",
+    "conditionsHeader": "Conditions:",
+    "conditionIf": "IF",
+    "actionsTriggered": "Actions Triggered:",
+    "updatedAt": "Updated {{date}}",
+    "deleteRuleTitle": "Delete Rule"
+  },
+  "logsList": {
+    "loading": "Loading execution logs...",
+    "empty": "No execution logs recorded yet.",
+    "timestamp": "Timestamp",
+    "rule": "Triggered Rule",
+    "user": "Target User",
+    "status": "Execution Status",
+    "logsLabel": "logs",
+    "headerTrigger": "Trigger Event",
+    "headerRule": "Workflow Rule",
+    "headerTarget": "Target Employee",
+    "headerStatus": "Status",
+    "headerSteps": "Steps Executed",
+    "headerExecutedAt": "Executed At",
+    "defaultRuleName": "Workflow Rule",
+    "stepsCount": "{{count}} steps"
+  },
+  "validation": {
+    "titleRequired": "Rule title is required.",
+    "actionRequired": "At least one action step is required.",
+    "journeyRequired": "Target template is required for journey assignment.",
+    "checklistRequired": "Target checklist template is required.",
+    "taskTitleRequired": "Task title is required for task creation.",
+    "failedSave": "Failed to save workflow rule."
+  },
+  "builderModal": {
+    "title": "Configure Automated Workflow Rule",
+    "desc": "Define trigger events, evaluation filters, and downstream action steps.",
+    "nameLabel": "Workflow Rule Title / Name *",
+    "namePlaceholder": "e.g. Auto Assign Eng Onboarding",
+    "descLabel": "Description",
+    "triggerLabel": "Event Trigger *",
+    "priorityLabel": "Priority (Higher runs first)",
+    "conditionsTitle": "IF Filter Conditions (Optional)",
+    "addCondition": "Add Condition",
+    "conditionFields": {
+      "department": "Department",
+      "role": "Role",
+      "jobTitle": "Job Title"
+    },
+    "conditionOperators": {
+      "equals": "Equals",
+      "notEquals": "Not Equals",
+      "contains": "Contains"
+    },
+    "conditionValuePlaceholder": "Value",
+    "removeCondition": "Remove Condition",
+    "actionsTitle": "THEN Actions Pipeline *",
+    "addAction": "Add Action Step",
+    "stepLabel": "Step {{number}}",
+    "removeAction": "Remove Action",
+    "actionTypes": {
+      "assignJourney": "Assign Onboarding Journey",
+      "assignChecklist": "Assign Checklist Template",
+      "createTask": "Create Operational Task",
+      "sendNotification": "Send Multi-Channel Notification",
+      "assignDocument": "Assign E-Signature Document Template",
+      "triggerBuddy": "Trigger Buddy Pairing",
+      "triggerWebhook": "Trigger Outbound Webhook",
+      "assignMilestone": "Assign Milestone Check-in Program"
+    },
+    "triggers": {
+      "user_created": "ON_USER_CREATED (New User Created / Hired)",
+      "journey_completed": "ON_JOURNEY_COMPLETED (Journey Completed)",
+      "task_completed": "ON_TASK_COMPLETED (Task Completed)",
+      "stage_entered": "ON_STAGE_ENTERED (Stage Entered)",
+      "milestone_completed": "ON_MILESTONE_COMPLETED (Milestone Check-in Completed)"
+    },
+    "milestoneTemplateLabel": "Milestone Template (Optional)",
+    "milestoneAutoDetect": "Auto-Detect by Target Day",
+    "milestoneDayOption": "Day {{day}} - {{title}}",
+    "targetDayLabel": "Target Day (e.g. 30, 60, 90, 180)",
+    "targetDayOption": "Day {{day}} Milestone",
+    "selectJourneyPlaceholder": "Select Journey Template",
+    "selectDocumentPlaceholder": "Select Document Template",
+    "buddyPlaceholder": "Auto-Select Available Buddy or Search...",
+    "buddySearchPlaceholder": "Search buddy by name, department...",
+    "buddyAutoOption": "Auto-Select Available Buddy in Organization",
+    "unnamedEmployee": "Unnamed",
+    "employeeRoleFallback": "Employee",
+    "webhookPlaceholder": "Webhook Target URL (e.g. https://api.hris.com/v1/webhook)",
+    "checklistTemplateLabel": "Checklist Template *",
+    "selectChecklistPlaceholder": "Select Checklist Template",
+    "checklistItemsCount": "({{count}} items)",
+    "taskTitlePlaceholder": "Task Title (e.g. IT Workstation Provisioning) *",
+    "taskDescPlaceholder": "Task Description / Instructions (Optional)",
+    "assignedRoleLabel": "Assigned To Role",
+    "roles": {
+      "employee": "New Hire (Employee)",
+      "manager": "Direct Manager",
+      "it_admin": "IT Administrator",
+      "hr_admin": "HR Administrator",
+      "buddy": "Assigned Buddy"
+    },
+    "categoryLabel": "Category",
+    "categories": {
+      "general": "General",
+      "it_setup": "IT Setup",
+      "equipment": "Hardware / Equipment",
+      "hr_paperwork": "HR Paperwork",
+      "training": "Training"
+    },
+    "stageLabel": "Stage",
+    "stages": {
+      "preboarding": "Pre-boarding",
+      "day_1": "Day 1",
+      "week_1": "Week 1",
+      "month_1": "Month 1",
+      "custom": "Custom"
+    },
+    "priorityLabelTask": "Priority",
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "dueInLabel": "Due In (Days from trigger)",
+    "cancel": "Cancel",
+    "save": "Save & Activate",
+    "saving": "Saving..."
+  },
+  "testRunModal": {
+    "title": "Trigger Workflow Test Run",
+    "desc": "Select a target employee to evaluate rule conditions and execute action steps for \"{{name}}\".",
+    "targetEmployeeLabel": "Target Employee *",
+    "targetEmployeePlaceholder": "Search & select target employee...",
+    "searchEmployeePlaceholder": "Search employee by name, email...",
+    "cancel": "Cancel",
+    "execute": "Execute Test Run",
+    "running": "Running..."
+  }
+}

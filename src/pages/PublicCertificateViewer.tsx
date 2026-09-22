@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { certificateService, PublicCertificate } from '../services/certificate.service';
 import { ShieldCheck, Linkedin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { CertificateRenderer } from '../components/certificates/CertificateRenderer';
 
 export function PublicCertificateViewer() {
+  const { t } = useTranslation(['journeys', 'common']);
   const { id } = useParams<{ id: string }>();
   const [cert, setCert] = useState<PublicCertificate | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,12 +23,12 @@ export function PublicCertificateViewer() {
         }
       })
       .catch((err) => {
-        setError(err?.response?.data?.message || err?.message || 'No certificates found');
+        setError(err?.response?.data?.message || err?.message || t('certificates.publicViewer.notFound', 'No certificates found'));
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [id]);
+  }, [id, t]);
 
   const handleShareLinkedIn = () => {
     const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`;
@@ -38,7 +40,7 @@ export function PublicCertificateViewer() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-center space-y-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground text-sm">Verifying digital credential...</p>
+          <p className="text-muted-foreground text-sm">{t('certificates.publicViewer.verifying', 'Verifying digital credential...')}</p>
         </div>
       </div>
     );
@@ -52,13 +54,15 @@ export function PublicCertificateViewer() {
             <AlertCircle className="h-8 w-8" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-bold tracking-tight text-rose-600 dark:text-rose-400">Invalid or Revoked Credential</h2>
+            <h2 className="text-xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
+              {t('certificates.publicViewer.invalidTitle', 'Invalid or Revoked Credential')}
+            </h2>
             <p className="text-muted-foreground text-sm">
-              The requested certificate could not be found, or it may have been revoked by the issuing organization.
+              {t('certificates.publicViewer.invalidDesc', 'The requested certificate could not be found, or it may have been revoked by the issuing organization.')}
             </p>
           </div>
           <Button asChild className="w-full">
-            <Link to="/login">Go to Talnova Onboarding</Link>
+            <Link to="/login">{t('certificates.publicViewer.goToOnboarding', 'Go to Talnova Onboarding')}</Link>
           </Button>
         </div>
       </div>
@@ -105,7 +109,7 @@ export function PublicCertificateViewer() {
         data-testid="verified-authentic-badge"
         className="flex items-center gap-2 mb-8 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded-full border border-green-500/20 text-xs font-semibold uppercase tracking-wider print-hide"
       >
-        <ShieldCheck className="h-4 w-4 text-green-500" /> Verified Authentic Credential
+        <ShieldCheck className="h-4 w-4 text-green-500" /> {t('certificates.publicViewer.verifiedAuthentic', 'Verified Authentic Credential')}
       </div>
 
       {/* Certificate Rendering Container */}
@@ -131,12 +135,14 @@ export function PublicCertificateViewer() {
       {/* Share / Actions bar */}
       <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-4xl justify-center items-center print-hide">
         <Button onClick={handleShareLinkedIn} className="gap-2 bg-[#0A66C2] hover:bg-[#004182] text-white">
-          <Linkedin className="h-4 w-4 fill-white" /> Share on LinkedIn
+          <Linkedin className="h-4 w-4 fill-white" /> {t('certificates.shareLinkedIn', 'Share on LinkedIn')}
         </Button>
         <Button variant="outline" onClick={() => window.print()} className="gap-2">
-          Share / Print Local Copy
+          {t('certificates.publicViewer.printLocalCopy', 'Share / Print Local Copy')}
         </Button>
       </div>
     </div>
   );
 }
+
+export default PublicCertificateViewer;

@@ -59,20 +59,55 @@ vi.mock('../components/CommandPalette', () => ({
   useCommandPaletteHotkey: () => undefined,
 }));
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const map: Record<string, string> = {
-        'items.dashboard': 'Dashboard',
-        'items.knowledgeBase': 'Knowledge Base',
-        'items.myLearning': 'Journey Templates',
-        'items.analytics': 'Analytics',
-        'items.settings': 'Settings',
-      };
-      return map[key] || key;
-    },
-  }),
-}));
+vi.mock('react-i18next', () => {
+  const navJson = {
+    "dashboard": "Dashboard",
+    "hrOps": "HR Operations",
+    "exceptionsWorkbench": "Exceptions Workbench",
+    "teamOps": "Team Operations",
+    "directory": "Employee Directory",
+    "buddy": "Buddy Program",
+    "myBuddy": "My Onboarding Buddy",
+    "buddySupport": "Buddy Support",
+    "milestones": "30/60/90 Milestones",
+    "milestonesGoals": "30/60/90 Goals",
+    "journeys": "Onboarding Journeys",
+    "myLearning": "Journey Templates",
+    "learningJourneys": "Learning Journeys",
+    "aiCourseBuilder": "AI Course Builder",
+    "knowledgeBase": "Knowledge Base",
+    "documents": "Digital Documents",
+    "requiredDocuments": "Required Documents",
+    "tasks": "Tasks & Checklists",
+    "checklistTasks": "Checklist Tasks",
+    "tasksVerification": "Tasks & Verification",
+    "itHardwareQueue": "IT Hardware Queue",
+    "calendar": "Calendar & Meetings",
+    "oneOnOneCalendar": "1-on-1 Calendar",
+    "scheduleMeetings": "Schedule & Meetings",
+    "kiosks": "Kiosk Terminals",
+    "analytics": "Analytics",
+    "teamAnalytics": "Team Analytics",
+    "workflows": "Workflows & Rules",
+    "officeMap": "Office Map",
+    "aiAssistant": "AI Assistant",
+    "leaderboard": "Leaderboard",
+    "settings": "Settings",
+    "sso": "SSO & Identity",
+    "hris": "HRIS Integrations",
+    "onboardingRoadmap": "Onboarding Roadmap",
+  };
+  const map: Record<string, string> = {};
+  Object.entries(navJson).forEach(([k, v]) => {
+    map[`items.${k}`] = v;
+  });
+
+  return {
+    useTranslation: () => ({
+      t: (key: string, defaultVal?: string) => map[key] || defaultVal || key,
+    }),
+  };
+});
 
 // Mock localStorage for test runtime
 const storageMap: Record<string, string> = { auth_token: 'mock_jwt_token' };

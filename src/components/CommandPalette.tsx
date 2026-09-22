@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useRole } from '../context/RoleContext';
 import { Capability } from '../utils/rbac';
 import { Role } from '../context/RoleContext';
@@ -488,6 +489,7 @@ const pages: PalettePage[] = [
 ];
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+  const { t } = useTranslation('common');
   const navigate = useNavigate();
   const { role, can, hasFeature } = useRole();
   const [searchQuery, setSearchQuery] = useState('');
@@ -577,7 +579,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden p-0 shadow-lg sm:max-w-xl max-h-[85vh] flex flex-col" showCloseButton={false}>
-        <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <DialogTitle className="sr-only">{t('commandPalette', 'Command palette')}</DialogTitle>
         <Command className="[&_[cmdk-input-wrapper]]:border-b flex-1 flex flex-col min-h-0">
           <CommandInput
             placeholder={

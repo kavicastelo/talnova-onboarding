@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../Card';
 import { Button } from '../Button';
 import { Badge } from '../Badge';
@@ -21,6 +22,7 @@ import { ApplyChecklistModal } from './ApplyChecklistModal';
 import { useRole } from '../../context/RoleContext';
 
 export const RoleChecklistManager: React.FC = () => {
+  const { t } = useTranslation(['tasks', 'common']);
   const { can } = useRole();
   const canManage = can('create_task_template') || can('manage_organization');
 
@@ -62,7 +64,7 @@ export const RoleChecklistManager: React.FC = () => {
   };
 
   const handleDelete = (tmpl: IRoleChecklistTemplate) => {
-    if (window.confirm(`Are you sure you want to archive "${tmpl.title}"?`)) {
+    if (window.confirm(t('checklistManager.confirmArchive', { title: tmpl.title, defaultValue: `Are you sure you want to archive "${tmpl.title}"?` }))) {
       deleteMutation.mutate(tmpl._id);
     }
   };
@@ -73,10 +75,10 @@ export const RoleChecklistManager: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold flex items-center gap-2">
-            <Layers className="h-5 w-5 text-indigo-600" /> Role-Based Checklist Templates
+            <Layers className="h-5 w-5 text-indigo-600" /> {t('checklistManager.title', { defaultValue: 'Role-Based Checklist Templates' })}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure automated onboarding task lists and default checklists with relative deadlines (now() + N days) tied to new hire roles.
+            {t('checklistManager.desc', { defaultValue: 'Configure automated onboarding task lists and default checklists with relative deadlines (now() + N days) tied to new hire roles.' })}
           </p>
         </div>
 
@@ -86,7 +88,7 @@ export const RoleChecklistManager: React.FC = () => {
             onClick={handleOpenCreate}
             className="gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
           >
-            <Plus className="h-4 w-4" /> New Checklist Template
+            <Plus className="h-4 w-4" /> {t('checklistManager.newTemplateBtn', { defaultValue: 'New Checklist Template' })}
           </Button>
         )}
       </div>
@@ -98,7 +100,7 @@ export const RoleChecklistManager: React.FC = () => {
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search templates, departments..."
+            placeholder={t('checklistManager.searchPlaceholder', { defaultValue: 'Search templates, departments...' })}
             className="pl-8 text-xs h-8"
           />
         </div>
@@ -114,7 +116,7 @@ export const RoleChecklistManager: React.FC = () => {
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground'
               }`}
             >
-              {r === 'all' ? 'All Roles' : r.replace('_', ' ')}
+              {r === 'all' ? t('checklistManager.allRoles', { defaultValue: 'All Roles' }) : r.replace('_', ' ')}
             </button>
           ))}
         </div>
@@ -122,19 +124,23 @@ export const RoleChecklistManager: React.FC = () => {
 
       {/* Template Cards Grid */}
       {isLoading ? (
-        <div className="p-12 text-center text-xs text-muted-foreground">Loading checklist templates...</div>
+        <div className="p-12 text-center text-xs text-muted-foreground">
+          {t('checklistManager.loading', { defaultValue: 'Loading checklist templates...' })}
+        </div>
       ) : filteredTemplates.length === 0 ? (
         <Card className="border-2 border-dashed p-10 text-center space-y-3">
           <Layers className="h-10 w-10 text-muted-foreground/40 mx-auto" />
           <div>
-            <h4 className="font-bold text-sm text-foreground">No Checklist Templates Found</h4>
+            <h4 className="font-bold text-sm text-foreground">
+              {t('checklistManager.emptyTitle', { defaultValue: 'No Checklist Templates Found' })}
+            </h4>
             <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              Create reusable checklists tailored to specific departments and roles to automate task provisioning for incoming hires.
+              {t('checklistManager.emptyDesc', { defaultValue: 'Create reusable checklists tailored to specific departments and roles to automate task provisioning for incoming hires.' })}
             </p>
           </div>
           {canManage && (
             <Button size="sm" onClick={handleOpenCreate} className="text-xs gap-1.5 bg-indigo-600 text-white">
-              <Plus className="h-4 w-4" /> Create First Template
+              <Plus className="h-4 w-4" /> {t('checklistManager.createFirstBtn', { defaultValue: 'Create First Template' })}
             </Button>
           )}
         </Card>
@@ -155,7 +161,7 @@ export const RoleChecklistManager: React.FC = () => {
                       variant="outline"
                       className="text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 shrink-0 gap-1"
                     >
-                      <Sparkles className="h-2.5 w-2.5" /> Auto-Assign
+                      <Sparkles className="h-2.5 w-2.5" /> {t('checklistManager.autoAssignBadge', { defaultValue: 'Auto-Assign' })}
                     </Badge>
                   )}
                 </div>
@@ -170,7 +176,7 @@ export const RoleChecklistManager: React.FC = () => {
                 {/* Audience Pills */}
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                    Target Audience:
+                    {t('checklistManager.targetAudience', { defaultValue: 'Target Audience:' })}
                   </span>
                   <div className="flex flex-wrap gap-1">
                     {(tmpl.audience?.roles || []).map((r) => (
@@ -191,11 +197,11 @@ export const RoleChecklistManager: React.FC = () => {
                   <div className="flex items-center justify-between text-muted-foreground text-[11px]">
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      <strong>{tmpl.items?.length || 0}</strong> checklist items
+                      {t('checklistManager.checklistItemsCount', { count: tmpl.items?.length || 0, defaultValue: `${tmpl.items?.length || 0} checklist items` })}
                     </span>
                     <span className="flex items-center gap-1 font-mono">
                       <Clock className="h-3 w-3 text-indigo-600" />
-                      0 - {Math.max(...(tmpl.items?.map((i) => i.relativeOffsetDays || 0) || [0]))}d span
+                      {t('checklistManager.daySpan', { days: Math.max(...(tmpl.items?.map((i) => i.relativeOffsetDays || 0) || [0])), defaultValue: `0 - ${Math.max(...(tmpl.items?.map((i) => i.relativeOffsetDays || 0) || [0]))}d span` })}
                     </span>
                   </div>
 
@@ -211,7 +217,7 @@ export const RoleChecklistManager: React.FC = () => {
                     ))}
                     {(tmpl.items?.length || 0) > 3 && (
                       <span className="text-[10px] text-muted-foreground italic block">
-                        + {(tmpl.items?.length || 0) - 3} more tasks
+                        {t('checklistManager.moreTasks', { count: (tmpl.items?.length || 0) - 3, defaultValue: `+ ${(tmpl.items?.length || 0) - 3} more tasks` })}
                       </span>
                     )}
                   </div>
@@ -226,7 +232,7 @@ export const RoleChecklistManager: React.FC = () => {
                   onClick={() => handleOpenApply(tmpl)}
                   className="text-xs h-7 gap-1 font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
                 >
-                  <UserCheck className="h-3 w-3" /> Apply
+                  <UserCheck className="h-3 w-3" /> {t('checklistManager.applyBtn', { defaultValue: 'Apply' })}
                 </Button>
 
                 {canManage && (
@@ -237,7 +243,7 @@ export const RoleChecklistManager: React.FC = () => {
                       onClick={() => handleOpenEdit(tmpl)}
                       className="text-xs h-7 gap-1 text-muted-foreground hover:text-foreground"
                     >
-                      <Edit2 className="h-3 w-3" /> Edit
+                      <Edit2 className="h-3 w-3" /> {t('checklistManager.editBtn', { defaultValue: 'Edit' })}
                     </Button>
                     <Button
                       variant="ghost"

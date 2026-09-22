@@ -54,14 +54,14 @@ export function Login() {
 
   const handleSSOInitiate = async () => {
     if (!email) {
-      toast.error('Please enter your work email address first');
+      toast.error(t('login.ssoEnterEmail'));
       return;
     }
     setSsoInitiating(true);
     try {
       const init = await ssoService.initiateSSO(email);
       const providerName = (ssoDiscovery?.provider || 'Enterprise').toUpperCase();
-      toast.success(`Redirecting to ${providerName} Single Sign-On...`);
+      toast.success(t('login.ssoRedirecting', { provider: providerName }));
       if (init.authUrl) {
         // In real browser or test flow, redirect or navigate
         setTimeout(() => {
@@ -69,7 +69,7 @@ export function Login() {
         }, 300);
       }
     } catch (err: any) {
-      toast.error(getErrorMessage(err) || 'Failed to initiate SSO login');
+      toast.error(getErrorMessage(err) || t('login.ssoFailed'));
     } finally {
       setSsoInitiating(false);
     }
@@ -151,7 +151,7 @@ export function Login() {
                   {t('login.emailLabel')}
                 </label>
                 {discoveringSSO && (
-                  <span className="text-[11px] text-indigo-400 animate-pulse">Checking SSO...</span>
+                  <span className="text-[11px] text-indigo-400 animate-pulse">{t('login.checkingSso')}</span>
                 )}
               </div>
               <div className="relative mt-1">
@@ -182,11 +182,11 @@ export function Login() {
                   </div>
                   <div className="space-y-1">
                     <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                      Single Sign-On Available
+                      {t('login.ssoAvailable')}
                       <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                     </h4>
                     <p className="text-xs text-gray-300 leading-relaxed">
-                      Click to sign in with your enterprise identity provider
+                      {t('login.ssoSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -202,13 +202,13 @@ export function Login() {
                   ) : (
                     <>
                       <KeyRound className="h-4 w-4" />
-                      Sign in with SSO
+                      {t('login.signInSso')}
                     </>
                   )}
                 </Button>
                 {ssoDiscovery.enforceSSO && (
                   <p className="text-[11px] text-amber-300/90 text-center font-medium">
-                    Corporate policy enforces mandatory SSO authentication for this domain.
+                    {t('login.ssoEnforced')}
                   </p>
                 )}
               </div>

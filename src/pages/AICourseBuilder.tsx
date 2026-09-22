@@ -38,8 +38,10 @@ import { useOrganizationCapabilities } from '../hooks/useOrganizationCapabilitie
 import { useRole } from '../context/RoleContext';
 import { AICourseDraftData } from '../services/ai-course.service';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function AICourseBuilder() {
+  const { t } = useTranslation('journeys');
   const navigate = useNavigate();
   const { role } = useRole();
   const isOrgAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
@@ -86,14 +88,14 @@ export function AICourseBuilder() {
       } else {
         setPrompt(`Document Policy: ${file.name.replace(/\.[^/.]+$/, '')}`);
       }
-      toast.success(`Attached document: ${file.name}`);
+      toast.success(t('aiBuilder.toasts.attachedDoc', { name: file.name, defaultValue: `Attached document: ${file.name}` }));
     };
     reader.readAsText(file);
   };
 
   const handleGenerate = () => {
     if (!prompt.trim()) {
-      toast.error('Please enter a course prompt or upload a policy document.');
+      toast.error(t('aiBuilder.toasts.promptRequired', { defaultValue: 'Please enter a course prompt or upload a policy document.' }));
       return;
     }
 
@@ -107,12 +109,12 @@ export function AICourseBuilder() {
       },
       {
         onSuccess: (newDraft) => {
-          toast.success(`AI generated course draft "${newDraft.title}"!`);
+          toast.success(t('aiBuilder.toasts.generatedSuccess', { title: newDraft.title, defaultValue: `AI generated course draft "${newDraft.title}"!` }));
           setActiveDraft(newDraft);
         },
         onError: (err: any) => {
           toast.error(
-            err?.response?.data?.message || err?.message || 'Failed to generate AI course draft'
+            err?.response?.data?.message || err?.message || t('aiBuilder.toasts.generateFailed', { defaultValue: 'Failed to generate AI course draft' })
           );
         },
       }
@@ -136,12 +138,12 @@ export function AICourseBuilder() {
       modules: updatedModules,
     });
     setEditingModuleIdx(null);
-    toast.success(`Module ${idx + 1} title updated to "${editingModuleTitle}"`);
+    toast.success(t('aiBuilder.toasts.moduleTitleUpdated', { index: idx + 1, title: editingModuleTitle, defaultValue: `Module ${idx + 1} title updated to "${editingModuleTitle}"` }));
   };
 
   const handleSaveToLMS = () => {
     if (!activeDraft) {
-      toast.error('No course draft available to save');
+      toast.error(t('aiBuilder.toasts.noDraftToSave', { defaultValue: 'No course draft available to save' }));
       return;
     }
 
@@ -199,11 +201,11 @@ export function AICourseBuilder() {
 
     saveCourseMutation.mutate(coursePayload, {
       onSuccess: () => {
-        toast.success('Course saved successfully');
+        toast.success(t('aiBuilder.toasts.courseSavedSuccess', { defaultValue: 'Course saved successfully' }));
         navigate('/journeys');
       },
       onError: (err: any) => {
-        toast.error(err?.response?.data?.message || err?.message || 'Failed to save course to LMS');
+        toast.error(err?.response?.data?.message || err?.message || t('aiBuilder.toasts.saveCourseFailed', { defaultValue: 'Failed to save course to LMS' }));
       },
     });
   };
@@ -211,11 +213,11 @@ export function AICourseBuilder() {
   const handlePublish = (draftId: string) => {
     publishDraftMutation.mutate(draftId, {
       onSuccess: () => {
-        toast.success('Course draft published to live Journeys!');
+        toast.success(t('aiBuilder.toasts.publishedSuccess', { defaultValue: 'Course draft published to live Journeys!' }));
         navigate('/journeys');
       },
       onError: () => {
-        toast.error('Failed to publish draft to journeys');
+        toast.error(t('aiBuilder.toasts.publishFailed', { defaultValue: 'Failed to publish draft to journeys' }));
       },
     });
   };
@@ -225,7 +227,7 @@ export function AICourseBuilder() {
       { draftId, moduleId },
       {
         onSuccess: () => {
-          toast.success('Module content regenerated with AI!');
+          toast.success(t('aiBuilder.toasts.moduleRegenerated', { defaultValue: 'Module content regenerated with AI!' }));
         },
       }
     );
@@ -234,7 +236,7 @@ export function AICourseBuilder() {
   const handleDeleteDraft = (draftId: string) => {
     deleteDraftMutation.mutate(draftId, {
       onSuccess: () => {
-        toast.success('Course draft deleted.');
+        toast.success(t('aiBuilder.toasts.draftDeleted', { defaultValue: 'Course draft deleted.' }));
         if (activeDraft?._id === draftId) {
           setActiveDraft(null);
         }
@@ -248,10 +250,10 @@ export function AICourseBuilder() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
           <Wand2 className="h-7 w-7 text-indigo-600" />
-          AI Course & Journey Builder
+          {t('aiBuilder.title', { defaultValue: 'AI Course & Journey Builder' })}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Generate full onboarding curriculum, lesson content, and quizzes grounded in company knowledge with 1-click human review approval.
+          {t('aiBuilder.subtitle', { defaultValue: 'Generate full onboarding curriculum, lesson content, and quizzes grounded in company knowledge with 1-click human review approval.' })}
         </p>
       </div>
 
@@ -260,9 +262,9 @@ export function AICourseBuilder() {
           <div className="flex items-center gap-3">
             <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
             <div>
-              <span className="font-semibold text-foreground">Course Synthesis Blocked: </span>
+              <span className="font-semibold text-foreground">{t('aiBuilder.banner.blockedLabel', { defaultValue: 'Course Synthesis Blocked: ' })}</span>
               <span className="text-muted-foreground">
-                {aiReason || 'An AI provider integration must be configured for your organization before courses can be synthesized.'}
+                {aiReason || t('aiBuilder.banner.defaultReason', { defaultValue: 'An AI provider integration must be configured for your organization before courses can be synthesized.' })}
               </span>
             </div>
           </div>
@@ -273,11 +275,11 @@ export function AICourseBuilder() {
               className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              Configure AI in Settings
+              {t('aiBuilder.banner.configureBtn', { defaultValue: 'Configure AI in Settings' })}
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground">
-              Please contact your administrator to configure an AI provider.
+              {t('aiBuilder.banner.contactAdmin', { defaultValue: 'Please contact your administrator to configure an AI provider.' })}
             </span>
           )}
         </div>
@@ -288,17 +290,17 @@ export function AICourseBuilder() {
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-indigo-600" />
-            AI Onboarding Curriculum Generator
+            {t('aiBuilder.generator.cardTitle', { defaultValue: 'AI Onboarding Curriculum Generator' })}
           </CardTitle>
           <CardDescription>
-            Enter a role, topic, or upload a policy document to synthesize a structured learning course.
+            {t('aiBuilder.generator.cardDesc', { defaultValue: 'Enter a role, topic, or upload a policy document to synthesize a structured learning course.' })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-xs font-semibold text-muted-foreground">
-                Onboarding Topic, Policy Document, or Prompt
+                {t('aiBuilder.generator.topicLabel', { defaultValue: 'Onboarding Topic, Policy Document, or Prompt' })}
               </label>
               <button
                 type="button"
@@ -306,7 +308,7 @@ export function AICourseBuilder() {
                 className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1 font-medium"
               >
                 <UploadCloud className="h-3.5 w-3.5" />
-                {uploadedFileName ? `Attached: ${uploadedFileName}` : 'Upload Policy File'}
+                {uploadedFileName ? t('aiBuilder.generator.attachedFile', { name: uploadedFileName, defaultValue: `Attached: ${uploadedFileName}` }) : t('aiBuilder.generator.uploadFile', { defaultValue: 'Upload Policy File' })}
               </button>
               <input
                 ref={fileInputRef}
@@ -319,7 +321,7 @@ export function AICourseBuilder() {
             </div>
             <Input
               data-testid="course-prompt-input"
-              placeholder="e.g. Enterprise Data Privacy & GDPR Guidelines for 2026"
+              placeholder={t('aiBuilder.generator.promptPlaceholder', { defaultValue: 'e.g. Enterprise Data Privacy & GDPR Guidelines for 2026' })}
               value={prompt}
               onChange={(e: any) => setPrompt(e.target.value)}
             />
@@ -327,48 +329,48 @@ export function AICourseBuilder() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Role</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('aiBuilder.generator.targetRole', { defaultValue: 'Target Role' })}</label>
               <Input
                 data-testid="target-role-input"
-                placeholder="e.g. All Employees"
+                placeholder={t('aiBuilder.generator.rolePlaceholder', { defaultValue: 'e.g. All Employees' })}
                 value={targetRole}
                 onChange={(e: any) => setTargetRole(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Department</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('aiBuilder.generator.department', { defaultValue: 'Department' })}</label>
               <Input
                 data-testid="department-input"
-                placeholder="e.g. Compliance"
+                placeholder={t('aiBuilder.generator.deptPlaceholder', { defaultValue: 'e.g. Compliance' })}
                 value={department}
                 onChange={(e: any) => setDepartment(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Course Level</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('aiBuilder.generator.courseLevel', { defaultValue: 'Course Level' })}</label>
               <select
                 data-testid="course-level-select"
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
                 className="w-full h-10 px-3 py-2 text-sm bg-background border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
+                <option value="Beginner">{t('aiBuilder.generator.levels.beginner', { defaultValue: 'Beginner' })}</option>
+                <option value="Intermediate">{t('aiBuilder.generator.levels.intermediate', { defaultValue: 'Intermediate' })}</option>
+                <option value="Advanced">{t('aiBuilder.generator.levels.advanced', { defaultValue: 'Advanced' })}</option>
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Modules</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">{t('aiBuilder.generator.modules', { defaultValue: 'Modules' })}</label>
               <select
                 data-testid="course-modules-select"
                 value={moduleCount}
                 onChange={(e) => setModuleCount(e.target.value)}
                 className="w-full h-10 px-3 py-2 text-sm bg-background border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="2">2 Modules</option>
-                <option value="3">3 Modules</option>
-                <option value="4">4 Modules</option>
-                <option value="5">5 Modules</option>
+                <option value="2">{t('aiBuilder.generator.moduleOption', { count: 2, defaultValue: '2 Modules' })}</option>
+                <option value="3">{t('aiBuilder.generator.moduleOption', { count: 3, defaultValue: '3 Modules' })}</option>
+                <option value="4">{t('aiBuilder.generator.moduleOption', { count: 4, defaultValue: '4 Modules' })}</option>
+                <option value="5">{t('aiBuilder.generator.moduleOption', { count: 5, defaultValue: '5 Modules' })}</option>
               </select>
             </div>
           </div>
@@ -381,15 +383,15 @@ export function AICourseBuilder() {
           >
             {!isAIAvailable ? (
               <>
-                <Wand2 className="h-4 w-4 mr-2" /> AI Configuration Required to Generate Course
+                <Wand2 className="h-4 w-4 mr-2" /> {t('aiBuilder.generator.btnBlocked', { defaultValue: 'AI Configuration Required to Generate Course' })}
               </>
             ) : generateCourseMutation.isPending ? (
               <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Synthesizing Course & Quizzes...
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> {t('aiBuilder.generator.btnSynthesizing', { defaultValue: 'Synthesizing Course & Quizzes...' })}
               </>
             ) : (
               <>
-                <Wand2 className="h-4 w-4 mr-2" /> Generate Course Draft
+                <Wand2 className="h-4 w-4 mr-2" /> {t('aiBuilder.generator.btnGenerate', { defaultValue: 'Generate Course Draft' })}
               </>
             )}
           </Button>
@@ -403,10 +405,10 @@ export function AICourseBuilder() {
             <div>
               <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                 <FileText className="h-5 w-5 text-indigo-600" />
-                Course Draft Preview & Editor
+                {t('aiBuilder.editor.title', { defaultValue: 'Course Draft Preview & Editor' })}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Review generated syllabus, edit module titles, and save the course directly to the LMS.
+                {t('aiBuilder.editor.subtitle', { defaultValue: 'Review generated syllabus, edit module titles, and save the course directly to the LMS.' })}
               </p>
             </div>
             <div className="flex gap-2">
@@ -418,11 +420,11 @@ export function AICourseBuilder() {
               >
                 {saveCourseMutation.isPending ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> Saving Course...
+                    <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> {t('aiBuilder.editor.savingToLMS', { defaultValue: 'Saving Course...' })}
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4 mr-1.5" /> Save Course to LMS
+                    <Save className="h-4 w-4 mr-1.5" /> {t('aiBuilder.editor.saveToLMS', { defaultValue: 'Save Course to LMS' })}
                   </>
                 )}
               </Button>
@@ -434,7 +436,7 @@ export function AICourseBuilder() {
                   onClick={() => handlePublish(activeDraft._id)}
                   disabled={publishDraftMutation.isPending}
                 >
-                  <CheckCircle className="h-4 w-4 mr-1.5" /> Approve & Publish
+                  <CheckCircle className="h-4 w-4 mr-1.5" /> {t('aiBuilder.editor.approveAndPublish', { defaultValue: 'Approve & Publish' })}
                 </Button>
               )}
             </div>
@@ -453,7 +455,7 @@ export function AICourseBuilder() {
                   variant="outline"
                   className="bg-indigo-500/10 text-indigo-700 border-indigo-500/30"
                 >
-                  {activeDraft.modules.length} Modules Generated
+                  {t('aiBuilder.editor.modulesGenerated', { count: activeDraft.modules.length, defaultValue: `${activeDraft.modules.length} Modules Generated` })}
                 </Badge>
               </div>
             </CardHeader>
@@ -483,13 +485,13 @@ export function AICourseBuilder() {
                             className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
                             onClick={() => handleSaveModuleTitle(mIdx)}
                           >
-                            <Check className="h-3.5 w-3.5 mr-1" /> Save
+                            <Check className="h-3.5 w-3.5 mr-1" /> {t('aiBuilder.editor.saveModuleTitle', { defaultValue: 'Save' })}
                           </Button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-                            Module {mIdx + 1}:
+                            {t('aiBuilder.editor.moduleIndex', { index: mIdx + 1, defaultValue: `Module ${mIdx + 1}:` })}
                           </span>
                           <h4
                             className="font-bold text-sm text-foreground"
@@ -502,7 +504,7 @@ export function AICourseBuilder() {
                             data-testid={`edit-module-btn-${mIdx + 1}`}
                             onClick={() => handleStartEditModule(mIdx, mod.title)}
                             className="text-muted-foreground hover:text-indigo-600 p-1"
-                            title="Edit Module Title"
+                            title={t('aiBuilder.editor.editModuleTitle', { defaultValue: 'Edit Module Title' })}
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
@@ -519,7 +521,7 @@ export function AICourseBuilder() {
                         onClick={() => handleRegenerateModule(activeDraft._id, mod.moduleId)}
                         disabled={regenerateModuleMutation.isPending}
                       >
-                        <RefreshCw className="h-3.5 w-3.5 mr-1" /> Regenerate
+                        <RefreshCw className="h-3.5 w-3.5 mr-1" /> {t('aiBuilder.editor.regenerateBtn', { defaultValue: 'Regenerate' })}
                       </Button>
                     )}
                   </div>
@@ -534,7 +536,7 @@ export function AICourseBuilder() {
                         <div className="flex items-center justify-between font-semibold">
                           <span className="flex items-center gap-1.5 text-foreground">
                             <BookOpen className="h-4 w-4 text-indigo-600" />
-                            {lesson.title} ({lesson.durationMinutes} mins)
+                            {lesson.title} ({t('aiBuilder.editor.minsDuration', { minutes: lesson.durationMinutes, defaultValue: `${lesson.durationMinutes} mins` })})
                           </span>
                         </div>
                         <p className="text-muted-foreground leading-relaxed">{lesson.content}</p>
@@ -546,7 +548,7 @@ export function AICourseBuilder() {
                             data-testid={`module-${mIdx + 1}-quiz`}
                           >
                             <div className="font-semibold text-amber-600 flex items-center gap-1">
-                              <HelpCircle className="h-3.5 w-3.5" /> Quiz Assessment ({lesson.quizQuestions.length} Questions):
+                              <HelpCircle className="h-3.5 w-3.5" /> {t('aiBuilder.editor.quizAssessment', { count: lesson.quizQuestions.length, defaultValue: `Quiz Assessment (${lesson.quizQuestions.length} Questions):` })}
                             </div>
                             {lesson.quizQuestions.map((q, qIdx) => (
                               <div
@@ -570,7 +572,7 @@ export function AICourseBuilder() {
                                       <span className="font-mono mr-1">
                                         {String.fromCharCode(65 + optIdx)}.
                                       </span>
-                                      {opt} {optIdx === q.correctOptionIndex && '✓ (Correct)'}
+                                      {opt} {optIdx === q.correctOptionIndex && ` ${t('aiBuilder.editor.correctOption', { defaultValue: '✓ (Correct)' })}`}
                                     </div>
                                   ))}
                                 </div>
@@ -592,7 +594,7 @@ export function AICourseBuilder() {
       <div className="space-y-4">
         <h2 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
           <Layers className="h-4 w-4 text-indigo-600" />
-          All Course Drafts Queue
+          {t('aiBuilder.queue.title', { defaultValue: 'All Course Drafts Queue' })}
         </h2>
 
         {isDraftsLoading ? (
@@ -602,7 +604,7 @@ export function AICourseBuilder() {
           </div>
         ) : (drafts || []).length === 0 ? (
           <Card className="p-6 text-center text-muted-foreground text-xs">
-            No previous course drafts found.
+            {t('aiBuilder.queue.empty', { defaultValue: 'No previous course drafts found.' })}
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -622,7 +624,7 @@ export function AICourseBuilder() {
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant="outline" className="text-[10px]">
-                        {draft.modules.length} Modules
+                        {t('aiBuilder.queue.modulesBadge', { count: draft.modules.length, defaultValue: `${draft.modules.length} Modules` })}
                       </Badge>
                       <Badge
                         variant="outline"

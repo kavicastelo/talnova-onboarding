@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useRole } from '../context/RoleContext';
 import { Capability } from '../utils/rbac';
 import { ShieldAlert, Sliders } from 'lucide-react';
@@ -38,6 +39,7 @@ export const FEATURE_TITLES: Record<string, string> = {
 export function ProtectedRoute({ capability, featureFlag, children }: ProtectedRouteProps) {
   const { can, hasFeature } = useRole();
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
 
   // 1. RBAC Capability Check
   if (capability && !can(capability)) {
@@ -46,16 +48,19 @@ export function ProtectedRoute({ capability, featureFlag, children }: ProtectedR
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 mb-4">
           <ShieldAlert className="h-8 w-8" />
         </div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Access Restricted</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">{t('accessRestricted', 'Access Restricted')}</h2>
         <p className="mt-2 max-w-md text-muted-foreground">
-          You do not have the required permissions to access this management area ({capability}). Please contact your organization administrator if you believe this is an error.
+          {t('accessRestrictedWithCap', {
+            capability,
+            defaultValue: `You do not have the required permissions to access this management area (${capability}). Please contact your organization administrator if you believe this is an error.`
+          })}
         </p>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={() => navigate(-1)}>
-            Go Back
+            {t('goBack', 'Go Back')}
           </Button>
           <Button onClick={() => navigate('/')}>
-            Return to Dashboard
+            {t('returnToDashboard', 'Return to Dashboard')}
           </Button>
         </div>
       </div>
@@ -70,16 +75,20 @@ export function ProtectedRoute({ capability, featureFlag, children }: ProtectedR
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 mb-4">
           <Sliders className="h-8 w-8" />
         </div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Feature Temporarily Unavailable</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">{t('featureDisabledTitle', 'Feature Temporarily Unavailable')}</h2>
         <p className="mt-2 max-w-md text-muted-foreground">
-          The feature <strong>{friendlyTitle}</strong> (<code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-xs">{featureFlag}</code>) is currently disabled by platform administration for your organization.
+          {t('featureDisabledDesc', {
+            title: friendlyTitle,
+            flag: featureFlag,
+            defaultValue: `The feature ${friendlyTitle} (${featureFlag}) is currently disabled by platform administration for your organization.`
+          })}
         </p>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={() => navigate(-1)}>
-            Go Back
+            {t('goBack', 'Go Back')}
           </Button>
           <Button onClick={() => navigate('/')}>
-            Return to Dashboard
+            {t('returnToDashboard', 'Return to Dashboard')}
           </Button>
         </div>
       </div>

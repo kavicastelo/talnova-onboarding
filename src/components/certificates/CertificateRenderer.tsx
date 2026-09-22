@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Award, ShieldCheck, CheckCircle2, Shield, QrCode } from 'lucide-react';
 
 export type CertificateTemplateId =
@@ -52,6 +53,7 @@ export function CertificateRenderer({
   qrCode = true,
   className = '',
 }: CertificateRendererProps) {
+  const { t } = useTranslation('documents');
   const normalizedTemplate: CertificateTemplateId =
     template === 'modern' ||
     template === 'minimalist' ||
@@ -114,7 +116,7 @@ export function CertificateRenderer({
   const renderQRCode = (qrClassName?: string) => (
     <div className={`p-2 rounded border shadow-xs flex flex-col items-center shrink-0 ${qrClassName || 'bg-white text-slate-900 border-slate-200'}`}>
       <QrCode className="h-10 w-10 sm:h-12 sm:w-12" />
-      <span className="text-[6px] font-mono tracking-widest uppercase mt-0.5 opacity-70">Verify</span>
+      <span className="text-[6px] font-mono tracking-widest uppercase mt-0.5 opacity-70">{t('certificates.verify', 'Verify')}</span>
     </div>
   );
 
@@ -135,7 +137,7 @@ export function CertificateRenderer({
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[8px] font-mono tracking-wider uppercase opacity-60">Verified Credential</span>
+        <span className="text-[8px] font-mono tracking-wider uppercase opacity-60">{t('certificates.verifiedCredential', 'Verified Credential')}</span>
         <img
           src="/assets/images/talnova-long-black.png"
           alt="Talnova"
@@ -149,12 +151,12 @@ export function CertificateRenderer({
   const renderFooter = (isDarkLocal: boolean) => (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[9px] font-mono pt-4 border-t border-current/15 items-end mt-4">
       <div className="text-center sm:text-left">
-        <p className="font-semibold uppercase tracking-wider opacity-60">ISSUED DATE</p>
+        <p className="font-semibold uppercase tracking-wider opacity-60">{t('certificates.issuedDate', 'ISSUED DATE')}</p>
         <p data-testid="issue-date" className="font-medium">{formattedDate}</p>
       </div>
 
       <div className="text-center">
-        <p className="font-semibold uppercase tracking-wider opacity-60">CREDENTIAL ID</p>
+        <p className="font-semibold uppercase tracking-wider opacity-60">{t('certificates.credentialId', 'CREDENTIAL ID')}</p>
         <p data-testid="credential-id" className="font-semibold tracking-wider">{shortId}</p>
       </div>
 
@@ -250,7 +252,7 @@ export function CertificateRenderer({
             <span className="text-[9px] font-mono tracking-widest text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full font-bold uppercase">
               Authenticated Credential
             </span>
-            <span className="text-[9px] font-mono opacity-50">SHA-256 Verified</span>
+            <span className="text-[9px] font-mono opacity-50">{t('certificates.sha256Verified', 'SHA-256 Verified')}</span>
           </div>
 
           <h1 className="text-lg sm:text-xl font-black tracking-tight uppercase">
@@ -258,7 +260,7 @@ export function CertificateRenderer({
           </h1>
 
           <div className="pt-1">
-            <p className="text-[11px] opacity-60 font-mono">AWARDED TO RECIPIENT:</p>
+            <p className="text-[11px] opacity-60 font-mono">{t('certificates.awardedTo', 'AWARDED TO RECIPIENT:')}</p>
             <h2 data-testid="recipient-name" className="text-2xl sm:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-cyan-500 to-emerald-500 mt-0.5">
               {recipientName || 'Employee Name'}
             </h2>
@@ -296,8 +298,8 @@ export function CertificateRenderer({
         {renderOrgHeader(isDark)}
 
         <div className="my-auto py-6 text-center space-y-3 font-sans">
-          <p className="text-[9px] font-mono tracking-widest uppercase opacity-50">Attestation of Knowledge</p>
-          <p className="text-xs font-light opacity-70">This certifies that</p>
+          <p className="text-[9px] font-mono tracking-widest uppercase opacity-50">{t('certificates.attestation', 'Attestation of Knowledge')}</p>
+          <p className="text-xs font-light opacity-70">{t('certificates.thisCertifies', 'This certifies that')}</p>
           <h2 data-testid="recipient-name" className="text-2xl sm:text-3xl font-light tracking-wide py-1 border-b border-current/20 inline-block px-8">
             {recipientName || 'Employee Name'}
           </h2>
@@ -351,7 +353,7 @@ export function CertificateRenderer({
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase">
             Diploma of Professional Mastery
           </h2>
-          <p className="text-xs italic opacity-80">Be it known that the candidate</p>
+          <p className="text-xs italic opacity-80">{t('certificates.beItKnown', 'Be it known that the candidate')}</p>
           <h3 data-testid="recipient-name" className="text-2xl sm:text-3xl font-extrabold tracking-wide text-amber-900 dark:text-amber-200">
             {recipientName || 'Employee Name'}
           </h3>
@@ -400,7 +402,7 @@ export function CertificateRenderer({
           <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase mt-2">
             Achievement Verified
           </h1>
-          <p className="text-xs opacity-75">Presented to</p>
+          <p className="text-xs opacity-75">{t('certificates.presentedTo', 'Presented to')}</p>
           <h2 data-testid="recipient-name" className="text-3xl sm:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-300 dark:via-purple-300 dark:to-pink-300">
             {recipientName || 'Employee Name'}
           </h2>
@@ -450,7 +452,7 @@ export function CertificateRenderer({
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white uppercase">
           Certificate of Executive Completion
         </h2>
-        <p className="text-xs text-slate-400">Awarded in distinction to</p>
+        <p className="text-xs text-slate-400">{t('certificates.awardedDistinction', 'Awarded in distinction to')}</p>
         <h3 data-testid="recipient-name" className="text-2xl sm:text-3xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300">
           {recipientName || 'Employee Name'}
         </h3>

@@ -23,6 +23,7 @@ import { Label } from '../Label';
 import { Badge } from '../Badge';
 import { SearchableSelect } from '../SearchableSelect';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface JourneyOverrideDrawerProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const JourneyOverrideDrawer: React.FC<JourneyOverrideDrawerProps> = ({
   journeys,
   onConfirmOverride,
 }) => {
+  const { t } = useTranslation('journeys');
   const [selectedJourneyId, setSelectedJourneyId] = useState('');
   const [reason, setReason] = useState('');
   const [grandfatherArtifacts, setGrandfatherArtifacts] = useState(true);
@@ -126,11 +128,11 @@ export const JourneyOverrideDrawer: React.FC<JourneyOverrideDrawerProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                 <div>
-                  <span className="text-muted-foreground block text-[11px]">Employee</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('override.employeeLabel', 'Employee')}</span>
                   <span className="font-semibold text-foreground text-sm">{assignment.employeeName}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[11px]">Active Journey</span>
+                  <span className="text-muted-foreground block text-[11px]">{t('override.activeJourney', 'Active Journey')}</span>
                   <span className="font-medium text-amber-600 dark:text-amber-400 text-sm flex items-center gap-1 mt-0.5">
                     <Compass className="h-3.5 w-3.5" />
                     {assignment.currentJourneyTitle}
@@ -154,7 +156,7 @@ export const JourneyOverrideDrawer: React.FC<JourneyOverrideDrawerProps> = ({
                   setSelectedJourneyId(val);
                   setValidationError('');
                 }}
-                placeholder="Search and choose journey template..."
+                placeholder={t('override.selectJourneyPlaceholder', 'Search and choose journey template...')}
                 searchPlaceholder="Search journey template title..."
               />
             </div>
@@ -200,7 +202,7 @@ export const JourneyOverrideDrawer: React.FC<JourneyOverrideDrawerProps> = ({
                   setReason(e.target.value);
                   setValidationError('');
                 }}
-                placeholder="e.g. Cross-department internal transfer to Engineering branch requiring customized technical roadmap and local statutory verification..."
+                placeholder={t('override.reasonPlaceholder', 'e.g. Cross-department internal transfer to Engineering branch requiring customized technical roadmap and local statutory verification...')}
                 className="w-full text-xs p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
               />
             </div>

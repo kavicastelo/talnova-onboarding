@@ -1,5 +1,6 @@
 import { apiClient } from '../api/client';
 import { toast } from 'sonner';
+import i18n from '../i18n';
 
 export interface OfflineQueueItem {
   id: string;
@@ -133,7 +134,7 @@ export const pwaService = {
     const token = localStorage.getItem('auth_token');
     if (!token) {
       console.warn('[PWA Sync] No auth token available. Re-authentication required before progress sync.');
-      toast.warning('Session expired. Please log in to synchronize your offline learning progress.');
+      toast.warning(i18n.t('common:pwa.sessionExpiredSync', 'Session expired. Please log in to synchronize your offline learning progress.'));
       return { syncedCount: 0, syncedLessonIds: [] };
     }
 

@@ -53,7 +53,7 @@ export function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('admin.title')}</h1>
           <p className="text-muted-foreground">
-            {t('admin.stats.totalEmployees')}
+            {t('admin.subtitle')}
           </p>
         </div>
 
@@ -114,10 +114,10 @@ export function AdminDashboard() {
     return (
       <div className="space-y-6 max-w-6xl mx-auto text-center p-12 border rounded-xl my-12">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Failed to Load Dashboard</h2>
-        <p className="text-muted-foreground">{(error as any)?.message || 'An error occurred while loading dashboard statistics.'}</p>
+        <h2 className="text-xl font-bold">{t('admin.error.title')}</h2>
+        <p className="text-muted-foreground">{(error as any)?.message || t('admin.error.defaultMessage')}</p>
         <Button onClick={() => refetch()} className="mx-auto mt-4">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('admin.error.retry')}
         </Button>
       </div>
     );
@@ -126,9 +126,9 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('admin.title')}</h1>
         <p className="text-muted-foreground">
-          Overview of your organization's learning progress.
+          {t('admin.subtitle')}
         </p>
       </div>
 
@@ -143,10 +143,10 @@ export function AdminDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold flex items-center justify-between">
-              <span>Invite New Hire</span>
+              <span>{t('admin.launchpad.inviteNewHire.title', { defaultValue: 'Invite New Hire' })}</span>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <p className="text-xs text-muted-foreground truncate">Add employee or bulk CSV</p>
+            <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.inviteNewHire.desc', { defaultValue: 'Add employee or bulk CSV' })}</p>
           </div>
         </Link>
 
@@ -161,10 +161,10 @@ export function AdminDashboard() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold flex items-center justify-between">
-                <span>Generate Course with AI</span>
+                <span>{t('admin.launchpad.aiBuilder.title', { defaultValue: 'Generate Course with AI' })}</span>
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
               </div>
-              <p className="text-xs text-muted-foreground truncate">AI Course Builder</p>
+              <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.aiBuilder.desc', { defaultValue: 'AI Course Builder' })}</p>
             </div>
           </Link>
         )}
@@ -178,10 +178,10 @@ export function AdminDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold flex items-center justify-between">
-              <span>Journey Templates</span>
+              <span>{t('admin.launchpad.journeyTemplates.title', { defaultValue: 'Journey Templates' })}</span>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <p className="text-xs text-muted-foreground truncate">Curricula & step builder</p>
+            <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.journeyTemplates.desc', { defaultValue: 'Curricula & step builder' })}</p>
           </div>
         </Link>
 
@@ -196,10 +196,10 @@ export function AdminDashboard() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold flex items-center justify-between">
-                <span>Pending Documents</span>
+                <span>{t('admin.launchpad.pendingDocuments.title', { defaultValue: 'Pending Documents' })}</span>
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
               </div>
-              <p className="text-xs text-muted-foreground truncate">Required documents & signatures</p>
+              <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.pendingDocuments.desc', { defaultValue: 'Required documents & signatures' })}</p>
             </div>
           </Link>
         )}
@@ -215,10 +215,10 @@ export function AdminDashboard() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold flex items-center justify-between">
-                <span>Kiosk Device Summary</span>
+                <span>{t('admin.launchpad.kioskDevices.title', { defaultValue: 'Kiosk Device Summary' })}</span>
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
               </div>
-              <p className="text-xs text-muted-foreground truncate">Terminal status & check-ins</p>
+              <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.kioskDevices.desc', { defaultValue: 'Terminal status & check-ins' })}</p>
             </div>
           </Link>
         )}
@@ -232,10 +232,10 @@ export function AdminDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold flex items-center justify-between">
-              <span>HR Operations</span>
+              <span>{t('admin.launchpad.hrOps.title', { defaultValue: 'HR Operations' })}</span>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <p className="text-xs text-muted-foreground truncate">Handovers & graduation</p>
+            <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.hrOps.desc', { defaultValue: 'Handovers & graduation' })}</p>
           </div>
         </Link>
 
@@ -248,10 +248,10 @@ export function AdminDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold flex items-center justify-between">
-              <span>Exceptions</span>
+              <span>{t('admin.launchpad.exceptions.title', { defaultValue: 'Exceptions' })}</span>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <p className="text-xs text-muted-foreground truncate">Quarantined cases & SLA</p>
+            <p className="text-xs text-muted-foreground truncate">{t('admin.launchpad.exceptions.desc', { defaultValue: 'Quarantined cases & SLA' })}</p>
           </div>
         </Link>
       </div>
@@ -318,7 +318,7 @@ export function AdminDashboard() {
             <ChartContainer
               config={{
                 completions: {
-                  label: 'Completions',
+                  label: t('admin.chart.completionsLabel'),
                   color: 'var(--primary)'
                 }
               }}
@@ -353,7 +353,7 @@ export function AdminDashboard() {
           <CardHeader>
             <CardTitle>{t('admin.recentActivity')}</CardTitle>
             <CardDescription>
-              {t('admin.recentActivity')}
+              {t('admin.recentActivityDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -388,7 +388,7 @@ export function AdminDashboard() {
                 pageSize={activityPagination.pageSize}
                 onPageChange={activityPagination.setPage}
                 onPageSizeChange={activityPagination.setPageSize}
-                itemLabel="activities"
+                itemLabel={t('admin.pagination.activities')}
               />
             </div>
           </CardContent>

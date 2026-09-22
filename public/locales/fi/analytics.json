@@ -1,0 +1,106 @@
+{
+  "title": "Yrityksen analytiikka ja perehdytyksen telemetria",
+  "subtitle": "Reaaliaikainen kohorttinopeus, perehdytyssuppilon keskeytysvaiheet ja osastokohtainen tuottavuuden kasvu.",
+  "exportCSV": "Vie CSV",
+  "scheduleReport": "Ajasta sähköpostiraportti",
+  "reportsBtn": "Raportit",
+  "filterDept": "Kaikki osastot",
+  "filterRange": {
+    "7d": "Viimeiset 7 päivää",
+    "30d": "Viimeiset 30 päivää",
+    "90d": "Viimeiset 90 päivää",
+    "all": "Koko ajalta"
+  },
+  "filters": {
+    "deptLabel": "Osasto:",
+    "rangeLabel": "Aikaväli:"
+  },
+  "toasts": {
+    "exportSuccess": "Vaatimustenmukaisuuden CSV-raportti viety onnistuneesti!",
+    "exportError": "CSV-raportin vienti epäonnistui",
+    "validationError": "Täytä raportin otsikko ja vastaanottajien sähköpostit.",
+    "reportCreated": "Ajastettu raportti luotu!",
+    "createReportError": "Ajastetun raportin luominen epäonnistui",
+    "reportDeleted": "Ajastettu raportti poistettu."
+  },
+  "kpis": {
+    "activeCohort": "Aktiivinen perehdytys",
+    "avgDays": "Keskimääräinen valmistumisaika",
+    "retention": "Pysyvyysaste",
+    "velocity": "Oppimisnopeusindeksi",
+    "milestoneCompletion": "Suppilon konversio",
+    "onTimeSla": "Virstanpylväiden SLA-aikataulussa pysyminen",
+    "filteredBy": "Suodatettu: {{department}}",
+    "acrossAll": "Kaikilta osastoilta",
+    "daysUnit": "{{count}} päivää",
+    "benchmarkNote": "Nopein: 6 pv • Alan vertailuarvo: 21 pv",
+    "retentionSub": "+2,4 % edelliseen kohorttiin verrattuna",
+    "productivitySub": "Päivä 90 täysi tuottavuus"
+  },
+  "milestonesCard": {
+    "title": "Virstanpylväiden ja koeajan SLA-suorituskyky (30/60/90/180 pv)",
+    "badge": "Reaaliaikainen operatiivinen SLA",
+    "desc": "Arviointien valmistumisasteet, tiimiläisten arviointijonot ja eskalointimittarit.",
+    "openConsole": "Avaa virstanpylväskonsoli →",
+    "totalMilestones": "Virstanpylväitä yhteensä",
+    "assignedCheckins": "Määritetyt tarkistukset",
+    "signOffRate": "Hyväksymisaste",
+    "approvedOfTotal": "{{completed}} / {{total}} hyväksytty",
+    "onTimeSla": "Aikataulussa pysyminen (SLA)",
+    "escalatedBreached": "{{count}} eskaloitu / ylitetty",
+    "pendingReviews": "Odottavat arvioinnit",
+    "awaitingSignoff": "Odottaa esihenkilön hyväksyntää"
+  },
+  "charts": {
+    "funnelTitle": "Perehdytyssuppilo ja keskeytysten telemetria",
+    "funnelDesc": "Keskeytysprosentti päivien 1–90 virstanpylväsvaiheissa.",
+    "funnelTooltip": "{{val}} % aktiivisena ({{count}} oppijaa, keskeytys: {{dropOff}} %)",
+    "completion": "Valmistuminen",
+    "productivityTitle": "Tuottavuuden kasvukäyrä",
+    "productivityDesc": "Mitattu nopeus ensimmäisestä perehdytyspäivästä täyteen työn itsenäisyyteen.",
+    "targetBadge": "Tavoite: 95 %",
+    "productiveTooltip": "{{val}} % tuottava",
+    "autonomy": "Itsenäisyys"
+  },
+  "bottlenecks": {
+    "title": "Moduulien ja testien pullonkaula-analyysi",
+    "desc": "Moduulit, joissa on alhaisimmat testien läpäisyasteet ja eniten keskeytyksiä.",
+    "noData": "Testien pullonkaulatietoja ei ole vielä tallennettu.",
+    "totalQuizAttempts": "Yhteensä {{count}} testiyritystä",
+    "passRate": "{{rate}} % läpäisyaste",
+    "avgScore": "Keskipistemäärä: {{score}} %",
+    "modulesLabel": "moduulia",
+    "difficultQuestions": "Haastavien testikysymysten analyysi",
+    "difficultQuestionsDesc": "Kysymykset, joissa on korkeimmat väärien vastausten määrät.",
+    "noQuestions": "Haastavia kysymyksiä ei ole vielä tallennettu.",
+    "totalAttempts": "Yhteensä {{count}} yritystä",
+    "incorrectRate": "{{rate}} % väärin",
+    "questionsLabel": "kysymystä"
+  },
+  "scheduledReports": {
+    "title": "Automaattiset ajastetut auditointiraportit",
+    "desc": "Säännölliset telemetriaviennit johdolle ja sidosryhmille.",
+    "createModalTitle": "Luo ajastettu telemetriaraportti",
+    "modalTitle": "Ajastetut vaatimustenmukaisuusraportit",
+    "modalDesc": "Automatisoi säännölliset sähköpostitse toimitettavat CSV-analytiikkaraportit.",
+    "titleLabel": "Raporttiaikataulun otsikko",
+    "titlePlaceholder": "esim. Viikoittainen johdon kooste",
+    "frequency": "Toimitustiheys",
+    "frequencies": {
+      "daily": "Päivittäin",
+      "weekly": "Viikoittain",
+      "monthly": "Kuukausittain"
+    },
+    "recipients": "Vastaanottajien sähköpostit (pilkulla eroteltuna)",
+    "recipientsLabel": "Vastaanottajat (pilkulla eroteltuna)",
+    "recipientsPlaceholder": "hr@company.com, exec@company.com",
+    "addBtn": "Lisää ajastettu raportti",
+    "activeSchedules": "Aktiiviset aikataulut",
+    "noSchedules": "Ei aktiivisia ajastettuja raportteja.",
+    "recipientsList": "{{frequency}} • Vastaanottajat: {{recipients}}",
+    "reportsLabel": "raporttia",
+    "cancel": "Peruuta",
+    "create": "Ajasta raportti",
+    "close": "Sulje"
+  }
+}

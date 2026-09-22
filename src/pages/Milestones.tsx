@@ -50,8 +50,10 @@ import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
 import { MilestoneEscalationLadder } from '../components/milestones/MilestoneEscalationLadder';
 import { AIReflectionSummaryCard } from '../components/milestones/AIReflectionSummaryCard';
+import { useTranslation } from 'react-i18next';
 
 export const Milestones: React.FC = () => {
+  const { t } = useTranslation(['milestones', 'common']);
   const { role, can } = useRole();
   const isAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
   const isManager = can('create_milestone') || can('assign_milestone');
@@ -118,20 +120,20 @@ export const Milestones: React.FC = () => {
 
   const handleConfirmAssign = () => {
     if (!assignTemplateId || !assignEmployeeId) {
-      toast.error('Please select both an employee and milestone template.');
+      toast.error(t('toasts.selectEmployeeAndTemplate', { defaultValue: 'Please select both an employee and milestone template.' }));
       return;
     }
     assignMilestoneMutation.mutate(
       { templateId: assignTemplateId, employeeId: assignEmployeeId },
       {
         onSuccess: () => {
-          toast.success('Milestone program successfully assigned to employee!');
+          toast.success(t('toasts.assignedSuccess', { defaultValue: 'Milestone program successfully assigned to employee!' }));
           setIsAssignModalOpen(false);
           refetchTeam();
           refetchMy();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign milestone');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedAssign', { defaultValue: 'Failed to assign milestone' }));
         }
       }
     );
@@ -187,13 +189,13 @@ export const Milestones: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success('Self-evaluation submitted successfully!');
+          toast.success(t('toasts.selfCheckinSuccess', { defaultValue: 'Self-evaluation submitted successfully!' }));
           setIsSelfCheckinOpen(false);
           setSelectedMilestone(null);
           refetchMy();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to submit check-in');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedSelfCheckin', { defaultValue: 'Failed to submit check-in' }));
         }
       }
     );
@@ -213,13 +215,13 @@ export const Milestones: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success('Manager review & rating submitted successfully!');
+          toast.success(t('toasts.managerReviewSuccess', { defaultValue: 'Manager review & rating submitted successfully!' }));
           setIsManagerReviewOpen(false);
           setSelectedMilestone(null);
           refetchTeam();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to submit review');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedManagerReview', { defaultValue: 'Failed to submit review' }));
         }
       }
     );
@@ -236,29 +238,29 @@ export const Milestones: React.FC = () => {
     setIsTemplateModalOpen(true);
   };
 
-  const handleOpenEditTemplate = (t: MilestoneTemplate) => {
-    setEditingTemplate(t);
-    setTemplateTitle(t.title || '');
-    setTemplateTargetDay(t.targetDay || 30);
-    setTemplateDescription(t.description || '');
+  const handleOpenEditTemplate = (tmpl: MilestoneTemplate) => {
+    setEditingTemplate(tmpl);
+    setTemplateTitle(tmpl.title || '');
+    setTemplateTargetDay(tmpl.targetDay || 30);
+    setTemplateDescription(tmpl.description || '');
     setTemplateGoals(
-      t.goals && t.goals.length > 0
-        ? t.goals.map((g) => ({ title: g.title || '', description: g.description || '' }))
+      tmpl.goals && tmpl.goals.length > 0
+        ? tmpl.goals.map((g) => ({ title: g.title || '', description: g.description || '' }))
         : [{ title: '', description: '' }]
     );
     setTemplateQuestions(
-      t.checkinQuestions && t.checkinQuestions.length > 0
-        ? t.checkinQuestions.map((q) => ({ question: q.question || '', type: q.type || 'text', required: q.required ?? true }))
+      tmpl.checkinQuestions && tmpl.checkinQuestions.length > 0
+        ? tmpl.checkinQuestions.map((q) => ({ question: q.question || '', type: q.type || 'text', required: q.required ?? true }))
         : [{ question: '', type: 'text', required: true }]
     );
-    setTemplateAutoAssign(t.audience?.autoAssignNewHires ?? true);
+    setTemplateAutoAssign(tmpl.audience?.autoAssignNewHires ?? true);
     setIsTemplateModalOpen(true);
   };
 
   const handleTemplateFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!templateTitle.trim()) {
-      toast.error('Template title cannot be empty.');
+      toast.error(t('toasts.titleRequired', { defaultValue: 'Template title cannot be empty.' }));
       return;
     }
 
@@ -286,39 +288,39 @@ export const Milestones: React.FC = () => {
         { id: editingTemplate._id, data: payload },
         {
           onSuccess: () => {
-            toast.success('Milestone template updated successfully!');
+            toast.success(t('toasts.templateUpdated', { defaultValue: 'Milestone template updated successfully!' }));
             setIsTemplateModalOpen(false);
             setEditingTemplate(null);
             refetchTemplates();
           },
           onError: (err: any) => {
-            toast.error(err?.response?.data?.message || err?.message || 'Failed to update template');
+            toast.error(err?.response?.data?.message || err?.message || t('toasts.failedUpdateTemplate', { defaultValue: 'Failed to update template' }));
           },
         }
       );
     } else {
       createTemplateMutation.mutate(payload, {
         onSuccess: () => {
-          toast.success('Milestone template created successfully!');
+          toast.success(t('toasts.templateCreated', { defaultValue: 'Milestone template created successfully!' }));
           setIsTemplateModalOpen(false);
           refetchTemplates();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to create template');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedCreateTemplate', { defaultValue: 'Failed to create template' }));
         },
       });
     }
   };
 
   const handleDeleteTemplate = (id: string, title: string) => {
-    if (window.confirm(`Are you sure you want to delete the template "${title}"?`)) {
+    if (window.confirm(t('toasts.confirmDelete', { title, defaultValue: `Are you sure you want to delete the template "${title}"?` }))) {
       deleteTemplateMutation.mutate(id, {
         onSuccess: () => {
-          toast.success('Milestone template deleted successfully!');
+          toast.success(t('toasts.templateDeleted', { defaultValue: 'Milestone template deleted successfully!' }));
           refetchTemplates();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to delete template');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedDeleteTemplate', { defaultValue: 'Failed to delete template' }));
         },
       });
     }
@@ -331,10 +333,10 @@ export const Milestones: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <CalendarCheck className="h-7 w-7 text-indigo-600" />
-            30 / 60 / 90-Day Milestones & Check-Ins
+            {t('title', { defaultValue: '30 / 60 / 90-Day Milestones & Check-Ins' })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Track early onboarding progression, conduct structured self-evaluations, and receive manager performance reviews.
+            {t('subtitle', { defaultValue: 'Track early onboarding progression, conduct structured self-evaluations, and receive manager performance reviews.' })}
           </p>
         </div>
         {canManageTemplates && (
@@ -346,7 +348,7 @@ export const Milestones: React.FC = () => {
               handleOpenCreateTemplate();
             }}
           >
-            <Plus className="h-4 w-4 mr-2" /> Create Milestone Template
+            <Plus className="h-4 w-4 mr-2" /> {t('createTemplate', { defaultValue: 'Create Milestone Template' })}
           </Button>
         )}
       </div>
@@ -356,33 +358,33 @@ export const Milestones: React.FC = () => {
         <Card className="border-l-4 border-l-sky-500 bg-sky-50/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-sky-700">
-              <Clock className="h-4 w-4" /> Day 30 — Fast-Start & Orientation
+              <Clock className="h-4 w-4" /> {t('programBanners.day30Title', { defaultValue: 'Day 30 — Fast-Start & Orientation' })}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Complete team introductions, initial IT setup, security training, and first learning journey.
+            {t('programBanners.day30Desc', { defaultValue: 'Complete team introductions, initial IT setup, security training, and first learning journey.' })}
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-indigo-500 bg-indigo-50/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-indigo-700">
-              <Award className="h-4 w-4" /> Day 60 — Execution & Autonomy
+              <Award className="h-4 w-4" /> {t('programBanners.day60Title', { defaultValue: 'Day 60 — Execution & Autonomy' })}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Deliver independent project contributions, shadow senior mentors, and master core workflow tools.
+            {t('programBanners.day60Desc', { defaultValue: 'Deliver independent project contributions, shadow senior mentors, and master core workflow tools.' })}
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-emerald-500 bg-emerald-50/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-emerald-700">
-              <CheckCircle2 className="h-4 w-4" /> Day 90 — Full Integration & Graduation
+              <CheckCircle2 className="h-4 w-4" /> {t('programBanners.day90Title', { defaultValue: 'Day 90 — Full Integration & Graduation' })}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Achieve full operational productivity, conduct comprehensive probation review, and set quarterly goals.
+            {t('programBanners.day90Desc', { defaultValue: 'Achieve full operational productivity, conduct comprehensive probation review, and set quarterly goals.' })}
           </CardContent>
         </Card>
       </div>
@@ -397,7 +399,7 @@ export const Milestones: React.FC = () => {
           }`}
           onClick={() => setActiveTab('my')}
         >
-          <CalendarCheck className="h-4 w-4" /> My Milestones ({myMilestones?.length || 0})
+          <CalendarCheck className="h-4 w-4" /> {t('tabs.my', { defaultValue: 'My Milestones' })} ({myMilestones?.length || 0})
         </button>
         {isManager && (
           <button
@@ -409,7 +411,7 @@ export const Milestones: React.FC = () => {
             }`}
             onClick={() => setActiveTab('team')}
           >
-            <UserCheck className="h-4 w-4" /> Team Milestone Reviews ({teamMilestones?.length || 0})
+            <UserCheck className="h-4 w-4" /> {t('tabs.team', { defaultValue: 'Team Check-In Reviews' })} ({teamMilestones?.length || 0})
           </button>
         )}
         {canManageTemplates && (
@@ -422,7 +424,7 @@ export const Milestones: React.FC = () => {
             }`}
             onClick={() => setActiveTab('templates')}
           >
-            <Building2 className="h-4 w-4" /> Milestone Templates ({templates?.length || 0})
+            <Building2 className="h-4 w-4" /> {t('tabs.templates', { defaultValue: 'Milestone Templates' })} ({templates?.length || 0})
           </button>
         )}
       </div>
@@ -431,10 +433,10 @@ export const Milestones: React.FC = () => {
       {activeTab === 'my' && (
         <div className="space-y-6">
           {myLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading your milestones...</div>
+            <div className="p-8 text-center text-muted-foreground">{t('myMilestones.loading', { defaultValue: 'Loading your milestones...' })}</div>
           ) : (myMilestones || []).length === 0 ? (
             <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-              No 30/60/90-day milestones assigned yet. Automatic schedule will calculate upon onboarding initiation.
+              {t('myMilestones.empty', { defaultValue: 'No 30/60/90-day milestones assigned yet. Automatic schedule will calculate upon onboarding initiation.' })}
             </div>
           ) : (
             <div className="space-y-6">
@@ -450,12 +452,12 @@ export const Milestones: React.FC = () => {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                           <div className="flex items-center gap-3">
                             <Badge className="bg-indigo-600 text-white font-bold px-3 py-1 text-sm">
-                              Day {m.targetDay}
+                              {t('myMilestones.dayBadge', { day: m.targetDay, defaultValue: `Day ${m.targetDay}` })}
                             </Badge>
                             <div>
                               <CardTitle className="text-base font-semibold">{m.milestoneTitle}</CardTitle>
                               <CardDescription className="text-xs">
-                                Target Due Date: {new Date(m.dueDate).toLocaleDateString()}
+                                {t('myMilestones.targetDueDate', { date: new Date(m.dueDate).toLocaleDateString(), defaultValue: `Target Due Date: ${new Date(m.dueDate).toLocaleDateString()}` })}
                               </CardDescription>
                             </div>
                           </div>
@@ -463,22 +465,22 @@ export const Milestones: React.FC = () => {
                           <div>
                             {(m.status === 'completed' || m.status === 'approved') && (
                               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Milestone Completed & Approved
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t('myMilestones.completedApproved', { defaultValue: 'Milestone Completed & Approved' })}
                               </Badge>
                             )}
                             {(m.status === 'in_review' || m.status === 'pending_manager_review') && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                                <Clock className="h-3.5 w-3.5 mr-1" /> Submitted — Awaiting Manager Sign-off
+                                <Clock className="h-3.5 w-3.5 mr-1" /> {t('myMilestones.submittedAwaiting', { defaultValue: 'Submitted — Awaiting Manager Sign-off' })}
                               </Badge>
                             )}
                             {m.status === 'revision_requested' && (
                               <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                                Revision Requested
+                                {t('myMilestones.revisionRequested', { defaultValue: 'Revision Requested' })}
                               </Badge>
                             )}
                             {m.status === 'pending' && (
                               <Badge variant="outline" className="bg-slate-500/10 text-slate-600 border-slate-500/20">
-                                In Progress
+                                {t('myMilestones.inProgress', { defaultValue: 'In Progress' })}
                               </Badge>
                             )}
                           </div>
@@ -489,9 +491,9 @@ export const Milestones: React.FC = () => {
                         {/* Progress Bar */}
                         <div className="space-y-2">
                           <div className="flex justify-between text-xs font-semibold">
-                            <span>Milestone Goals Progress</span>
+                            <span>{t('myMilestones.goalsProgress', { defaultValue: 'Milestone Goals Progress' })}</span>
                             <span>
-                              {completedGoalsCount} of {totalGoalsCount} Goals ({progressPct}%)
+                              {t('myMilestones.goalsProgressCount', { completed: completedGoalsCount, total: totalGoalsCount, pct: progressPct, defaultValue: `${completedGoalsCount} of ${totalGoalsCount} Goals (${progressPct}%)` })}
                             </span>
                           </div>
                           <Progress value={progressPct} className="h-2" />
@@ -499,7 +501,7 @@ export const Milestones: React.FC = () => {
 
                         {/* Goals List */}
                         <div className="space-y-2">
-                          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Key Objectives & Goals</h4>
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase">{t('myMilestones.keyObjectives', { defaultValue: 'Key Objectives & Goals' })}</h4>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {m.goalsProgress?.map((g, idx) => (
                               <div key={idx} className="p-2.5 border rounded-md text-xs flex items-center justify-between bg-card">
@@ -518,7 +520,7 @@ export const Milestones: React.FC = () => {
                         {(m.managerFeedback || m.managerReview?.feedback) && (
                           <div className="p-4 border rounded-lg bg-indigo-50/20 text-xs space-y-1">
                             <span className="font-semibold text-indigo-700 flex items-center gap-1">
-                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Manager Feedback (Rating: {m.managerRating || m.managerReview?.performanceRating || 5}/5):
+                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> {t('myMilestones.managerFeedbackRating', { rating: m.managerRating || m.managerReview?.performanceRating || 5, defaultValue: `Manager Feedback (Rating: ${m.managerRating || m.managerReview?.performanceRating || 5}/5):` })}
                             </span>
                             <p className="text-slate-700 italic">"{m.managerFeedback || m.managerReview?.feedback}"</p>
                           </div>
@@ -536,7 +538,7 @@ export const Milestones: React.FC = () => {
                                 setIsSelfCheckinOpen(true);
                               }}
                             >
-                              Submit Self-Evaluation
+                              {t('myMilestones.submitSelfEvaluation', { defaultValue: 'Submit Self-Evaluation' })}
                             </Button>
                           </div>
                         )}
@@ -555,7 +557,7 @@ export const Milestones: React.FC = () => {
                 pageSize={myPagination.pageSize}
                 onPageChange={myPagination.setPage}
                 onPageSizeChange={myPagination.setPageSize}
-                itemLabel="milestones"
+                itemLabel={t('myMilestones.paginationLabel', { defaultValue: 'milestones' })}
               />
             </div>
           )}
@@ -568,15 +570,19 @@ export const Milestones: React.FC = () => {
           <CardHeader className="pb-3 border-b space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-base font-semibold">Direct Report 30/60/90 Check-Ins</CardTitle>
-                <CardDescription>Review self-assessments, track SLAs, and approve onboarding milestones for team members.</CardDescription>
+                <CardTitle className="text-base font-semibold">
+                  {t('teamMilestones.cardTitle', { defaultValue: 'Direct Report 30/60/90 Check-Ins' })}
+                </CardTitle>
+                <CardDescription>
+                  {t('teamMilestones.cardDesc', { defaultValue: 'Review self-assessments, track SLAs, and approve onboarding milestones for team members.' })}
+                </CardDescription>
               </div>
               <Button
                 id="assign-milestone-team-btn"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 text-xs h-9 gap-1.5"
                 onClick={() => handleOpenAssignModal()}
               >
-                <UserPlus className="h-4 w-4" /> Assign Milestone Program
+                <UserPlus className="h-4 w-4" /> {t('teamMilestones.assignProgramBtn', { defaultValue: 'Assign Milestone Program' })}
               </Button>
             </div>
 
@@ -584,11 +590,11 @@ export const Milestones: React.FC = () => {
             <div className="pt-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  { id: 'all', label: 'All Reviews', count: (teamMilestones || []).length },
-                  { id: 'awaiting_review', label: 'Awaiting Sign-off', count: (teamMilestones || []).filter((m) => m.status === 'in_review' || m.status === 'pending_manager_review').length },
-                  { id: 'pending_checkin', label: 'Pending Check-in', count: (teamMilestones || []).filter((m) => m.status === 'pending' || !m.status).length },
-                  { id: 'approved', label: 'Approved', count: (teamMilestones || []).filter((m) => m.status === 'completed' || m.status === 'approved').length },
-                  { id: 'overdue', label: 'Overdue / Escalated', count: (teamMilestones || []).filter((m) => (m.dueDate && new Date(m.dueDate).getTime() < Date.now() && m.status !== 'completed' && m.status !== 'approved') || m.sla?.escalationState === 'escalated').length },
+                  { id: 'all', label: t('teamMilestones.filterAll', { defaultValue: 'All Reviews' }), count: (teamMilestones || []).length },
+                  { id: 'awaiting_review', label: t('teamMilestones.filterAwaiting', { defaultValue: 'Awaiting Sign-off' }), count: (teamMilestones || []).filter((m) => m.status === 'in_review' || m.status === 'pending_manager_review').length },
+                  { id: 'pending_checkin', label: t('teamMilestones.filterPending', { defaultValue: 'Pending Check-in' }), count: (teamMilestones || []).filter((m) => m.status === 'pending' || !m.status).length },
+                  { id: 'approved', label: t('teamMilestones.filterApproved', { defaultValue: 'Approved' }), count: (teamMilestones || []).filter((m) => m.status === 'completed' || m.status === 'approved').length },
+                  { id: 'overdue', label: t('teamMilestones.filterOverdue', { defaultValue: 'Overdue / Escalated' }), count: (teamMilestones || []).filter((m) => (m.dueDate && new Date(m.dueDate).getTime() < Date.now() && m.status !== 'completed' && m.status !== 'approved') || m.sla?.escalationState === 'escalated').length },
                 ].map((chip) => (
                   <button
                     key={chip.id}
@@ -613,7 +619,7 @@ export const Milestones: React.FC = () => {
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search team member or title..."
+                  placeholder={t('teamMilestones.searchPlaceholder', { defaultValue: 'Search team member or title...' })}
                   value={teamSearchQuery}
                   onChange={(e) => setTeamSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -623,16 +629,20 @@ export const Milestones: React.FC = () => {
           </CardHeader>
           <CardContent className="p-0">
             {teamLoading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading team milestones...</div>
+              <div className="p-8 text-center text-muted-foreground">
+                {t('teamMilestones.loading', { defaultValue: 'Loading team milestones...' })}
+              </div>
             ) : (teamMilestones || []).length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No direct report milestones requiring review.</div>
+              <div className="p-8 text-center text-muted-foreground">
+                {t('teamMilestones.empty', { defaultValue: 'No direct report milestones requiring review.' })}
+              </div>
             ) : (
               <div>
                 <div className="divide-y">
                   {teamPagination.paginatedData.map((m) => {
                     const empName = m.employeeId?.profile
                       ? `${m.employeeId.profile.firstName || ''} ${m.employeeId.profile.lastName || ''}`
-                      : 'Direct Report';
+                      : t('teamMilestones.directReportFallback', { defaultValue: 'Direct Report' });
                     const mid = m.milestoneCode || m._id;
 
                     return (
@@ -646,16 +656,16 @@ export const Milestones: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <h4 className="font-semibold text-sm">{empName}</h4>
                               <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
-                                Day {m.targetDay}
+                                {t('myMilestones.dayBadge', { day: m.targetDay, defaultValue: 'Day {{day}}' })}
                               </Badge>
                               {m.sla?.autoApprovalEligible && (
                                 <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
-                                  Auto-Approval Eligible
+                                  {t('teamMilestones.autoApprovalEligible', { defaultValue: 'Auto-Approval Eligible' })}
                                 </Badge>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              {m.milestoneTitle} | Target Due: {new Date(m.dueDate).toLocaleDateString()}
+                              {m.milestoneTitle} | {t('teamMilestones.targetDue', { date: new Date(m.dueDate).toLocaleDateString(), defaultValue: 'Target Due: {{date}}' })}
                             </p>
                           </div>
 
@@ -666,11 +676,11 @@ export const Milestones: React.FC = () => {
                                 variant="outline"
                                 className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium flex items-center gap-1"
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Approved (Rating: {m.managerRating || m.managerReview?.performanceRating || 5}/5)
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> {t('teamMilestones.approvedWithRating', { rating: m.managerRating || m.managerReview?.performanceRating || 5, defaultValue: 'Approved (Rating: {{rating}}/5)' })}
                               </Badge>
                             ) : m.status === 'revision_requested' ? (
                               <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                                Revision Requested
+                                {t('teamMilestones.revisionRequested', { defaultValue: 'Revision Requested' })}
                               </Badge>
                             ) : m.status === 'in_review' || m.status === 'pending_manager_review' ? (
                               <Button
@@ -688,11 +698,11 @@ export const Milestones: React.FC = () => {
                                   setIsManagerReviewOpen(true);
                                 }}
                               >
-                                <UserCheck className="h-3.5 w-3.5" /> Review Milestone
+                                <UserCheck className="h-3.5 w-3.5" /> {t('teamMilestones.reviewMilestoneBtn', { defaultValue: 'Review Milestone' })}
                               </Button>
                             ) : (
                               <Badge variant="outline" className="text-muted-foreground">
-                                Self Check-in Pending
+                                {t('teamMilestones.selfCheckinPending', { defaultValue: 'Self Check-in Pending' })}
                               </Badge>
                             )}
                           </div>
@@ -712,7 +722,7 @@ export const Milestones: React.FC = () => {
                                   setApprovalStatus('approved');
                                   const feedbackText = typeof m.aiSummary === 'string'
                                     ? m.aiSummary
-                                    : m.aiSummary?.summary || 'Approved via 1-click evaluation';
+                                    : m.aiSummary?.summary || t('aiReflection.quickApproveFeedback', { defaultValue: 'Approved via 1-click evaluation' });
                                   setManagerFeedback(feedbackText);
                                   setIsManagerReviewOpen(true);
                                 }}
@@ -735,7 +745,7 @@ export const Milestones: React.FC = () => {
                     pageSize={teamPagination.pageSize}
                     onPageChange={teamPagination.setPage}
                     onPageSizeChange={teamPagination.setPageSize}
-                    itemLabel="milestones"
+                    itemLabel={t('teamMilestones.paginationLabel', { defaultValue: 'milestones' })}
                   />
                 </div>
               </div>
@@ -751,10 +761,10 @@ export const Milestones: React.FC = () => {
             <div>
               <h3 className="font-semibold text-foreground flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-indigo-600" />
-                Company Milestone Programs & Check-in Templates
+                {t('templatesTab.bannerTitle', { defaultValue: 'Company Milestone Programs & Check-in Templates' })}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Define standard 30, 60, 90, or 180-day expectations, objectives, and reflection questionnaires for new hires.
+                {t('templatesTab.bannerDesc', { defaultValue: 'Define standard 30, 60, 90, or 180-day expectations, objectives, and reflection questionnaires for new hires.' })}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -764,79 +774,83 @@ export const Milestones: React.FC = () => {
                 className="text-xs h-9 gap-1.5"
                 onClick={() => handleOpenAssignModal()}
               >
-                <UserPlus className="h-4 w-4" /> Assign to Employee
+                <UserPlus className="h-4 w-4" /> {t('templatesTab.assignToEmployee', { defaultValue: 'Assign to Employee' })}
               </Button>
               <Button
                 id="create-milestone-template-btn"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 text-xs h-9"
                 onClick={handleOpenCreateTemplate}
               >
-                <Plus className="h-4 w-4 mr-1.5" /> Create Template
+                <Plus className="h-4 w-4 mr-1.5" /> {t('templatesTab.createTemplate', { defaultValue: 'Create Template' })}
               </Button>
             </div>
           </div>
 
           {templatesLoading ? (
-            <div className="p-12 text-center text-muted-foreground">Loading templates...</div>
+            <div className="p-12 text-center text-muted-foreground">
+              {t('templatesTab.loading', { defaultValue: 'Loading templates...' })}
+            </div>
           ) : (templates || []).length === 0 ? (
             <div className="p-12 text-center border-2 border-dashed rounded-xl space-y-3">
               <Building2 className="h-10 w-10 text-muted-foreground mx-auto" />
-              <h4 className="font-semibold">No milestone templates defined yet</h4>
+              <h4 className="font-semibold">
+                {t('templatesTab.emptyTitle', { defaultValue: 'No milestone templates defined yet' })}
+              </h4>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Set up 30-day, 60-day, or 90-day milestone templates with goals and reflection questions to automate new hire onboarding reviews.
+                {t('templatesTab.emptyDesc', { defaultValue: 'Set up 30-day, 60-day, or 90-day milestone templates with goals and reflection questions to automate new hire onboarding reviews.' })}
               </p>
               <Button
                 id="create-first-milestone-template-btn"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
                 onClick={handleOpenCreateTemplate}
               >
-                <Plus className="h-4 w-4 mr-2" /> Create First Template
+                <Plus className="h-4 w-4 mr-2" /> {t('templatesTab.createFirst', { defaultValue: 'Create First Template' })}
               </Button>
             </div>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {templatesPagination.paginatedData.map((t) => (
-                  <Card key={t._id} className="hover:border-indigo-500/50 transition-all flex flex-col justify-between">
+                {templatesPagination.paginatedData.map((tmpl) => (
+                  <Card key={tmpl._id} className="hover:border-indigo-500/50 transition-all flex flex-col justify-between">
                     <div>
                       <CardHeader className="pb-3 border-b">
                         <div className="flex items-center justify-between gap-2">
                           <Badge className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 text-xs">
-                            Day {t.targetDay}
+                            {t('myMilestones.dayBadge', { day: tmpl.targetDay, defaultValue: 'Day {{day}}' })}
                           </Badge>
                           <div className="flex items-center gap-1.5">
                             <Button
-                              id={`assign-template-btn-${t._id}`}
+                              id={`assign-template-btn-${tmpl._id}`}
                               size="sm"
                               className="h-8 px-2.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
-                              onClick={() => handleOpenAssignModal(t._id)}
+                              onClick={() => handleOpenAssignModal(tmpl._id)}
                             >
-                              <UserPlus className="h-3.5 w-3.5 mr-1" /> Assign
+                              <UserPlus className="h-3.5 w-3.5 mr-1" /> {t('templatesTab.assignBtn', { defaultValue: 'Assign' })}
                             </Button>
                             <Button
-                              id={`edit-template-btn-${t._id}`}
+                              id={`edit-template-btn-${tmpl._id}`}
                               variant="outline"
                               size="sm"
                               className="h-8 px-2.5 text-xs font-medium"
-                              onClick={() => handleOpenEditTemplate(t)}
+                              onClick={() => handleOpenEditTemplate(tmpl)}
                             >
-                              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                              <Pencil className="h-3.5 w-3.5 mr-1" /> {t('templatesTab.editBtn', { defaultValue: 'Edit' })}
                             </Button>
                             <Button
-                              id={`delete-template-btn-${t._id}`}
+                              id={`delete-template-btn-${tmpl._id}`}
                               variant="outline"
                               size="sm"
                               className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDeleteTemplate(t._id, t.title)}
+                              onClick={() => handleDeleteTemplate(tmpl._id, tmpl.title)}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
-                        <CardTitle className="text-base font-semibold mt-2 line-clamp-1">{t.title}</CardTitle>
-                        {t.description && (
+                        <CardTitle className="text-base font-semibold mt-2 line-clamp-1">{tmpl.title}</CardTitle>
+                        {tmpl.description && (
                           <CardDescription className="text-xs line-clamp-2 mt-1">
-                            {t.description}
+                            {tmpl.description}
                           </CardDescription>
                         )}
                       </CardHeader>
@@ -846,24 +860,26 @@ export const Milestones: React.FC = () => {
                         <div>
                           <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider flex items-center gap-1 mb-1.5">
                             <ListChecks className="h-3.5 w-3.5 text-indigo-600" />
-                            Milestone Goals ({t.goals?.length || 0})
+                            {t('templatesTab.goalsTitle', { count: tmpl.goals?.length || 0, defaultValue: 'Milestone Goals ({{count}})' })}
                           </span>
-                          {t.goals && t.goals.length > 0 ? (
+                          {tmpl.goals && tmpl.goals.length > 0 ? (
                             <ul className="space-y-1">
-                              {t.goals.slice(0, 3).map((g: any, idx: number) => (
+                              {tmpl.goals.slice(0, 3).map((g: any, idx: number) => (
                                 <li key={idx} className="flex items-start gap-1.5 text-foreground/90">
                                   <CheckCircle2 className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="line-clamp-1">{g.title}</span>
                                 </li>
                               ))}
-                              {t.goals.length > 3 && (
+                              {tmpl.goals.length > 3 && (
                                 <li className="text-[11px] text-muted-foreground italic pl-4.5">
-                                  +{t.goals.length - 3} more goals
+                                  {t('templatesTab.moreGoals', { count: tmpl.goals.length - 3, defaultValue: '+{{count}} more goals' })}
                                 </li>
                               )}
                             </ul>
                           ) : (
-                            <p className="text-muted-foreground italic">No goals defined</p>
+                            <p className="text-muted-foreground italic">
+                              {t('templatesTab.noGoals', { defaultValue: 'No goals defined' })}
+                            </p>
                           )}
                         </div>
 
@@ -871,11 +887,11 @@ export const Milestones: React.FC = () => {
                         <div>
                           <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider flex items-center gap-1 mb-1.5">
                             <FileQuestion className="h-3.5 w-3.5 text-indigo-600" />
-                            Check-In Questions ({t.checkinQuestions?.length || 0})
+                            {t('templatesTab.questionsTitle', { count: tmpl.checkinQuestions?.length || 0, defaultValue: 'Check-In Questions ({{count}})' })}
                           </span>
-                          {t.checkinQuestions && t.checkinQuestions.length > 0 ? (
+                          {tmpl.checkinQuestions && tmpl.checkinQuestions.length > 0 ? (
                             <ul className="space-y-1">
-                              {t.checkinQuestions.slice(0, 2).map((q: any, idx: number) => (
+                              {tmpl.checkinQuestions.slice(0, 2).map((q: any, idx: number) => (
                                 <li key={idx} className="flex items-start justify-between gap-2 text-foreground/90">
                                   <span className="line-clamp-1">{q.question}</span>
                                   <span className="text-[10px] bg-muted px-1.5 py-0.2 rounded shrink-0 uppercase">
@@ -883,14 +899,16 @@ export const Milestones: React.FC = () => {
                                   </span>
                                 </li>
                               ))}
-                              {t.checkinQuestions.length > 2 && (
+                              {tmpl.checkinQuestions.length > 2 && (
                                 <li className="text-[11px] text-muted-foreground italic">
-                                  +{t.checkinQuestions.length - 2} more questions
+                                  {t('templatesTab.moreQuestions', { count: tmpl.checkinQuestions.length - 2, defaultValue: '+{{count}} more questions' })}
                                 </li>
                               )}
                             </ul>
                           ) : (
-                            <p className="text-muted-foreground italic">No questions defined</p>
+                            <p className="text-muted-foreground italic">
+                              {t('templatesTab.noQuestions', { defaultValue: 'No questions defined' })}
+                            </p>
                           )}
                         </div>
                       </CardContent>
@@ -898,15 +916,15 @@ export const Milestones: React.FC = () => {
 
                     <div className="p-3 border-t bg-muted/10 rounded-b-xl flex items-center justify-between text-[11px] text-muted-foreground">
                       <span>
-                        {t.audience?.autoAssignNewHires !== false ? (
+                        {tmpl.audience?.autoAssignNewHires !== false ? (
                           <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
-                            <Sparkles className="h-3 w-3" /> Auto-assigned to new hires
+                            <Sparkles className="h-3 w-3" /> {t('templatesTab.autoAssigned', { defaultValue: 'Auto-assigned to new hires' })}
                           </span>
                         ) : (
-                          <span>Manual assignment</span>
+                          <span>{t('templatesTab.manualAssignment', { defaultValue: 'Manual assignment' })}</span>
                         )}
                       </span>
-                      <span>Target: Day {t.targetDay}</span>
+                      <span>{t('templatesTab.targetDay', { day: tmpl.targetDay, defaultValue: 'Target: Day {{day}}' })}</span>
                     </div>
                   </Card>
                 ))}
@@ -921,7 +939,7 @@ export const Milestones: React.FC = () => {
                 pageSize={templatesPagination.pageSize}
                 onPageChange={templatesPagination.setPage}
                 onPageSizeChange={templatesPagination.setPageSize}
-                itemLabel="templates"
+                itemLabel={t('templatesTab.paginationLabel', { defaultValue: 'templates' })}
               />
             </div>
           )}
@@ -932,13 +950,19 @@ export const Milestones: React.FC = () => {
       <Dialog open={isSelfCheckinOpen} onOpenChange={setIsSelfCheckinOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Day {selectedMilestone?.targetDay} Milestone Evaluation</DialogTitle>
-            <DialogDescription>Evaluate your progress, select your confidence rating, and submit reflections for your manager.</DialogDescription>
+            <DialogTitle>
+              {t('selfEvaluationModal.title', { day: selectedMilestone?.targetDay, defaultValue: 'Day {{day}} Milestone Evaluation' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('selfEvaluationModal.desc', { defaultValue: 'Evaluate your progress, select your confidence rating, and submit reflections for your manager.' })}
+            </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-2">Check-off Completed Goals:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-2">
+                {t('selfEvaluationModal.checkGoals', { defaultValue: 'Check-off Completed Goals:' })}
+              </label>
               <div className="space-y-2">
                 {selectedMilestone?.goalsProgress?.map((g: any, idx: number) => (
                   <label key={idx} className="flex items-center gap-2 text-xs cursor-pointer p-2 border rounded hover:bg-muted/20">
@@ -958,14 +982,16 @@ export const Milestones: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Confidence in Role (1 to 5 Stars):</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('selfEvaluationModal.confidenceRole', { defaultValue: 'Confidence in Role (1 to 5 Stars):' })}
+              </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
                     id={`star-rating-${star}`}
-                    aria-label={`Rate ${star} star`}
+                    aria-label={t('selfEvaluationModal.rateStar', { star, defaultValue: `Rate ${star} star` })}
                     onClick={() => setConfidenceRating(star)}
                     className={`p-2 rounded border flex items-center justify-center transition-colors ${
                       confidenceRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600' : 'bg-background'
@@ -978,11 +1004,13 @@ export const Milestones: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Reflection Notes & Accomplishments:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('selfEvaluationModal.reflectionNotes', { defaultValue: 'Reflection Notes & Accomplishments:' })}
+              </label>
               <textarea
                 id="reflection-notes-textarea"
                 className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Ramping up well on team workflows. Ready for independent tickets."
+                placeholder={t('selfEvaluationModal.reflectionPlaceholder', { defaultValue: 'Ramping up well on team workflows. Ready for independent tickets.' })}
                 value={selfComments}
                 onChange={(e) => setSelfComments(e.target.value)}
               />
@@ -991,14 +1019,14 @@ export const Milestones: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSelfCheckinOpen(false)}>
-              Cancel
+              {t('selfEvaluationModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               id="submit-self-evaluation-btn"
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={handleSelfCheckinSubmit}
             >
-              Submit Self-Evaluation
+              {t('selfEvaluationModal.submit', { defaultValue: 'Submit Self-Evaluation' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1008,9 +1036,11 @@ export const Milestones: React.FC = () => {
       <Dialog open={isManagerReviewOpen} onOpenChange={setIsManagerReviewOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Review Day {selectedMilestone?.targetDay} Milestone Check-In</DialogTitle>
+            <DialogTitle>
+              {t('managerReviewModal.title', { day: selectedMilestone?.targetDay, defaultValue: 'Review Day {{day}} Milestone Check-In' })}
+            </DialogTitle>
             <DialogDescription>
-              Review direct report's self-assessment and record manager sign-off.
+              {t('managerReviewModal.desc', { defaultValue: 'Review direct report\'s self-assessment and record manager sign-off.' })}
             </DialogDescription>
           </DialogHeader>
 
@@ -1019,21 +1049,25 @@ export const Milestones: React.FC = () => {
             <div id="employee-submitted-section" className="p-3.5 border rounded-lg bg-muted/20 space-y-2.5 text-xs">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
-                  <UserCheck className="h-4 w-4 text-indigo-600" /> Employee Self-Reflection:
+                  <UserCheck className="h-4 w-4 text-indigo-600" /> {t('managerReviewModal.selfReflection', { defaultValue: 'Employee Self-Reflection:' })}
                 </span>
                 <span id="employee-submitted-rating" className="inline-flex items-center gap-1 font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200">
-                  ★ {selectedMilestone?.employeeRating || selectedMilestone?.employeeSelfCheck?.employeeRating || selectedMilestone?.employeeSelfCheck?.confidenceRating || 4} / 5 Stars
+                  {t('managerReviewModal.starsRating', { rating: selectedMilestone?.employeeRating || selectedMilestone?.employeeSelfCheck?.employeeRating || selectedMilestone?.employeeSelfCheck?.confidenceRating || 4, defaultValue: '★ {{rating}} / 5 Stars' })}
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground block text-[11px] font-medium mb-1">Submitted Reflection & Notes:</span>
+                <span className="text-muted-foreground block text-[11px] font-medium mb-1">
+                  {t('managerReviewModal.submittedNotes', { defaultValue: 'Submitted Reflection & Notes:' })}
+                </span>
                 <p id="employee-submitted-notes" className="italic text-foreground/90 bg-card p-2 rounded border leading-relaxed">
-                  "{selectedMilestone?.comments || selectedMilestone?.employeeSelfCheck?.comments || selectedMilestone?.employeeSelfCheck?.reflectionNotes || 'Ramping up well on team workflows. Ready for independent tickets.'}"
+                  "{selectedMilestone?.comments || selectedMilestone?.employeeSelfCheck?.comments || selectedMilestone?.employeeSelfCheck?.reflectionNotes || t('managerReviewModal.defaultNotes', { defaultValue: 'Ramping up well on team workflows. Ready for independent tickets.' })}"
                 </p>
               </div>
               {selectedMilestone?.goalsProgress && selectedMilestone.goalsProgress.length > 0 && (
                 <div>
-                  <span className="text-muted-foreground block text-[11px] font-medium mb-1">Milestone Objectives Progress:</span>
+                  <span className="text-muted-foreground block text-[11px] font-medium mb-1">
+                    {t('managerReviewModal.objectivesProgress', { defaultValue: 'Milestone Objectives Progress:' })}
+                  </span>
                   <div className="grid grid-cols-1 gap-1">
                     {selectedMilestone.goalsProgress.map((g: any, idx: number) => (
                       <div key={idx} className="flex items-center gap-1.5 text-[11px]">
@@ -1053,38 +1087,42 @@ export const Milestones: React.FC = () => {
             {selectedMilestone?.aiSummary && (
               <AIReflectionSummaryCard
                 aiSummary={selectedMilestone.aiSummary}
-                employeeName={selectedMilestone.employeeId?.profile?.firstName || 'Employee'}
+                employeeName={selectedMilestone.employeeId?.profile?.firstName || t('assignModal.defaultEmployeeDept', { defaultValue: 'Employee' })}
                 onQuickApprove={() => {
                   setApprovalStatus('approved');
                   setManagerRating(5);
                   setManagerFeedback(selectedMilestone.aiSummary?.summary || 'Approved with excellent feedback.');
-                  toast.success('1-click feedback populated from AI synthesis');
+                  toast.success(t('toasts.quickApprovePopulated', { defaultValue: '1-click feedback populated from AI synthesis' }));
                 }}
               />
             )}
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Approval Status:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('managerReviewModal.approvalStatus', { defaultValue: 'Approval Status:' })}
+              </label>
               <select
                 id="approval-status-select"
                 className="w-full text-sm p-2.5 border rounded-md bg-background focus:outline-none"
                 value={approvalStatus}
                 onChange={(e: any) => setApprovalStatus(e.target.value)}
               >
-                <option value="approved">Approve Milestone</option>
-                <option value="revision_requested">Request Revision</option>
+                <option value="approved">{t('managerReviewModal.approveOption', { defaultValue: 'Approve Milestone' })}</option>
+                <option value="revision_requested">{t('managerReviewModal.revisionOption', { defaultValue: 'Request Revision' })}</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Manager Rating (1 to 5 Stars):</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('managerReviewModal.ratingLabel', { defaultValue: 'Manager Rating (1 to 5 Stars):' })}
+              </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
                     id={`manager-star-${star}`}
-                    aria-label={`Rate ${star} star`}
+                    aria-label={t('selfEvaluationModal.rateStar', { star, defaultValue: `Rate ${star} star` })}
                     onClick={() => setManagerRating(star)}
                     className={`p-2 rounded border flex items-center justify-center transition-colors ${
                       managerRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600' : 'bg-background'
@@ -1097,11 +1135,13 @@ export const Milestones: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Manager Feedback & Sign-Off Notes:</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('managerReviewModal.feedbackLabel', { defaultValue: 'Manager Feedback & Sign-Off Notes:' })}
+              </label>
               <textarea
                 id="manager-feedback-textarea"
                 className="w-full min-h-[90px] text-sm p-2.5 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Exceeded expectations on ramp-up. Completed initial project ahead of schedule."
+                placeholder={t('managerReviewModal.feedbackPlaceholder', { defaultValue: 'Exceeded expectations on ramp-up. Completed initial project ahead of schedule.' })}
                 value={managerFeedback}
                 onChange={(e) => setManagerFeedback(e.target.value)}
               />
@@ -1110,14 +1150,14 @@ export const Milestones: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsManagerReviewOpen(false)}>
-              Cancel
+              {t('managerReviewModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               id="approve-signoff-btn"
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
               onClick={handleManagerReviewSubmit}
             >
-              Approve & Sign Off
+              {t('managerReviewModal.approveAndSignOff', { defaultValue: 'Approve & Sign Off' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1127,9 +1167,11 @@ export const Milestones: React.FC = () => {
       <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? 'Edit Milestone Template' : 'Create Milestone Template'}</DialogTitle>
+            <DialogTitle>
+              {editingTemplate ? t('templateModal.editTitle', { defaultValue: 'Edit Milestone Template' }) : t('templateModal.createTitle', { defaultValue: 'Create Milestone Template' })}
+            </DialogTitle>
             <DialogDescription>
-              Define onboarding milestone expectations, goals, and self-reflection questionnaires.
+              {t('templateModal.desc', { defaultValue: 'Define onboarding milestone expectations, goals, and self-reflection questionnaires.' })}
             </DialogDescription>
           </DialogHeader>
 
@@ -1138,41 +1180,47 @@ export const Milestones: React.FC = () => {
               {/* Title & Target Day */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground">Template Title *</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {t('templateModal.titleLabel', { defaultValue: 'Template Title *' })}
+                  </label>
                   <input
                     id="template-title-input"
                     required
                     type="text"
                     className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="e.g. Day 30 Fast-Start & Orientation"
+                    placeholder={t('templateModal.titlePlaceholder', { defaultValue: 'e.g. Day 30 Fast-Start & Orientation' })}
                     value={templateTitle}
                     onChange={(e) => setTemplateTitle(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground">Target Day *</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {t('templateModal.targetDayLabel', { defaultValue: 'Target Day *' })}
+                  </label>
                   <select
                     id="template-target-day-select"
                     className="w-full text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     value={templateTargetDay}
                     onChange={(e) => setTemplateTargetDay(Number(e.target.value))}
                   >
-                    <option value={30}>Day 30</option>
-                    <option value={60}>Day 60</option>
-                    <option value={90}>Day 90</option>
-                    <option value={180}>Day 180</option>
+                    <option value={30}>{t('templateModal.dayOption', { day: 30, defaultValue: 'Day 30' })}</option>
+                    <option value={60}>{t('templateModal.dayOption', { day: 60, defaultValue: 'Day 60' })}</option>
+                    <option value={90}>{t('templateModal.dayOption', { day: 90, defaultValue: 'Day 90' })}</option>
+                    <option value={180}>{t('templateModal.dayOption', { day: 180, defaultValue: 'Day 180' })}</option>
                   </select>
                 </div>
               </div>
 
               {/* Description */}
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Description / Summary</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {t('templateModal.descLabel', { defaultValue: 'Description / Summary' })}
+                </label>
                 <textarea
                   id="template-description-input"
                   className="w-full min-h-[70px] text-sm p-2.5 border rounded-md bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  placeholder="Overview of expectations and requirements for this onboarding phase..."
+                  placeholder={t('templateModal.descPlaceholder', { defaultValue: 'Overview of expectations and requirements for this onboarding phase...' })}
                   value={templateDescription}
                   onChange={(e) => setTemplateDescription(e.target.value)}
                 />
@@ -1188,7 +1236,7 @@ export const Milestones: React.FC = () => {
                   className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <label htmlFor="template-auto-assign-checkbox" className="text-xs font-medium cursor-pointer">
-                  Automatically schedule and assign this milestone to all newly hired employees
+                  {t('templateModal.autoAssignCheckbox', { defaultValue: 'Automatically schedule and assign this milestone to all newly hired employees' })}
                 </label>
               </div>
 
@@ -1198,9 +1246,11 @@ export const Milestones: React.FC = () => {
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                       <ListChecks className="h-4 w-4 text-indigo-600" />
-                      Key Goals & Objectives ({templateGoals.length})
+                      {t('templateModal.keyGoals', { count: templateGoals.length, defaultValue: 'Key Goals & Objectives ({{count}})' })}
                     </h4>
-                    <p className="text-[11px] text-muted-foreground">Deliverables and achievements expected by this milestone.</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t('templateModal.keyGoalsDesc', { defaultValue: 'Deliverables and achievements expected by this milestone.' })}
+                    </p>
                   </div>
                   <Button
                     id="add-template-goal-btn"
@@ -1210,7 +1260,7 @@ export const Milestones: React.FC = () => {
                     className="text-xs h-8"
                     onClick={() => setTemplateGoals([...templateGoals, { title: '', description: '' }])}
                   >
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Goal
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t('templateModal.addGoal', { defaultValue: 'Add Goal' })}
                   </Button>
                 </div>
 
@@ -1222,7 +1272,7 @@ export const Milestones: React.FC = () => {
                         <input
                           type="text"
                           className="flex-1 text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          placeholder="Goal title (e.g. Complete architecture onboarding deep-dive)"
+                          placeholder={t('templateModal.goalPlaceholder', { defaultValue: 'Goal title (e.g. Complete architecture onboarding deep-dive)' })}
                           value={goal.title}
                           onChange={(e) => {
                             const updated = [...templateGoals];
@@ -1245,7 +1295,7 @@ export const Milestones: React.FC = () => {
                       <input
                         type="text"
                         className="w-full text-xs p-1.5 text-muted-foreground border-dashed border rounded bg-muted/10 focus:outline-none"
-                        placeholder="Optional description / acceptance criteria..."
+                        placeholder={t('templateModal.goalDescPlaceholder', { defaultValue: 'Optional description / acceptance criteria...' })}
                         value={goal.description}
                         onChange={(e) => {
                           const updated = [...templateGoals];
@@ -1264,9 +1314,11 @@ export const Milestones: React.FC = () => {
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                       <HelpCircle className="h-4 w-4 text-indigo-600" />
-                      Employee Check-In Questionnaire ({templateQuestions.length})
+                      {t('templateModal.questionnaireTitle', { count: templateQuestions.length, defaultValue: 'Employee Check-In Questionnaire ({{count}})' })}
                     </h4>
-                    <p className="text-[11px] text-muted-foreground">Self-reflection questions the employee answers before manager review.</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t('templateModal.questionnaireDesc', { defaultValue: 'Self-reflection questions the employee answers before manager review.' })}
+                    </p>
                   </div>
                   <Button
                     id="add-template-question-btn"
@@ -1276,7 +1328,7 @@ export const Milestones: React.FC = () => {
                     className="text-xs h-8"
                     onClick={() => setTemplateQuestions([...templateQuestions, { question: '', type: 'text', required: true }])}
                   >
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Question
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t('templateModal.addQuestion', { defaultValue: 'Add Question' })}
                   </Button>
                 </div>
 
@@ -1287,7 +1339,7 @@ export const Milestones: React.FC = () => {
                         <input
                           type="text"
                           className="sm:col-span-3 text-xs p-2 border rounded bg-background focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          placeholder={`Question #${idx + 1} (e.g. What challenges did you encounter?)`}
+                          placeholder={t('templateModal.questionPlaceholder', { index: idx + 1, defaultValue: `Question #${idx + 1} (e.g. What challenges did you encounter?)` })}
                           value={q.question}
                           onChange={(e) => {
                             const updated = [...templateQuestions];
@@ -1304,9 +1356,9 @@ export const Milestones: React.FC = () => {
                             setTemplateQuestions(updated);
                           }}
                         >
-                          <option value="text">Text Response</option>
-                          <option value="rating">Rating (1-5)</option>
-                          <option value="boolean">Yes / No</option>
+                          <option value="text">{t('templateModal.typeText', { defaultValue: 'Text Response' })}</option>
+                          <option value="rating">{t('templateModal.typeRating', { defaultValue: 'Rating (1-5)' })}</option>
+                          <option value="boolean">{t('templateModal.typeBoolean', { defaultValue: 'Yes / No' })}</option>
                         </select>
                       </div>
                       {templateQuestions.length > 1 && (
@@ -1328,7 +1380,7 @@ export const Milestones: React.FC = () => {
 
             <DialogFooter className="pt-3 border-t">
               <Button type="button" variant="outline" onClick={() => setIsTemplateModalOpen(false)}>
-                Cancel
+                {t('templateModal.cancel', { defaultValue: 'Cancel' })}
               </Button>
               <Button
                 id="save-milestone-template-btn"
@@ -1337,11 +1389,11 @@ export const Milestones: React.FC = () => {
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
               >
                 {createTemplateMutation.isPending || updateTemplateMutation.isPending ? (
-                  'Saving...'
+                  t('templateModal.saving', { defaultValue: 'Saving...' })
                 ) : editingTemplate ? (
-                  'Save Changes'
+                  t('templateModal.saveChanges', { defaultValue: 'Save Changes' })
                 ) : (
-                  'Create Template'
+                  t('templateModal.createTemplate', { defaultValue: 'Create Template' })
                 )}
               </Button>
             </DialogFooter>
@@ -1355,34 +1407,34 @@ export const Milestones: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-indigo-600" />
-              Assign Milestone Check-in Program
+              {t('assignModal.title', { defaultValue: 'Assign Milestone Check-in Program' })}
             </DialogTitle>
             <DialogDescription>
-              Assign a Day 30, 60, 90, or 180 evaluation checkpoint to an employee.
+              {t('assignModal.desc', { defaultValue: 'Assign a Day 30, 60, 90, or 180 evaluation checkpoint to an employee.' })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Target Employee *
+                {t('assignModal.targetEmployee', { defaultValue: 'Target Employee *' })}
               </label>
               <SearchableSelect
                 value={assignEmployeeId}
                 onChange={(val) => setAssignEmployeeId(val)}
-                placeholder="Search employee by name, email, department..."
+                placeholder={t('assignModal.searchEmployeePlaceholder', { defaultValue: 'Search employee by name, email, department...' })}
                 options={employees.map((emp) => ({
                   value: emp.id,
                   label: emp.name,
-                  sublabel: `${emp.department || 'Employee'} • ${emp.email}`,
-                  badge: emp.hireDate ? `Hired ${emp.hireDate}` : undefined,
+                  sublabel: `${emp.department || t('assignModal.defaultEmployeeDept', { defaultValue: 'Employee' })} • ${emp.email}`,
+                  badge: emp.hireDate ? t('assignModal.hiredBadge', { date: emp.hireDate, defaultValue: 'Hired {{date}}' }) : undefined,
                 }))}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Milestone Template *
+                {t('assignModal.templateLabel', { defaultValue: 'Milestone Template *' })}
               </label>
               <select
                 id="assign-milestone-template-select"
@@ -1390,10 +1442,10 @@ export const Milestones: React.FC = () => {
                 onChange={(e) => setAssignTemplateId(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">Select Milestone Program</option>
-                {(templates || []).map((t) => (
-                  <option key={t._id} value={t._id}>
-                    Day {t.targetDay} - {t.title} ({t.goals?.length || 0} goals)
+                <option value="">{t('assignModal.selectProgramPlaceholder', { defaultValue: 'Select Milestone Program' })}</option>
+                {(templates || []).map((tmpl) => (
+                  <option key={tmpl._id} value={tmpl._id}>
+                    {t('assignModal.templateOption', { day: tmpl.targetDay, title: tmpl.title, count: tmpl.goals?.length || 0, defaultValue: 'Day {{day}} - {{title}} ({{count}} goals)' })}
                   </option>
                 ))}
               </select>
@@ -1402,7 +1454,7 @@ export const Milestones: React.FC = () => {
             {/* Projected Due Date Preview */}
             {(() => {
               const selEmp = employees.find((e) => e.id === assignEmployeeId);
-              const selTmpl = (templates || []).find((t) => t._id === assignTemplateId);
+              const selTmpl = (templates || []).find((tmpl) => tmpl._id === assignTemplateId);
               if (!selEmp || !selTmpl) return null;
 
               const hireDateObj = selEmp.hireDate && !isNaN(new Date(selEmp.hireDate).getTime())
@@ -1413,20 +1465,20 @@ export const Milestones: React.FC = () => {
               return (
                 <div className="p-3 bg-muted/40 rounded-xl border border-border/60 text-xs space-y-1.5">
                   <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
-                    Calculated Milestone Schedule:
+                    {t('assignModal.scheduleTitle', { defaultValue: 'Calculated Milestone Schedule:' })}
                   </span>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Employee Hire Date:</span>
+                    <span className="text-muted-foreground">{t('assignModal.hireDate', { defaultValue: 'Employee Hire Date:' })}</span>
                     <span className="font-medium text-foreground">{hireDateObj.toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Target Interval:</span>
+                    <span className="text-muted-foreground">{t('assignModal.targetInterval', { defaultValue: 'Target Interval:' })}</span>
                     <Badge variant="outline" className="text-[10px] font-mono">
-                      +{selTmpl.targetDay} Days
+                      {t('assignModal.daysInterval', { days: selTmpl.targetDay, defaultValue: '+{{days}} Days' })}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-border/50 font-semibold">
-                    <span className="text-indigo-600 dark:text-indigo-400">Projected Due Date:</span>
+                    <span className="text-indigo-600 dark:text-indigo-400">{t('assignModal.projectedDueDate', { defaultValue: 'Projected Due Date:' })}</span>
                     <span className="font-mono text-foreground">{projectedDueDate.toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -1436,7 +1488,7 @@ export const Milestones: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
-              Cancel
+              {t('assignModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               id="confirm-assign-milestone-btn"
@@ -1444,7 +1496,7 @@ export const Milestones: React.FC = () => {
               onClick={handleConfirmAssign}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
             >
-              {assignMilestoneMutation.isPending ? 'Assigning...' : 'Confirm Assignment'}
+              {assignMilestoneMutation.isPending ? t('assignModal.assigning', { defaultValue: 'Assigning...' }) : t('assignModal.confirmAssign', { defaultValue: 'Confirm Assignment' })}
             </Button>
           </DialogFooter>
         </DialogContent>

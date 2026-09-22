@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Clock,
   AlertTriangle,
@@ -32,11 +33,13 @@ export const MilestoneEscalationLadder: React.FC<MilestoneEscalationLadderProps>
   onPauseSla: _onPauseSla,
   onSkipLevelDelegate: _onSkipLevelDelegate,
 }) => {
+  const { t } = useTranslation(['milestones', 'common']);
+
   if (!sla || status === 'approved' || status === 'completed') {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-medium">
         <CheckCircle2 className="h-3.5 w-3.5" />
-        <span>Evaluation Concluded & Approved</span>
+        <span>{t('slaEscalation.concludedApproved', { defaultValue: 'Evaluation Concluded & Approved' })}</span>
       </div>
     );
   }
@@ -50,22 +53,24 @@ export const MilestoneEscalationLadder: React.FC<MilestoneEscalationLadderProps>
   const escalationSteps = [
     {
       step: 1,
-      day: 'Day 3',
-      name: 'Manager Reminder',
+      day: t('slaEscalation.day3', { defaultValue: 'Day 3' }),
+      name: t('slaEscalation.stepManagerReminder', { defaultValue: 'Manager Reminder' }),
       active: (sla.reminderSentCount || 0) >= 1,
       icon: Bell,
     },
     {
       step: 2,
-      day: 'Day 5',
-      name: 'Urgent Alert',
+      day: t('slaEscalation.day5', { defaultValue: 'Day 5' }),
+      name: t('slaEscalation.stepUrgentAlert', { defaultValue: 'Urgent Alert' }),
       active: (sla.reminderSentCount || 0) >= 2 || sla.escalationState === 'escalated',
       icon: AlertTriangle,
     },
     {
       step: 3,
-      day: 'Day 7',
-      name: sla.autoApprovalEligible ? 'Autonomous Approval' : 'Skip-Level Delegation',
+      day: t('slaEscalation.day7', { defaultValue: 'Day 7' }),
+      name: sla.autoApprovalEligible
+        ? t('slaEscalation.stepAutonomousApproval', { defaultValue: 'Autonomous Approval' })
+        : t('slaEscalation.stepSkipLevel', { defaultValue: 'Skip-Level Delegation' }),
       active: isOverdue || sla.escalationState === 'auto_approved',
       icon: sla.autoApprovalEligible ? ShieldCheck : UserCheck,
     },
@@ -79,9 +84,9 @@ export const MilestoneEscalationLadder: React.FC<MilestoneEscalationLadderProps>
             <Clock className="h-4 w-4" />
           </div>
           <div>
-            <h5 className="text-xs font-bold text-foreground">7-Day Manager SLA Escalation Ladder</h5>
+            <h5 className="text-xs font-bold text-foreground">{t('slaEscalation.ladderTitle', { defaultValue: '7-Day Manager SLA Escalation Ladder' })}</h5>
             <p className="text-[11px] text-muted-foreground">
-              Autonomous escalation pipeline preventing milestone deadlocks.
+              {t('slaEscalation.ladderDesc', { defaultValue: 'Autonomous escalation pipeline preventing milestone deadlocks.' })}
             </p>
           </div>
         </div>
@@ -89,11 +94,11 @@ export const MilestoneEscalationLadder: React.FC<MilestoneEscalationLadderProps>
         <div className="flex items-center gap-2 self-end sm:self-auto">
           {sla.autoApprovalEligible ? (
             <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-[10px]">
-              Auto-Approval Eligible (&ge; 4/5 Rating)
+              {t('slaEscalation.autoEligible', { defaultValue: 'Auto-Approval Eligible (≥ 4/5 Rating)' })}
             </Badge>
           ) : (
             <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-[10px]">
-              Requires Manager / Skip-Level Sign-Off
+              {t('slaEscalation.requiresSignoff', { defaultValue: 'Requires Manager / Skip-Level Sign-Off' })}
             </Badge>
           )}
           <Badge
@@ -102,7 +107,7 @@ export const MilestoneEscalationLadder: React.FC<MilestoneEscalationLadderProps>
               isOverdue ? 'bg-destructive/20 text-destructive border-destructive/30' : ''
             }`}
           >
-            {isOverdue ? 'SLA Breached' : `${daysRemaining}d SLA Window Remaining`}
+            {isOverdue ? t('slaEscalation.slaBreached', { defaultValue: 'SLA Breached' }) : t('slaEscalation.windowRemaining', { days: daysRemaining, defaultValue: `${daysRemaining}d SLA Window Remaining` })}
           </Badge>
         </div>
       </div>

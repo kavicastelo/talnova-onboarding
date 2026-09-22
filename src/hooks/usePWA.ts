@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { pwaService } from '../services/pwa.service';
 import { toast } from 'sonner';
+import i18n from '../i18n';
 
 export function usePWAStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -10,16 +11,16 @@ export function usePWAStatus() {
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
-      toast.success('Connection restored! Syncing offline progress...');
+      toast.success(i18n.t('common:pwa.connectionRestored', 'Connection restored! Syncing offline progress...'));
       const count = await pwaService.flushOfflineQueue();
       if (count > 0) {
-        toast.success(`Successfully synced ${count} offline task completion(s)!`);
+        toast.success(i18n.t('common:pwa.syncedOfflineTasks', { count, defaultValue: 'Successfully synced {{count}} offline task completion(s)!' }));
       }
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      toast.warning('You are currently offline. Field actions will be queued and synced automatically.');
+      toast.warning(i18n.t('common:pwa.offlineWarning', 'You are currently offline. Field actions will be queued and synced automatically.'));
     };
 
     const handleBeforeInstallPrompt = (e: any) => {

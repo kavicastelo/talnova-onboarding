@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorkspaceSettings } from './useSettings';
 import { useCurrentUser } from './useAuth';
 import { toast } from 'sonner';
@@ -16,6 +17,7 @@ export interface SessionTimeoutState {
 }
 
 export function useSessionTimeout(): SessionTimeoutState {
+  const { t } = useTranslation('auth');
   const { data: user } = useCurrentUser();
   const { data: settings } = useWorkspaceSettings();
 
@@ -94,8 +96,8 @@ export function useSessionTimeout(): SessionTimeoutState {
     }
     setIsWarningOpen(false);
     setSecondsRemaining(warningWindowSeconds);
-    toast.success('Session extended. You are still signed in.');
-  }, [warningWindowSeconds]);
+    toast.success(t('sessionTimeout.extendedToast', 'Session extended. You are still signed in.'));
+  }, [warningWindowSeconds, t]);
 
   // Listen to user interaction events across window
   useEffect(() => {
@@ -146,7 +148,7 @@ export function useSessionTimeout(): SessionTimeoutState {
 
       if (remaining <= 0) {
         clearInterval(interval);
-        toast.error('Your session has expired due to inactivity.');
+        toast.error(t('sessionTimeout.expiredToast', 'Your session has expired due to inactivity.'));
         logoutNow();
       } else if (remaining <= warningWindowSeconds) {
         setSecondsRemaining(remaining);

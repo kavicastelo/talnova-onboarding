@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { knowledgeGapsService } from '../services/knowledge-gaps.service';
 import { toast } from 'sonner';
+import i18n from '../i18n';
 
 export const GAP_KEYS = {
   all: ['knowledgeGaps'] as const,
@@ -22,7 +23,7 @@ export function useResolveGapWithQuickAnswer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: GAP_KEYS.all });
       queryClient.invalidateQueries({ queryKey: ['kb'] });
-      toast.success('Quick answer published and indexed for AI assistant!');
+      toast.success(i18n.t('kb:toasts.quickAnswerPublished', 'Quick answer published and indexed for AI assistant!'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.error?.message || err?.message || 'Failed to save quick answer');
@@ -37,7 +38,7 @@ export function useResolveGapWithArticle() {
       knowledgeGapsService.resolveWithArticle(gapId, articleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: GAP_KEYS.all });
-      toast.success('Knowledge gap resolved with article!');
+      toast.success(i18n.t('kb:toasts.gapResolved', 'Knowledge gap resolved with article!'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.error?.message || err?.message || 'Failed to link article');
@@ -51,7 +52,7 @@ export function useDismissGap() {
     mutationFn: (gapId: string) => knowledgeGapsService.dismissGap(gapId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: GAP_KEYS.all });
-      toast.success('Knowledge gap dismissed');
+      toast.success(i18n.t('kb:toasts.gapDismissed', 'Knowledge gap dismissed'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.error?.message || err?.message || 'Failed to dismiss gap');

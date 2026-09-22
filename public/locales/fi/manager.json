@@ -1,0 +1,102 @@
+{
+  "title": "Esihenkilön toiminnot ja tiimin valvonta",
+  "subtitle": "Seuraa suoria alaisiasi, perehdytyksen edistymistä, ratkaise myöhässä olevia tehtäviä ja hyväksy suoritetut ohjelmat.",
+  "refresh": "Päivitä tiedot",
+  "refreshedToast": "Esihenkilön hallintapaneeli päivitetty",
+  "metrics": {
+    "directReports": "Suorat alaiset",
+    "directReportsDesc": "Aktiiviset tiimin jäsenet valvonnassasi",
+    "activeOnboardings": "Aktiiviset perehdytykset",
+    "activeOnboardingsDesc": "Työntekijät, jotka suorittavat perehdytystä parhaillaan",
+    "teamCompletionRate": "Tiimin valmistumisaste",
+    "overdueItems": "Myöhässä olevat kohteet",
+    "overdueItemsDesc": "Odottavat polut tai tehtävät, joiden määräaika on umpeutunut"
+  },
+  "quickActions": {
+    "milestoneApprovals": "Virstanpylväiden hyväksynnät",
+    "pendingCount": "{{count}} odottaa",
+    "milestoneSubmitted": "{{count}} suoraa alaista on lähettänyt itsearviointinsa odottamaan hyväksyntääsi.",
+    "milestoneDesc": "Tarkista 30-60-90 päivän katsaukset, arvioi tavoitteiden saavuttaminen ja vahvista arviot.",
+    "reviewMilestonesBtn": "Tarkista virstanpylväiden hyväksynnät",
+    "buddyMatching": "Kummitoiminnan paritus",
+    "buddyDesc": "Määritä ja parita kokeneita mentoreita uusille työntekijöille vertaisohjausta varten.",
+    "manageBuddyBtn": "Hallitse kummitoimintaa",
+    "calendarSchedule": "Kalenterin 1-on-1-aikataulu",
+    "calendarDesc": "Aikatauluta toistuvat perehdytyksen 1-on-1-tapaamiset ja synkronoi kalenterin virstanpylväät.",
+    "viewCalendarBtn": "Näytä 1-on-1-aikataulu"
+  },
+  "pendingAlert": {
+    "actionRequired_one": "Toimenpide vaaditaan: 1 odottava virstanpylväsarviointi",
+    "actionRequired_other": "Toimenpide vaaditaan: {{count}} odottavaa virstanpylväsarviointia",
+    "desc": "Suorat alaiset ovat lähettäneet itsearviointinsa ja odottavat esihenkilön tarkistusta ja hyväksyntää.",
+    "reviewAll": "Tarkista kaikki virstanpylväät",
+    "day": "Päivä {{day}}",
+    "review": "Tarkista",
+    "directReportFallback": "Suora alainen"
+  },
+  "roster": {
+    "title": "Suorien alaisten luettelo",
+    "subtitle": "Seuraa yksilöllistä edistymistä, lähetä muistutuksia ja hallitse perehdytyksen virstanpylväitä.",
+    "searchPlaceholder": "Hae suoria alaisia...",
+    "loading": "Ladataan suoria alaisia...",
+    "empty": "Suoria alaisia ei löytynyt. Määritä työntekijöitä esihenkilötilillesi HR-asetuksissa.",
+    "defaultJobTitle": "Tiimin jäsen",
+    "defaultDepartment": "Yleinen",
+    "columns": {
+      "employee": "Työntekijä",
+      "deptRole": "Osasto ja rooli",
+      "journeyProgress": "Polun edistyminen",
+      "checklistTasks": "Tarkistuslistan tehtävät",
+      "status": "Tila",
+      "actions": "Esihenkilön toiminnot"
+    },
+    "journeysDone": "{{completed}} / {{total}} polkua suoritettu",
+    "tasksCompleted": "{{completed}} / {{total}} tehtävää suoritettu",
+    "overdueCount": "{{count}} myöhässä",
+    "status": {
+      "overdue": "Myöhässä olevat kohteet",
+      "completed": "Valmis",
+      "onboarding": "Perehdytys"
+    },
+    "actions": {
+      "viewDetails": "Näytä tiedot",
+      "sendNudge": "Lähetä muistutus",
+      "signOff": "Hyväksy perehdytys"
+    },
+    "reportsLabel": "alaista"
+  },
+  "nudgeModal": {
+    "title": "Lähetä esihenkilön muistutus",
+    "desc": "Lähetä välitön sovelluksen sisäinen ilmoitus kannustaaksesi alaistasi suorittamaan odottavat perehdytystehtävänsä.",
+    "customMessage": "Mukautettu viesti (valinnainen)",
+    "placeholder": "esim. Hei! Muistathan suorittaa vaatimustenmukaisuus- ja turvallisuuskoulutuksesi perjantaihin mennessä.",
+    "cancel": "Peruuta",
+    "send": "Lähetä muistutusilmoitus",
+    "sending": "Lähetetään...",
+    "success": "Muistutus lähetetty onnistuneesti!",
+    "failed": "Muistutuksen lähettäminen epäonnistui"
+  },
+  "signOffModal": {
+    "title": "Esihenkilön perehdytyksen hyväksyntä",
+    "desc": "Hyväksy virallisesti tämän työntekijän perehdytysohjelma.",
+    "notes": "Hyväksyntämerkinnät / Palaute",
+    "placeholder": "esim. Työntekijä on suorittanut kaikki pakolliset polut ja tiimiin perehtymisen tehtävät erinomaisesti.",
+    "cancel": "Peruuta",
+    "approve": "Hyväksy ja vahvista",
+    "processing": "Käsitellään...",
+    "success": "Hyväksyntä tallennettu onnistuneesti!",
+    "failed": "Hyväksyminen epäonnistui"
+  },
+  "detailsDrawer": {
+    "title": "Suoran alaisen perehdytyksen tiedot",
+    "loading": "Ladataan työntekijän tarkempia tietoja...",
+    "assignedJourneys": "Määritetyt polut ({{count}})",
+    "noJourneys": "Ei vielä määritettyjä polkuja.",
+    "assignedOn": "Määritetty {{date}}",
+    "dueOn": "Määräaika {{date}}",
+    "checklistTasks": "Tarkistuslistan tehtävät ({{count}})",
+    "noTasks": "Ei vielä määritettyjä itsenäisiä tarkistuslistatehtäviä.",
+    "due": "Määräaika: {{date}}",
+    "close": "Sulje"
+  }
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../Card';
 import { Button } from '../Button';
 import { Input } from '../Input';
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export function EmailIntegrationSettings() {
+  const { t } = useTranslation('settings');
   const { data: config, isLoading, refetch } = useIntegrationConfig('email');
   const saveMut = useSaveIntegration('email');
   const testMut = useTestIntegration('email');
@@ -66,7 +68,7 @@ export function EmailIntegrationSettings() {
     if (testEmailRecipient.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(testEmailRecipient.trim())) {
-        toast.error('Please enter a valid email address for the test dispatch.');
+        toast.error(t('email.toasts.invalidTestEmail', 'Please enter a valid email address for the test dispatch.'));
         return;
       }
     }
@@ -129,11 +131,11 @@ export function EmailIntegrationSettings() {
         onSuccess: () => {
           setPassword('');
           setApiKey('');
-          toast.success('Email delivery configuration saved successfully!');
+          toast.success(t('email.toasts.saved', 'Email delivery configuration saved successfully!'));
           refetch();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || 'Failed to save email configuration.');
+          toast.error(err?.response?.data?.message || t('email.toasts.saveFailed', 'Failed to save email configuration.'));
         },
       }
     );
@@ -144,7 +146,7 @@ export function EmailIntegrationSettings() {
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-500" />
-          Loading email delivery settings...
+          {t('email.loading', 'Loading email delivery settings...')}
         </CardContent>
       </Card>
     );
@@ -160,7 +162,7 @@ export function EmailIntegrationSettings() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Mail className="h-5 w-5 text-indigo-500" />
-                <CardTitle>Email Delivery Configuration</CardTitle>
+                <CardTitle>{t('email.title', 'Email Delivery Configuration')}</CardTitle>
                 <Badge
                   variant={
                     status === 'valid'
@@ -173,21 +175,20 @@ export function EmailIntegrationSettings() {
                   }
                 >
                   {status === 'valid'
-                    ? 'Verified & Operational'
+                    ? t('email.status.valid', 'Verified & Operational')
                     : status === 'configured'
-                    ? 'Configured (Untested)'
+                    ? t('email.status.configured', 'Configured (Untested)')
                     : status === 'invalid'
-                    ? 'Delivery Error'
-                    : 'Not Configured'}
+                    ? t('email.status.invalid', 'Delivery Error')
+                    : t('email.status.notConfigured', 'Not Configured')}
                 </Badge>
               </div>
               <CardDescription>
-                Configure how transactional emails are delivered for your organization. The platform
-                will not use developer credentials in production.
+                {t('email.description', 'Configure how transactional emails are delivered for your organization. The platform will not use developer credentials in production.')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium">Delivery Enabled</span>
+              <span className="text-xs text-muted-foreground font-medium">{t('email.enabled', 'Delivery Enabled')}</span>
               <button
                 type="button"
                 onClick={() => setEnabled(!enabled)}
@@ -237,7 +238,7 @@ export function EmailIntegrationSettings() {
 
           {/* Provider Selection */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Email Transport Provider</label>
+            <label className="text-sm font-medium">{t('email.providerLabel', 'Email Transport Provider')}</label>
             <select
               value={provider}
               onChange={(e) => setProvider(e.target.value as any)}
@@ -254,7 +255,7 @@ export function EmailIntegrationSettings() {
             <div className="space-y-4 border rounded-lg p-4 bg-background/50">
               {/* Quick Presets */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-                <span className="text-xs font-medium text-muted-foreground">Quick SMTP Presets:</span>
+                <span className="text-xs font-medium text-muted-foreground">{t('email.quickPresets', 'Quick SMTP Presets:')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { label: 'Microsoft 365', host: 'smtp.office365.com', port: '587', secure: false },
@@ -281,15 +282,15 @@ export function EmailIntegrationSettings() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-medium">SMTP Host</label>
+                  <label className="text-sm font-medium">{t('email.hostLabel', 'SMTP Host')}</label>
                   <Input
                     value={host}
                     onChange={(e: any) => setHost(e.target.value)}
-                    placeholder="e.g. smtp.office365.com or smtp.gmail.com"
+                    placeholder={t('email.hostPlaceholder', 'e.g. smtp.office365.com or smtp.gmail.com')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Port</label>
+                  <label className="text-sm font-medium">{t('email.portLabel', 'Port')}</label>
                   <Input
                     value={port}
                     onChange={(e: any) => {
@@ -301,23 +302,23 @@ export function EmailIntegrationSettings() {
                         setSecure(false);
                       }
                     }}
-                    placeholder="587 or 465"
+                    placeholder={t('email.portPlaceholder', '587 or 465')}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">SMTP Username / Account</label>
+                  <label className="text-sm font-medium">{t('email.userLabel', 'SMTP Username / Account')}</label>
                   <Input
                     value={user}
                     onChange={(e: any) => setUser(e.target.value)}
-                    placeholder="e.g. notifications@yourcompany.com"
+                    placeholder={t('email.userPlaceholder', 'e.g. notifications@yourcompany.com')}
                   />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">SMTP Password</label>
+                    <label className="text-sm font-medium">{t('email.passLabel', 'SMTP Password')}</label>
                     {config?.hasSecret && (
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -375,19 +376,19 @@ export function EmailIntegrationSettings() {
           {/* Sender Identity */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sender Email Address (From)</label>
+              <label className="text-sm font-medium">{t('email.fromEmailLabel', 'Sender Email Address (From)')}</label>
               <Input
                 value={fromEmail}
                 onChange={(e: any) => setFromEmail(e.target.value)}
-                placeholder="no-reply@yourdomain.com"
+                placeholder={t('email.fromEmailPlaceholder', 'no-reply@yourdomain.com')}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sender Display Name</label>
+              <label className="text-sm font-medium">{t('email.fromNameLabel', 'Sender Display Name')}</label>
               <Input
                 value={fromName}
                 onChange={(e: any) => setFromName(e.target.value)}
-                placeholder="Acme Onboarding Team"
+                placeholder={t('email.fromNamePlaceholder', 'Acme Onboarding Team')}
               />
             </div>
           </div>
@@ -401,7 +402,7 @@ export function EmailIntegrationSettings() {
               <Input
                 value={testEmailRecipient}
                 onChange={(e: any) => setTestEmailRecipient(e.target.value)}
-                placeholder="Enter email to send a test message (optional)"
+                placeholder={t('email.testEmailPlaceholder', 'Enter email to send a test message (optional)')}
                 className="text-sm"
               />
               <Button

@@ -1,0 +1,235 @@
+{
+  "title": "Single Sign-On & Directory Integrations",
+  "subtitle": "Configure enterprise identity providers (SAML 2.0 / OIDC), SCIM directory provisioning, and automated role mappings.",
+  "saveConfig": "Save Configuration",
+  "provider": "Identity Provider",
+  "domains": "Allowed Email Domains",
+  "domainsPlaceholder": "e.g. company.com, acme.org",
+  "issuerUrl": "Entity ID / Issuer URL",
+  "ssoUrl": "IdP Single Sign-On URL",
+  "x509Cert": "X.509 Certificate (PEM Format)",
+  "enforceSSO": "Enforce SSO Authentication for all domain members",
+  "roleMappings": "Group to Role Mappings",
+  "addGroupMapping": "Add Group Mapping",
+  "idpGroup": "IdP Group Name",
+  "assignedRole": "Assigned Portal Role",
+  "status": {
+    "active": "Active",
+    "disabled": "Disabled"
+  },
+  "calendar": {
+    "title": "Calendar & Meeting Integration",
+    "subtitle": "Connect onboarding activities to Google Calendar, Outlook, and iCal feeds with automated 1-on-1 meeting links.",
+    "syncBtn": "iCal Subscription Sync",
+    "scheduleBtn": "Schedule Check-in",
+    "banner": {
+      "feedActive": "Calendar Feed Active",
+      "timezone": "Timezone: {{timezone}}",
+      "title": "Synchronize Onboarding Schedule with External Calendar",
+      "desc": "Subscribe to your personal .ics feed on Google Calendar, Apple Calendar, or Outlook.",
+      "copyFeedBtn": "Copy .ICS Feed Link"
+    },
+    "roster": {
+      "title": "Scheduled Onboarding Meetings",
+      "desc": "Upcoming 1-on-1 syncs, buddy welcome coffees, and orientation sessions.",
+      "loading": "Loading calendar schedule...",
+      "empty": "No onboarding meetings scheduled.",
+      "statusCancelled": "Cancelled",
+      "statusScheduled": "Scheduled",
+      "agendaLabel": "Agenda:",
+      "notesLabel": "Discussion Notes:",
+      "joinVideoCall": "Join Video Call",
+      "downloadIcs": "Download .ics",
+      "editNotes": "Edit Notes",
+      "addNotes": "Add Notes",
+      "cancelMeeting": "Cancel",
+      "eventsLabel": "events"
+    },
+    "categories": {
+      "manager_1on1": "Manager 1-on-1",
+      "buddy_coffee": "Buddy Welcome Coffee",
+      "orientation": "Orientation Session",
+      "training": "Technical Training",
+      "custom": "Custom Meeting"
+    },
+    "scheduleModal": {
+      "title": "Schedule 1-on-1 Onboarding Check-in",
+      "desc": "Create a meeting event with direct reports, agenda, and calendar sync.",
+      "meetingTitleLabel": "Meeting Title *",
+      "meetingTitlePlaceholder": "e.g. Week 1 Check-in & Feedback",
+      "categoryLabel": "Category",
+      "attendeeLabel": "Target Direct Report *",
+      "attendeePlaceholder": "Search & select direct report...",
+      "attendeeSearchPlaceholder": "Search attendee by name, email...",
+      "directReportFallback": "Direct Report",
+      "unnamedAttendee": "Unnamed",
+      "dateLabel": "Date *",
+      "startTimeLabel": "Start Time *",
+      "endTimeLabel": "End Time *",
+      "agendaLabel": "Discussion Agenda",
+      "agendaPlaceholder": "Review dev environment setup, team channels, and questions.",
+      "locationLabel": "Video Call Location Link",
+      "locationPlaceholder": "https://meet.google.com/abc-defg-hij",
+      "cancelBtn": "Cancel",
+      "confirmBtn": "Confirm & Schedule"
+    },
+    "notesModal": {
+      "title": "Document Discussion Notes",
+      "desc": "Record check-in observations, blockers, and agreed next steps for {{title}}.",
+      "notesLabel": "1-on-1 Discussion Notes",
+      "notesPlaceholder": "Ramp on track. Discussed sprint goals.",
+      "cancelBtn": "Cancel",
+      "saveBtn": "Save Notes"
+    },
+    "syncModal": {
+      "title": "iCal Calendar Subscription Feed",
+      "desc": "Copy your personal .ics URL to subscribe in Google Calendar, Outlook, or Apple Calendar.",
+      "urlLabel": "iCal (.ics) Feed URL",
+      "note": "Updates made to onboarding meetings in Talnova automatically sync to your calendar.",
+      "closeBtn": "Close"
+    },
+    "validation": {
+      "requiredFields": "Please complete all required fields.",
+      "endTimeAfterStart": "End time must be after start time"
+    },
+    "toasts": {
+      "scheduledSuccess": "Meeting scheduled successfully!",
+      "scheduleFailed": "Failed to schedule meeting",
+      "notesSaved": "Discussion notes saved successfully.",
+      "notesFailed": "Failed to save notes",
+      "downloadedIcs": "Downloaded calendar invitation (.ics)",
+      "downloadFailed": "Failed to export calendar invitation",
+      "cancelledSuccess": "Meeting event cancelled.",
+      "cancelFailed": "Failed to cancel meeting",
+      "copiedIcs": "iCal Feed URL copied to clipboard!"
+    },
+    "confirmCancel": "Are you sure you want to cancel this meeting event?"
+  },
+  "hris": {
+    "header": {
+      "title": "HRIS & Workforce Integrations",
+      "subtitle": "Connect external HRIS systems, configure inbound HMAC webhooks, customize field mappings, and monitor sync telemetry & Dead-Letter Queues."
+    },
+    "marketplace": {
+      "title": "Marketplace Connectors",
+      "connectedBadge": "{{count}} Connected",
+      "connected": "Connected",
+      "available": "Available",
+      "readyForSetup": "Ready for setup",
+      "connectBtn": "Connect",
+      "tenantSubdomain": "Tenant Subdomain:",
+      "tenantSubdomainDefault": "Default",
+      "lastSynced": "Last Synchronized:",
+      "lastSyncedFallback": "Just now",
+      "syncBtn": "Sync Now",
+      "testBtn": "Test API",
+      "webhookBtn": "Webhook",
+      "mappingBtn": "Mapping",
+      "logsBtn": "Logs",
+      "disconnectBtn": "Disconnect",
+      "connectors": {
+        "bamboohr": {
+          "category": "HRIS & People Data",
+          "description": "Bi-directional employee synchronization, title mapping, department taxonomy, and automated onboarding triggering.",
+          "badge": "Popular"
+        },
+        "workday": {
+          "category": "Enterprise HCM",
+          "description": "Enterprise HCM workforce ingestion, organization hierarchies, and role-based provisioning via REST/SOAP APIs.",
+          "badge": "Enterprise"
+        },
+        "rippling": {
+          "category": "HR & IT Provisioning",
+          "description": "Unified employee record syncing, department assignment, and instant role mapping for hardware & software onboarding.",
+          "badge": "Fast Setup"
+        },
+        "personio": {
+          "category": "European All-in-One HR",
+          "description": "Seamless European employee onboarding, department sync, and automated absence & employment updates.",
+          "badge": "Standard"
+        }
+      }
+    },
+    "telemetry": {
+      "title": "Sync Telemetry & Dead-Letter Queue (DLQ) Logs",
+      "desc": "Review execution logs, created/updated employee counts, and failed DLQ events with 1-click retry.",
+      "closeBtn": "Close",
+      "empty": "No sync history logs recorded yet.",
+      "processedSummary": "Processed {{processedCount}} records ({{createdUsersCount}} created, {{updatedUsersCount}} updated)",
+      "errorCount": "Encountered {{count}} error(s) logged to DLQ queue:",
+      "pendingStatus": "pending",
+      "resolvedStatus": "resolved",
+      "defaultErrorReason": "Record validation failed",
+      "retryBtn": "Retry Record",
+      "itemLabel": "logs"
+    },
+    "connectModal": {
+      "title": "Configure {{provider}}",
+      "desc": "Configure connection credentials, sync behavior, and taxonomy field mappings.",
+      "tabs": {
+        "credentials": "Credentials",
+        "rules": "Sync Rules",
+        "mappings": "Field Mappings"
+      },
+      "subdomainLabel": "Company Subdomain",
+      "subdomainPlaceholder": "acmetest",
+      "subdomainHint": "Enter \"acmetest\" to run in sandbox simulation mode.",
+      "apiKeyLabel": "API Key / Secret Token",
+      "apiKeyPlaceholder": "test_api_key_123",
+      "apiKeyRequired": "API Key is required to connect to {{provider}}",
+      "conflictResolution": {
+        "title": "Conflict Resolution Policy",
+        "hrisWinsTitle": "HRIS Wins (Recommended)",
+        "hrisWinsDesc": "HRIS remains the authoritative source of truth. Changes in {{provider}} overwrite local edits in Talnova.",
+        "talnovaWinsTitle": "Talnova Wins",
+        "talnovaWinsDesc": "Preserve manual administrator edits made directly inside Talnova onboarding profiles."
+      },
+      "autoProvision": {
+        "title": "Auto-provision Onboarding Journeys",
+        "desc": "Automatically assign workflows and documents when a new employee is synced."
+      },
+      "mappings": {
+        "desc": "Map external HRIS payload attributes to internal Talnova workforce fields:",
+        "externalPlaceholder": "External field",
+        "internalPlaceholder": "Internal field",
+        "addMappingBtn": "Add Mapping"
+      },
+      "cancelBtn": "Cancel",
+      "saveBtn": "Save & Test Connection",
+      "savingBtn": "Saving..."
+    },
+    "webhookModal": {
+      "title": "Webhook Setup: {{name}}",
+      "desc": "Configure real-time employee events (hiring, profile updates, termination) from your HRIS.",
+      "fallbackName": "HRIS Provider",
+      "urlLabel": "Webhook Target URL",
+      "secretLabel": "HMAC-SHA256 Webhook Secret",
+      "reveal": "Reveal",
+      "hide": "Hide",
+      "rotateTooltip": "Rotate HMAC Secret",
+      "secretNote": "Include this HMAC signature in the x-signature header when sending webhook requests.",
+      "checklistTitle": "Provider Setup Checklist:",
+      "checklistItem1": "Register the Target URL in your BambooHR/Workday Webhook subscriptions.",
+      "checklistItem2": "Subscribe to employee.created, employee.updated, and employee.terminated events.",
+      "checklistItem3": "Ensure HMAC-SHA256 signature is enabled using the provided secret.",
+      "doneBtn": "Done"
+    },
+    "toasts": {
+      "secretRotated": "Webhook HMAC secret rotated successfully",
+      "secretRotateFailed": "Failed to rotate webhook secret",
+      "retrySuccess": "Record reprocessed successfully!",
+      "retryFailed": "Failed to reprocess record",
+      "copied": "Copied to clipboard",
+      "apiKeyRequired": "API Key is required to connect",
+      "connectedSuccess": "Connected {{name}} successfully!",
+      "connectFailed": "Failed to connect integration",
+      "syncQueued": "Workforce sync queued successfully! (ID: {{syncId}})",
+      "syncFailed": "Failed to trigger sync",
+      "disconnectedSuccess": "Disconnected {{provider}} successfully.",
+      "disconnectFailed": "Failed to disconnect",
+      "testSuccess": "Connection verified! Response latency: {{latencyMs}}ms",
+      "testFailed": "Connection test failed",
+      "productionSyncName": "{{provider}} Production Sync"
+    }
+  }
+}

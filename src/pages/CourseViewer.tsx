@@ -23,11 +23,12 @@ import { Skeleton } from '../components/Skeleton';
 import { toast } from 'sonner';
 import { apiClient } from '../api/client';
 import { pwaService } from '../services/pwa.service';
+import { useTranslation } from 'react-i18next';
 
 interface TranslateTextProps {
   text?: string;
   children?: string;
-  language: 'en' | 'si' | 'ta';
+  language: 'en' | 'si' | 'ta' | 'fi';
 }
 
 class TranslationQueue {
@@ -89,6 +90,7 @@ class TranslationQueue {
 const translationQueue = new TranslationQueue();
 
 function TranslateText({ text, children, language }: TranslateTextProps) {
+  const { t } = useTranslation('journeys');
   const rawText = text || children || '';
   const [translatedText, setTranslatedText] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -123,13 +125,14 @@ function TranslateText({ text, children, language }: TranslateTextProps) {
   }, [rawText, language]);
 
   if (isLoading) {
-    return <span className="animate-pulse text-indigo-400">Translating...</span>;
+    return <span className="animate-pulse text-indigo-400">{t('viewer.translating', 'Translating...')}</span>;
   }
 
   return <>{translatedText}</>;
 }
 
 export function CourseViewer() {
+  const { t } = useTranslation(['journeys', 'common']);
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: course, isLoading, isError, error, refetch } = useCourse(id || '');
@@ -141,15 +144,15 @@ export function CourseViewer() {
   // Compliance gate: redirect to employee dashboard if pending mandatory documents exist
   useEffect(() => {
     if (!docLoading && pendingDocs.length > 0) {
-      toast.warning('Mandatory compliance documents must be signed before accessing LMS courses.');
+      toast.warning(t('viewer.complianceGateWarning', 'Mandatory compliance documents must be signed before accessing LMS courses.'));
       navigate('/employee');
     }
-  }, [docLoading, pendingDocs.length, navigate]);
+  }, [docLoading, pendingDocs.length, navigate, t]);
 
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({});
   const [retryMode, setRetryMode] = useState<boolean>(false);
-  const [translationLanguage, setTranslationLanguage] = useState<'en' | 'si' | 'ta'>('en');
+  const [translationLanguage, setTranslationLanguage] = useState<'en' | 'si' | 'ta' | 'fi'>('en');
   const [videoWatchPercent, setVideoWatchPercent] = useState<number>(0);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
@@ -217,7 +220,7 @@ export function CourseViewer() {
     const handleOnline = async () => {
       const result = await pwaService.flushOfflineProgress();
       if (result.syncedCount > 0) {
-        toast.success(`Online: Synchronized ${result.syncedCount} lesson(s) to server.`);
+        toast.success(t('viewer.offlineSync.syncedCount', { count: result.syncedCount, defaultValue: 'Online: Synchronized {{count}} lesson(s) to server.' }));
         refetch();
       }
     };
@@ -229,11 +232,11 @@ export function CourseViewer() {
       window.removeEventListener('talnova:offline_synced', handleSynced);
       window.removeEventListener('online', handleOnline);
     };
-  }, [selectedLesson, refetch]);
+  }, [selectedLesson, refetch, t]);
 
   const toggleCompletion = async () => {
     if (pendingDocs.length > 0) {
-      toast.warning('Mandatory compliance documents must be signed before completing lessons.');
+      toast.warning(t('viewer.complianceGateLessonWarning', 'Mandatory compliance documents must be signed before completing lessons.'));
       return;
     }
     if (!course || !selectedLesson) return;
@@ -263,7 +266,7 @@ export function CourseViewer() {
         // Ignore localStorage cache update failures in offline mode
       }
 
-      toast.info('Offline: Lesson marked as complete. Saved to IndexedDB offline queue.');
+      toast.info(t('viewer.offlineSync.markedOffline', 'Offline: Lesson marked as complete. Saved to IndexedDB offline queue.'));
       return;
     }
 
@@ -280,9 +283,9 @@ export function CourseViewer() {
             console.log('[PWA Sync] Network error detected. Saving to IndexedDB offline queue...');
             await pwaService.enqueueOfflineProgress(course.id, selectedLesson.id);
             selectedLesson.isCompleted = true;
-            toast.info('Saved to IndexedDB offline queue. Progress will sync when connection is restored.');
+            toast.info(t('viewer.offlineSync.savedOfflineQueue', 'Saved to IndexedDB offline queue. Progress will sync when connection is restored.'));
           } else {
-            toast.error('Failed to update lesson completion');
+            toast.error(t('viewer.toasts.updateCompletionFailed', 'Failed to update lesson completion'));
           }
         },
       }
@@ -302,7 +305,7 @@ export function CourseViewer() {
         },
         {
           onSuccess: () => {
-            toast.success('Lesson completed automatically!');
+            toast.success(t('viewer.toasts.lessonCompletedAuto', 'Lesson completed automatically!'));
           },
         }
       );
@@ -356,12 +359,12 @@ export function CourseViewer() {
     }
 
     if (!moduleId) {
-      toast.error('Module context not found.');
+      toast.error(t('viewer.toasts.moduleNotFound', 'Module context not found.'));
       return;
     }
 
     if (pendingDocs.length > 0) {
-      toast.warning('Mandatory compliance documents must be signed before submitting quizzes.');
+      toast.warning(t('viewer.complianceGateQuizWarning', 'Mandatory compliance documents must be signed before submitting quizzes.'));
       return;
     }
 
@@ -379,13 +382,13 @@ export function CourseViewer() {
       });
 
       if (result.passed) {
-        toast.success(`Congratulations! You passed the quiz with a score of ${result.score}%!`);
+        toast.success(t('viewer.toasts.quizPassed', { score: result.score, defaultValue: 'Congratulations! You passed the quiz with a score of {{score}}%!' }));
       } else {
-        toast.error(`You scored ${result.score}%, which is below the passing score of ${selectedLesson.quiz.passingScore}%.`);
+        toast.error(t('viewer.toasts.quizFailed', { score: result.score, passingScore: selectedLesson.quiz.passingScore, defaultValue: 'You scored {{score}}%, which is below the passing score of {{passingScore}}%.' }));
       }
       setRetryMode(false);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to submit quiz.');
+      toast.error(err.response?.data?.message || t('viewer.toasts.quizSubmitFailed', 'Failed to submit quiz.'));
     }
   };
 
@@ -437,10 +440,10 @@ export function CourseViewer() {
               </div>
               <div>
                 <h4 className="text-white font-semibold text-sm">
-                  <TranslateText language={translationLanguage}>{block.title || 'Audio Lesson'}</TranslateText>
+                  <TranslateText language={translationLanguage}>{block.title || t('viewer.lessonTypes.audioLesson', 'Audio Lesson')}</TranslateText>
                 </h4>
                 <p className="text-xs text-gray-400">
-                  <TranslateText language={translationLanguage}>Audio Playback</TranslateText>
+                  {t('viewer.lessonTypes.audioPlayback', 'Audio Playback')}
                 </p>
               </div>
             </div>
@@ -469,13 +472,13 @@ export function CourseViewer() {
                     <TranslateText language={translationLanguage}>{block.title || 'Document.pdf'}</TranslateText>
                   </h4>
                   <p className="text-xs text-gray-400">
-                    <TranslateText language={translationLanguage}>PDF Reader</TranslateText>
+                    {t('viewer.lessonTypes.pdfReader', 'PDF Reader')}
                   </p>
                 </div>
               </div>
               {block.uploadUrl && (
                 <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/10" onClick={() => window.open(block.uploadUrl, '_blank')}>
-                  <TranslateText language={translationLanguage}>Open PDF</TranslateText>
+                  {t('viewer.lessonTypes.openPdf', 'Open PDF')}
                 </Button>
               )}
             </div>
@@ -516,16 +519,16 @@ export function CourseViewer() {
               </div>
               <div>
                 <h4 className="text-white font-semibold text-sm">
-                  <TranslateText language={translationLanguage}>{block.title || 'Attached Document'}</TranslateText>
+                  <TranslateText language={translationLanguage}>{block.title || t('viewer.lessonTypes.attachedDoc', 'Attached Document')}</TranslateText>
                 </h4>
                 <p className="text-xs text-gray-400">
-                  <TranslateText language={translationLanguage}>Word/Excel/Powerpoint Attachment</TranslateText>
+                  {t('viewer.lessonTypes.docAttachment', 'Word/Excel/Powerpoint Attachment')}
                 </p>
               </div>
             </div>
             {block.uploadUrl && (
               <Button size="sm" onClick={() => window.open(block.uploadUrl, '_blank')}>
-                <TranslateText language={translationLanguage}>Download File</TranslateText>
+                {t('viewer.lessonTypes.downloadFile', 'Download File')}
               </Button>
             )}
           </div>
@@ -556,7 +559,7 @@ export function CourseViewer() {
         return (
           <div key={block.id} className="bg-white/[0.02] border border-white/10 rounded-xl p-4 space-y-3 shadow-xl">
             <h4 className="text-white font-semibold text-sm">
-              <TranslateText language={translationLanguage}>{block.title || 'Checklist Tasks'}</TranslateText>
+              <TranslateText language={translationLanguage}>{block.title || t('viewer.lessonTypes.checklistTasks', 'Checklist Tasks')}</TranslateText>
             </h4>
             <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
               <TranslateText language={translationLanguage}>{block.content}</TranslateText>
@@ -606,10 +609,10 @@ export function CourseViewer() {
     return (
       <div className="max-w-md mx-auto text-center p-8 border rounded-lg space-y-4 my-12">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Failed to Load Course</h2>
-        <p className="text-muted-foreground">{(error as any)?.message || 'The course curriculum is not available.'}</p>
+        <h2 className="text-xl font-bold">{t('viewer.error.title', 'Failed to Load Course')}</h2>
+        <p className="text-muted-foreground">{(error as any)?.message || t('viewer.error.desc', 'The course curriculum is not available.')}</p>
         <Button onClick={() => refetch()} className="mx-auto">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('viewer.error.retry', 'Retry')}
         </Button>
       </div>
     );
@@ -646,7 +649,7 @@ export function CourseViewer() {
               asChild>
               <Link to="/employee">
                 <ChevronLeft className="mr-1 h-4 w-4" />
-                Dashboard
+                {t('viewer.sidebar.dashboard', 'Dashboard')}
               </Link>
             </Button>
             <Button
@@ -654,7 +657,7 @@ export function CourseViewer() {
               size="icon"
               onClick={() => setSidebarOpen(false)}
               className="text-gray-400 hover:text-white h-8 w-8"
-              title="Collapse Sidebar"
+              title={t('viewer.sidebar.collapse', 'Collapse Sidebar')}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -732,12 +735,16 @@ export function CourseViewer() {
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
               <span>
-                <strong>Compliance Prerequisite Active:</strong> You have {pendingDocs.length} unsigned compliance agreement(s) required by enterprise policy before completing lessons.
+                <strong>{t('viewer.complianceBanner.title', 'Compliance Prerequisite Active:')}</strong>{' '}
+                {t('viewer.complianceBanner.desc', {
+                  count: pendingDocs.length,
+                  defaultValue: 'You have {{count}} unsigned compliance agreement(s) required by enterprise policy before completing lessons.'
+                })}
               </span>
             </div>
             <Button size="sm" variant="outline" asChild className="border-amber-500/40 text-amber-200 hover:bg-amber-500/20 text-xs h-7 shrink-0">
               <Link to={`/documents/${pendingDocs[0]._id}/sign`}>
-                Sign Required Document
+                {t('viewer.complianceBanner.signBtn', 'Sign Required Document')}
               </Link>
             </Button>
           </div>
@@ -752,7 +759,7 @@ export function CourseViewer() {
                     size="icon"
                     onClick={() => setSidebarOpen(true)}
                     className="text-gray-400 hover:text-white shrink-0 mr-1"
-                    title="Show Sidebar"
+                    title={t('viewer.sidebar.show', 'Show Sidebar')}
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
@@ -794,6 +801,16 @@ export function CourseViewer() {
                   >
                     தமிழ் (TA)
                   </button>
+                  <button
+                    onClick={() => setTranslationLanguage('fi')}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-150 ${
+                      translationLanguage === 'fi'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Suomi (FI)
+                  </button>
                 </div>
 
                 {/* PWA Network Mode Indicator & Toggle */}
@@ -804,15 +821,15 @@ export function CourseViewer() {
                   onClick={async () => {
                     if (isOffline) {
                       setOfflineSimulated(false);
-                      toast.info('Reconnecting to network...');
+                      toast.info(t('viewer.offlineSync.reconnecting', 'Reconnecting to network...'));
                       const res = await pwaService.flushOfflineProgress();
                       if (res.syncedCount > 0) {
-                        toast.success(`Online: Successfully synced ${res.syncedCount} lesson(s) to server.`);
+                        toast.success(t('viewer.offlineSync.syncedCount', { count: res.syncedCount, defaultValue: 'Online: Synchronized {{count}} lesson(s) to server.' }));
                       }
                       refetch();
                     } else {
                       setOfflineSimulated(true);
-                      toast.warning('Network set to Offline mode (DevTools Offline).');
+                      toast.warning(t('viewer.offlineSync.offlineSimulated', 'Network set to Offline mode (DevTools Offline).'));
                     }
                   }}
                   className={`h-8 text-xs border font-medium ${
@@ -820,9 +837,9 @@ export function CourseViewer() {
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
                       : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
                   }`}
-                  title="Toggle PWA network offline/online simulation"
+                  title={t('viewer.offlineSync.toggleTitle', 'Toggle PWA network offline/online simulation')}
                 >
-                  {isOffline ? '⚡ Offline (Click to Sync Online)' : '📶 Online (Click to Toggle Offline)'}
+                  {isOffline ? t('viewer.offlineSync.offlineToggle', '⚡ Offline (Click to Sync Online)') : t('viewer.offlineSync.onlineToggle', '📶 Online (Click to Toggle Offline)')}
                 </Button>
 
                 <Button
@@ -833,7 +850,7 @@ export function CourseViewer() {
                   className="border-white/10 text-gray-300 hover:bg-white/5 px-2.5 sm:px-3"
                 >
                   <ChevronLeft className="sm:mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Previous</span>
+                  <span className="hidden sm:inline">{t('viewer.nav.previous', 'Previous')}</span>
                 </Button>
                 <Button
                   size="sm"
@@ -841,7 +858,7 @@ export function CourseViewer() {
                   disabled={selectedIndex >= allLessons.length - 1}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3"
                 >
-                  <span className="hidden sm:inline">Next</span>
+                  <span className="hidden sm:inline">{t('viewer.nav.next', 'Next')}</span>
                   <ChevronRight className="sm:ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -858,23 +875,23 @@ export function CourseViewer() {
                         <div className="space-y-2">
                           <h3 className="text-xl sm:text-2xl font-bold text-white">
                             {selectedLesson.quizAttempt.passed ? (
-                              <TranslateText language={translationLanguage}>Assessment Passed!</TranslateText>
+                              t('viewer.quiz.passedTitle', 'Assessment Passed!')
                             ) : (
-                              <TranslateText language={translationLanguage}>Quiz Evaluation Results</TranslateText>
+                              t('viewer.quiz.resultsTitle', 'Quiz Evaluation Results')
                             )}
                           </h3>
                           <p className="text-gray-400 text-sm">
                             {selectedLesson.quizAttempt.passed ? (
-                              <TranslateText language={translationLanguage}>Congratulations! You passed the assessment requirements.</TranslateText>
+                              t('viewer.quiz.passedDesc', 'Congratulations! You passed the assessment requirements.')
                             ) : (
-                              <TranslateText language={translationLanguage}>You did not score enough to pass the assessment this time.</TranslateText>
+                              t('viewer.quiz.failedDesc', 'You did not score enough to pass the assessment this time.')
                             )}
                           </p>
                         </div>
                         <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm">
                           <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
                             <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                              <TranslateText language={translationLanguage}>Your Score</TranslateText>
+                              {t('viewer.quiz.yourScore', 'Your Score')}
                             </span>
                             <span className={`text-2xl font-bold block mt-1 ${selectedLesson.quizAttempt.passed ? 'text-emerald-400' : 'text-red-400'}`}>
                               {selectedLesson.quizAttempt.score}%
@@ -882,7 +899,7 @@ export function CourseViewer() {
                           </div>
                           <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
                             <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                              <TranslateText language={translationLanguage}>Passing Score</TranslateText>
+                              {t('viewer.quiz.passingScore', 'Passing Score')}
                             </span>
                             <span className="text-2xl font-bold text-white block mt-1">
                               {selectedLesson.quiz.passingScore}%
@@ -890,7 +907,7 @@ export function CourseViewer() {
                           </div>
                           <div className="bg-white/[0.03] px-6 py-4 rounded-xl border border-white/5 w-32 shadow-inner">
                             <span className="block text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                              <TranslateText language={translationLanguage}>Attempt No</TranslateText>
+                              {t('viewer.quiz.attemptNo', 'Attempt No')}
                             </span>
                             <span className="text-2xl font-bold text-white block mt-1">
                               {selectedLesson.quizAttempt.attemptNumber}
@@ -900,11 +917,11 @@ export function CourseViewer() {
 
                         {selectedLesson.quizAttempt.passed ? (
                           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
-                            <CheckCircle2 className="h-4 w-4" /> <TranslateText language={translationLanguage}>Completed</TranslateText>
+                            <CheckCircle2 className="h-4 w-4" /> {t('viewer.quiz.completedBadge', 'Completed')}
                           </div>
                         ) : (
                           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold">
-                            <AlertCircle className="h-4 w-4" /> <TranslateText language={translationLanguage}>Verification Incomplete</TranslateText>
+                            <AlertCircle className="h-4 w-4" /> {t('viewer.quiz.verificationIncomplete', 'Verification Incomplete')}
                           </div>
                         )}
 
@@ -915,14 +932,14 @@ export function CourseViewer() {
                                 onClick={() => navigate('/employee')}
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto shadow-lg shadow-emerald-600/20"
                               >
-                                <TranslateText language={translationLanguage}>Return to Roadmap</TranslateText>
+                                {t('viewer.quiz.returnRoadmap', 'Return to Roadmap')}
                               </Button>
                               <Button
                                 variant="outline"
                                 onClick={() => setRetryMode(true)}
                                 className="border-white/20 text-gray-300 hover:bg-white/10 w-full sm:w-auto"
                               >
-                                <TranslateText language={translationLanguage}>Retake Quiz</TranslateText>
+                                {t('viewer.quiz.retakeQuiz', 'Retake Quiz')}
                               </Button>
                             </>
                           ) : (
@@ -930,7 +947,7 @@ export function CourseViewer() {
                               onClick={() => setRetryMode(true)}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto shadow-lg shadow-indigo-600/20"
                             >
-                              <TranslateText language={translationLanguage}>Retry Quiz</TranslateText>
+                              {t('viewer.quiz.retryQuiz', 'Retry Quiz')}
                             </Button>
                           )}
                         </div>
@@ -939,10 +956,13 @@ export function CourseViewer() {
                       <div className="space-y-8">
                         <div className="border-b border-white/10 pb-4">
                           <h3 className="text-xl font-bold text-white">
-                            <TranslateText language={translationLanguage}>Lesson Assessment</TranslateText>
+                            {t('viewer.quiz.assessmentTitle', 'Lesson Assessment')}
                           </h3>
                           <p className="text-sm text-gray-400 mt-1">
-                            <TranslateText language={translationLanguage}>Answer the questions below to verify your learning. You need at least</TranslateText> {selectedLesson.quiz.passingScore}% <TranslateText language={translationLanguage}>to pass.</TranslateText>
+                            {t('viewer.quiz.assessmentInstructions', {
+                              passingScore: selectedLesson.quiz.passingScore,
+                              defaultValue: 'Answer the questions below to verify your learning. You need at least {{passingScore}}% to pass.'
+                            })}
                           </p>
                         </div>
 
@@ -960,9 +980,9 @@ export function CourseViewer() {
                                       <TranslateText language={translationLanguage}>{question.questionText}</TranslateText>
                                     </h4>
                                     <p className="text-xs text-gray-500 font-medium">
-                                      {question.type === 'single_choice' && <TranslateText language={translationLanguage}>Select single choice option</TranslateText>}
-                                      {question.type === 'true_false' && <TranslateText language={translationLanguage}>Select True or False</TranslateText>}
-                                      {question.type === 'multiple_choice' && <TranslateText language={translationLanguage}>Multiple choices allowed</TranslateText>} • {question.points} points
+                                      {question.type === 'single_choice' && t('viewer.quiz.singleChoice', 'Select single choice option')}
+                                      {question.type === 'true_false' && t('viewer.quiz.trueFalse', 'Select True or False')}
+                                      {question.type === 'multiple_choice' && t('viewer.quiz.multipleChoice', 'Multiple choices allowed')} • {t('viewer.quiz.points', { points: question.points, defaultValue: '{{points}} points' })}
                                     </p>
                                   </div>
                                 </div>
@@ -1017,7 +1037,7 @@ export function CourseViewer() {
                             {submitQuiz.isPending ? (
                               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                             ) : null}
-                            <TranslateText language={translationLanguage}>Submit Assessment</TranslateText>
+                            {t('viewer.quiz.submitAssessment', 'Submit Assessment')}
                           </Button>
                         </div>
                       </div>
@@ -1051,7 +1071,7 @@ export function CourseViewer() {
                                 <TranslateText language={translationLanguage}>{selectedLesson.title || 'Document.pdf'}</TranslateText>
                               </h4>
                               <p className="text-xs text-gray-400">
-                                <TranslateText language={translationLanguage}>PDF Document Viewer</TranslateText>
+                                {t('viewer.lessonTypes.pdfViewer', 'PDF Document Viewer')}
                               </p>
                             </div>
                           </div>
@@ -1063,7 +1083,7 @@ export function CourseViewer() {
                               onClick={() => window.open(selectedLesson.content, '_blank')}
                             >
                               <ExternalLink className="h-4 w-4 mr-2" />
-                              <TranslateText language={translationLanguage}>Open PDF</TranslateText>
+                              {t('viewer.lessonTypes.openPdf', 'Open PDF')}
                             </Button>
                           )}
                         </div>
@@ -1072,12 +1092,12 @@ export function CourseViewer() {
                             <iframe
                               src={`${selectedLesson.content}#toolbar=1`}
                               className="w-full h-full border-none"
-                              title={selectedLesson.title || 'PDF Document Viewer'}
+                              title={selectedLesson.title || t('viewer.lessonTypes.pdfViewer', 'PDF Document Viewer')}
                             />
                           </div>
                         ) : (
                           <div className="p-8 text-center text-gray-400 border border-white/10 rounded-xl bg-white/[0.02]">
-                            <TranslateText language={translationLanguage}>No PDF document attached to this lesson.</TranslateText>
+                            {t('viewer.lessonTypes.noPdf', 'No PDF document attached to this lesson.')}
                           </div>
                         )}
                       </div>
@@ -1119,8 +1139,11 @@ export function CourseViewer() {
                         <div className="flex items-center gap-2">
                           <p className={`text-xs ${videoWatchPercent >= 90 ? 'text-emerald-400 font-medium' : 'text-amber-400 italic'}`}>
                             {videoWatchPercent >= 90
-                              ? '✓ 90% video duration watched. You can now complete the lesson.'
-                              : `Watch at least 90% of the video to enable completion (${Math.round(videoWatchPercent)}% watched)`}
+                              ? t('viewer.video.requirementMet', '✓ 90% video duration watched. You can now complete the lesson.')
+                              : t('viewer.video.requirementPending', {
+                                  percent: Math.round(videoWatchPercent),
+                                  defaultValue: 'Watch at least 90% of the video to enable completion ({{percent}}% watched)'
+                                })}
                           </p>
                           {videoWatchPercent < 90 && (
                             <button
@@ -1128,9 +1151,9 @@ export function CourseViewer() {
                               type="button"
                               onClick={() => setVideoWatchPercent(95)}
                               className="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer"
-                              title="Simulate 95% video watched"
+                              title={t('viewer.video.simulateWatchTitle', 'Simulate 95% video watched')}
                             >
-                              (Simulate 95% Watched)
+                              {t('viewer.video.simulateWatch', '(Simulate 95% Watched)')}
                             </button>
                           )}
                         </div>
@@ -1150,9 +1173,9 @@ export function CourseViewer() {
                         <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-400" />
                       ) : null}
                       {selectedLesson.isCompleted ? (
-                        <TranslateText language={translationLanguage}>Completed</TranslateText>
+                        t('viewer.completion.completed', 'Completed')
                       ) : (
-                        <TranslateText language={translationLanguage}>Mark as Complete</TranslateText>
+                        t('viewer.completion.markAsComplete', 'Mark as Complete')
                       )}
                     </Button>
                   </div>
@@ -1162,7 +1185,7 @@ export function CourseViewer() {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
-            Select a topic to start learning.
+            {t('viewer.emptyLesson', 'Select a topic to start learning.')}
           </div>
         )}
       </div>
@@ -1189,7 +1212,7 @@ function getVideoEmbedUrl(url: string): { type: 'youtube' | 'vimeo' | 'direct' |
   return { type: 'direct', src: url };
 }
 
-function renderFormattedText(text: string, language: 'en' | 'si' | 'ta') {
+function renderFormattedText(text: string, language: 'en' | 'si' | 'ta' | 'fi') {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(urlRegex);
 
@@ -1211,8 +1234,9 @@ function renderFormattedText(text: string, language: 'en' | 'si' | 'ta') {
   });
 }
 
-function MarkdownPreview({ content, language }: { content: string; language: 'en' | 'si' | 'ta' }) {
-  if (!content) return <p className="text-gray-400 italic text-sm">No content written yet.</p>;
+function MarkdownPreview({ content, language }: { content: string; language: 'en' | 'si' | 'ta' | 'fi' }) {
+  const { t } = useTranslation('journeys');
+  if (!content) return <p className="text-gray-400 italic text-sm">{t('viewer.noContent', 'No content written yet.')}</p>;
 
   const lines = content.split('\n');
   return (

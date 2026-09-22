@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 import { cn } from './utils';
 
@@ -48,6 +49,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   'data-testid': testId,
   maxHeight = 'max-h-60',
 }) => {
+  const { t } = useTranslation('common');
   const [internalValue, setInternalValue] = React.useState(defaultValue);
   const [isOpen, setIsOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -262,8 +264,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             </div>
             {options.length > 5 && (
               <div className="flex items-center justify-between px-1 pt-1 text-[10px] text-muted-foreground">
-                <span>Showing {filteredOptions.length} of {options.length}</span>
-                {search && <span>Filtered results</span>}
+                <span>
+                  {t('pagination.showingOf', {
+                    count: filteredOptions.length,
+                    total: options.length,
+                    defaultValue: `Showing ${filteredOptions.length} of ${options.length}`
+                  })}
+                </span>
+                {search && <span>{t('filteredResults', 'Filtered results')}</span>}
               </div>
             )}
           </div>

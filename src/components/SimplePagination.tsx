@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from './Button';
 
@@ -31,6 +32,8 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
   className = '',
   showPageSizeSelector = true,
 }) => {
+  const { t } = useTranslation('common');
+
   if (totalPages <= 1 && (!totalItems || totalItems <= (pageSize || 10))) {
     // If only 1 page and totalItems is small, still render informational text if totalItems is present, else hide if no data
     if (!totalItems || totalItems === 0) return null;
@@ -38,6 +41,11 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
 
   const effectiveStartIndex = startIndex !== undefined ? startIndex : totalItems === 0 ? 0 : (currentPage - 1) * (pageSize || 10) + 1;
   const effectiveEndIndex = endIndex !== undefined ? endIndex : Math.min(currentPage * (pageSize || 10), totalItems || 0);
+
+  const firstPageLabel = t('pagination.firstPage', 'First Page');
+  const prevPageLabel = t('pagination.previousPage', 'Previous Page');
+  const nextPageLabel = t('pagination.nextPage', 'Next Page');
+  const lastPageLabel = t('pagination.lastPage', 'Last Page');
 
   return (
     <div
@@ -47,14 +55,18 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
       <div className="flex items-center gap-3">
         {totalItems !== undefined && (
           <span>
-            Showing <span className="font-semibold text-foreground">{effectiveStartIndex}</span> to{' '}
-            <span className="font-semibold text-foreground">{effectiveEndIndex}</span> of{' '}
-            <span className="font-semibold text-foreground">{totalItems}</span> {itemLabel}
+            {t('pagination.showing', {
+              from: effectiveStartIndex,
+              to: effectiveEndIndex,
+              total: totalItems,
+              defaultValue: `Showing ${effectiveStartIndex} to ${effectiveEndIndex} of ${totalItems} results`
+            })}
+            {itemLabel && itemLabel !== 'items' && itemLabel !== 'results' ? ` ${itemLabel}` : ''}
           </span>
         )}
         {showPageSizeSelector && pageSize && onPageSizeChange && (
           <div className="flex items-center gap-1.5 ml-2">
-            <span>Per page:</span>
+            <span>{t('pagination.perPage', 'Per page:')}</span>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
@@ -78,8 +90,8 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
           className="h-8 w-8"
           onClick={() => onPageChange(1)}
           disabled={currentPage <= 1}
-          title="First Page"
-          aria-label="First Page"
+          title={firstPageLabel}
+          aria-label={firstPageLabel}
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -89,14 +101,18 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
           className="h-8 w-8"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          title="Previous Page"
-          aria-label="Previous Page"
+          title={prevPageLabel}
+          aria-label={prevPageLabel}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
         <span className="px-3 font-medium text-foreground">
-          Page {currentPage} of {totalPages}
+          {t('pagination.page', {
+            page: currentPage,
+            totalPages,
+            defaultValue: `Page ${currentPage} of ${totalPages}`
+          })}
         </span>
 
         <Button
@@ -105,8 +121,8 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
           className="h-8 w-8"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          title="Next Page"
-          aria-label="Next Page"
+          title={nextPageLabel}
+          aria-label={nextPageLabel}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -116,8 +132,8 @@ export const SimplePagination: React.FC<SimplePaginationProps> = ({
           className="h-8 w-8"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage >= totalPages}
-          title="Last Page"
-          aria-label="Last Page"
+          title={lastPageLabel}
+          aria-label={lastPageLabel}
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

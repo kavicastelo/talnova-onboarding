@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   MessageSquare,
   Calendar,
@@ -76,6 +77,8 @@ export const ProactiveCoachingFeed: React.FC<ProactiveCoachingFeedProps> = ({
   onLogCheckin,
   onScheduleSync,
 }) => {
+  const { t } = useTranslation('buddy');
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -84,14 +87,16 @@ export const ProactiveCoachingFeed: React.FC<ProactiveCoachingFeedProps> = ({
             <HeartHandshake className="h-4 w-4" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-foreground">Proactive Buddy Coaching Sentinel</h4>
+            <h4 className="text-sm font-bold text-foreground">
+              {t('coachingFeed.title', { defaultValue: 'Proactive Buddy Coaching Sentinel' })}
+            </h4>
             <p className="text-xs text-muted-foreground">
-              Autonomous weekly conversational prompts and suggested meeting agendas.
+              {t('coachingFeed.desc', { defaultValue: 'Autonomous weekly conversational prompts and suggested meeting agendas.' })}
             </p>
           </div>
         </div>
         <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
-          Weekly Sentinel Active
+          {t('coachingFeed.activeBadge', { defaultValue: 'Weekly Sentinel Active' })}
         </Badge>
       </div>
 
@@ -112,22 +117,22 @@ export const ProactiveCoachingFeed: React.FC<ProactiveCoachingFeedProps> = ({
                     variant={p.isCompleted ? 'secondary' : 'default'}
                     className="text-[10px] uppercase font-mono"
                   >
-                    Week {p.week}
+                    {t('coachingFeed.weekBadge', { week: p.week, defaultValue: `Week ${p.week}` })}
                   </Badge>
                   <h5 className="font-semibold text-xs text-foreground">{p.title}</h5>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {p.isCompleted ? (
                     <span className="flex items-center gap-1 text-emerald-500 font-medium text-[11px]">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Check-in Completed
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {t('coachingFeed.completed', { defaultValue: 'Check-in Completed' })}
                     </span>
                   ) : p.scheduledAt ? (
                     <span className="flex items-center gap-1 text-primary font-medium text-[11px]">
-                      <Clock className="h-3.5 w-3.5" /> Scheduled: {p.scheduledAt}
+                      <Clock className="h-3.5 w-3.5" /> {t('coachingFeed.scheduled', { time: p.scheduledAt, defaultValue: `Scheduled: ${p.scheduledAt}` })}
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-amber-500 font-medium text-[11px]">
-                      <Clock className="h-3.5 w-3.5" /> Action Recommended
+                      <Clock className="h-3.5 w-3.5" /> {t('coachingFeed.actionRecommended', { defaultValue: 'Action Recommended' })}
                     </span>
                   )}
                 </div>
@@ -136,7 +141,7 @@ export const ProactiveCoachingFeed: React.FC<ProactiveCoachingFeedProps> = ({
               {/* Suggested Agenda Items */}
               <div className="bg-background/80 rounded-lg p-3 border border-border/60 space-y-1.5">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="h-3 w-3 text-primary" /> Suggested 15-Minute Agenda for {p.menteeName}:
+                  <Sparkles className="h-3 w-3 text-primary" /> {t('coachingFeed.suggestedAgenda', { name: p.menteeName, defaultValue: `Suggested 15-Minute Agenda for ${p.menteeName}:` })}
                 </p>
                 <ul className="space-y-1 text-xs text-foreground">
                   {p.suggestedAgenda.map((item, idx) => (
@@ -157,7 +162,7 @@ export const ProactiveCoachingFeed: React.FC<ProactiveCoachingFeedProps> = ({
                     onClick={() => onScheduleSync(p)}
                     className="text-xs h-7 gap-1"
                   >
-                    <Calendar className="h-3 w-3" /> Auto-Schedule 1-on-1
+                    <Calendar className="h-3 w-3" /> {t('coachingFeed.autoSchedule', { defaultValue: 'Auto-Schedule 1-on-1' })}
                   </Button>
                 )}
                 {onLogCheckin && !p.isCompleted && (
@@ -166,7 +171,7 @@ export const ProactiveCoachingFeed: React.FC<ProactiveCoachingFeedProps> = ({
                     onClick={() => onLogCheckin(p)}
                     className="text-xs h-7 gap-1 bg-primary text-primary-foreground"
                   >
-                    <MessageSquare className="h-3 w-3" /> Log 30-Sec Check-in
+                    <MessageSquare className="h-3 w-3" /> {t('coachingFeed.logCheckin', { defaultValue: 'Log 30-Sec Check-in' })}
                   </Button>
                 )}
               </div>

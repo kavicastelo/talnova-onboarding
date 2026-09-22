@@ -2,8 +2,10 @@ import React from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { KioskPlayerProvider } from '../context/KioskPlayerContext';
 import { KioskPlayer } from '../components/KioskPlayer';
+import { useTranslation } from 'react-i18next';
 
 export const KioskPlayerPage: React.FC = () => {
+  const { t } = useTranslation('kiosk');
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -11,7 +13,7 @@ export const KioskPlayerPage: React.FC = () => {
   if (!id) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-950 text-white">
-        <p className="text-lg font-medium text-rose-400">Invalid Playback ID</p>
+        <p className="text-lg font-medium text-rose-400">{t('player.invalidPlaybackId', 'Invalid Playback ID')}</p>
       </div>
     );
   }

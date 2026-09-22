@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plus,
   RefreshCw,
@@ -49,6 +50,7 @@ import { KioskBuilder } from '../features/kiosk';
 type TabType = 'journeys' | 'devices' | 'analytics';
 
 export function KioskDashboard() {
+  const { t } = useTranslation(['kiosk', 'common']);
   const [activeTab, setActiveTab] = useState<TabType>('journeys');
   const [journeys, setJourneys] = useState<KioskJourney[]>([]);
   const [devices, setDevices] = useState<KioskDevice[]>([]);
@@ -93,7 +95,7 @@ export function KioskDashboard() {
 
   const handleGeneratePairCode = async () => {
     if (!terminalGuid.trim()) {
-      toast.error('Please enter a Hardware GUID');
+      toast.error(t('toasts.enterGuid', { defaultValue: 'Please enter a Hardware GUID' }));
       return;
     }
     setGeneratingPairCode(true);
@@ -101,9 +103,9 @@ export function KioskDashboard() {
       const res = await kioskService.generatePairingCode(terminalGuid.trim());
       setGeneratedPairCode(res.code);
       setCodeExpiresInSeconds(res.expiresInSeconds || 900);
-      toast.success('6-digit device pairing code generated');
+      toast.success(t('toasts.pairCodeGenerated', { defaultValue: '6-digit device pairing code generated' }));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to generate pairing code');
+      toast.error(err?.response?.data?.message || err?.message || t('toasts.failedGenerateCode', { defaultValue: 'Failed to generate pairing code' }));
     } finally {
       setGeneratingPairCode(false);
     }
@@ -118,23 +120,23 @@ export function KioskDashboard() {
 
   const handleSaveSupervisorPin = async () => {
     if (!supervisorIdentifier.trim()) {
-      toast.error('Please enter a supervisor User ID or email.');
+      toast.error(t('toasts.enterSupervisorId', { defaultValue: 'Please enter a supervisor User ID or email.' }));
       return;
     }
     if (!/^\d{4}$/.test(supervisorPin.trim())) {
-      toast.error('Supervisor PIN must be exactly 4 numeric digits (e.g. 1234).');
+      toast.error(t('toasts.pin4Digits', { defaultValue: 'Supervisor PIN must be exactly 4 numeric digits (e.g. 1234).' }));
       return;
     }
 
     setSettingSupervisorPin(true);
     try {
       await kioskService.setSupervisorPin(supervisorIdentifier.trim(), supervisorPin.trim());
-      toast.success(`Supervisor PIN successfully configured for ${supervisorIdentifier}.`);
+      toast.success(t('toasts.pinConfigured', { identifier: supervisorIdentifier, defaultValue: `Supervisor PIN successfully configured for ${supervisorIdentifier}.` }));
       setSupervisorPinModalOpen(false);
       setSupervisorIdentifier('');
       setSupervisorPin('');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to configure supervisor PIN.');
+      toast.error(err?.response?.data?.message || err?.message || t('toasts.failedConfigurePin', { defaultValue: 'Failed to configure supervisor PIN.' }));
     } finally {
       setSettingSupervisorPin(false);
     }
@@ -153,7 +155,7 @@ export function KioskDashboard() {
         setSelectedJourneyId(journeyRes.journeys[0]._id);
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to fetch kiosk workspace data');
+      toast.error(err?.message || t('toasts.failedFetchData', { defaultValue: 'Failed to fetch kiosk workspace data' }));
     } finally {
       setLoading(false);
     }
@@ -185,7 +187,7 @@ export function KioskDashboard() {
 
   const handleCreateJourney = async () => {
     if (!newJourneyTitle.trim()) {
-      toast.error('Journey title is required');
+      toast.error(t('toasts.titleRequired', { defaultValue: 'Journey title is required' }));
       return;
     }
     setCreating(true);
@@ -211,7 +213,7 @@ export function KioskDashboard() {
         }
       };
       const created = await kioskService.createJourney(payload);
-      toast.success('Kiosk journey created successfully');
+      toast.success(t('toasts.journeyCreated', { defaultValue: 'Kiosk journey created successfully' }));
       setCreateModalOpen(false);
       setNewJourneyTitle('');
       setNewJourneyLangs(['en']);
@@ -220,20 +222,20 @@ export function KioskDashboard() {
       setEditingJourneyId(created._id);
       fetchData();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to create kiosk journey');
+      toast.error(err?.message || t('toasts.failedCreateJourney', { defaultValue: 'Failed to create kiosk journey' }));
     } finally {
       setCreating(false);
     }
   };
 
   const handleDeleteJourney = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this kiosk journey? This action cannot be undone.')) {
+    if (window.confirm(t('confirmDeleteJourney', { defaultValue: 'Are you sure you want to delete this kiosk journey? This action cannot be undone.' }))) {
       try {
         await kioskService.deleteJourney(id);
-        toast.success('Kiosk journey deleted');
+        toast.success(t('toasts.journeyDeleted', { defaultValue: 'Kiosk journey deleted' }));
         fetchData();
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to delete journey');
+        toast.error(err?.message || t('toasts.failedDeleteJourney', { defaultValue: 'Failed to delete journey' }));
       }
     }
   };
@@ -244,12 +246,12 @@ export function KioskDashboard() {
     try {
       const targetJourneyId = pairJourneyId === 'unpair' ? null : pairJourneyId;
       await kioskService.pairJourneyToDevice(selectedDevice._id, targetJourneyId);
-      toast.success('Journey linked to device successfully');
+      toast.success(t('toasts.journeyLinked', { defaultValue: 'Journey linked to device successfully' }));
       setPairModalOpen(false);
       setSelectedDevice(null);
       fetchData();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to link journey to device');
+      toast.error(err?.message || t('toasts.failedLinkJourney', { defaultValue: 'Failed to link journey to device' }));
     } finally {
       setPairing(false);
     }
@@ -259,9 +261,9 @@ export function KioskDashboard() {
     try {
       console.log(`Dispatching ${commandType} to device ${deviceId}`);
       // Simulate remote queue scheduling for command dispatch
-      toast.success(`Remote command [${commandType}] successfully queued for device.`);
+      toast.success(t('toasts.remoteCommandQueued', { command: commandType, defaultValue: `Remote command [${commandType}] successfully queued for device.` }));
     } catch (err: any) {
-      toast.error('Failed to dispatch remote action command');
+      toast.error(t('toasts.failedDispatchCommand', { defaultValue: 'Failed to dispatch remote action command' }));
     }
   };
 
@@ -270,9 +272,9 @@ export function KioskDashboard() {
     try {
       const updated = await kioskService.toggleMaintenanceMode(deviceId, !isMaintenance);
       setDevices((prev) => prev.map((d) => (d._id === deviceId ? updated : d)));
-      toast.success(`Terminal ${!isMaintenance ? 'placed in Maintenance Mode' : 'restored to Active Mode'}`);
+      toast.success(!isMaintenance ? t('toasts.maintenanceEntered', { defaultValue: 'Terminal placed in Maintenance Mode' }) : t('toasts.maintenanceExited', { defaultValue: 'Terminal restored to Active Mode' }));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update maintenance mode');
+      toast.error(err?.response?.data?.message || err?.message || t('toasts.failedMaintenanceMode', { defaultValue: 'Failed to update maintenance mode' }));
     }
   };
 
@@ -296,15 +298,15 @@ export function KioskDashboard() {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kiosk Management</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('title', { defaultValue: 'Kiosk Operations & Frontline Terminals' })}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Build interactive multi-lingual screen journeys, pair physical tablet nodes, and monitor hardware telemetries.
+            {t('subtitle', { defaultValue: 'Manage physical onboarding terminals, offline kiosk journeys, device telemetry, and supervisor PINs.' })}
           </p>
         </div>
         <div className="flex items-center space-x-3">
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="flex items-center space-x-1">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Reload</span>
+            <span>{t('reload', { defaultValue: 'Reload' })}</span>
           </Button>
           <Button
             variant="outline"
@@ -314,7 +316,7 @@ export function KioskDashboard() {
             className="flex items-center space-x-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
           >
             <Tv className="w-4 h-4 text-indigo-600" />
-            <span>Pair New Terminal</span>
+            <span>{t('pairTerminal', { defaultValue: 'Pair New Terminal' })}</span>
           </Button>
           <Button
             variant="outline"
@@ -324,11 +326,11 @@ export function KioskDashboard() {
             className="flex items-center space-x-1.5 border-amber-200 text-amber-800 hover:bg-amber-50"
           >
             <Key className="w-4 h-4 text-amber-600" />
-            <span>Supervisor Witness PIN</span>
+            <span>{t('supervisorPin', { defaultValue: 'Supervisor Witness PIN' })}</span>
           </Button>
           <Button variant="default" size="sm" onClick={() => setCreateModalOpen(true)} className="flex items-center space-x-1">
             <Plus className="w-4 h-4" />
-            <span>Create Journey</span>
+            <span>{t('newJourney', { defaultValue: 'Create Journey' })}</span>
           </Button>
         </div>
       </div>
@@ -344,7 +346,7 @@ export function KioskDashboard() {
           }`}
         >
           <Map className="w-4 h-4" />
-          <span>Kiosk Journeys</span>
+          <span>{t('tabs.journeys', { count: journeys.length, defaultValue: `Kiosk Journeys (${journeys.length})` })}</span>
           <Badge variant="secondary" className="ml-1.5">{journeys.length}</Badge>
         </button>
         <button
@@ -356,7 +358,7 @@ export function KioskDashboard() {
           }`}
         >
           <Tv className="w-4 h-4" />
-          <span>Physical Terminals</span>
+          <span>{t('tabs.devices', { count: devices.length, defaultValue: `Paired Devices (${devices.length})` })}</span>
           <Badge variant="secondary" className="ml-1.5">{devices.length}</Badge>
         </button>
         <button
@@ -368,7 +370,7 @@ export function KioskDashboard() {
           }`}
         >
           <BarChart2 className="w-4 h-4" />
-          <span>Usage Analytics</span>
+          <span>{t('tabs.analytics', { defaultValue: 'Terminal Telemetry' })}</span>
         </button>
       </div>
 
@@ -390,12 +392,12 @@ export function KioskDashboard() {
             ) : journeys.length === 0 ? (
               <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
                 <Map className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                <h3 className="font-semibold text-slate-700">No Kiosk Journeys</h3>
+                <h3 className="font-semibold text-slate-700">{t('journeysList.emptyTitle', { defaultValue: 'No Kiosk Journeys' })}</h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                  Create a new visual multi-lingual onboarding layout to launch interactive kiosks for employees.
+                  {t('journeysList.emptyDesc', { defaultValue: 'Create a new visual multi-lingual onboarding layout to launch interactive kiosks for employees.' })}
                 </p>
                 <Button variant="default" size="sm" onClick={() => setCreateModalOpen(true)} className="mt-4">
-                  Create First Journey
+                  {t('journeysList.createFirst', { defaultValue: 'Create First Journey' })}
                 </Button>
               </div>
             ) : (
@@ -411,7 +413,7 @@ export function KioskDashboard() {
                       </Badge>
                     </div>
                     <p className="text-xs text-slate-500 line-clamp-2 min-h-[2rem]">
-                      {journey.description || 'No description provided.'}
+                      {journey.description || t('journeysList.noDescription', { defaultValue: 'No description provided.' })}
                     </p>
                     
                     <div className="flex flex-wrap gap-1.5 pt-1">
@@ -421,7 +423,7 @@ export function KioskDashboard() {
                         </span>
                       ))}
                       <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
-                        {journey.steps?.length || 0} Steps
+                        {journey.steps?.length || 0} {t('journeysList.stepsLabel', { defaultValue: 'Steps' })}
                       </span>
                     </div>
                   </div>
@@ -435,7 +437,7 @@ export function KioskDashboard() {
                       <button
                         onClick={() => setEditingJourneyId(journey._id)}
                         className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
-                        title="Edit Journey"
+                        title={t('journeysList.edit', { defaultValue: 'Edit Journey' })}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -444,14 +446,14 @@ export function KioskDashboard() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
-                        title="Launch Player Preview"
+                        title={t('journeysList.preview', { defaultValue: 'Launch Player Preview' })}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
                       <button
                         onClick={() => handleDeleteJourney(journey._id)}
                         className="p-1.5 rounded hover:bg-slate-100 text-rose-500 hover:bg-rose-50/50 transition"
-                        title="Delete Journey"
+                        title={t('journeysList.delete', { defaultValue: 'Delete Journey' })}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -471,7 +473,7 @@ export function KioskDashboard() {
             pageSize={journeysPagination.pageSize}
             onPageChange={journeysPagination.setPage}
             onPageSizeChange={journeysPagination.setPageSize}
-            itemLabel="journeys"
+            itemLabel={t('journeysList.journeysLabel', { defaultValue: 'journeys' })}
           />
         </div>
       )}
@@ -489,7 +491,7 @@ export function KioskDashboard() {
                 <div className="text-2xl font-bold text-slate-800">
                   {devices.filter(d => d.status === 'online').length}
                 </div>
-                <div className="text-xs text-slate-500 font-medium">Online Terminals</div>
+                <div className="text-xs text-slate-500 font-medium">{t('devicesList.onlineTerminals', { defaultValue: 'Online Terminals' })}</div>
               </div>
             </Card>
             <Card className="p-5 flex items-center space-x-4 border border-slate-200">
@@ -500,7 +502,7 @@ export function KioskDashboard() {
                 <div className="text-2xl font-bold text-slate-800">
                   {devices.filter(d => d.status === 'offline').length}
                 </div>
-                <div className="text-xs text-slate-500 font-medium">Offline Terminals</div>
+                <div className="text-xs text-slate-500 font-medium">{t('devicesList.offlineTerminals', { defaultValue: 'Offline Terminals' })}</div>
               </div>
             </Card>
             <Card className="p-5 flex items-center space-x-4 border border-slate-200">
@@ -509,7 +511,7 @@ export function KioskDashboard() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-slate-800">{devices.length}</div>
-                <div className="text-xs text-slate-500 font-medium">Total Paired Hardware</div>
+                <div className="text-xs text-slate-500 font-medium">{t('devicesList.totalHardware', { defaultValue: 'Total Paired Hardware' })}</div>
               </div>
             </Card>
           </div>
@@ -518,8 +520,8 @@ export function KioskDashboard() {
           <Card className="overflow-hidden border border-slate-200">
             <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Paired Devices Registry</h3>
-                <p className="text-xs text-slate-500">Live operational status and paired kiosk journeys for connected hardware.</p>
+                <h3 className="text-sm font-bold text-slate-800">{t('devicesList.registryTitle', { defaultValue: 'Paired Devices Registry' })}</h3>
+                <p className="text-xs text-slate-500">{t('devicesList.registryDesc', { defaultValue: 'Live operational status and paired kiosk journeys for connected hardware.' })}</p>
               </div>
               <Button
                 size="sm"
@@ -529,20 +531,20 @@ export function KioskDashboard() {
                 className="flex items-center space-x-1.5"
               >
                 <Tv className="w-3.5 h-3.5" />
-                <span>Pair New Terminal</span>
+                <span>{t('pairTerminal', { defaultValue: 'Pair New Terminal' })}</span>
               </Button>
             </div>
             
             {loading ? (
               <div className="p-12 text-center text-slate-400">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                <span>Loading active terminals...</span>
+                <span>{t('devicesList.loadingTerminals', { defaultValue: 'Loading active terminals...' })}</span>
               </div>
             ) : devices.length === 0 ? (
               <div className="p-16 text-center text-slate-400">
                 <Tv className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                <p className="font-semibold text-slate-500">No paired terminals found</p>
-                <p className="text-xs text-slate-400 mt-0.5">Device registration starts on physical hardware using pairing pins.</p>
+                <p className="font-semibold text-slate-500">{t('devicesList.emptyTitle', { defaultValue: 'No paired terminals found' })}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t('devicesList.emptyDesc', { defaultValue: 'Device registration starts on physical hardware using pairing pins.' })}</p>
               </div>
             ) : (
               <div>
@@ -571,7 +573,7 @@ export function KioskDashboard() {
                                   : 'bg-slate-100 text-slate-600'
                               }`}
                             >
-                              {isOnline ? 'Online / Paired' : isMaintenance ? 'Maintenance' : 'Offline'}
+                              {isOnline ? t('devicesList.statusOnline', { defaultValue: 'Online / Paired' }) : isMaintenance ? t('devicesList.statusMaintenance', { defaultValue: 'Maintenance' }) : t('devicesList.statusOffline', { defaultValue: 'Offline' })}
                             </Badge>
                           </div>
                           <p className="text-xs text-slate-500 flex items-center">
@@ -585,10 +587,10 @@ export function KioskDashboard() {
 
                         {/* Linked Content Journey */}
                         <div className="flex flex-col space-y-1">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Journey</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('devicesList.activeJourney', { defaultValue: 'Active Journey' })}</span>
                           <div className="flex items-center space-x-2">
                             <span className="text-xs font-semibold text-slate-700">
-                              {linkedJourney ? linkedJourney.title : <span className="text-slate-400 italic">No journey paired</span>}
+                              {linkedJourney ? linkedJourney.title : <span className="text-slate-400 italic">{t('devicesList.noJourneyPaired', { defaultValue: 'No journey paired' })}</span>}
                             </span>
                             <button
                               onClick={() => {
@@ -598,7 +600,7 @@ export function KioskDashboard() {
                               }}
                               className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition"
                             >
-                              Link...
+                              {t('devicesList.link', { defaultValue: 'Link...' })}
                             </button>
                           </div>
                         </div>
@@ -608,7 +610,7 @@ export function KioskDashboard() {
                           <div className="flex items-center space-x-2">
                             <Battery className="w-4 h-4 text-slate-500" />
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">Battery</span>
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.battery', { defaultValue: 'Battery' })}</span>
                               <span className="text-xs font-semibold text-slate-700">
                                 {device.telemetry?.batteryLevel !== undefined ? `${Math.round(device.telemetry.batteryLevel * 100)}%` : 'N/A'}
                               </span>
@@ -617,7 +619,7 @@ export function KioskDashboard() {
                           <div className="flex items-center space-x-2">
                             <HardDrive className="w-4 h-4 text-slate-500" />
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">Free Space</span>
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.freeSpace', { defaultValue: 'Free Space' })}</span>
                               <span className="text-xs font-semibold text-slate-700">
                                 {device.telemetry?.storageFreeBytes !== undefined 
                                   ? `${(device.telemetry.storageFreeBytes / 1024 / 1024 / 1024).toFixed(1)} GB` 
@@ -628,7 +630,7 @@ export function KioskDashboard() {
                           <div className="flex items-center space-x-2">
                             <Wifi className="w-4 h-4 text-slate-500" />
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">Latency</span>
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.latency', { defaultValue: 'Latency' })}</span>
                               <span className="text-xs font-semibold text-slate-700">
                                 {device.telemetry?.networkLatencyMs !== undefined ? `${device.telemetry.networkLatencyMs}ms` : 'N/A'}
                               </span>
@@ -637,7 +639,7 @@ export function KioskDashboard() {
                           <div className="flex items-center space-x-2">
                             <Cpu className="w-4 h-4 text-slate-500" />
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">App version</span>
+                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.appVersion', { defaultValue: 'App version' })}</span>
                               <span className="text-xs font-mono font-semibold text-slate-700">
                                 {device.telemetry?.appVersion || 'v1.0.0'}
                               </span>
@@ -655,26 +657,26 @@ export function KioskDashboard() {
                                 ? 'border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100'
                                 : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800'
                             }`}
-                            title={device.status === 'maintenance' ? 'Resume device operation' : 'Put device in Maintenance Mode'}
+                            title={device.status === 'maintenance' ? t('devicesList.resumeOperation', { defaultValue: 'Resume device operation' }) : t('devicesList.putMaintenance', { defaultValue: 'Put device in Maintenance Mode' })}
                           >
                             <Wrench className="w-3 h-3" />
-                            <span>{device.status === 'maintenance' ? 'Exit Maint.' : 'Maintenance'}</span>
+                            <span>{device.status === 'maintenance' ? t('devicesList.exitMaintenance', { defaultValue: 'Exit Maint.' }) : t('devicesList.maintenance', { defaultValue: 'Maintenance' })}</span>
                           </button>
                           <button
                             onClick={() => handleDispatchCommand(device._id, 'refresh_cache')}
                             className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
-                            title="Refresh cached local content"
+                            title={t('devicesList.refreshCacheTitle', { defaultValue: 'Refresh cached local content' })}
                           >
                             <RotateCcw className="w-3 h-3" />
-                            <span>Sync Cache</span>
+                            <span>{t('devicesList.syncCache', { defaultValue: 'Sync Cache' })}</span>
                           </button>
                           <button
                             onClick={() => handleDispatchCommand(device._id, 'restart_app')}
                             className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
-                            title="Restart physical screen app wrapper"
+                            title={t('devicesList.restartAppTitle', { defaultValue: 'Restart physical screen app wrapper' })}
                           >
                             <Zap className="w-3 h-3 text-amber-500" />
-                            <span>Restart</span>
+                            <span>{t('devicesList.restart', { defaultValue: 'Restart' })}</span>
                           </button>
                         </div>
 
@@ -693,7 +695,7 @@ export function KioskDashboard() {
                     pageSize={devicesPagination.pageSize}
                     onPageChange={devicesPagination.setPage}
                     onPageSizeChange={devicesPagination.setPageSize}
-                    itemLabel="terminals"
+                    itemLabel={t('devicesList.terminalsLabel', { defaultValue: 'terminals' })}
                   />
                 </div>
               </div>
@@ -708,15 +710,15 @@ export function KioskDashboard() {
           {/* Journey selector dropdown */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Journey Performance Metrics</h3>
-              <p className="text-xs text-slate-500">Analyze interactions, completion ratios, and language statistics.</p>
+              <h3 className="text-sm font-bold text-slate-800">{t('telemetry.performanceMetrics', { defaultValue: 'Journey Performance Metrics' })}</h3>
+              <p className="text-xs text-slate-500">{t('telemetry.performanceDesc', { defaultValue: 'Analyze interactions, completion ratios, and language statistics.' })}</p>
             </div>
             <div className="w-full sm:w-72">
               <SearchableSelect
                 value={selectedJourneyId}
                 onChange={(val) => setSelectedJourneyId(val)}
-                placeholder="Select Journey..."
-                searchPlaceholder="Search journey..."
+                placeholder={t('telemetry.selectJourney', { defaultValue: 'Select Journey...' })}
+                searchPlaceholder={t('telemetry.searchJourney', { defaultValue: 'Search journey...' })}
                 options={journeys.map(j => ({
                   value: j._id,
                   label: j.title,
@@ -728,26 +730,26 @@ export function KioskDashboard() {
           {analyticsLoading ? (
             <div className="py-16 text-center text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-500" />
-              <span>Fetching journey analytics...</span>
+              <span>{t('telemetry.fetchingAnalytics', { defaultValue: 'Fetching journey analytics...' })}</span>
             </div>
           ) : analyticsData ? (
             <div className="space-y-6">
               {/* Premium dashboard metrics grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="p-5 border border-slate-200 flex flex-col justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Launches</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('telemetry.totalLaunches', { defaultValue: 'Total Launches' })}</span>
                   <div className="text-3xl font-extrabold text-slate-800 mt-2">{analyticsData.totalLaunches}</div>
-                  <span className="text-[10px] text-slate-500 mt-1">Sessions initialized on kiosk.</span>
+                  <span className="text-[10px] text-slate-500 mt-1">{t('telemetry.totalLaunchesDesc', { defaultValue: 'Sessions initialized on kiosk.' })}</span>
                 </Card>
 
                 <Card className="p-5 border border-slate-200 flex flex-col justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Completions</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('telemetry.completions', { defaultValue: 'Completions' })}</span>
                   <div className="text-3xl font-extrabold text-slate-800 mt-2">{analyticsData.totalCompletions}</div>
-                  <span className="text-[10px] text-slate-500 mt-1">Reached final confirmation step.</span>
+                  <span className="text-[10px] text-slate-500 mt-1">{t('telemetry.completionsDesc', { defaultValue: 'Reached final confirmation step.' })}</span>
                 </Card>
 
                 <Card className="p-5 border border-slate-200 flex flex-col justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Completion Rate</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('telemetry.completionRate', { defaultValue: 'Completion Rate' })}</span>
                   <div className="flex items-center justify-between mt-2">
                     <div className="text-3xl font-extrabold text-indigo-600">
                       {Math.round(analyticsData.completionRate * 100)}%
@@ -763,15 +765,15 @@ export function KioskDashboard() {
                       </svg>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-1">Ratio of starts to finished steps.</span>
+                  <span className="text-[10px] text-slate-500 mt-1">{t('telemetry.completionRateDesc', { defaultValue: 'Ratio of starts to finished steps.' })}</span>
                 </Card>
 
                 <Card className="p-5 border border-slate-200 flex flex-col justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg Session Time</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('telemetry.avgSessionTime', { defaultValue: 'Avg Session Time' })}</span>
                   <div className="text-3xl font-extrabold text-slate-800 mt-2">
                     {Math.round(analyticsData.averageDurationSeconds)}s
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-1">Mean playback completion time.</span>
+                  <span className="text-[10px] text-slate-500 mt-1">{t('telemetry.avgSessionTimeDesc', { defaultValue: 'Mean playback completion time.' })}</span>
                 </Card>
               </div>
 
@@ -781,14 +783,14 @@ export function KioskDashboard() {
                 <Card className="p-5 border border-slate-200 space-y-4">
                   <div className="flex items-center space-x-2">
                     <Globe className="w-4 h-4 text-indigo-500" />
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Language Usage Breakdown</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('telemetry.languageUsage', { defaultValue: 'Language Usage Breakdown' })}</h4>
                   </div>
                   <div className="space-y-3">
                     {analyticsData.languageBreakdown?.map((item) => (
                       <div key={item.language} className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
                            <span className="font-bold text-slate-650 uppercase">{item.language}</span>
-                          <span className="font-mono text-slate-500">{item.count} sessions</span>
+                          <span className="font-mono text-slate-500">{item.count} {t('telemetry.sessionsCount', { defaultValue: 'sessions' })}</span>
                         </div>
                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                           <div 
@@ -805,7 +807,7 @@ export function KioskDashboard() {
                 <Card className="p-5 border border-slate-200 space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center space-x-2">
                     <BarChart2 className="w-4 h-4 text-emerald-500" />
-                    <span>Daily Interactive Engagement Ratio</span>
+                    <span>{t('telemetry.dailyEngagement', { defaultValue: 'Daily Interactive Engagement Ratio' })}</span>
                   </h4>
                   <div className="h-40 flex items-end justify-between gap-2 pt-4">
                     {[34, 45, 23, 56, 78, 62, 90].map((val, idx) => (
@@ -815,10 +817,10 @@ export function KioskDashboard() {
                           className="w-full bg-emerald-500/20 hover:bg-emerald-500 border border-emerald-500/30 hover:border-emerald-500 transition-all rounded-t-sm relative group"
                         >
                           <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap">
-                            {val} hits
+                            {val} {t('telemetry.hits', { defaultValue: 'hits' })}
                           </div>
                         </div>
-                        <span className="text-[9px] text-slate-400 font-mono">Day {idx + 1}</span>
+                        <span className="text-[9px] text-slate-400 font-mono">{t('telemetry.dayLabel', { day: idx + 1, defaultValue: `Day ${idx + 1}` })}</span>
                       </div>
                     ))}
                   </div>
@@ -828,9 +830,9 @@ export function KioskDashboard() {
           ) : (
             <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
               <BarChart2 className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-              <h3 className="font-semibold text-slate-700">No Analytics Sessions Logged</h3>
+              <h3 className="font-semibold text-slate-700">{t('telemetry.noAnalyticsTitle', { defaultValue: 'No Analytics Sessions Logged' })}</h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Once physical tablets pair to this journey and complete user interactive sessions, completion details will map here.
+                {t('telemetry.noAnalyticsDesc', { defaultValue: 'Once physical tablets pair to this journey and complete user interactive sessions, completion details will map here.' })}
               </p>
             </div>
           )}
@@ -841,22 +843,22 @@ export function KioskDashboard() {
       <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
         <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle>Create Kiosk Journey</DialogTitle>
+            <DialogTitle>{t('createModal.title', { defaultValue: 'Create Kiosk Journey' })}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600 uppercase">Journey Title</label>
+              <label className="text-xs font-bold text-slate-600 uppercase">{t('createModal.journeyTitle', { defaultValue: 'Journey Title' })}</label>
               <Input
                 type="text"
-                placeholder="e.g. Factory Floor Visitor Orientation"
+                placeholder={t('createModal.journeyPlaceholder', { defaultValue: 'e.g. Factory Floor Visitor Orientation' })}
                 value={newJourneyTitle}
                 onChange={(e) => setNewJourneyTitle(e.target.value)}
                 className="w-full border-slate-300 bg-white"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-600 uppercase block">Supported Languages</label>
+              <label className="text-xs font-bold text-slate-600 uppercase block">{t('createModal.supportedLanguages', { defaultValue: 'Supported Languages' })}</label>
               <div className="flex space-x-3">
                 {['en', 'si'].map((lang) => {
                   const selected = newJourneyLangs.includes(lang);
@@ -879,7 +881,7 @@ export function KioskDashboard() {
                           : 'bg-white border-slate-200 text-slate-600 hover:border-slate-350'
                       }`}
                     >
-                      {lang === 'en' ? 'English (EN)' : 'Sinhala (SI)'}
+                      {lang === 'en' ? t('createModal.langEnglish', { defaultValue: 'English (EN)' }) : t('createModal.langSinhala', { defaultValue: 'Sinhala (SI)' })}
                     </button>
                   );
                 })}
@@ -889,10 +891,10 @@ export function KioskDashboard() {
 
           <DialogFooter className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
-              Cancel
+              {t('common:cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button variant="default" size="sm" onClick={handleCreateJourney} disabled={creating}>
-              {creating ? 'Creating...' : 'Create & Design'}
+              {creating ? t('createModal.creating', { defaultValue: 'Creating...' }) : t('createModal.createAndDesign', { defaultValue: 'Create & Design' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -902,22 +904,26 @@ export function KioskDashboard() {
       <Dialog open={pairModalOpen} onOpenChange={(open) => !open && setPairModalOpen(false)}>
         <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle>Pair Journey to Terminal</DialogTitle>
+            <DialogTitle>{t('pairModal.title', { defaultValue: 'Pair Journey to Terminal' })}</DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <p className="text-xs text-slate-500">
-              Select which interactive kiosk layout journey should render on the terminal <span className="font-semibold text-slate-800">"{selectedDevice?.name}"</span> located at <span className="font-semibold text-slate-800">"{selectedDevice?.location}"</span>.
+              {t('pairModal.desc', {
+                name: selectedDevice?.name || '',
+                location: selectedDevice?.location || '',
+                defaultValue: `Select which interactive kiosk layout journey should render on the terminal "${selectedDevice?.name}" located at "${selectedDevice?.location}".`
+              })}
             </p>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600 uppercase">Kiosk Journey</label>
+              <label className="text-xs font-bold text-slate-600 uppercase">{t('pairModal.kioskJourney', { defaultValue: 'Kiosk Journey' })}</label>
               <SearchableSelect
                 value={pairJourneyId}
                 onChange={(val) => setPairJourneyId(val)}
-                placeholder="Select Kiosk Journey..."
-                searchPlaceholder="Search journey..."
+                placeholder={t('pairModal.selectPlaceholder', { defaultValue: 'Select Kiosk Journey...' })}
+                searchPlaceholder={t('pairModal.searchPlaceholder', { defaultValue: 'Search journey...' })}
                 options={[
-                  { value: 'unpair', label: '-- Unpair / Clear Current Content --' },
+                  { value: 'unpair', label: t('pairModal.unpairOption', { defaultValue: '-- Unpair / Clear Current Content --' }) },
                   ...journeys.map(j => ({
                     value: j._id,
                     label: j.title,
@@ -929,10 +935,10 @@ export function KioskDashboard() {
 
           <DialogFooter className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setPairModalOpen(false)}>
-              Cancel
+              {t('common:cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button variant="default" size="sm" onClick={handlePairJourney} disabled={pairing}>
-              {pairing ? 'Linking...' : 'Save Pairing'}
+              {pairing ? t('pairModal.linking', { defaultValue: 'Linking...' }) : t('pairModal.savePairing', { defaultValue: 'Save Pairing' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -944,23 +950,23 @@ export function KioskDashboard() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center space-x-2">
               <Tv className="w-5 h-5 text-indigo-600" />
-              <span>Pair New Terminal</span>
+              <span>{t('pairTerminalModal.title', { defaultValue: 'Pair New Terminal' })}</span>
             </DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <p className="text-xs text-slate-500 leading-relaxed">
-              Generate a secure 6-digit one-time activation code to link physical tablet hardware to your organization.
+              {t('pairTerminalModal.desc', { defaultValue: 'Generate a secure 6-digit one-time activation code to link physical tablet hardware to your organization.' })}
             </p>
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Hardware GUID / Fingerprint *
+                {t('pairTerminalModal.hardwareGuid', { defaultValue: 'Hardware GUID / Fingerprint *' })}
               </label>
               <Input
                 value={terminalGuid}
                 onChange={(e) => setTerminalGuid(e.target.value)}
-                placeholder="e.g. TEST-KIOSK-001"
+                placeholder={t('pairTerminalModal.guidPlaceholder', { defaultValue: 'e.g. TEST-KIOSK-001' })}
                 data-testid="terminal-guid-input"
                 className="w-full text-sm font-mono"
                 disabled={!!generatedPairCode}
@@ -975,13 +981,13 @@ export function KioskDashboard() {
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center space-x-2 py-2.5 rounded-lg"
               >
                 {generatingPairCode ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
-                <span>Generate Pairing Code</span>
+                <span>{t('pairTerminalModal.generateCode', { defaultValue: 'Generate Pairing Code' })}</span>
               </Button>
             ) : (
               <div className="space-y-4 pt-1">
                 <div className="p-4 rounded-xl bg-slate-950 text-white border border-slate-800 text-center space-y-2 shadow-inner">
                   <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                    One-Time Device Activation Code
+                    {t('pairTerminalModal.activationCodeTitle', { defaultValue: 'One-Time Device Activation Code' })}
                   </div>
                   <div
                     data-testid="generated-pair-code"
@@ -994,14 +1000,14 @@ export function KioskDashboard() {
                     className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30"
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Valid for {Math.round(codeExpiresInSeconds / 60)} minutes</span>
+                    <span>{t('pairTerminalModal.codeLabel', { minutes: Math.round(codeExpiresInSeconds / 60), defaultValue: `Valid for ${Math.round(codeExpiresInSeconds / 60)} minutes` })}</span>
                   </div>
                 </div>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5">
-                  <div className="font-bold text-slate-800">Terminal Activation Instructions:</div>
-                  <div>1. On physical kiosk hardware, enter GUID: <span className="font-mono font-semibold text-slate-800">{terminalGuid}</span></div>
-                  <div>2. Enter this 6-digit code into the pairing screen to authenticate hardware.</div>
+                  <div className="font-bold text-slate-800">{t('pairTerminalModal.instructionsTitle', { defaultValue: 'Terminal Activation Instructions:' })}</div>
+                  <div>{t('pairTerminalModal.instruction1', { guid: terminalGuid, defaultValue: `1. On physical kiosk hardware, enter GUID: ${terminalGuid}` })}</div>
+                  <div>{t('pairTerminalModal.instruction2', { defaultValue: '2. Enter this 6-digit code into the pairing screen to authenticate hardware.' })}</div>
                 </div>
 
                 <div className="flex gap-2">
@@ -1011,14 +1017,14 @@ export function KioskDashboard() {
                     onClick={() => {
                       navigator.clipboard.writeText(generatedPairCode);
                       setPairCodeCopied(true);
-                      toast.success('Pairing code copied to clipboard');
+                      toast.success(t('toasts.copiedClipboard', { defaultValue: 'Pairing code copied to clipboard' }));
                       setTimeout(() => setPairCodeCopied(false), 2000);
                     }}
                     data-testid="copy-pair-code-btn"
                     className="flex-1 flex items-center justify-center space-x-1.5"
                   >
                     {pairCodeCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                    <span>{pairCodeCopied ? 'Copied' : 'Copy Code'}</span>
+                    <span>{pairCodeCopied ? t('pairTerminalModal.copied', { defaultValue: 'Copied' }) : t('pairTerminalModal.copyCode', { defaultValue: 'Copy Code' })}</span>
                   </Button>
                   <Button
                     variant="default"
@@ -1030,7 +1036,7 @@ export function KioskDashboard() {
                     data-testid="close-pair-modal-btn"
                     className="flex-1"
                   >
-                    Done
+                    {t('pairTerminalModal.close', { defaultValue: 'Done' })}
                   </Button>
                 </div>
               </div>
@@ -1045,26 +1051,26 @@ export function KioskDashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Key className="w-5 h-5 text-amber-600" />
-              Configure Supervisor Witness PIN
+              {t('supervisorPinModal.title', { defaultValue: 'Configure Supervisor Witness PIN' })}
             </DialogTitle>
           </DialogHeader>
 
           <DialogBody className="space-y-4 text-xs">
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 space-y-1">
-              <div className="font-bold">Frontline Kiosk Witness Protocol (§UQ-01):</div>
+              <div className="font-bold">{t('supervisorPinModal.protocolTitle', { defaultValue: 'Frontline Kiosk Witness Protocol (§UQ-01):' })}</div>
               <p className="text-[11px] leading-relaxed">
-                Frontline plant and warehouse workers frequently arrive before SSO corporate accounts are provisioned. Supervisors authenticate with their 4-digit PIN on the physical kiosk terminal to witness and legally co-sign safety declarations, PPE acknowledgments, and bank account verifications.
+                {t('supervisorPinModal.protocolDesc', { defaultValue: 'Frontline plant and warehouse workers frequently arrive before SSO corporate accounts are provisioned. Supervisors authenticate with their 4-digit PIN on the physical kiosk terminal to witness and legally co-sign safety declarations, PPE acknowledgments, and bank account verifications.' })}
               </p>
             </div>
 
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                Supervisor Employee ID or Email <span className="text-rose-500">*</span>
+                {t('supervisorPinModal.identifierLabel', { defaultValue: 'Supervisor Employee ID or Email *' })}
               </label>
               <Input
                 value={supervisorIdentifier}
                 onChange={(e) => setSupervisorIdentifier(e.target.value)}
-                placeholder="e.g. sup-1049 or supervisor@company.com"
+                placeholder={t('supervisorPinModal.idPlaceholder', { defaultValue: 'e.g. sup-1049 or supervisor@company.com' })}
                 className="text-xs"
               />
             </div>
@@ -1072,9 +1078,9 @@ export function KioskDashboard() {
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
                 <label className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                  4-Digit Security PIN <span className="text-rose-500">*</span>
+                  {t('supervisorPinModal.pinLabel', { defaultValue: '4-Digit Security PIN *' })}
                 </label>
-                <span className="font-mono text-[10px] text-slate-400">Numeric digits only</span>
+                <span className="font-mono text-[10px] text-slate-400">{t('supervisorPinModal.numericOnly', { defaultValue: 'Numeric digits only' })}</span>
               </div>
               <Input
                 type="password"
@@ -1093,7 +1099,7 @@ export function KioskDashboard() {
               onClick={() => setSupervisorPinModalOpen(false)}
               disabled={settingSupervisorPin}
             >
-              Cancel
+              {t('common:cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               className="bg-amber-600 hover:bg-amber-700 text-white"
@@ -1102,10 +1108,10 @@ export function KioskDashboard() {
             >
               {settingSupervisorPin ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Saving PIN...
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" /> {t('supervisorPinModal.saving', { defaultValue: 'Saving PIN...' })}
                 </>
               ) : (
-                'Save Supervisor PIN'
+                t('supervisorPinModal.save', { defaultValue: 'Save Supervisor PIN' })
               )}
             </Button>
           </DialogFooter>

@@ -9,7 +9,50 @@
       "avgTimeToComplete": "Avg. Time to Complete"
     },
     "recentActivity": "Recent Activity",
-    "completionsOverTime": "Completions Over Time"
+    "recentActivityDesc": "Latest employee actions and journey milestones",
+    "completionsOverTime": "Completions Over Time",
+    "subtitle": "Overview of your organization's learning progress.",
+    "error": {
+      "title": "Failed to Load Dashboard",
+      "defaultMessage": "An error occurred while loading dashboard statistics.",
+      "retry": "Retry"
+    },
+    "launchpad": {
+      "inviteNewHire": {
+        "title": "Invite New Hire",
+        "desc": "Add employee or bulk CSV"
+      },
+      "aiBuilder": {
+        "title": "Generate Course with AI",
+        "desc": "AI Course Builder"
+      },
+      "journeyTemplates": {
+        "title": "Journey Templates",
+        "desc": "Curricula & step builder"
+      },
+      "pendingDocuments": {
+        "title": "Pending Documents",
+        "desc": "Required documents & signatures"
+      },
+      "kioskDevices": {
+        "title": "Kiosk Device Summary",
+        "desc": "Terminal status & check-ins"
+      },
+      "hrOps": {
+        "title": "HR Operations",
+        "desc": "Handovers & graduation"
+      },
+      "exceptions": {
+        "title": "Exceptions",
+        "desc": "Quarantined cases & SLA"
+      }
+    },
+    "chart": {
+      "completionsLabel": "Completions"
+    },
+    "pagination": {
+      "activities": "activities"
+    }
   },
   "employee": {
     "title": "Welcome back",
@@ -19,7 +62,199 @@
     "inProgress": "In Progress",
     "continuelearning": "Continue Learning",
     "startJourney": "Start Journey",
-    "noJourneys": "No journeys assigned yet."
+    "noJourneys": "No journeys assigned yet.",
+    "error": {
+      "title": "Failed to Load Dashboard",
+      "desc": "Your employee record could not be loaded.",
+      "retry": "Retry"
+    },
+    "toasts": {
+      "enrollSuccess": "Successfully enrolled in the journey!",
+      "enrollFailed": "Failed to enroll.",
+      "taskCompleted": "Task marked as completed!",
+      "taskReverted": "Task status reverted to pending",
+      "taskFailed": "Failed to update task",
+      "handoverSuccess": "Congratulations! You have completed all onboarding stages and transitioned to the Active Employee Workspace.",
+      "equipmentConfirmed": "Equipment receipt confirmed! Status updated to Delivered.",
+      "copilotActivated": "Onboarding Copilot drawer activated"
+    },
+    "stages": {
+      "stage0": {
+        "title": "Onboarding Package Setup in Progress",
+        "desc": "Your customized onboarding curriculum, compliance paperwork, and IT checklists are being assembled by HR & IT.",
+        "action": "Explore Team Directory"
+      },
+      "stage1": {
+        "title": "Stage 1: Compliance E-Signatures (Prerequisite)",
+        "desc": "Review and sign required legal & policy documents before proceeding with your training modules.",
+        "action": "Sign Pending Documents"
+      },
+      "stage2": {
+        "title": "Stage 2: Operational & IT Setup Checklists",
+        "desc": "Complete your assigned IT provisioning and workplace checklist tasks.",
+        "action": "View Operational Tasks"
+      },
+      "stage3": {
+        "title": "Stage 3: LMS Module: {{title}}",
+        "fallbackTitle": "Learning Curriculum",
+        "desc": "Complete learning modules and knowledge checks ({{progress}}% completed).",
+        "action": "Continue LMS Module"
+      },
+      "stage4": {
+        "title": "Stage 4: Peer Mentorship & 30-Day Check-in Handover",
+        "desc": "All training and operational setup tasks are complete! Review your 30-day goals with your buddy to finalize onboarding handover.",
+        "action": "Review Milestones & Buddy"
+      }
+    },
+    "workspace": {
+      "celebrationTitle": "Onboarding Completed! Welcome to Talnova.",
+      "celebrationDesc": "All legal compliance, operational checklists, courses, and milestones are signed off.",
+      "viewCertBtn": "View Certificate",
+      "phaseBadge": "Phase 5: Active Employee Workspace • Onboarding Completed",
+      "welcomeBack": "Welcome Back, {{name}}!",
+      "welcomeBackDesc": "Your onboarding journey is 100% complete. Access your active workspace, knowledge base, and team tools below.",
+      "askCopilot": "Ask Copilot",
+      "viewCerts": "View Certificates ({{count}})",
+      "certPreview": {
+        "badge": "Completion Credential",
+        "verified": "Verified Authentic",
+        "title": "Certificate of Onboarding Completion",
+        "desc": "Issued to {{name}} for completing all onboarding curriculum requirements.",
+        "certId": "Certificate ID",
+        "issueDate": "Issue Date",
+        "openViewer": "Open Certificate Viewer"
+      },
+      "stats": {
+        "learningModules": "Learning Modules",
+        "completed": "{{count}} Completed",
+        "fulfillment": "100% course fulfillment",
+        "requiredDocs": "Required Documents",
+        "verified": "Verified",
+        "signedPolicies": "All NDAs & policies signed",
+        "myBuddy": "My Buddy",
+        "connected": "Connected",
+        "assigned": "Assigned",
+        "peerMentorship": "Peer mentorship active",
+        "milestones": "Performance Milestones",
+        "activeCount": "{{count}} Active",
+        "day30Plus": "Day 30+",
+        "checkinReviews": "Ongoing check-in reviews",
+        "leaderboard": "Points & Leaderboard",
+        "xpValue": "350 XP",
+        "rankCohort": "Rank #3 in cohort"
+      },
+      "portals": {
+        "kbTitle": "Knowledge Base & RAG AI",
+        "kbDesc": "Search company SOPs, policy articles, and ask AI questions in real-time.",
+        "kbBtn": "Open Knowledge Base",
+        "dirTitle": "Team Directory & Office Map",
+        "dirDesc": "Find colleagues, view department structures, and navigate office seating.",
+        "dirBtn": "View Team Directory",
+        "milestonesTitle": "30/60/90 Day Milestones",
+        "milestonesDesc": "Review your active 30-day, 60-day, and 90-day progress check-ins with your manager.",
+        "milestonesBtn": "Open Milestones"
+      }
+    },
+    "roadmap": {
+      "badge": "Guided Onboarding Roadmap • {{status}}",
+      "awaitingAssignments": "Awaiting Assignments",
+      "stageActive": "Stage {{stage}} of 4 Active",
+      "welcome": "Welcome to Northwind, {{name}}!",
+      "welcomeDesc": "Follow your step-by-step onboarding roadmap below to complete your setup, compliance, learning modules, and team integration.",
+      "hero": {
+        "activeStage": "Active Onboarding Stage: {{stage}}",
+        "curriculumSetup": "Curriculum Setup",
+        "stepNum": "Step {{step}}",
+        "totalComplete": "{{percent}}% Total Roadmap Complete",
+        "handoverBtn": "Complete Handover & Unlock Workspace"
+      },
+      "stepper": {
+        "step1": "1. E-Signatures",
+        "completed": "✓ Completed",
+        "unsigned": "{{count}} Unsigned",
+        "step2": "2. IT & Setup Tasks",
+        "pending": "{{count}} Pending",
+        "step3": "3. LMS Modules",
+        "done": "{{percent}}% Done",
+        "zeroAssigned": "0 Assigned",
+        "step4": "4. Buddy & Milestones",
+        "handoverDone": "✓ Handover Done",
+        "readyHandover": "Ready for Handover",
+        "upcoming": "Upcoming"
+      },
+      "milestone": {
+        "trackTitle": "Day {{day}} Milestone Track",
+        "dayBadge": "Day {{day}}",
+        "targetDueDate": "Target Due Date: {{date}}",
+        "selfCheckinPending": "Self Check-in Pending",
+        "goalsCompletedLabel": "Milestone Goals Completed:",
+        "goalsCount": "{{completed}} of {{total}} ({{percent}}%)",
+        "submittedDesc": "Self check-in submitted! Awaiting manager review and sign-off.",
+        "pendingDesc": "Complete your goals and submit your self-reflection check-in before the target due date.",
+        "viewStatus": "View Milestone Status",
+        "completeCheckin": "Complete Self Check-in"
+      },
+      "equipment": {
+        "title": "Assigned Equipment & Workstation Setup",
+        "items": "{{count}} Item",
+        "items_other": "{{count}} Items",
+        "desc": "Track shipment, delivery, and confirm physical receipt of your work equipment.",
+        "preparing": "Preparing",
+        "serial": "Serial:",
+        "trackPackage": "Track Package ({{courier}})",
+        "trackCourier": "Courier",
+        "trackingUponDispatch": "Tracking available upon dispatch",
+        "received": "Received",
+        "confirmReceipt": "Confirm Receipt"
+      },
+      "gamification": {
+        "title": "Points & Leaderboard",
+        "desc": "Earn points for completing compliance milestones and climb the onboarding leaderboard.",
+        "viewLeaderboard": "View Leaderboard",
+        "xpPoints": "XP Points",
+        "rank": "Rank #3 in current onboarding cohort"
+      },
+      "overview": {
+        "title": "Onboarding Sub-Systems Overview",
+        "desc": "Quick status breakdown across your compliance, operational task queue, buddy pairing, and milestones.",
+        "reqDocs": "Required Documents",
+        "unsigned": "{{count}} Unsigned",
+        "eSigReqs": "E-signature requirements",
+        "tasksSetup": "Tasks & IT Setup",
+        "openTasks": "{{count}} Open",
+        "opChecklists": "Operational checklists",
+        "myBuddy": "My Buddy",
+        "paired": "Paired",
+        "autoAssign": "Auto-Assign",
+        "peerSupport": "Peer mentor support",
+        "milestonesTitle": "30/60/90 Milestones",
+        "activeCount": "{{count}} Active",
+        "schedule": "Schedule",
+        "checkpoints": "Performance checkpoints"
+      },
+      "checklist": {
+        "title": "Personal Onboarding Checklist",
+        "desc": "Track and complete your personal operational setup tasks.",
+        "viewAll": "View All Tasks →",
+        "normal": "normal"
+      },
+      "assigned": {
+        "assignedDate": "Assigned {{date}}",
+        "reviewCourse": "Review Course",
+        "startCourse": "Start Course",
+        "itemLabel": "journeys"
+      },
+      "public": {
+        "title": "Explore Public Journeys",
+        "selfEnroll": "Self-Enroll",
+        "noDesc": "No description provided.",
+        "general": "General",
+        "modules": "{{count}} modules",
+        "enrolling": "Enrolling...",
+        "enrollStart": "Enroll & Start",
+        "itemLabel": "journeys"
+      }
+    }
   },
   "superAdmin": {
     "title": "Super Admin Dashboard",
@@ -28,6 +263,50 @@
       "activeOrgs": "Active Organizations",
       "totalRevenue": "Total Revenue",
       "totalUsers": "Total Users"
+    }
+  },
+  "leaderboard": {
+    "title": "Gamification & Leaderboard",
+    "subtitle": "Earn points, unlock micro-credential badges, and maintain learning streaks across your onboarding journey.",
+    "claimPractice": "Claim Practice +25 pts",
+    "toastAwarded": "+25 XP Awarded! Keep up the great work!",
+    "stats": {
+      "yourProgress": "Your Progress",
+      "levelBadge": "Level {{level}}",
+      "pointsUnit": "pts",
+      "levelProgress": "Level Progress",
+      "activeStreak": "Active Streak",
+      "daysUnit": "Days",
+      "longestStreakLabel": "Longest Streak:",
+      "longestStreakDays": "{{count}} days",
+      "microCredentials": "Micro-Credentials",
+      "badgesUnit": "Badges",
+      "unlockedCredentials": "Unlocked micro-credentials"
+    },
+    "badges": {
+      "title": "Unlocked Badges & Achievements",
+      "description": "Earn badges as you complete onboarding tasks, milestones, and quizzes.",
+      "empty": "No badges unlocked yet. Complete onboarding modules to earn your first badge!"
+    },
+    "table": {
+      "title": "Organization Leaderboard",
+      "description": "Top onboarding learners across your organization.",
+      "pts": "{{points}} pts",
+      "streakMeta": "Level {{level}} • 🔥 {{streak}}d Streak",
+      "columns": {
+        "rank": "Rank",
+        "employee": "Employee",
+        "department": "Department",
+        "level": "Level",
+        "streak": "Streak",
+        "points": "Points"
+      },
+      "lvlBadge": "Lvl {{level}}",
+      "streakDays": "{{count}}d",
+      "pointsValue": "{{count}} pts"
+    },
+    "pagination": {
+      "learners": "learners"
     }
   }
 }

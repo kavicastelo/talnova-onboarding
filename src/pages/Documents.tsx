@@ -37,8 +37,10 @@ import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
+import { useTranslation } from 'react-i18next';
 
 export const Documents: React.FC = () => {
+  const { t } = useTranslation(['documents', 'common']);
   const navigate = useNavigate();
   const { role } = useRole();
   const isAdmin = role === 'admin' || role === 'owner';
@@ -106,7 +108,7 @@ export const Documents: React.FC = () => {
 
   const handleSaveTemplate = () => {
     if (!newTitle.trim() || !newContent.trim()) {
-      toast.error('Please enter a valid title and document content.');
+      toast.error(t('toasts.validationError', { defaultValue: 'Please enter a valid title and document content.' }));
       return;
     }
 
@@ -125,13 +127,13 @@ export const Documents: React.FC = () => {
         },
         {
           onSuccess: () => {
-            toast.success('Document template updated successfully!');
+            toast.success(t('toasts.templateUpdated', { defaultValue: 'Document template updated successfully!' }));
             setIsCreateModalOpen(false);
             setEditingTemplate(null);
             refetchTemplates();
           },
           onError: (err: any) => {
-            toast.error(err?.response?.data?.message || err?.message || 'Failed to update template');
+            toast.error(err?.response?.data?.message || err?.message || t('toasts.updateTemplateError', { defaultValue: 'Failed to update template' }));
           },
         }
       );
@@ -147,7 +149,7 @@ export const Documents: React.FC = () => {
         },
         {
           onSuccess: () => {
-            toast.success('Document template created successfully!');
+            toast.success(t('toasts.templateCreated', { defaultValue: 'Document template created successfully!' }));
             setIsCreateModalOpen(false);
             setNewTitle('');
             setNewContent('');
@@ -157,7 +159,7 @@ export const Documents: React.FC = () => {
             refetchTemplates();
           },
           onError: (err: any) => {
-            toast.error(err?.response?.data?.message || err?.message || 'Failed to create template');
+            toast.error(err?.response?.data?.message || err?.message || t('toasts.createTemplateError', { defaultValue: 'Failed to create template' }));
           },
         }
       );
@@ -166,7 +168,7 @@ export const Documents: React.FC = () => {
 
   const handleAssignDocument = () => {
     if (!selectedTemplateId || !selectedEmpId) {
-      toast.error('Please select a template and target employee.');
+      toast.error(t('toasts.selectTemplateAndEmp', { defaultValue: 'Please select a template and target employee.' }));
       return;
     }
 
@@ -174,13 +176,13 @@ export const Documents: React.FC = () => {
       { templateId: selectedTemplateId, employeeId: selectedEmpId },
       {
         onSuccess: () => {
-          toast.success('Document assigned to employee successfully!');
+          toast.success(t('toasts.documentAssigned', { defaultValue: 'Document assigned to employee successfully!' }));
           setIsAssignModalOpen(false);
           setSelectedTemplateId(null);
           setSelectedEmpId('');
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign document');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.assignDocumentError', { defaultValue: 'Failed to assign document' }));
         },
       }
     );
@@ -193,10 +195,10 @@ export const Documents: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <FileText className="h-7 w-7 text-indigo-600" />
-            Digital Documents & E-Signatures
+            {t('title', { defaultValue: 'Digital Documents & E-Signatures' })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage onboarding document templates, set mandatory compliance rules, and audit cryptographic signatures.
+            {t('subtitle', { defaultValue: 'Manage onboarding document templates, set mandatory compliance rules, and audit cryptographic signatures.' })}
           </p>
         </div>
         {isAdmin && (
@@ -206,7 +208,7 @@ export const Documents: React.FC = () => {
               className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
               onClick={handleOpenCreate}
             >
-              <Plus className="h-4 w-4" /> Create Document Template
+              <Plus className="h-4 w-4" /> {t('createTemplate', { defaultValue: 'Create Document Template' })}
             </Button>
           </div>
         )}
@@ -224,7 +226,7 @@ export const Documents: React.FC = () => {
             }`}
             onClick={() => setActiveTab('templates')}
           >
-            <Building2 className="h-4 w-4" /> Document Templates ({templates?.length || 0})
+            <Building2 className="h-4 w-4" /> {t('tabs.templates', { count: templates?.length || 0, defaultValue: `Document Templates (${templates?.length || 0})` })}
           </button>
         )}
         <button
@@ -236,124 +238,134 @@ export const Documents: React.FC = () => {
           }`}
           onClick={() => setActiveTab('inbox')}
         >
-          <FileText className="h-4 w-4" /> My Document Inbox ({inbox?.length || 0})
+          <FileText className="h-4 w-4" /> {t('tabs.inbox', { count: inbox?.length || 0, defaultValue: `My Document Inbox (${inbox?.length || 0})` })}
         </button>
       </div>
 
-      {/* Tab 1: Document Templates (Admin View) */}
-      {activeTab === 'templates' && isAdmin && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="document-templates-catalog">
-            {templatesLoading ? (
-              <div className="col-span-full p-8 text-center text-muted-foreground">Loading templates...</div>
-            ) : (templates || []).length === 0 ? (
-              <div className="col-span-full p-8 text-center text-muted-foreground">
-                No document templates created yet. Click "Create Document Template" to add an agreement.
-              </div>
-            ) : (
-              templatesPagination.paginatedData.map((t) => (
-                <Card key={t._id} className="hover:border-indigo-500/50 transition-all flex flex-col justify-between shadow-sm">
-                  <CardHeader>
-                    <div className="flex flex-wrap justify-between items-start gap-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        <Badge variant="outline" className="uppercase text-[10px]">
-                          {t.category.replace('_', ' ')}
-                        </Badge>
-                        {t.isMandatory && (
-                          <Badge
-                            id={`mandatory-badge-${t._id}`}
-                            className="bg-red-500/10 text-red-600 border-red-500/20 text-[10px] font-semibold"
-                          >
-                            Mandatory
-                          </Badge>
-                        )}
-                        {t.signatureRequired && (
-                          <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-[10px]">
-                            Require Signature
-                          </Badge>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="bg-muted text-[10px]">
-                        v{t.version}
+    {/* Tab 1: Document Templates (Admin View) */}
+    {activeTab === 'templates' && isAdmin && (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="document-templates-catalog">
+          {templatesLoading ? (
+            <div className="col-span-full p-8 text-center text-muted-foreground">{t('templates.loading', { defaultValue: 'Loading templates...' })}</div>
+          ) : (templates || []).length === 0 ? (
+            <div className="col-span-full p-8 text-center text-muted-foreground">
+              {t('templates.empty', { defaultValue: 'No document templates created yet. Click "Create Document Template" to add an agreement.' })}
+            </div>
+          ) : (
+            templatesPagination.paginatedData.map((tmpl) => (
+              <Card key={tmpl._id} className="hover:border-indigo-500/50 transition-all flex flex-col justify-between shadow-sm">
+                <CardHeader>
+                  <div className="flex flex-wrap justify-between items-start gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className="uppercase text-[10px]">
+                        {tmpl.category === 'nda'
+                          ? t('createModal.categories.nda', { defaultValue: 'Non-Disclosure Agreement (NDA)' })
+                          : tmpl.category === 'code_of_conduct'
+                          ? t('createModal.categories.codeOfConduct', { defaultValue: 'Code of Conduct' })
+                          : tmpl.category === 'offer_letter'
+                          ? t('createModal.categories.offerLetter', { defaultValue: 'Offer Letter' })
+                          : tmpl.category === 'handbook'
+                          ? t('createModal.categories.handbook', { defaultValue: 'Employee Handbook Acknowledgment' })
+                          : tmpl.category === 'direct_deposit'
+                          ? t('createModal.categories.directDeposit', { defaultValue: 'Direct Deposit Form' })
+                          : tmpl.category.replace('_', ' ')}
                       </Badge>
+                      {tmpl.isMandatory && (
+                        <Badge
+                          id={`mandatory-badge-${tmpl._id}`}
+                          className="bg-red-500/10 text-red-600 border-red-500/20 text-[10px] font-semibold"
+                        >
+                          {t('templates.mandatory', { defaultValue: 'Mandatory' })}
+                        </Badge>
+                      )}
+                      {tmpl.signatureRequired && (
+                        <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-[10px]">
+                          {t('templates.requireSignature', { defaultValue: 'Require Signature' })}
+                        </Badge>
+                      )}
                     </div>
-                    <CardTitle className="text-base font-semibold mt-2">{t.title}</CardTitle>
-                    <CardDescription className="line-clamp-2 text-xs">
-                      {t.description || t.content?.substring(0, 100) || 'Standard electronic document template.'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-3">
-                    {t.audience?.autoAssignNewHires && (
-                      <div className="text-[11px] text-emerald-600 flex items-center gap-1 font-medium">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Auto-assigns to all new hires
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                      <Button
-                        id={`view-signatures-btn-${t._id}`}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs flex items-center justify-center gap-1"
-                        onClick={() => handleOpenSignatures(t)}
-                      >
-                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" /> View Signatures
-                      </Button>
-                      <Button
-                        id={`edit-template-btn-${t._id}`}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs flex items-center justify-center gap-1"
-                        onClick={() => handleOpenEdit(t)}
-                      >
-                        <Edit3 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
-                      </Button>
+                    <Badge variant="outline" className="bg-muted text-[10px]">
+                      v{tmpl.version}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base font-semibold mt-2">{tmpl.title}</CardTitle>
+                  <CardDescription className="line-clamp-2 text-xs">
+                    {tmpl.description || tmpl.content?.substring(0, 100) || t('templates.defaultDesc', { defaultValue: 'Standard electronic document template.' })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-3">
+                  {tmpl.audience?.autoAssignNewHires && (
+                    <div className="text-[11px] text-emerald-600 flex items-center gap-1 font-medium">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {t('templates.autoAssign', { defaultValue: 'Auto-assigns to all new hires' })}
                     </div>
+                  )}
 
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                     <Button
-                      id={`assign-template-btn-${t._id}`}
-                      variant="default"
-                      className="w-full text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                      onClick={() => {
-                        setSelectedTemplateId(t._id);
-                        setIsAssignModalOpen(true);
-                      }}
+                      id={`view-signatures-btn-${tmpl._id}`}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs flex items-center justify-center gap-1"
+                      onClick={() => handleOpenSignatures(tmpl)}
                     >
-                      <Send className="h-3.5 w-3.5 mr-1.5" /> Assign to Employee
+                      <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" /> {t('templates.viewSignatures', { defaultValue: 'View Signatures' })}
                     </Button>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+                    <Button
+                      id={`edit-template-btn-${tmpl._id}`}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs flex items-center justify-center gap-1"
+                      onClick={() => handleOpenEdit(tmpl)}
+                    >
+                      <Edit3 className="h-3.5 w-3.5 text-muted-foreground" /> {t('templates.edit', { defaultValue: 'Edit' })}
+                    </Button>
+                  </div>
 
-          <SimplePagination
-            currentPage={templatesPagination.page}
-            totalPages={templatesPagination.totalPages}
-            totalItems={templatesPagination.totalItems}
-            startIndex={templatesPagination.startIndex}
-            endIndex={templatesPagination.endIndex}
-            pageSize={templatesPagination.pageSize}
-            onPageChange={templatesPagination.setPage}
-            onPageSizeChange={templatesPagination.setPageSize}
-            itemLabel="templates"
-          />
+                  <Button
+                    id={`assign-template-btn-${tmpl._id}`}
+                    variant="default"
+                    className="w-full text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                    onClick={() => {
+                      setSelectedTemplateId(tmpl._id);
+                      setIsAssignModalOpen(true);
+                    }}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-1.5" /> {t('templates.assign', { defaultValue: 'Assign to Employee' })}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-      )}
+
+        <SimplePagination
+          currentPage={templatesPagination.page}
+          totalPages={templatesPagination.totalPages}
+          totalItems={templatesPagination.totalItems}
+          startIndex={templatesPagination.startIndex}
+          endIndex={templatesPagination.endIndex}
+          pageSize={templatesPagination.pageSize}
+          onPageChange={templatesPagination.setPage}
+          onPageSizeChange={templatesPagination.setPageSize}
+          itemLabel={t('templates.label', { defaultValue: 'templates' })}
+        />
+      </div>
+    )}
 
       {/* Tab 2: Employee Document Inbox */}
       {activeTab === 'inbox' && (
         <Card>
           <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-base font-semibold">Assigned Documents & E-Signatures</CardTitle>
-            <CardDescription>Review and execute pending agreements assigned to you.</CardDescription>
+            <CardTitle className="text-base font-semibold">{t('inbox.title', { defaultValue: 'Assigned Documents & E-Signatures' })}</CardTitle>
+            <CardDescription>{t('inbox.desc', { defaultValue: 'Review and execute pending agreements assigned to you.' })}</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {inboxLoading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading inbox...</div>
+              <div className="p-8 text-center text-muted-foreground">{t('inbox.loading', { defaultValue: 'Loading inbox...' })}</div>
             ) : (inbox || []).length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                No documents assigned to your inbox. All clear!
+                {t('inbox.empty', { defaultValue: 'No documents assigned to your inbox. All clear!' })}
               </div>
             ) : (
               <div>
@@ -371,15 +383,15 @@ export const Documents: React.FC = () => {
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Assigned on {new Date(doc.assignedAt).toLocaleDateString()}{' '}
-                          {doc.dueDate ? `| Due by ${new Date(doc.dueDate).toLocaleDateString()}` : ''}
+                          {t('inbox.assignedOn', { date: new Date(doc.assignedAt).toLocaleDateString(), defaultValue: `Assigned on ${new Date(doc.assignedAt).toLocaleDateString()}` })}{' '}
+                          {doc.dueDate ? `| ${t('inbox.dueBy', { date: new Date(doc.dueDate).toLocaleDateString(), defaultValue: `Due by ${new Date(doc.dueDate).toLocaleDateString()}` })}` : ''}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                         {doc.status === 'signed' ? (
                           <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Signed
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {t('inbox.signed', { defaultValue: 'Signed' })}
                           </Badge>
                         ) : (
                           <Button
@@ -387,7 +399,7 @@ export const Documents: React.FC = () => {
                             className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
                             onClick={() => navigate(`/documents/${doc._id}/sign`)}
                           >
-                            Sign Document <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                            {t('inbox.signNow', { defaultValue: 'Sign Agreement' })} <ArrowRight className="h-3.5 w-3.5 ml-1" />
                           </Button>
                         )}
                       </div>
@@ -405,7 +417,7 @@ export const Documents: React.FC = () => {
                     pageSize={inboxPagination.pageSize}
                     onPageChange={inboxPagination.setPage}
                     onPageSizeChange={inboxPagination.setPageSize}
-                    itemLabel="documents"
+                    itemLabel={t('inbox.label', { defaultValue: 'documents' })}
                   />
                 </div>
               </div>
@@ -418,51 +430,59 @@ export const Documents: React.FC = () => {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? 'Edit Document Template' : 'Create Document Template'}</DialogTitle>
+            <DialogTitle>
+              {editingTemplate
+                ? t('createModal.editTitle', { defaultValue: 'Edit Document Template' })
+                : t('createModal.createTitle', { defaultValue: 'Create Document Template' })}
+            </DialogTitle>
             <DialogDescription>
-              Configure compliance agreements with mandatory signatures and dynamic variable placeholders.
+              {t('createModal.desc', { defaultValue: 'Define an electronic agreement, policy, or offer letter.' })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Document Title *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('createModal.titleLabel', { defaultValue: 'Document Title *' })}
+              </label>
               <Input
                 id="template-title-input"
-                placeholder="e.g. Global Information Security Agreement"
+                placeholder={t('createModal.titlePlaceholder', { defaultValue: 'e.g. Mutual Non-Disclosure Agreement (NDA)' })}
                 value={newTitle}
                 onChange={(e: any) => setNewTitle(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Category</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('createModal.categoryLabel', { defaultValue: 'Category *' })}
+              </label>
               <SearchableSelect
                 id="template-category-select"
                 value={newCategory}
                 onChange={(val: any) => setNewCategory(val)}
-                placeholder="Select category..."
-                searchPlaceholder="Search category..."
+                placeholder={t('createModal.selectCategory', { defaultValue: 'Select category...' })}
+                searchPlaceholder={t('createModal.searchCategory', { defaultValue: 'Search category...' })}
                 options={[
-                  { value: 'nda', label: 'Non-Disclosure Agreement (NDA)' },
-                  { value: 'code_of_conduct', label: 'Code of Conduct' },
-                  { value: 'offer_letter', label: 'Offer Letter' },
-                  { value: 'handbook', label: 'Employee Handbook Acknowledgment' },
-                  { value: 'direct_deposit', label: 'Direct Deposit Form' },
-                  { value: 'custom', label: 'Custom Agreement / Security Policy' },
+                  { value: 'nda', label: t('createModal.categories.nda', { defaultValue: 'Non-Disclosure Agreement (NDA)' }) },
+                  { value: 'code_of_conduct', label: t('createModal.categories.codeOfConduct', { defaultValue: 'Code of Conduct' }) },
+                  { value: 'offer_letter', label: t('createModal.categories.offerLetter', { defaultValue: 'Offer Letter' }) },
+                  { value: 'handbook', label: t('createModal.categories.handbook', { defaultValue: 'Employee Handbook Acknowledgment' }) },
+                  { value: 'direct_deposit', label: t('createModal.categories.directDeposit', { defaultValue: 'Direct Deposit Form' }) },
+                  { value: 'custom', label: t('createModal.categories.custom', { defaultValue: 'Custom Agreement / Security Policy' }) },
                 ]}
               />
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Document Body Content (Markdown / Legal Terms) *
+                {t('createModal.contentLabel', { defaultValue: 'Document Text / Legal Terms *' })}
               </label>
               <p className="text-[11px] text-muted-foreground mb-1">
-                Use placeholders: <code>{"{{employeeName}}"}</code>, <code>{"{{employeeEmail}}"}</code>, <code>{"{{department}}"}</code>, <code>{"{{companyName}}"}</code>, <code>{"{{date}}"}</code>.
+                {t('createModal.placeholdersHelp', { defaultValue: 'Use placeholders: {{employeeName}}, {{employeeEmail}}, {{department}}, {{companyName}}, {{date}}.' })}
               </p>
               <textarea
                 id="template-content-input"
                 className="w-full min-h-[160px] text-sm p-3 border rounded-md font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Employees must maintain confidentiality of all systems..."
+                placeholder={t('createModal.contentPlaceholder', { defaultValue: 'Enter the full text, clauses, and agreement content...' })}
                 value={newContent}
                 onChange={(e) => setNewContent(e.target.value)}
               />
@@ -478,7 +498,7 @@ export const Documents: React.FC = () => {
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <label htmlFor="require-signature-check" className="text-xs font-medium cursor-pointer">
-                  Require Signature
+                  {t('createModal.requireSig', { defaultValue: 'Require Cryptographic E-Signature' })}
                 </label>
               </div>
 
@@ -491,7 +511,7 @@ export const Documents: React.FC = () => {
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <label htmlFor="mandatory-compliance-check" className="text-xs font-medium cursor-pointer">
-                  Mandatory Compliance
+                  {t('createModal.mandatory', { defaultValue: 'Mark as Mandatory Compliance Item' })}
                 </label>
               </div>
             </div>
@@ -505,14 +525,14 @@ export const Documents: React.FC = () => {
                 className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
               />
               <label htmlFor="autoAssign" className="text-xs font-medium cursor-pointer">
-                Auto-assign this document template to all new hires upon registration
+                {t('createModal.autoAssign', { defaultValue: 'Auto-Assign to All New Hires' })}
               </label>
             </div>
           </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-              Cancel
+              {t('createModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button
               id="save-template-btn"
@@ -520,7 +540,11 @@ export const Documents: React.FC = () => {
               onClick={handleSaveTemplate}
               disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
             >
-              {createTemplateMutation.isPending || updateTemplateMutation.isPending ? 'Saving...' : 'Save Template'}
+              {createTemplateMutation.isPending || updateTemplateMutation.isPending
+                ? t('common:saving', { defaultValue: 'Saving...' })
+                : editingTemplate
+                ? t('createModal.update', { defaultValue: 'Update Template' })
+                : t('createModal.save', { defaultValue: 'Save Template' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -532,19 +556,19 @@ export const Documents: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-600">
               <ShieldCheck className="h-5 w-5" />
-              Document Audit Trail Signatures — {signaturesTemplate?.title}
+              {t('signaturesModal.title', { defaultValue: 'Audit Trail & Cryptographic Signatures' })} — {signaturesTemplate?.title}
             </DialogTitle>
             <DialogDescription>
-              Authoritative record of executed electronic signatures and cryptographic SHA-256 integrity checksums.
+              {t('signaturesModal.desc', { defaultValue: 'Verifiable hash signatures captured for this document template.' })}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody className="p-0 sm:p-0">
             {signaturesLoading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading audit trail signatures...</div>
+              <div className="p-8 text-center text-muted-foreground">{t('signaturesModal.loading', { defaultValue: 'Loading audit signatures...' })}</div>
             ) : (signatures || []).length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                No signatures recorded for this template yet. Once assigned employees execute the agreement, signed timestamps and SHA-256 audit hashes will appear here.
+                {t('signaturesModal.empty', { defaultValue: 'No signatures recorded for this template yet.' })}
               </div>
             ) : (
               <>
@@ -555,7 +579,7 @@ export const Documents: React.FC = () => {
                       sig.signatureData?.signerName ||
                       sig.employeeId?.profile?.fullName ||
                       sig.employeeId?.profile?.firstName ||
-                      'Signer';
+                      t('signaturesModal.signerFallback', { defaultValue: 'Signer' });
                     const email = sig.employeeId?.auth?.email || '';
                     const dept = sig.employeeId?.employment?.department || 'General';
                     const signedDate = sig.signedAt || sig.signatureData?.signedAt;
@@ -572,15 +596,15 @@ export const Documents: React.FC = () => {
                             <span className="text-muted-foreground text-[11px]">{dept} {email ? `• ${email}` : ''}</span>
                           </div>
                           <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] shrink-0">
-                            Verified SHA-256
+                            {t('signaturesModal.verifiedBadge', { defaultValue: 'Verified SHA-256' })}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between text-muted-foreground text-[11px] pt-1 border-t border-border/50">
-                          <span>Signed:</span>
+                          <span>{t('signaturesModal.signedAt', { defaultValue: 'Timestamp' })}:</span>
                           <span className="font-mono text-foreground">{signedDate ? new Date(signedDate).toLocaleString() : 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between text-muted-foreground text-[11px]">
-                          <span>Checksum:</span>
+                          <span>{t('signaturesModal.sha256', { defaultValue: 'SHA-256 Checksum' })}:</span>
                           <code className="font-mono text-[10px] bg-muted/70 px-1.5 py-0.5 rounded text-foreground font-semibold">
                             {truncatedHash}
                           </code>
@@ -595,11 +619,11 @@ export const Documents: React.FC = () => {
                   <table className="w-full text-xs text-left" id="signatures-audit-table">
                     <thead className="bg-muted/50 font-semibold border-b uppercase text-muted-foreground">
                       <tr>
-                        <th className="p-3">Signer Name</th>
-                        <th className="p-3">Department / Email</th>
-                        <th className="p-3">Signed Timestamp</th>
-                        <th className="p-3">SHA-256 Checksum Hash</th>
-                        <th className="p-3 text-right">Status</th>
+                        <th className="p-3">{t('signaturesModal.signer', { defaultValue: 'Signer' })}</th>
+                        <th className="p-3">{t('signaturesModal.deptEmailHeader', { defaultValue: 'Department / Email' })}</th>
+                        <th className="p-3">{t('signaturesModal.signedAt', { defaultValue: 'Timestamp' })}</th>
+                        <th className="p-3">{t('signaturesModal.sha256', { defaultValue: 'SHA-256 Checksum' })}</th>
+                        <th className="p-3 text-right">{t('signaturesModal.statusHeader', { defaultValue: 'Status' })}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -608,7 +632,7 @@ export const Documents: React.FC = () => {
                           sig.signatureData?.signerName ||
                           sig.employeeId?.profile?.fullName ||
                           sig.employeeId?.profile?.firstName ||
-                          'Signer';
+                          t('signaturesModal.signerFallback', { defaultValue: 'Signer' });
                         const email = sig.employeeId?.auth?.email || '';
                         const dept = sig.employeeId?.employment?.department || 'General';
                         const signedDate = sig.signedAt || sig.signatureData?.signedAt;
@@ -633,7 +657,7 @@ export const Documents: React.FC = () => {
                             </td>
                             <td className="p-3 text-right">
                               <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
-                                Verified SHA-256
+                                {t('signaturesModal.verifiedBadge', { defaultValue: 'Verified SHA-256' })}
                               </Badge>
                             </td>
                           </tr>
@@ -648,7 +672,7 @@ export const Documents: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSignaturesModalOpen(false)}>
-              Close
+              {t('signaturesModal.close', { defaultValue: 'Close' })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -658,21 +682,23 @@ export const Documents: React.FC = () => {
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign Document for Signature</DialogTitle>
-            <DialogDescription>Select an employee to assign this document template.</DialogDescription>
+            <DialogTitle>{t('assignModal.title', { defaultValue: 'Assign Document to Employee' })}</DialogTitle>
+            <DialogDescription>{t('assignModal.desc', { defaultValue: 'Select an employee to receive this compliance document.' })}</DialogDescription>
           </DialogHeader>
 
           <DialogBody className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Employee *</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                {t('assignModal.employeeLabel', { defaultValue: 'Select Target Employee *' })}
+              </label>
               <SearchableSelect
                 value={selectedEmpId}
                 onChange={(val) => setSelectedEmpId(val)}
-                placeholder="Search & select employee..."
-                searchPlaceholder="Search by name, email, department..."
+                placeholder={t('assignModal.selectEmployee', { defaultValue: 'Search & select employee...' })}
+                searchPlaceholder={t('assignModal.searchEmployee', { defaultValue: 'Search employee name, email...' })}
                 options={employees.map((emp: any) => ({
                   value: emp.id,
-                  label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unnamed',
+                  label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || t('assignModal.unnamed', { defaultValue: 'Unnamed' }),
                   sublabel: emp.email,
                   badge: emp.department || 'General',
                 }))}
@@ -682,10 +708,10 @@ export const Documents: React.FC = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
-              Cancel
+              {t('assignModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleAssignDocument}>
-              Assign Document
+              {t('assignModal.assign', { defaultValue: 'Assign Document' })}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,7 +5,11 @@
     "journeys_one": "{{count}} journey",
     "journeys_other": "{{count}} journeys",
     "results_one": "{{count}} result",
-    "results_other": "{{count}} results"
+    "results_other": "{{count}} results",
+    "tasks_one": "{{count}} task",
+    "tasks_other": "{{count}} tasks",
+    "documents_one": "{{count}} document",
+    "documents_other": "{{count}} documents"
   },
   "save": "Save",
   "cancel": "Cancel",
@@ -33,6 +37,11 @@
   "assign": "Assign",
   "approve": "Approve",
   "reject": "Reject",
+  "refresh": "Refresh",
+  "reset": "Reset",
+  "all": "All",
+  "actions": "Actions",
+  "details": "Details",
   "status": {
     "active": "Active",
     "inactive": "Inactive",
@@ -40,20 +49,84 @@
     "published": "Published",
     "archived": "Archived",
     "onboarding": "Onboarding",
-    "suspended": "Suspended"
+    "suspended": "Suspended",
+    "pending": "Pending",
+    "completed": "Completed",
+    "in_progress": "In Progress",
+    "overdue": "Overdue",
+    "verified": "Verified",
+    "signed": "Signed"
+  },
+  "priority": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "urgent": "Urgent"
   },
   "role": {
     "admin": "Administrator",
     "employee": "Employee",
     "owner": "Owner",
     "super_admin": "Super Admin",
-    "manager": "Manager"
+    "manager": "Manager",
+    "hr_admin": "HR Admin",
+    "it_admin": "IT Admin"
+  },
+  "pagination": {
+    "page": "Page {{page}} of {{totalPages}}",
+    "previous": "Previous",
+    "next": "Next",
+    "showing": "Showing {{from}} to {{to}} of {{total}} results",
+    "goToPrevious": "Go to previous page",
+    "goToNext": "Go to next page",
+    "firstPage": "First Page",
+    "previousPage": "Previous Page",
+    "nextPage": "Next Page",
+    "lastPage": "Last Page",
+    "morePages": "More pages",
+    "ariaLabel": "Pagination",
+    "perPage": "Per page:",
+    "showingOf": "Showing {{count}} of {{total}}",
+    "pageSize": "Page Size"
   },
   "noData": "No data available",
+  "accessRestricted": "Access Restricted",
+  "accessRestrictedDesc": "You do not have the required permissions to access this management area. Please contact your organization administrator if you believe this is an error.",
+  "returnToDashboard": "Return to Dashboard",
   "error": {
     "generic": "Something went wrong. Please try again.",
     "notFound": "Not found",
     "unauthorized": "You are not authorized to perform this action."
   },
-  "comingSoon": "Coming soon"
+  "comingSoon": "Coming soon",
+  "goBack": "Go Back",
+  "featureDisabledTitle": "Feature Temporarily Unavailable",
+  "featureDisabledDesc": "The feature {{title}} ({{flag}}) is currently disabled by platform administration for your organization.",
+  "pageNotFound": "Page not found",
+  "closePanel": "Close panel",
+  "closeDialog": "Close dialog",
+  "breadcrumb": "Breadcrumb",
+  "more": "More",
+  "switchLanguage": "Switch language",
+  "commandPalette": "Command palette",
+  "toggleSidebar": "Toggle Sidebar",
+  "filteredResults": "Filtered results",
+  "pwa": {
+    "banner": {
+      "title": "Install Talnova App",
+      "description": "— Add to your home screen for quick mobile & offline field access.",
+      "install": "Install",
+      "dismiss": "Dismiss"
+    },
+    "connectionRestored": "Connection restored! Syncing offline progress...",
+    "syncedOfflineTasks": "Successfully synced {{count}} offline task completion(s)!",
+    "offlineWarning": "You are currently offline. Field actions will be queued and synced automatically.",
+    "sessionExpiredSync": "Session expired. Please log in to synchronize your offline learning progress."
+  },
+  "accessRestrictedWithCap": "You do not have the required permissions to access this management area ({{capability}}). Please contact your organization administrator if you believe this is an error.",
+  "saving": "Saving...",
+  "connectionRestored": "Connection restored! Syncing offline progress...",
+  "syncedOfflineTasks": "Successfully synced {{count}} offline task completion(s)!",
+  "offlineWarning": "You are currently offline. Field actions will be queued and synced automatically.",
+  "sessionExpiredSync": "Session expired. Please log in to synchronize your offline learning progress."
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   RotateCcw
 } from 'lucide-react';
@@ -33,6 +34,7 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
   task,
   onConfirmRevocation,
 }) => {
+  const { t } = useTranslation(['tasks', 'common']);
   const [reason, setReason] = useState('');
   const [targetStatus, setTargetStatus] = useState<'revision_requested' | 'in_progress'>('revision_requested');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,17 +47,17 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
     setValidationError('');
 
     if (!reason.trim() || reason.trim().length < 5) {
-      setValidationError('Please provide a specific audit reason for revoking verification.');
+      setValidationError(t('revocationModal.validationReason', { defaultValue: 'Please provide a specific audit reason for revoking verification.' }));
       return;
     }
 
     try {
       setIsSubmitting(true);
       await onConfirmRevocation(task.id, reason.trim(), targetStatus);
-      toast.success(`Verification revoked for task "${task.title}"`);
+      toast.success(t('revocationModal.successToast', { title: task.title, defaultValue: `Verification revoked for task "${task.title}"` }));
       onClose();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to revoke task verification');
+      toast.error(err?.message || t('revocationModal.failedToast', { defaultValue: 'Failed to revoke task verification' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -71,10 +73,10 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
             </div>
             <div>
               <DialogTitle className="text-base font-bold text-foreground">
-                Revoke Task Verification (HITL Guardrail)
+                {t('revocationModal.title', { defaultValue: 'Revoke Task Verification (HITL Guardrail)' })}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Override autonomous verification if manual quality review uncovers defects.
+                {t('revocationModal.desc', { defaultValue: 'Override autonomous verification if manual quality review uncovers defects.' })}
               </DialogDescription>
             </div>
           </div>
@@ -84,14 +86,21 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
           <DialogBody className="space-y-4">
             <div className="p-3 rounded-lg border border-border/70 bg-muted/30 text-xs space-y-1">
               <p className="font-semibold text-foreground truncate">{task.title}</p>
-              <p className="text-muted-foreground">Current Status: <span className="text-emerald-500 font-medium capitalize">{task.status}</span></p>
+              <p className="text-muted-foreground">
+                {t('revocationModal.currentStatus', { defaultValue: 'Current Status:' })}{' '}
+                <span className="text-emerald-500 font-medium capitalize">{task.status}</span>
+              </p>
               {task.assignedToName && (
-                <p className="text-muted-foreground">Assigned: {task.assignedToName}</p>
+                <p className="text-muted-foreground">
+                  {t('revocationModal.assigned', { name: task.assignedToName, defaultValue: `Assigned: ${task.assignedToName}` })}
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground">Target Status After Revocation</Label>
+              <Label className="text-xs font-semibold text-foreground">
+                {t('revocationModal.targetStatusLabel', { defaultValue: 'Target Status After Revocation' })}
+              </Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -102,7 +111,7 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
                       : 'border-border bg-background text-foreground'
                   }`}
                 >
-                  Revision Requested
+                  {t('revocationModal.revisionRequested', { defaultValue: 'Revision Requested' })}
                 </button>
                 <button
                   type="button"
@@ -113,21 +122,21 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
                       : 'border-border bg-background text-foreground'
                   }`}
                 >
-                  In Progress (Reset)
+                  {t('revocationModal.inProgress', { defaultValue: 'In Progress (Reset)' })}
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="revoke-reason" className="text-xs font-semibold text-foreground">
-                Audit Note & Reason <span className="text-destructive">*</span>
+                {t('revocationModal.auditNoteLabel', { defaultValue: 'Audit Note & Reason' })} <span className="text-destructive">*</span>
               </Label>
               <textarea
                 id="revoke-reason"
                 rows={3}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g., Code review PR showed missing unit tests; requires developer revision before sign-off..."
+                placeholder={t('revocationModal.auditPlaceholder', { defaultValue: 'e.g., Code review PR showed missing unit tests; requires developer revision before sign-off...' })}
                 className="w-full text-xs p-2.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
@@ -139,10 +148,10 @@ export const TaskRevocationModal: React.FC<TaskRevocationModalProps> = ({
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
-              Cancel
+              {t('revocationModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button type="submit" size="sm" disabled={isSubmitting} variant="destructive">
-              {isSubmitting ? 'Revoking...' : 'Confirm Revocation'}
+              {isSubmitting ? t('revocationModal.revoking', { defaultValue: 'Revoking...' }) : t('revocationModal.confirmRevocation', { defaultValue: 'Confirm Revocation' })}
             </Button>
           </DialogFooter>
         </form>

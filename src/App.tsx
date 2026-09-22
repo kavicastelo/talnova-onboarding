@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AppShell } from './components/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -74,6 +75,15 @@ function DashboardRedirect() {
   if (can('manage_organization')) return <AdminDashboard />;
   if (can('view_team_ops') && !roles.includes('employee')) return <ManagerDashboard />;
   return <EmployeeDashboard />;
+}
+
+function NotFoundFallback() {
+  const { t } = useTranslation('common');
+  return (
+    <div className="p-6 text-center text-muted-foreground">
+      {t('pageNotFound', 'Page not found')}
+    </div>
+  );
 }
 
 export function App() {
@@ -153,14 +163,7 @@ export function App() {
               <Route path="settings/sso" element={<ProtectedRoute capability="manage_sso" featureFlag="sso_enforcement"><SSOSettings /></ProtectedRoute>} />
               <Route path="settings/integrations" element={<ProtectedRoute capability="manage_integrations" featureFlag="advanced_hris_sync"><HRISIntegrations /></ProtectedRoute>} />
               <Route path="office-map" element={<ProtectedRoute featureFlag="office_map"><OfficeMap /></ProtectedRoute>} />
-              <Route
-                path="*"
-                element={
-                  <div className="p-6 text-center text-muted-foreground">
-                    Page not found
-                  </div>
-                }
-              />
+              <Route path="*" element={<NotFoundFallback />} />
             </Route>
             <Route path="/course/:id" element={<CourseViewer />} />
             <Route path="/kiosk/play/:id" element={<KioskPlayerPage />} />

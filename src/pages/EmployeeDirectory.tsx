@@ -45,8 +45,10 @@ import {
 import { SearchableSelect } from '../components/SearchableSelect';
 import { toast } from 'sonner';
 import { useRole } from '../context/RoleContext';
+import { useTranslation } from 'react-i18next';
 
 export function EmployeeDirectory() {
+  const { t } = useTranslation(['directory', 'common']);
   const navigate = useNavigate();
   const { can, role } = useRole();
   const canManage = can('manage_employees');
@@ -120,12 +122,12 @@ export function EmployeeDirectory() {
       },
       {
         onSuccess: () => {
-          toast.success(`Roles updated successfully for ${manageRoleEmployee.name}`);
+          toast.success(t('manageRoleModal.success', { name: manageRoleEmployee.name, defaultValue: `Roles updated successfully for ${manageRoleEmployee.name}` }));
           setManageRoleEmployee(null);
           refetch();
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to update roles');
+          toast.error(err?.response?.data?.message || err?.message || t('manageRoleModal.failed', { defaultValue: 'Failed to update roles' }));
         },
       }
     );
@@ -138,7 +140,7 @@ export function EmployeeDirectory() {
 
   const handleInvite = () => {
     if (!name || !email || !department) {
-      toast.error('Name, Email, and Department are required.');
+      toast.error(t('inviteModal.requiredFields', { defaultValue: 'Name, Email, and Department are required.' }));
       return;
     }
     createEmployee.mutate(
@@ -156,7 +158,7 @@ export function EmployeeDirectory() {
       },
       {
         onSuccess: () => {
-          toast.success('Employee invited successfully!');
+          toast.success(t('inviteModal.success', { defaultValue: 'Employee invited successfully!' }));
           setDialogOpen(false);
           setName('');
           setEmail('');
@@ -167,7 +169,7 @@ export function EmployeeDirectory() {
           setHireDate(new Date().toISOString().split('T')[0]);
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to invite employee.');
+          toast.error(err?.response?.data?.message || err?.message || t('inviteModal.failed', { defaultValue: 'Failed to invite employee.' }));
         }
       }
     );
@@ -177,9 +179,9 @@ export function EmployeeDirectory() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Directory</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('title', { defaultValue: 'Directory' })}</h1>
           <p className="text-muted-foreground">
-            Manage employees and track their progress.
+            {t('subtitle', { defaultValue: 'Manage employees and track their progress.' })}
           </p>
         </div>
         {canManage && (
@@ -191,7 +193,7 @@ export function EmployeeDirectory() {
             data-testid="bulk-import-trigger"
             onClick={() => setImportDialogOpen(true)}
           >
-            <Upload className="h-4 w-4" /> Bulk Import
+            <Upload className="h-4 w-4" /> {t('bulkImport', { defaultValue: 'Bulk Import' })}
           </Button>
 
           <BulkImportWizard
@@ -205,14 +207,14 @@ export function EmployeeDirectory() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Invite Employee
+                {t('inviteEmployee', { defaultValue: 'Invite Employee' })}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold">Invite Employee</DialogTitle>
+                <DialogTitle className="text-lg font-bold">{t('inviteModal.title', { defaultValue: 'Invite Employee' })}</DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-1">
-                  Send an onboarding activation invite to a newly hired team member.
+                  {t('inviteModal.desc', { defaultValue: 'Send an onboarding activation invite to a newly hired team member.' })}
                 </DialogDescription>
               </DialogHeader>
 
@@ -222,9 +224,9 @@ export function EmployeeDirectory() {
                     <div className="flex items-start gap-2">
                       <Mail className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                       <div>
-                        <span className="font-semibold text-foreground">Email Delivery Not Configured: </span>
+                        <span className="font-semibold text-foreground">{t('inviteModal.emailNotConfigured', { defaultValue: 'Email Delivery Not Configured:' })} </span>
                         <span className="text-muted-foreground">
-                          {emailReason || 'Your organization must configure email delivery before invitations can be dispatched.'}
+                          {emailReason || t('inviteModal.emailReasonFallback', { defaultValue: 'Your organization must configure email delivery before invitations can be dispatched.' })}
                         </span>
                       </div>
                     </div>
@@ -239,30 +241,30 @@ export function EmployeeDirectory() {
                         }}
                         className="w-fit text-xs h-7 border-amber-500/40 hover:bg-amber-500/20"
                       >
-                        Configure Email in Settings
+                        {t('inviteModal.configureEmail', { defaultValue: 'Configure Email in Settings' })}
                       </Button>
                     )}
                   </div>
                 )}
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">Full Name *</label>
-                  <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Jane Doe" className="text-xs" />
+                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.fullName', { defaultValue: 'Full Name *' })}</label>
+                  <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder={t('inviteModal.namePlaceholder', { defaultValue: 'Jane Doe' })} className="text-xs" />
                 </div>
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">Email Address *</label>
-                  <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder="jane@company.com" className="text-xs" />
+                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.email', { defaultValue: 'Email Address *' })}</label>
+                  <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder={t('inviteModal.emailPlaceholder', { defaultValue: 'jane@company.com' })} className="text-xs" />
                 </div>
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">Designation *</label>
-                  <Input value={designation} onChange={(e: any) => setDesignation(e.target.value)} placeholder="Software Engineer" className="text-xs" />
+                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.designation', { defaultValue: 'Designation *' })}</label>
+                  <Input value={designation} onChange={(e: any) => setDesignation(e.target.value)} placeholder={t('inviteModal.designationPlaceholder', { defaultValue: 'Software Engineer' })} className="text-xs" />
                 </div>
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">Department *</label>
+                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.department', { defaultValue: 'Department *' })}</label>
                   <SearchableSelect
                     value={department}
                     onChange={setDepartment}
-                    placeholder="Search & select department..."
-                    searchPlaceholder="Search department..."
+                    placeholder={t('inviteModal.deptPlaceholder', { defaultValue: 'Search & select department...' })}
+                    searchPlaceholder={t('inviteModal.searchDeptPlaceholder', { defaultValue: 'Search department...' })}
                     options={displayDepartments.map((deptName) => ({
                       value: deptName,
                       label: deptName,
@@ -271,38 +273,38 @@ export function EmployeeDirectory() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
-                    <label className="text-xs font-semibold text-foreground">Employment Type *</label>
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.employmentType', { defaultValue: 'Employment Type *' })}</label>
                     <select
                       value={employmentType}
                       onChange={(e: any) => setEmploymentType(e.target.value)}
                       className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
-                      <option value="full_time">Full-Time</option>
-                      <option value="part_time">Part-Time</option>
-                      <option value="contractor">Contractor</option>
-                      <option value="intern">Intern</option>
+                      <option value="full_time">{t('employmentTypes.full_time', { defaultValue: 'Full-Time' })}</option>
+                      <option value="part_time">{t('employmentTypes.part_time', { defaultValue: 'Part-Time' })}</option>
+                      <option value="contractor">{t('employmentTypes.contractor', { defaultValue: 'Contractor' })}</option>
+                      <option value="intern">{t('employmentTypes.intern', { defaultValue: 'Intern' })}</option>
                     </select>
                   </div>
                   <div className="grid gap-1.5">
-                    <label className="text-xs font-semibold text-foreground">Payroll Type / Category *</label>
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.payrollCategory', { defaultValue: 'Payroll Type / Category *' })}</label>
                     <select
                       value={payrollCategory}
                       onChange={(e: any) => setPayrollCategory(e.target.value)}
                       className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
-                      <option value="Salaried (Exempt)">Salaried (Exempt)</option>
-                      <option value="Salaried (Non-Exempt)">Salaried (Non-Exempt)</option>
-                      <option value="Hourly">Hourly</option>
-                      <option value="Executive">Executive</option>
-                      <option value="Contract / 1099">Contract / 1099</option>
-                      <option value="Intern / Stipend">Intern / Stipend</option>
-                      <option value="Standard">Standard</option>
+                      <option value="Salaried (Exempt)">{t('payrollCategories.salariedExempt', { defaultValue: 'Salaried (Exempt)' })}</option>
+                      <option value="Salaried (Non-Exempt)">{t('payrollCategories.salariedNonExempt', { defaultValue: 'Salaried (Non-Exempt)' })}</option>
+                      <option value="Hourly">{t('payrollCategories.hourly', { defaultValue: 'Hourly' })}</option>
+                      <option value="Executive">{t('payrollCategories.executive', { defaultValue: 'Executive' })}</option>
+                      <option value="Contract / 1099">{t('payrollCategories.contract1099', { defaultValue: 'Contract / 1099' })}</option>
+                      <option value="Intern / Stipend">{t('payrollCategories.internStipend', { defaultValue: 'Intern / Stipend' })}</option>
+                      <option value="Standard">{t('payrollCategories.standard', { defaultValue: 'Standard' })}</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">Date of Join *</label>
+                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.hireDate', { defaultValue: 'Date of Join *' })}</label>
                   <Input type="date" value={hireDate} onChange={(e: any) => setHireDate(e.target.value)} className="text-xs" />
                 </div>
               </DialogBody>
@@ -311,13 +313,13 @@ export function EmployeeDirectory() {
                 <div className="text-left">
                   {!isEmailAvailable && (
                     <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                      Email setup required to send invitations
+                      {t('inviteModal.emailSetupRequired', { defaultValue: 'Email setup required to send invitations' })}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
-                    Cancel
+                    {t('inviteModal.cancel', { defaultValue: 'Cancel' })}
                   </Button>
                   <Button
                     size="sm"
@@ -326,7 +328,7 @@ export function EmployeeDirectory() {
                     data-testid="send-invitation-btn"
                   >
                     {createEmployee.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Invitation
+                    {t('inviteModal.send', { defaultValue: 'Send Invitation' })}
                   </Button>
                 </div>
               </DialogFooter>
@@ -341,7 +343,7 @@ export function EmployeeDirectory() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search employees..."
+            placeholder={t('searchPlaceholder', { defaultValue: 'Search employees...' })}
             className="pl-9"
             value={search}
             onChange={(e: any) => {
@@ -354,10 +356,10 @@ export function EmployeeDirectory() {
         {/* Department Filter */}
         <Select value={selectedDeptId} onValueChange={(val) => { setSelectedDeptId(val); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Department: All" />
+            <SelectValue placeholder={t('filters.departmentPlaceholder', { defaultValue: 'Department: All' })} />
           </SelectTrigger>
           <SelectContent className="z-[999]">
-            <SelectItem value="all">All Departments</SelectItem>
+            <SelectItem value="all">{t('filters.departmentAll', { defaultValue: 'All Departments' })}</SelectItem>
             {activeDepartments.map((d: any) => (
               <SelectItem key={d._id} value={d._id}>
                 {d.name}
@@ -369,27 +371,27 @@ export function EmployeeDirectory() {
         {/* Role Filter */}
         <Select value={selectedRole} onValueChange={(val) => { setSelectedRole(val); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Role: All" />
+            <SelectValue placeholder={t('filters.rolePlaceholder', { defaultValue: 'Role: All' })} />
           </SelectTrigger>
           <SelectContent className="z-[999]">
-            <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="owner">Owner</SelectItem>
-            <SelectItem value="admin">Administrator</SelectItem>
-            <SelectItem value="manager">Manager</SelectItem>
-            <SelectItem value="employee">Employee</SelectItem>
+            <SelectItem value="all">{t('filters.roleAll', { defaultValue: 'All Roles' })}</SelectItem>
+            <SelectItem value="owner">{t('filters.roleOwner', { defaultValue: 'Owner' })}</SelectItem>
+            <SelectItem value="admin">{t('filters.roleAdmin', { defaultValue: 'Administrator' })}</SelectItem>
+            <SelectItem value="manager">{t('filters.roleManager', { defaultValue: 'Manager' })}</SelectItem>
+            <SelectItem value="employee">{t('filters.roleEmployee', { defaultValue: 'Employee' })}</SelectItem>
           </SelectContent>
         </Select>
 
         {/* Status Filter */}
         <Select value={selectedStatus} onValueChange={(val) => { setSelectedStatus(val); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Status: All" />
+            <SelectValue placeholder={t('filters.statusPlaceholder', { defaultValue: 'Status: All' })} />
           </SelectTrigger>
           <SelectContent className="z-[999]">
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="onboarding">Onboarding</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="all">{t('filters.statusAll', { defaultValue: 'All Statuses' })}</SelectItem>
+            <SelectItem value="active">{t('filters.statusActive', { defaultValue: 'Active' })}</SelectItem>
+            <SelectItem value="onboarding">{t('filters.statusOnboarding', { defaultValue: 'Onboarding' })}</SelectItem>
+            <SelectItem value="inactive">{t('filters.statusInactive', { defaultValue: 'Inactive' })}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -405,7 +407,7 @@ export function EmployeeDirectory() {
             }}
             className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground"
           >
-            Clear Filters
+            {t('filters.clear', { defaultValue: 'Clear Filters' })}
           </Button>
         )}
       </div>
@@ -415,12 +417,12 @@ export function EmployeeDirectory() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role & Permissions</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Progress</TableHead>
-                {canManage && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead>{t('table.name', { defaultValue: 'Name' })}</TableHead>
+                <TableHead>{t('table.role', { defaultValue: 'Role & Permissions' })}</TableHead>
+                <TableHead>{t('table.department', { defaultValue: 'Department' })}</TableHead>
+                <TableHead>{t('table.status', { defaultValue: 'Status' })}</TableHead>
+                <TableHead>{t('table.progress', { defaultValue: 'Progress' })}</TableHead>
+                {canManage && <TableHead className="text-right">{t('table.actions', { defaultValue: 'Actions' })}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -449,10 +451,10 @@ export function EmployeeDirectory() {
                   <TableCell colSpan={canManage ? 6 : 5} className="h-32 text-center text-destructive">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <AlertCircle className="h-6 w-6" />
-                      <p className="font-semibold text-sm">Failed to load employee directory</p>
-                      <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
+                      <p className="font-semibold text-sm">{t('table.error', { defaultValue: 'Failed to load employee directory' })}</p>
+                      <p className="text-xs text-muted-foreground">{(error as any)?.message || t('table.defaultError', { defaultValue: 'An error occurred.' })}</p>
                       <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
-                        <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" /> {t('table.retry', { defaultValue: 'Retry' })}
                       </Button>
                     </div>
                   </TableCell>
@@ -461,8 +463,8 @@ export function EmployeeDirectory() {
                 // Empty State
                 <TableRow>
                   <TableCell colSpan={canManage ? 6 : 5} className="h-32 text-center text-muted-foreground">
-                    <p className="font-medium text-sm">No employees found</p>
-                    <p className="text-xs">Try clearing filters or invite new team members.</p>
+                    <p className="font-medium text-sm">{t('table.empty', { defaultValue: 'No employees found' })}</p>
+                    <p className="text-xs">{t('table.emptySub', { defaultValue: 'Try clearing filters or invite new team members.' })}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -532,7 +534,7 @@ export function EmployeeDirectory() {
                           data-testid={`manage-role-${employee.id}`}
                         >
                           <Shield className="h-3.5 w-3.5 text-primary" />
-                          Manage Role
+                          {t('table.manageRole', { defaultValue: 'Manage Role' })}
                         </Button>
                       </TableCell>
                     )}
@@ -555,7 +557,7 @@ export function EmployeeDirectory() {
                   setLimit(newSize);
                   setPage(1);
                 }}
-                itemLabel="employees"
+                itemLabel={t('table.employeesLabel', { defaultValue: 'employees' })}
               />
             </div>
           )}
@@ -582,17 +584,17 @@ export function EmployeeDirectory() {
           // Error State
           <div className="p-8 text-center border rounded-lg bg-card text-destructive flex flex-col items-center justify-center gap-2">
             <AlertCircle className="h-8 w-8" />
-            <p className="font-semibold">Failed to load directory</p>
-            <p className="text-xs text-muted-foreground">{(error as any)?.message || 'An error occurred.'}</p>
+            <p className="font-semibold">{t('table.error', { defaultValue: 'Failed to load directory' })}</p>
+            <p className="text-xs text-muted-foreground">{(error as any)?.message || t('table.defaultError', { defaultValue: 'An error occurred.' })}</p>
             <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
-              <RefreshCw className="mr-2 h-3.5 w-3.5" /> Retry
+              <RefreshCw className="mr-2 h-3.5 w-3.5" /> {t('table.retry', { defaultValue: 'Retry' })}
             </Button>
           </div>
         ) : employees.length === 0 ? (
           // Empty State
           <div className="p-8 text-center border rounded-lg bg-card text-muted-foreground">
-            <p className="font-medium">No employees found</p>
-            <p className="text-xs">Try clearing filters or invite new team members.</p>
+            <p className="font-medium">{t('table.empty', { defaultValue: 'No employees found' })}</p>
+            <p className="text-xs">{t('table.emptySub', { defaultValue: 'Try clearing filters or invite new team members.' })}</p>
           </div>
         ) : (
           // Success State
@@ -637,7 +639,7 @@ export function EmployeeDirectory() {
                 
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Progress</span>
+                    <span>{t('table.progress', { defaultValue: 'Progress' })}</span>
                     <span>{employee.progress}%</span>
                   </div>
                   <Progress value={employee.progress} className="h-1.5" />
@@ -652,7 +654,7 @@ export function EmployeeDirectory() {
                       onClick={() => handleOpenManageRole(employee)}
                     >
                       <Shield className="h-3.5 w-3.5 text-primary" />
-                      Manage Role & Access
+                      {t('table.manageRoleAccess', { defaultValue: 'Manage Role & Access' })}
                     </Button>
                   </div>
                 )}
@@ -673,7 +675,7 @@ export function EmployeeDirectory() {
                     setLimit(newSize);
                     setPage(1);
                   }}
-                  itemLabel="employees"
+                  itemLabel={t('table.employeesLabel', { defaultValue: 'employees' })}
                 />
               </div>
             )}
@@ -688,9 +690,9 @@ export function EmployeeDirectory() {
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
               <div>
-                <DialogTitle className="text-lg font-bold">Manage Roles & Permissions</DialogTitle>
+                <DialogTitle className="text-lg font-bold">{t('manageRoleModal.title', { defaultValue: 'Manage Roles & Permissions' })}</DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Promote, demote, or assign multi-role privileges to team members.
+                  {t('manageRoleModal.desc', { defaultValue: 'Promote, demote, or assign multi-role privileges to team members.' })}
                 </DialogDescription>
               </div>
             </div>
@@ -705,31 +707,31 @@ export function EmployeeDirectory() {
 
               {/* Primary System Role Selection */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Primary System Role</label>
+                <label className="text-xs font-semibold text-foreground">{t('manageRoleModal.primaryRole', { defaultValue: 'Primary System Role' })}</label>
                 <select
                   value={selectedPrimaryRole}
                   onChange={(e) => setSelectedPrimaryRole(e.target.value)}
                   className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="employee">Employee (Standard Access)</option>
-                  <option value="manager">Manager (Team Onboarding & Approvals)</option>
-                  <option value="hr_admin">HR Administrator (People & Journeys)</option>
-                  <option value="it_admin">IT Administrator (Hardware & Access Provisioning)</option>
-                  <option value="admin">Administrator (Full Tenant Control)</option>
-                  <option value="owner">Organization Owner</option>
+                  <option value="employee">{t('roles.employee', { defaultValue: 'Employee (Standard Access)' })}</option>
+                  <option value="manager">{t('roles.manager', { defaultValue: 'Manager (Team Onboarding & Approvals)' })}</option>
+                  <option value="hr_admin">{t('roles.hr_admin', { defaultValue: 'HR Administrator (People & Journeys)' })}</option>
+                  <option value="it_admin">{t('roles.it_admin', { defaultValue: 'IT Administrator (Hardware & Access Provisioning)' })}</option>
+                  <option value="admin">{t('roles.admin', { defaultValue: 'Administrator (Full Tenant Control)' })}</option>
+                  <option value="owner">{t('roles.owner', { defaultValue: 'Organization Owner' })}</option>
                 </select>
                 <p className="text-[11px] text-muted-foreground">
-                  Controls the primary navigation layout and default landing portal.
+                  {t('manageRoleModal.primaryRoleHelp', { defaultValue: 'Controls the primary navigation layout and default landing portal.' })}
                 </p>
               </div>
 
               {/* Multi-Role Capabilities Checkboxes */}
               <div className="space-y-2 pt-2 border-t">
                 <label className="text-xs font-semibold text-foreground block">
-                  Additional Functional Roles (Multi-Role Privileges)
+                  {t('manageRoleModal.functionalRoles', { defaultValue: 'Additional Functional Roles (Multi-Role Privileges)' })}
                 </label>
                 <p className="text-[11px] text-muted-foreground mb-2">
-                  Users can be assigned multiple roles simultaneously (e.g. an Admin who is also IT and HR Admin).
+                  {t('manageRoleModal.functionalRolesHelp', { defaultValue: 'Users can be assigned multiple roles simultaneously (e.g. an Admin who is also IT and HR Admin).' })}
                 </p>
 
                 <div className="space-y-2">
@@ -742,8 +744,8 @@ export function EmployeeDirectory() {
                       className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
                     />
                     <div>
-                      <div className="font-semibold text-foreground">IT Administrator</div>
-                      <div className="text-[11px] text-muted-foreground">Manage hardware assets, credentials & IT setups</div>
+                      <div className="font-semibold text-foreground">{t('manageRoleModal.itAdmin', { defaultValue: 'IT Administrator' })}</div>
+                      <div className="text-[11px] text-muted-foreground">{t('manageRoleModal.itAdminDesc', { defaultValue: 'Manage hardware assets, credentials & IT setups' })}</div>
                     </div>
                   </label>
 
@@ -756,8 +758,8 @@ export function EmployeeDirectory() {
                       className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
                     />
                     <div>
-                      <div className="font-semibold text-foreground">HR Administrator</div>
-                      <div className="text-[11px] text-muted-foreground">Manage onboarding programs, journeys & milestones</div>
+                      <div className="font-semibold text-foreground">{t('manageRoleModal.hrAdmin', { defaultValue: 'HR Administrator' })}</div>
+                      <div className="text-[11px] text-muted-foreground">{t('manageRoleModal.hrAdminDesc', { defaultValue: 'Manage onboarding programs, journeys & milestones' })}</div>
                     </div>
                   </label>
 
@@ -770,8 +772,8 @@ export function EmployeeDirectory() {
                       className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
                     />
                     <div>
-                      <div className="font-semibold text-foreground">People Manager</div>
-                      <div className="text-[11px] text-muted-foreground">Oversee direct reports, task checklists & approvals</div>
+                      <div className="font-semibold text-foreground">{t('manageRoleModal.manager', { defaultValue: 'People Manager' })}</div>
+                      <div className="text-[11px] text-muted-foreground">{t('manageRoleModal.managerDesc', { defaultValue: 'Oversee direct reports, task checklists & approvals' })}</div>
                     </div>
                   </label>
                 </div>
@@ -781,11 +783,11 @@ export function EmployeeDirectory() {
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setManageRoleEmployee(null)}>
-              Cancel
+              {t('inviteModal.cancel', { defaultValue: 'Cancel' })}
             </Button>
             <Button size="sm" onClick={handleSaveRoles} disabled={updateEmployee.isPending}>
               {updateEmployee.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-              Save Role Changes
+              {t('manageRoleModal.save', { defaultValue: 'Save Role Changes' })}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -138,7 +138,7 @@ export function Settings() {
     const trimmedName = newDeptName.trim();
     const trimmedCode = newDeptCode.trim().toUpperCase();
     if (!trimmedName) {
-      toast.error('Department name is required.');
+      toast.error(t('toasts.deptNameRequired'));
       return;
     }
     createDeptMut.mutate(
@@ -148,10 +148,10 @@ export function Settings() {
           setNewDeptName('');
           setNewDeptCode('');
           setShowAddDeptModal(false);
-          toast.success('Department created successfully!');
+          toast.success(t('toasts.deptCreated'));
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to create department.');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.deptCreateFailed'));
         },
       }
     );
@@ -160,10 +160,10 @@ export function Settings() {
   const handleDeleteDept = (id: string) => {
     deleteDeptMut.mutate(id, {
       onSuccess: () => {
-        toast.success('Department deleted successfully!');
+        toast.success(t('toasts.deptDeleted'));
       },
       onError: (err: any) => {
-        toast.error(err?.response?.data?.message || err?.message || 'Failed to delete department.');
+        toast.error(err?.response?.data?.message || err?.message || t('toasts.deptDeleteFailed'));
       },
     });
   };
@@ -173,10 +173,10 @@ export function Settings() {
       { orgName, supportEmail, categories },
       {
         onSuccess: () => {
-          toast.success('Organization details updated successfully!');
+          toast.success(t('toasts.orgUpdated'));
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to update settings.');
+          toast.error(err?.message || t('toasts.updateFailed'));
         },
       }
     );
@@ -185,8 +185,8 @@ export function Settings() {
   const handleSaveBranding = () => {
     const trimmedColor = primaryColor.trim();
     if (!/^#[0-9A-F]{6}$/i.test(trimmedColor)) {
-      setColorError('Invalid hex color format. Must be a 6-digit hex code (e.g. #1d4ed8)');
-      toast.error('Invalid hex color format (e.g. #1d4ed8)');
+      setColorError(t('branding.colorError'));
+      toast.error(t('branding.colorError'));
       return;
     }
     setColorError(null);
@@ -194,10 +194,10 @@ export function Settings() {
       { primaryColor: trimmedColor },
       {
         onSuccess: () => {
-          toast.success('Branding updated successfully!');
+          toast.success(t('toasts.brandingUpdated'));
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to update branding.');
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.brandingFailed'));
         },
       }
     );
@@ -225,16 +225,16 @@ export function Settings() {
         },
         {
           onSuccess: () => {
-            toast.success('Logo uploaded and updated successfully!');
+            toast.success(t('toasts.logoUpdated'));
             refetch();
           },
           onError: (err: any) => {
-            toast.error(err?.message || 'Failed to update logo settings.');
+            toast.error(err?.message || t('toasts.logoFailed'));
           }
         }
       );
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to upload logo.');
+      toast.error(err?.message || t('toasts.logoFailed'));
     } finally {
       setIsUploadingLogo(false);
       if (fileInputRef.current) {
@@ -265,10 +265,10 @@ export function Settings() {
               reminders: { inApp: true, email: deadlineReminders },
             },
           });
-          toast.success('Notification preferences updated successfully!');
+          toast.success(t('toasts.notificationsUpdated'));
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to update notifications.');
+          toast.error(err?.message || t('toasts.notificationsFailed'));
         },
       }
     );
@@ -285,10 +285,10 @@ export function Settings() {
       },
       {
         onSuccess: () => {
-          toast.success('Security settings updated successfully!');
+          toast.success(t('toasts.securityUpdated'));
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to update security settings.');
+          toast.error(err?.message || t('toasts.securityFailed'));
         },
       }
     );
@@ -309,10 +309,10 @@ export function Settings() {
       },
       {
         onSuccess: () => {
-          toast.success('Certificate settings updated successfully!');
+          toast.success(t('toasts.certUpdated'));
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to update certificate settings.');
+          toast.error(err?.message || t('toasts.certFailed'));
         },
       }
     );
@@ -331,9 +331,9 @@ export function Settings() {
       });
 
       setCertSignatureUrl(url);
-      toast.success('Signature image uploaded successfully!');
+      toast.success(t('toasts.signatureUploaded'));
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to upload signature image.');
+      toast.error(err?.message || t('toasts.signatureFailed'));
     } finally {
       setIsUploadingSignature(false);
       if (signatureInputRef.current) {
@@ -369,10 +369,10 @@ export function Settings() {
     return (
       <div className="max-w-md mx-auto text-center p-8 border rounded-lg space-y-4 my-12">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h2 className="text-xl font-bold">Failed to Load Settings</h2>
-        <p className="text-muted-foreground">{(error as any)?.message || 'Workspace settings are currently unavailable.'}</p>
+        <h2 className="text-xl font-bold">{t('error.title')}</h2>
+        <p className="text-muted-foreground">{(error as any)?.message || t('error.fallback')}</p>
         <Button onClick={() => refetch()} className="mx-auto">
-          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+          <RefreshCw className="mr-2 h-4 w-4" /> {t('error.retry')}
         </Button>
       </div>
     );
@@ -382,9 +382,9 @@ export function Settings() {
     return (
       <div className="space-y-6 max-w-4xl mx-auto" data-testid="employee-settings-view">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Personal Settings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('notifications.personalTitle')}</h1>
           <p className="text-muted-foreground">
-            Manage your personal notification preferences and account settings.
+            {t('notifications.personalDesc')}
           </p>
         </div>
 
@@ -400,16 +400,16 @@ export function Settings() {
               <CardHeader>
                 <CardTitle>{t('sections.notifications')}</CardTitle>
                 <CardDescription>
-                  Choose how and when you want to receive onboarding assignment and progress updates.
+                  {t('notifications.personalCardDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-sm">New Assignment Alerts</h4>
+                      <h4 className="font-medium text-sm">{t('notifications.newAssignmentAlerts')}</h4>
                       <p className="text-sm text-muted-foreground">
-                        Receive email alerts when new onboarding journeys or lessons are assigned to you.
+                        {t('notifications.newAssignmentAlertsDesc')}
                       </p>
                     </div>
                     <button
@@ -429,9 +429,9 @@ export function Settings() {
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-sm">Deadline Reminders</h4>
+                      <h4 className="font-medium text-sm">{t('notifications.deadlineRemindersAlerts')}</h4>
                       <p className="text-sm text-muted-foreground">
-                        Receive reminder alerts before course due dates and milestone targets.
+                        {t('notifications.deadlineRemindersAlertsDesc')}
                       </p>
                     </div>
                     <button
@@ -474,19 +474,19 @@ export function Settings() {
         <TabsList>
           <TabsTrigger value="general" data-testid="tab-general">{t('sections.workspace')}</TabsTrigger>
           <TabsTrigger value="branding" data-testid="tab-branding">{t('sections.branding')}</TabsTrigger>
-          <TabsTrigger value="departments" data-testid="tab-departments">Departments</TabsTrigger>
+          <TabsTrigger value="departments" data-testid="tab-departments">{t('sections.departments')}</TabsTrigger>
           <TabsTrigger value="roles" data-testid="tab-security">{t('sections.security')}</TabsTrigger>
           <TabsTrigger value="notifications" data-testid="tab-notifications">{t('sections.notifications')}</TabsTrigger>
-          <TabsTrigger value="certificates" data-testid="tab-certificates">Certificates</TabsTrigger>
+          <TabsTrigger value="certificates" data-testid="tab-certificates">{t('sections.certificates')}</TabsTrigger>
           {isOrgAdmin && (
             <>
               <TabsTrigger value="ai" data-testid="tab-ai">
                 <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
-                AI & Automation
+                {t('sections.ai')}
               </TabsTrigger>
               <TabsTrigger value="email" data-testid="tab-email">
                 <Mail className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
-                Email Delivery
+                {t('sections.email')}
               </TabsTrigger>
             </>
           )}
@@ -518,7 +518,7 @@ export function Settings() {
                 <label className="text-sm font-medium">{t('workspace.supportEmail')}</label>
                 <Input value={supportEmail} onChange={(e: any) => setSupportEmail(e.target.value)} />
                 <p className="text-xs text-muted-foreground">
-                  Employees will see this if they need help.
+                  {t('workspace.supportEmailDesc')}
                 </p>
               </div>
               <Button onClick={handleSaveDetails} disabled={updateSettings.isPending}>
@@ -530,15 +530,15 @@ export function Settings() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Journey Categories</CardTitle>
+              <CardTitle>{t('categories.title')}</CardTitle>
               <CardDescription>
-                Define categories to group and organize your onboarding journeys.
+                {t('categories.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2 min-h-9 p-2 rounded-lg border bg-muted/20">
                 {categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic px-2">No custom categories added. Platform defaults will be used.</p>
+                  <p className="text-sm text-muted-foreground italic px-2">{t('categories.empty')}</p>
                 ) : (
                   categories.map((cat) => (
                     <Badge key={cat} variant="secondary" className="flex items-center gap-1.5 px-3 py-1 text-sm bg-indigo-600/10 text-indigo-400 border border-indigo-600/20">
@@ -558,15 +558,15 @@ export function Settings() {
                 <Input
                   value={newCategory}
                   onChange={(e: any) => setNewCategory(e.target.value)}
-                  placeholder="e.g. Finance, Customer Success"
+                  placeholder={t('categories.placeholder')}
                 />
                 <Button type="submit" variant="outline">
-                  <Plus className="mr-1 h-4 w-4" /> Add
+                  <Plus className="mr-1 h-4 w-4" /> {t('categories.add')}
                 </Button>
               </form>
               <Button onClick={handleSaveDetails} disabled={updateSettings.isPending}>
                 {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                Save Categories
+                {t('categories.save')}
               </Button>
             </CardContent>
           </Card>
@@ -577,7 +577,7 @@ export function Settings() {
             <CardHeader>
               <CardTitle>{t('sections.branding')}</CardTitle>
               <CardDescription>
-                Customize your organization logo and primary brand color across the employee experience.
+                {t('branding.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -589,7 +589,7 @@ export function Settings() {
                       <img src={settings.logoUrl} alt="Logo" className="w-16 h-16 rounded-lg object-contain border p-1 bg-white" />
                     ) : (
                       <div className="w-16 h-16 bg-muted rounded-lg border flex items-center justify-center text-xs text-muted-foreground">
-                        Logo
+                        {t('branding.logoPlaceholder')}
                       </div>
                     )}
                     <input
@@ -609,14 +609,14 @@ export function Settings() {
                         {isUploadingLogo ? (
                           <>
                             <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Uploading ({logoUploadProgress}%)
+                            {t('branding.uploading', { progress: logoUploadProgress })}
                           </>
                         ) : (
-                          'Upload New'
+                          t('branding.uploadNew')
                         )}
                       </Button>
                       <p className="text-[10px] text-muted-foreground">
-                        PNG, JPG or SVG. Max 2MB.
+                        {t('branding.logoSpecs')}
                       </p>
                     </div>
                   </div>
@@ -651,7 +651,7 @@ export function Settings() {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-2">
-                    Used for primary buttons, active highlights, and navigation branding. Format: #RRGGBB
+                    {t('branding.colorHelp')}
                   </p>
                 </div>
               </div>
@@ -662,7 +662,7 @@ export function Settings() {
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                Save Branding
+                {t('branding.save')}
               </Button>
             </CardContent>
           </Card>
@@ -672,9 +672,9 @@ export function Settings() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Departments</CardTitle>
+                <CardTitle>{t('departments.title')}</CardTitle>
                 <CardDescription>
-                  Configure your organization's departmental taxonomy, department codes, and employee assignments.
+                  {t('departments.description')}
                 </CardDescription>
               </div>
               <Button
@@ -683,14 +683,14 @@ export function Settings() {
                 size="sm"
                 className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                <Plus className="h-4 w-4" /> Add Department
+                <Plus className="h-4 w-4" /> {t('departments.add')}
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               {showAddDeptModal && (
                 <div className="p-4 border rounded-lg bg-muted/20 space-y-4 mb-4" data-testid="add-dept-form">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-sm text-foreground">New Department</h4>
+                    <h4 className="font-semibold text-sm text-foreground">{t('departments.newTitle')}</h4>
                     <button
                       type="button"
                       onClick={() => setShowAddDeptModal(false)}
@@ -702,24 +702,24 @@ export function Settings() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                        Department Name
+                        {t('departments.name')}
                       </label>
                       <Input
                         data-testid="dept-name-input"
                         value={newDeptName}
                         onChange={(e: any) => setNewDeptName(e.target.value)}
-                        placeholder="e.g. Customer Success"
+                        placeholder={t('departments.namePlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                        Department Code
+                        {t('departments.code')}
                       </label>
                       <Input
                         data-testid="dept-code-input"
                         value={newDeptCode}
                         onChange={(e: any) => setNewDeptCode(e.target.value.toUpperCase())}
-                        placeholder="e.g. CS"
+                        placeholder={t('departments.codePlaceholder')}
                         maxLength={10}
                       />
                     </div>
@@ -730,7 +730,7 @@ export function Settings() {
                       size="sm"
                       onClick={() => setShowAddDeptModal(false)}
                     >
-                      Cancel
+                      {t('departments.cancel')}
                     </Button>
                     <Button
                       data-testid="save-department-btn"
@@ -744,7 +744,7 @@ export function Settings() {
                       ) : (
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
                       )}
-                      Save Department
+                      {t('departments.save')}
                     </Button>
                   </div>
                 </div>
@@ -753,20 +753,20 @@ export function Settings() {
               <div className="rounded-md border overflow-hidden" data-testid="departments-table">
                 {deptsLoading ? (
                   <div className="p-6 text-center text-sm text-muted-foreground">
-                    Loading departments...
+                    {t('departments.table.loading')}
                   </div>
                 ) : departments.length === 0 ? (
                   <div className="p-6 text-center text-sm text-muted-foreground italic">
-                    No departments configured yet. Click "Add Department" to create one.
+                    {t('departments.table.empty')}
                   </div>
                 ) : (
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground border-b">
                       <tr>
-                        <th className="text-left px-4 py-3">Department Name</th>
-                        <th className="text-left px-4 py-3">Code</th>
-                        <th className="text-left px-4 py-3">Status</th>
-                        <th className="text-right px-4 py-3">Actions</th>
+                        <th className="text-left px-4 py-3">{t('departments.table.name')}</th>
+                        <th className="text-left px-4 py-3">{t('departments.table.code')}</th>
+                        <th className="text-left px-4 py-3">{t('departments.table.status')}</th>
+                        <th className="text-right px-4 py-3">{t('departments.table.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -793,7 +793,7 @@ export function Settings() {
                               variant="secondary"
                               className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                             >
-                              Active
+                              {t('departments.table.active')}
                             </Badge>
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -804,7 +804,7 @@ export function Settings() {
                               onClick={() => handleDeleteDept(dept._id)}
                               disabled={deleteDeptMut.isPending}
                               className="text-destructive hover:bg-destructive/10 p-1 h-8 w-8"
-                              title="Delete Department"
+                              title={t('departments.table.deleteTitle')}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -827,7 +827,7 @@ export function Settings() {
                     pageSize={deptPagination.pageSize}
                     onPageChange={deptPagination.setPage}
                     onPageSizeChange={deptPagination.setPageSize}
-                    itemLabel="departments"
+                    itemLabel={t('departments.itemLabel')}
                   />
                 </div>
               )}
@@ -840,16 +840,16 @@ export function Settings() {
             <CardHeader>
               <CardTitle>{t('sections.security')}</CardTitle>
               <CardDescription>
-                Configure authentication and session settings for your organization.
+                {t('security.title')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-sm">Allow Password Authentication</h4>
+                    <h4 className="font-medium text-sm">{t('security.allowPassword')}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Enable users to log in using their email and password.
+                      {t('security.allowPasswordDesc')}
                     </p>
                   </div>
                   <button
@@ -869,9 +869,9 @@ export function Settings() {
                 <Separator />
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-sm">Enforce Multi-Factor Authentication (MFA)</h4>
+                    <h4 className="font-medium text-sm">{t('security.enforceMfa')}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Require MFA for all users when logging in.
+                      {t('security.enforceMfaDesc')}
                     </p>
                   </div>
                   <button
@@ -890,7 +890,7 @@ export function Settings() {
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Session Timeout (Seconds)</label>
+                  <label className="text-sm font-medium">{t('security.sessionTimeout')}</label>
                   <Input 
                     type="number" 
                     value={sessionTimeout} 
@@ -898,7 +898,7 @@ export function Settings() {
                     min={60} 
                   />
                   <p className="text-xs text-muted-foreground">
-                    Define the idle timeout duration in seconds before a user session is automatically signed out (minimum 60 seconds).
+                    {t('security.sessionTimeoutDesc')}
                   </p>
                 </div>
               </div>
@@ -913,10 +913,10 @@ export function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <KeyRound className="h-5 w-5 text-indigo-600" />
-                Enterprise Single Sign-On (SSO & SAML 2.0)
+                {t('security.sso.title')}
               </CardTitle>
               <CardDescription>
-                Configure enterprise SAML 2.0 / OIDC identity providers, domain discovery, X.509 signing certificates, and toggle mandatory SSO enforcement.
+                {t('security.sso.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -926,7 +926,7 @@ export function Settings() {
                 onClick={() => navigate('/settings/sso')}
                 data-testid="btn-configure-sso"
               >
-                Configure SSO Settings <ArrowRight className="h-4 w-4 ml-2" />
+                {t('security.sso.button')} <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </CardContent>
           </Card>
@@ -935,10 +935,10 @@ export function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Workflow className="h-5 w-5 text-indigo-600" />
-                HRIS Marketplace & Data Sync
+                {t('security.hris.title')}
               </CardTitle>
               <CardDescription>
-                Connect BambooHR, Workday, or custom webhooks to synchronize employees, departments, and automated onboarding enrollments.
+                {t('security.hris.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -948,7 +948,7 @@ export function Settings() {
                 onClick={() => navigate('/settings/integrations')}
                 data-testid="btn-configure-integrations"
               >
-                Configure HRIS Integrations <ArrowRight className="h-4 w-4 ml-2" />
+                {t('security.hris.button')} <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </CardContent>
           </Card>
@@ -957,9 +957,9 @@ export function Settings() {
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
-                <CardTitle>{t('sections.notifications')}</CardTitle>
+              <CardTitle>{t('sections.notifications')}</CardTitle>
               <CardDescription>
-                Configure default email notifications for your organization.
+                {t('notifications.adminCardDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -968,7 +968,7 @@ export function Settings() {
                   <div>
                     <h4 className="font-medium text-sm">{t('notifications.newAssignmentEmails')}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Send an email when an employee is assigned a new journey.
+                      {t('notifications.newAssignmentDesc')}
                     </p>
                   </div>
                   <button
@@ -990,7 +990,7 @@ export function Settings() {
                   <div>
                     <h4 className="font-medium text-sm">{t('notifications.deadlineReminders')}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Send reminders 3 days before a journey is due.
+                      {t('notifications.deadlineDesc')}
                     </p>
                   </div>
                   <button
@@ -1012,7 +1012,7 @@ export function Settings() {
                   <div>
                     <h4 className="font-medium text-sm">{t('notifications.weeklyManagerDigest')}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Send managers a weekly summary of their team's progress.
+                      {t('notifications.weeklyDigestDesc')}
                     </p>
                   </div>
                   <button
@@ -1041,9 +1041,9 @@ export function Settings() {
         <TabsContent value="certificates">
           <Card>
             <CardHeader>
-              <CardTitle>Digital Certificate Customization</CardTitle>
+              <CardTitle>{t('certificates.title')}</CardTitle>
               <CardDescription>
-                Customize the templates, layout design, and signing details for onboarding completion credentials.
+                {t('certificates.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1052,15 +1052,15 @@ export function Settings() {
                 <div className="lg:col-span-5 space-y-5">
                   {/* Template Picker */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground">Choose Template Style</label>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">{t('certificates.templateTitle')}</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {[
-                        { id: 'classic', label: 'Classic Gold', desc: 'Formal gold frame' },
-                        { id: 'modern', label: 'Cyber Tech', desc: 'Futuristic glowing' },
-                        { id: 'minimalist', label: 'Minimalist', desc: 'Swiss whitespace' },
-                        { id: 'academic', label: 'Academic', desc: 'Collegiate diploma' },
-                        { id: 'gradient', label: 'Vibrant Mesh', desc: 'Modern aurora' },
-                        { id: 'executive', label: 'Obsidian', desc: 'Luxury metallic' },
+                        { id: 'classic', label: t('certificates.templates.classic'), desc: t('certificates.templates.classicDesc') },
+                        { id: 'modern', label: t('certificates.templates.modern'), desc: t('certificates.templates.modernDesc') },
+                        { id: 'minimalist', label: t('certificates.templates.minimalist'), desc: t('certificates.templates.minimalistDesc') },
+                        { id: 'academic', label: t('certificates.templates.academic'), desc: t('certificates.templates.academicDesc') },
+                        { id: 'gradient', label: t('certificates.templates.gradient'), desc: t('certificates.templates.gradientDesc') },
+                        { id: 'executive', label: t('certificates.templates.executive'), desc: t('certificates.templates.executiveDesc') },
                       ].map((style) => (
                         <button
                           key={style.id}
@@ -1081,7 +1081,7 @@ export function Settings() {
 
                   {/* Theme Mode Selector (Light vs Dark) */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground">Theme Mode</label>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">{t('certificates.themeTitle')}</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
@@ -1092,7 +1092,7 @@ export function Settings() {
                             : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
                         }`}
                       >
-                        ☀️ Light Theme
+                        {t('certificates.themeLight')}
                       </button>
                       <button
                         type="button"
@@ -1103,14 +1103,14 @@ export function Settings() {
                             : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
                         }`}
                       >
-                        🌙 Dark Theme
+                        {t('certificates.themeDark')}
                       </button>
                     </div>
                   </div>
 
                   {/* Accent Color Palette */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground">Accent & Seal Color</label>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">{t('certificates.accentTitle')}</label>
                     <div className="flex flex-wrap gap-2">
                       {[
                         { label: 'Gold', value: '#d97706' },
@@ -1139,7 +1139,7 @@ export function Settings() {
 
                   {/* Badge / Seal Style */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground">Badge / Seal Design</label>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">{t('certificates.badgeTitle')}</label>
                     <div className="grid grid-cols-4 gap-2">
                       {(['medal', 'laurel', 'shield', 'crypto'] as const).map((b) => (
                         <button
@@ -1162,21 +1162,21 @@ export function Settings() {
 
                   {/* Signatory Settings */}
                   <div className="space-y-3">
-                    <h3 className="text-xs font-semibold uppercase text-muted-foreground">Signatory Details</h3>
+                    <h3 className="text-xs font-semibold uppercase text-muted-foreground">{t('certificates.signatoryTitle')}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">Signatory Name</label>
+                        <label className="text-xs text-muted-foreground">{t('certificates.signatoryName')}</label>
                         <Input
-                          placeholder="e.g. Jane Doe"
+                          placeholder={t('certificates.signatoryNamePlaceholder')}
                           value={certSignatoryName}
                           onChange={(e: any) => setCertSignatoryName(e.target.value)}
                           className="text-xs"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">Signatory Title</label>
+                        <label className="text-xs text-muted-foreground">{t('certificates.signatoryRole')}</label>
                         <Input
-                          placeholder="e.g. Head of Human Resources"
+                          placeholder={t('certificates.signatoryRolePlaceholder')}
                           value={certSignatoryTitle}
                           onChange={(e: any) => setCertSignatoryTitle(e.target.value)}
                           className="text-xs"
@@ -1189,7 +1189,7 @@ export function Settings() {
 
                   {/* Signature Upload */}
                   <div className="space-y-3">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground block">Authorized Digital Signature</label>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground block">{t('certificates.signatureTitle')}</label>
                     <div className="flex items-center gap-4">
                       {certSignatureUrl ? (
                         <div className="w-24 h-12 bg-white rounded border flex items-center justify-center p-1">
@@ -1197,7 +1197,7 @@ export function Settings() {
                         </div>
                       ) : (
                         <div className="w-24 h-12 bg-muted rounded border flex items-center justify-center text-[10px] text-muted-foreground">
-                          No Signature
+                          {t('certificates.noSignature')}
                         </div>
                       )}
                       <input
@@ -1219,14 +1219,14 @@ export function Settings() {
                           {isUploadingSignature ? (
                             <>
                               <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
-                              Uploading ({signatureUploadProgress}%)
+                              {t('certificates.uploadingSignature', { progress: signatureUploadProgress })}
                             </>
                           ) : (
-                            'Upload Signature Image'
+                            t('certificates.uploadSignature')
                           )}
                         </Button>
                         <p className="text-[10px] text-muted-foreground">
-                          Transparent PNG recommended. Max 1MB.
+                          {t('certificates.signatureSpecs')}
                         </p>
                       </div>
                     </div>
@@ -1236,7 +1236,7 @@ export function Settings() {
 
                   <Button onClick={handleSaveCertificate} disabled={updateSettings.isPending}>
                     {updateSettings.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Certificate Settings
+                    {t('certificates.save')}
                   </Button>
                 </div>
 
@@ -1244,10 +1244,10 @@ export function Settings() {
                 <div className="lg:col-span-7 flex flex-col justify-start space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                      Live Certificate Preview
+                      {t('certificates.previewTitle')}
                     </div>
                     <span className="text-[11px] text-muted-foreground font-mono">
-                      Template: {certTemplate} · {certTheme} theme
+                      {t('certificates.previewTemplate', { template: certTemplate, theme: certTheme })}
                     </span>
                   </div>
 
@@ -1262,8 +1262,8 @@ export function Settings() {
                       logoUrl={settings?.logoUrl}
                       journeyTitle="Talnova General Onboarding"
                       issuedAt={new Date()}
-                      signatoryName={certSignatoryName || 'Authorized Officer'}
-                      signatoryTitle={certSignatoryTitle || 'Head of People & Operations'}
+                      signatoryName={certSignatoryName || t('certificates.defaultSignatory')}
+                      signatoryTitle={certSignatoryTitle || t('certificates.defaultRole')}
                       signatureUrl={certSignatureUrl}
                       qrCode={true}
                     />
