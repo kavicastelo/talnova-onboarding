@@ -6,6 +6,7 @@ import {
   connectCalendarSchema,
   createMeetingEventSchema,
   updateMeetingEventSchema,
+  availabilityQuerySchema,
 } from "../schemas/calendar.schema.js";
 
 export async function calendarRoutes(app: FastifyInstance) {
@@ -25,12 +26,19 @@ export async function calendarRoutes(app: FastifyInstance) {
     authApp.post("/connection", { schema: { body: connectCalendarSchema } }, controller.connectProvider as any);
     authApp.get("/connection", controller.getConnection as any);
 
+    authApp.get("/availability", { schema: { querystring: availabilityQuerySchema } }, controller.getAvailability as any);
     authApp.post("/events", { schema: { body: createMeetingEventSchema } }, controller.createMeetingEvent as any);
     authApp.get("/events", controller.listMeetingEvents as any);
     authApp.get("/events/:id/export", controller.exportEventICal as any);
     authApp.put("/events/:id", { schema: { body: updateMeetingEventSchema } }, controller.updateMeetingEvent as any);
     authApp.patch("/events/:id", { schema: { body: updateMeetingEventSchema } }, controller.updateMeetingEvent as any);
     authApp.delete("/events/:id", controller.cancelMeetingEvent as any);
+    authApp.post("/events/:id/cancel", controller.cancelMeetingEvent as any);
+
+    // Onboarding Pack (.ics) & Milestone Review Linking (Phase 3)
+    authApp.get("/pack/export", controller.exportOnboardingPack as any);
+    authApp.get("/pack/export.ics", controller.exportOnboardingPack as any);
+    authApp.post("/milestones/:milestoneId/schedule-review", controller.scheduleMilestoneReview as any);
   });
 }
 

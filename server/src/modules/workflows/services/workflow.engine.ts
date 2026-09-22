@@ -712,19 +712,37 @@ export class WorkflowEngine {
           };
         }
         try {
-          const notif = await notificationService.createNotification({
-            organizationId,
-            recipientUserId: targetUser._id,
-            type: "announcement",
-            channel: action.params.notificationChannel || "in_app",
-            title: action.params.notificationTitle,
-            message: action.params.notificationMessage,
-            priority: "medium",
-          });
+          const recipientRole = (action.params as any).recipientRole || "employee";
+          const recipientIds: string[] = [];
+
+          if (recipientRole === "employee" || recipientRole === "both" || !recipientRole) {
+            recipientIds.push(targetUser._id.toString());
+          }
+
+          if (recipientRole === "manager" || recipientRole === "both") {
+            const mgrId = targetUser.employment?.managerId || (targetUser.employment as any)?.managerUserId;
+            if (mgrId) recipientIds.push(mgrId.toString());
+          }
+
+          const uniqueIds = Array.from(new Set(recipientIds));
+          const notifs = [];
+          for (const rId of uniqueIds) {
+            const notif = await notificationService.createNotification({
+              organizationId,
+              recipientUserId: rId,
+              type: "announcement",
+              channel: action.params.notificationChannel || "in_app",
+              title: action.params.notificationTitle,
+              message: action.params.notificationMessage,
+              priority: "medium",
+            });
+            if (notif) notifs.push(notif);
+          }
+
           return {
             status: "success",
-            message: `Sent notification to ${targetUser.profile?.firstName}`,
-            output: notif,
+            message: `Sent notification to ${uniqueIds.length} recipients`,
+            output: notifs,
           };
         } catch (err: any) {
           return {

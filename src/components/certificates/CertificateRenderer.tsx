@@ -56,10 +56,10 @@ export function CertificateRenderer({
   const { t } = useTranslation('documents');
   const normalizedTemplate: CertificateTemplateId =
     template === 'modern' ||
-    template === 'minimalist' ||
-    template === 'academic' ||
-    template === 'gradient' ||
-    template === 'executive'
+      template === 'minimalist' ||
+      template === 'academic' ||
+      template === 'gradient' ||
+      template === 'executive'
       ? template
       : 'classic';
 
@@ -68,15 +68,15 @@ export function CertificateRenderer({
   const effectiveDate = issuedAt || completionDate;
   const formattedDate = effectiveDate
     ? new Date(effectiveDate).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
     : new Date().toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
 
   const shortId = (certificateId || 'ONB12345').toUpperCase();
 
@@ -139,7 +139,7 @@ export function CertificateRenderer({
       <div className="flex items-center gap-2">
         <span className="text-[8px] font-mono tracking-wider uppercase opacity-60">{t('certificates.verifiedCredential', 'Verified Credential')}</span>
         <img
-          src="/assets/images/talnova-long-black.png"
+          src="/assets/images/talnova.png"
           alt="Talnova"
           className={`h-5 sm:h-6 object-contain ${isDarkLocal ? 'invert' : ''}`}
         />
@@ -184,11 +184,10 @@ export function CertificateRenderer({
   if (normalizedTemplate === 'classic') {
     return (
       <div
-        className={`relative overflow-hidden rounded-xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border-8 border-double transition-all ${
-          isDark
+        className={`relative overflow-hidden rounded-xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border-8 border-double transition-all ${isDark
             ? 'bg-[#10131d] text-amber-50 border-amber-500/40 shadow-2xl'
             : 'bg-[#fcfaf5] text-slate-900 border-yellow-800/40 shadow-xl'
-        } ${className}`}
+          } ${className}`}
         style={accentColor ? { borderColor: `${accentColor}66` } : undefined}
       >
         {/* Subtle background flourishes */}
@@ -235,11 +234,10 @@ export function CertificateRenderer({
   if (normalizedTemplate === 'modern') {
     return (
       <div
-        className={`relative overflow-hidden rounded-2xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border transition-all ${
-          isDark
+        className={`relative overflow-hidden rounded-2xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border transition-all ${isDark
             ? 'bg-[#0a0d18] text-slate-100 border-cyan-500/30 shadow-2xl'
             : 'bg-slate-50 text-slate-900 border-indigo-200 shadow-xl'
-        } ${className}`}
+          } ${className}`}
         style={accentColor ? { borderColor: `${accentColor}55` } : undefined}
       >
         {/* Glowing cyber accent corner */}
@@ -289,11 +287,10 @@ export function CertificateRenderer({
   if (normalizedTemplate === 'minimalist') {
     return (
       <div
-        className={`relative overflow-hidden rounded-xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border transition-all ${
-          isDark
+        className={`relative overflow-hidden rounded-xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border transition-all ${isDark
             ? 'bg-[#141417] text-zinc-100 border-zinc-800 shadow-xl'
             : 'bg-white text-zinc-900 border-zinc-200 shadow-md'
-        } ${className}`}
+          } ${className}`}
       >
         {renderOrgHeader(isDark)}
 
@@ -328,11 +325,10 @@ export function CertificateRenderer({
   if (normalizedTemplate === 'academic') {
     return (
       <div
-        className={`relative overflow-hidden rounded-xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border-4 border-solid transition-all ${
-          isDark
+        className={`relative overflow-hidden rounded-xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border-4 border-solid transition-all ${isDark
             ? 'bg-[#0d1524] text-slate-100 border-amber-600/40 shadow-2xl'
             : 'bg-[#faf8f2] text-slate-900 border-amber-900/30 shadow-xl'
-        } ${className}`}
+          } ${className}`}
         style={accentColor ? { borderColor: accentColor } : undefined}
       >
         {/* Ornate corner brackets */}
@@ -382,11 +378,10 @@ export function CertificateRenderer({
   if (normalizedTemplate === 'gradient') {
     return (
       <div
-        className={`relative overflow-hidden rounded-2xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border shadow-2xl transition-all ${
-          isDark
+        className={`relative overflow-hidden rounded-2xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border shadow-2xl transition-all ${isDark
             ? 'bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 text-white border-purple-500/30'
             : 'bg-gradient-to-br from-indigo-50 via-white to-pink-50 text-slate-900 border-indigo-200'
-        } ${className}`}
+          } ${className}`}
       >
         {/* Radiant gradient blobs */}
         <div className="absolute top-1/4 right-1/4 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -430,11 +425,10 @@ export function CertificateRenderer({
   // -------------------------------------------------------------
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border-2 transition-all ${
-        isDark
+      className={`relative overflow-hidden rounded-2xl p-6 sm:p-10 flex flex-col justify-between min-h-[500px] border-2 transition-all ${isDark
           ? 'bg-[#08090d] text-slate-100 border-amber-500/50 shadow-2xl'
           : 'bg-[#181a20] text-slate-100 border-amber-400/40 shadow-xl'
-      } ${className}`}
+        } ${className}`}
       style={accentColor ? { borderColor: accentColor } : undefined}
     >
       {/* Luxury metallic hairline frame */}

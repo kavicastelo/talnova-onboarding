@@ -30,30 +30,64 @@ let subscribersRegistered = false;
 export function registerEventSubscribers(): void {
   if (subscribersRegistered) return;
   subscribersRegistered = true;
-  // Listener for JOURNEY_ASSIGNED event
+  // Listener for JOURNEY_ASSIGNED event (Dual Notification: Employee & Manager)
   eventBus.subscribe("JOURNEY_ASSIGNED", async (event) => {
-    const { journeyTitle, assignmentId, journeyId } = event.payload || {};
-    if (event.actorId) {
+    const { journeyTitle, assignmentId, journeyId, employeeId, managerUserId, employeeName } = event.payload || {};
+    const empId = employeeId || event.actorId;
+    if (empId) {
+      // 1. Notify responsible user (Employee)
       await notificationService.notifyJourneyAssignment(
         event.organizationId,
-        event.actorId,
+        empId,
         journeyTitle || "Onboarding Journey",
         assignmentId || event.entityId,
         journeyId
       );
+
+      // 2. Notify relevant user (Manager)
+      try {
+        let mgrId = managerUserId;
+        let empName = employeeName;
+        if (!mgrId || !empName) {
+          const empUser = await User.findById(empId).select("employment.managerId profile.firstName profile.lastName");
+          mgrId = mgrId || empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+          empName = empName || `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+        }
+
+        if (mgrId && mgrId.toString() !== empId.toString()) {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: mgrId,
+            type: "journey_assigned",
+            channel: "in_app",
+            title: `Journey Assigned to ${empName}`,
+            message: `${empName} has been assigned onboarding journey: "${journeyTitle || "Onboarding Journey"}".`,
+            priority: "medium",
+            data: {
+              journeyId,
+              assignmentId: assignmentId || event.entityId,
+              employeeId: empId.toString(),
+              deepLink: `/journeys`,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("[EventSubscribers] Manager journey assignment notification error:", err);
+      }
     }
   });
 
   // Listener for JOURNEY_COMPLETED event
   eventBus.subscribe("JOURNEY_COMPLETED", async (event) => {
     const { employeeName, journeyTitle, assignmentId, journeyId, managerUserId } = event.payload || {};
+    const empId = event.actorId;
     
     // Award milestone gamification points for journey graduation
-    if (event.organizationId && event.actorId) {
+    if (event.organizationId && empId) {
       try {
         await gamificationService.awardPoints(
           event.organizationId,
-          event.actorId,
+          empId,
           "journey_completed",
           100,
           `Graduated onboarding journey: "${journeyTitle || "Onboarding Journey"}"`,
@@ -64,26 +98,38 @@ export function registerEventSubscribers(): void {
       }
     }
 
-    if (event.actorId) {
+    if (empId) {
+      let mgrId = managerUserId;
+      let name = employeeName;
+      if (!mgrId || !name) {
+        try {
+          const empUser = await User.findById(empId).select("employment.managerId profile.firstName profile.lastName");
+          mgrId = mgrId || empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+          name = name || `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+        } catch {}
+      }
+
       await notificationService.notifyJourneyCompletion(
         event.organizationId,
-        event.actorId,
-        employeeName || "Employee",
+        empId,
+        name || "Employee",
         journeyTitle || "Onboarding Journey",
         assignmentId || event.entityId,
         journeyId,
-        managerUserId
+        mgrId
       );
     }
   });
 
-  // Listener for JOURNEY_OVERDUE event
+  // Listener for JOURNEY_OVERDUE event (Dual Notification: Employee & Manager)
   eventBus.subscribe("JOURNEY_OVERDUE", async (event) => {
-    const { journeyTitle, assignmentId, journeyId } = event.payload || {};
-    if (event.actorId) {
+    const { journeyTitle, assignmentId, journeyId, employeeId } = event.payload || {};
+    const empId = employeeId || event.actorId;
+    if (empId) {
+      // 1. Notify responsible user (Employee)
       await notificationService.createNotification({
         organizationId: event.organizationId,
-        recipientUserId: event.actorId,
+        recipientUserId: empId,
         type: "journey_overdue",
         channel: "in_app",
         title: "Journey Overdue Alert",
@@ -95,16 +141,44 @@ export function registerEventSubscribers(): void {
           deepLink: `/employee/journeys/${assignmentId || event.entityId}`,
         },
       });
+
+      // 2. Notify relevant user (Manager)
+      try {
+        const empUser = await User.findById(empId).select("employment.managerId profile.firstName profile.lastName");
+        const mgrId = empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+        const empName = `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+
+        if (mgrId && mgrId.toString() !== empId.toString()) {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: mgrId,
+            type: "journey_overdue",
+            channel: "in_app",
+            title: `Team Alert: Journey Overdue (${empName})`,
+            message: `${empName}'s assigned journey "${journeyTitle || "Onboarding Journey"}" is overdue. Please follow up with your direct report.`,
+            priority: "high",
+            data: {
+              journeyId,
+              assignmentId: assignmentId || event.entityId,
+              employeeId: empId.toString(),
+              deepLink: `/journeys`,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("[EventSubscribers] Manager journey overdue notification error:", err);
+      }
     }
   });
 
   // Listener for CHECKIN_DUE compliance event
   eventBus.subscribe("CHECKIN_DUE", async (event) => {
-    const { journeyTitle, assignmentId, journeyId } = event.payload || {};
-    if (event.actorId) {
+    const { journeyTitle, assignmentId, journeyId, employeeId } = event.payload || {};
+    const empId = employeeId || event.actorId;
+    if (empId) {
       await notificationService.createNotification({
         organizationId: event.organizationId,
-        recipientUserId: event.actorId,
+        recipientUserId: empId,
         type: "journey_due_soon",
         channel: "in_app",
         title: "Compliance Due Soon Alert",
@@ -119,37 +193,88 @@ export function registerEventSubscribers(): void {
     }
   });
 
-  // Listener for TASK_CREATED event
+  // Listener for TASK_CREATED event (Dual Notification: Assignee & Target Employee / Manager)
   eventBus.subscribe("TASK_CREATED", async (event) => {
-    const { title, assignedToUserId, taskId } = event.payload || {};
+    const { title, assignedToUserId, employeeId, taskId, dueDate } = event.payload || {};
     if (assignedToUserId) {
+      // 1. Notify responsible user (Assignee)
       await notificationService.createNotification({
         organizationId: event.organizationId,
         recipientUserId: assignedToUserId,
-        type: "journey_due_soon",
+        type: "task_assigned",
         channel: "in_app",
         title: "New Task Assigned",
-        message: `You have been assigned a new task: "${title || "Operational Task"}".`,
+        message: `You have been assigned a task: "${title || "Operational Task"}".`,
         priority: "medium",
         data: {
           taskId: taskId || event.entityId,
+          employeeId,
           deepLink: `/tasks`,
         },
       });
+
+      // 2. Notify relevant user: Target employee if different from assignee
+      if (employeeId && employeeId.toString() !== assignedToUserId.toString()) {
+        try {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: employeeId,
+            type: "task_assigned",
+            channel: "in_app",
+            title: `Onboarding Task Scheduled: ${title || "Operational Task"}`,
+            message: `A task ("${title}") is being executed for your onboarding setup.`,
+            priority: "low",
+            data: {
+              taskId: taskId || event.entityId,
+              deepLink: `/tasks`,
+            },
+          });
+        } catch (err) {
+          console.warn("[EventSubscribers] Target employee task notification error:", err);
+        }
+      }
+
+      // 3. Notify relevant user: Manager if task is assigned directly to employee
+      if (employeeId && employeeId.toString() === assignedToUserId.toString()) {
+        try {
+          const empUser = await User.findById(employeeId).select("employment.managerId profile.firstName profile.lastName");
+          const mgrId = empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+          const empName = `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+
+          if (mgrId && mgrId.toString() !== employeeId.toString()) {
+            await notificationService.createNotification({
+              organizationId: event.organizationId,
+              recipientUserId: mgrId,
+              type: "task_assigned",
+              channel: "in_app",
+              title: `Task Assigned to ${empName}`,
+              message: `Task "${title || "Operational Task"}" has been assigned to ${empName}.`,
+              priority: "low",
+              data: {
+                taskId: taskId || event.entityId,
+                employeeId,
+                deepLink: `/tasks`,
+              },
+            });
+          }
+        } catch (err) {
+          console.warn("[EventSubscribers] Manager task notification error:", err);
+        }
+      }
     }
   });
 
-  // Listener for TASK_COMPLETED event
+  // Listener for TASK_COMPLETED event (Dual Notification: Performer & Manager / Employee)
   eventBus.subscribe("TASK_COMPLETED", async (event) => {
-    const { title, taskId, assignedToUserId } = event.payload || {};
-    const recipientId = assignedToUserId || event.actorId;
+    const { title, taskId, assignedToUserId, employeeId } = event.payload || {};
+    const performerId = event.actorId || assignedToUserId;
 
     // Award gamification points for completed task
-    if (event.organizationId && recipientId) {
+    if (event.organizationId && performerId) {
       try {
         await gamificationService.awardPoints(
           event.organizationId,
-          recipientId,
+          performerId,
           "task_completed",
           25,
           `Completed onboarding task: "${title || "Operational Task"}"`,
@@ -160,11 +285,12 @@ export function registerEventSubscribers(): void {
       }
     }
 
-    if (event.actorId) {
+    // 1. Notify responsible user (confirmation)
+    if (performerId) {
       await notificationService.createNotification({
         organizationId: event.organizationId,
-        recipientUserId: event.actorId,
-        type: "announcement",
+        recipientUserId: performerId,
+        type: "task_completed",
         channel: "in_app",
         title: "Task Completed",
         message: `Task "${title || "Operational Task"}" has been completed successfully.`,
@@ -175,9 +301,179 @@ export function registerEventSubscribers(): void {
         },
       });
     }
+
+    // 2. Notify relevant user: Manager if completed by employee
+    const targetEmpId = employeeId || performerId;
+    if (targetEmpId) {
+      try {
+        const empUser = await User.findById(targetEmpId).select("employment.managerId profile.firstName profile.lastName");
+        const mgrId = empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+        const empName = `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+
+        if (mgrId && mgrId.toString() !== performerId?.toString()) {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: mgrId,
+            type: "task_completed",
+            channel: "in_app",
+            title: `Task Completed: ${empName}`,
+            message: `${empName} has completed task: "${title || "Operational Task"}".`,
+            priority: "medium",
+            data: {
+              taskId: taskId || event.entityId,
+              employeeId: targetEmpId.toString(),
+              deepLink: `/tasks`,
+            },
+          });
+        }
+
+        // If completed by someone else (e.g. IT admin), notify the target employee
+        if (employeeId && performerId && employeeId.toString() !== performerId.toString()) {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: employeeId,
+            type: "task_completed",
+            channel: "in_app",
+            title: `Onboarding Task Completed: ${title}`,
+            message: `Task "${title}" for your onboarding has been completed.`,
+            priority: "low",
+            data: {
+              taskId: taskId || event.entityId,
+              deepLink: `/tasks`,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("[EventSubscribers] Manager task completed notification error:", err);
+      }
+    }
   });
 
-  // Listener for DOCUMENT_SIGNED event
+  // Listener for TASK_VERIFIED event
+  eventBus.subscribe("TASK_VERIFIED" as any, async (event) => {
+    const { title, taskId, employeeId, verifiedBy } = event.payload || {};
+    const empId = employeeId || event.actorId;
+
+    if (empId) {
+      await notificationService.createNotification({
+        organizationId: event.organizationId,
+        recipientUserId: empId,
+        type: "task_verified",
+        channel: "in_app",
+        title: "Task Approved & Verified! ✅",
+        message: `Your task "${title || "Operational Task"}" has been officially reviewed and verified.`,
+        priority: "medium",
+        data: {
+          taskId: taskId || event.entityId,
+          deepLink: `/tasks`,
+        },
+      });
+    }
+  });
+
+  // Listener for TASK_REVISION_REQUESTED event
+  eventBus.subscribe("TASK_REVISION_REQUESTED" as any, async (event) => {
+    const { title, taskId, employeeId, note } = event.payload || {};
+    const empId = employeeId || event.actorId;
+
+    if (empId) {
+      await notificationService.createNotification({
+        organizationId: event.organizationId,
+        recipientUserId: empId,
+        type: "task_revision_requested",
+        channel: "in_app",
+        title: `Revision Requested: ${title || "Task"}`,
+        message: `Revisions requested on task "${title}". ${note ? `Feedback: ${note}` : "Please review and update."}`,
+        priority: "high",
+        data: {
+          taskId: taskId || event.entityId,
+          deepLink: `/tasks`,
+        },
+      });
+    }
+  });
+
+  // Listener for TASK_NEEDS_REVIEW event
+  eventBus.subscribe("TASK_NEEDS_REVIEW" as any, async (event) => {
+    const { title, taskId, employeeId, note } = event.payload || {};
+    if (employeeId) {
+      try {
+        const empUser = await User.findById(employeeId).select("employment.managerId profile.firstName profile.lastName");
+        const mgrId = empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+        const empName = `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+
+        if (mgrId) {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: mgrId,
+            type: "task_needs_review",
+            channel: "in_app",
+            title: `Task Needs Review: ${empName}`,
+            message: `Task "${title}" for ${empName} requires review or evidence audit. ${note ? `Reason: ${note}` : ""}`,
+            priority: "high",
+            data: {
+              taskId: taskId || event.entityId,
+              employeeId: employeeId.toString(),
+              deepLink: `/tasks`,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("[EventSubscribers] Needs review notification error:", err);
+      }
+    }
+  });
+
+  // Listener for TASK_OVERDUE event (Dual Notification: Assignee & Manager)
+  eventBus.subscribe("TASK_OVERDUE", async (event) => {
+    const { title, taskId, assignedToUserId, employeeId } = event.payload || {};
+    const recipient = assignedToUserId || event.actorId;
+    if (recipient) {
+      // 1. Notify responsible user (Assignee)
+      await notificationService.createNotification({
+        organizationId: event.organizationId,
+        recipientUserId: recipient,
+        type: "task_overdue",
+        channel: "in_app",
+        title: "Task Overdue Alert",
+        message: `Task "${title || "Operational Task"}" is overdue. Please execute it immediately.`,
+        priority: "high",
+        data: {
+          taskId: taskId || event.entityId,
+          deepLink: `/tasks`,
+        },
+      });
+
+      // 2. Notify relevant user: Manager
+      const targetEmpId = employeeId || recipient;
+      try {
+        const empUser = await User.findById(targetEmpId).select("employment.managerId profile.firstName profile.lastName");
+        const mgrId = empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+        const empName = `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || "Employee";
+
+        if (mgrId && mgrId.toString() !== recipient.toString()) {
+          await notificationService.createNotification({
+            organizationId: event.organizationId,
+            recipientUserId: mgrId,
+            type: "task_overdue",
+            channel: "in_app",
+            title: `Team Alert: Task Overdue (${empName})`,
+            message: `Task "${title || "Operational Task"}" assigned to ${empName} is overdue.`,
+            priority: "high",
+            data: {
+              taskId: taskId || event.entityId,
+              employeeId: targetEmpId.toString(),
+              deepLink: `/tasks`,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("[EventSubscribers] Manager task overdue notification error:", err);
+      }
+    }
+  });
+
+  // Listener for DOCUMENT_SIGNED event (Gamification points)
   eventBus.subscribe("DOCUMENT_SIGNED", async (event) => {
     const { templateTitle, assignmentId, employeeId } = event.payload || {};
     const recipientId = employeeId || event.actorId;
@@ -227,27 +523,6 @@ export function registerEventSubscribers(): void {
       } catch (wfErr) {
         console.warn("[EventSubscribers] WorkflowEngine failed for MILESTONE_COMPLETED:", wfErr);
       }
-    }
-  });
-
-  // Listener for TASK_OVERDUE event
-  eventBus.subscribe("TASK_OVERDUE", async (event) => {
-    const { title, taskId, assignedToUserId } = event.payload || {};
-    const recipient = assignedToUserId || event.actorId;
-    if (recipient) {
-      await notificationService.createNotification({
-        organizationId: event.organizationId,
-        recipientUserId: recipient,
-        type: "journey_overdue",
-        channel: "in_app",
-        title: "Task Overdue Alert",
-        message: `Task "${title || "Operational Task"}" is overdue. Please execute it immediately.`,
-        priority: "high",
-        data: {
-          taskId: taskId || event.entityId,
-          deepLink: `/tasks`,
-        },
-      });
     }
   });
 

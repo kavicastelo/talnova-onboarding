@@ -198,4 +198,62 @@ export class MilestoneController {
       data,
     });
   };
+
+  getMilestone = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const milestone = await this.milestoneService.getMilestone(
+      user.organizationId,
+      params.id,
+      user.userId,
+      user.role
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Milestone details retrieved successfully",
+      data: milestone,
+    });
+  };
+
+  updateStatus = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const milestone = await this.milestoneService.updateMilestoneStatus(
+      user.organizationId,
+      params.id,
+      user.userId,
+      user.role,
+      body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: `Milestone status updated to ${milestone.status}`,
+      data: milestone,
+    });
+  };
+
+  updateGoals = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const milestone = await this.milestoneService.updateMilestoneGoals(
+      user.organizationId,
+      params.id,
+      user.userId,
+      user.role,
+      body.goalsProgress || []
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Milestone goals updated successfully",
+      data: milestone,
+    });
+  };
 }

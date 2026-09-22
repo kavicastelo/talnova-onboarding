@@ -15,6 +15,19 @@ export function useMeetingEvents() {
   });
 }
 
+export function useCalendarAvailability(params: {
+  userIds: string[];
+  date: string;
+  durationMinutes?: number;
+  timezone?: string;
+}) {
+  return useQuery({
+    queryKey: ['calendarAvailability', params.userIds, params.date, params.durationMinutes, params.timezone],
+    queryFn: () => calendarService.getAvailability(params),
+    enabled: Boolean(params.userIds && params.userIds.length > 0 && params.date),
+  });
+}
+
 export function useConnectCalendar() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -75,3 +88,22 @@ export function useCancelMeetingEvent() {
     },
   });
 }
+
+export function useScheduleMilestoneReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      milestoneId,
+      data,
+    }: {
+      milestoneId: string;
+      data?: { targetDate?: string; startTime?: string; durationMinutes?: number; locationUrl?: string };
+    }) => calendarService.scheduleMilestoneReview(milestoneId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetingEvents'] });
+      queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['employeeMilestones'] });
+    },
+  });
+}
+

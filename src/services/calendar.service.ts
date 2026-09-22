@@ -32,6 +32,27 @@ export interface MeetingEvent {
   notes?: string;
 }
 
+export interface TimeSlot {
+  startTime: string;
+  endTime: string;
+  startFormatted: string;
+  endFormatted: string;
+  label: string;
+  isAvailable: boolean;
+  conflicts: Array<{ eventId: string; title: string; busyUserNames: string[] }>;
+}
+
+export interface AvailabilityResult {
+  date: string;
+  durationMinutes: number;
+  participantCount: number;
+  totalCandidateSlots: number;
+  availableSlotsCount: number;
+  availableSlots: TimeSlot[];
+  allSlots: TimeSlot[];
+  busyEventsCount: number;
+}
+
 export const calendarService = {
   connectProvider: async (provider: 'google' | 'outlook' | 'ical', timezone = 'UTC'): Promise<CalendarConnection> => {
     const response = await apiClient.post<ApiResponse<CalendarConnection>>('/calendar/connection', {
@@ -43,6 +64,22 @@ export const calendarService = {
 
   getConnectionStatus: async (): Promise<CalendarConnection> => {
     const response = await apiClient.get<ApiResponse<CalendarConnection>>('/calendar/connection');
+    return response.data.data;
+  },
+
+  getAvailability: async (params: {
+    userIds: string[];
+    date: string;
+    durationMinutes?: number;
+    timezone?: string;
+  }): Promise<AvailabilityResult> => {
+    const query = new URLSearchParams();
+    query.set('userIds', params.userIds.join(','));
+    query.set('date', params.date);
+    if (params.durationMinutes) query.set('durationMinutes', String(params.durationMinutes));
+    if (params.timezone) query.set('timezone', params.timezone);
+
+    const response = await apiClient.get<ApiResponse<AvailabilityResult>>(`/calendar/availability?${query.toString()}`);
     return response.data.data;
   },
 
@@ -84,6 +121,25 @@ export const calendarService = {
 
   cancelMeetingEvent: async (id: string): Promise<MeetingEvent> => {
     const response = await apiClient.delete<ApiResponse<MeetingEvent>>(`/calendar/events/${id}`);
+    return response.data.data;
+  },
+
+  exportOnboardingPack: async (userId?: string): Promise<string> => {
+    const response = await apiClient.get<string>('/calendar/pack/export', {
+      params: userId ? { userId } : {},
+      responseType: 'text' as any,
+    });
+    return response.data;
+  },
+
+  scheduleMilestoneReview: async (
+    milestoneId: string,
+    data?: { targetDate?: string; startTime?: string; durationMinutes?: number; locationUrl?: string }
+  ): Promise<MeetingEvent> => {
+    const response = await apiClient.post<ApiResponse<MeetingEvent>>(
+      `/calendar/milestones/${milestoneId}/schedule-review`,
+      data || {}
+    );
     return response.data.data;
   },
 };

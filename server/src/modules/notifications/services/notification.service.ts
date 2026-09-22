@@ -9,6 +9,8 @@ import mongoose from "mongoose";
 import EmailService from "../../../shared/email/email.service.js";
 import User from "../../auth/models/user.model.js";
 
+import { NotificationType } from "../models/notification.model.js";
+
 export class NotificationService {
   private emailService: EmailService;
 
@@ -99,7 +101,7 @@ export class NotificationService {
     type: string
   ): Promise<boolean> {
     // If overdue alert, suppress if another alert of same type was sent in last 24 hrs
-    if (type === "journey_overdue" || type === "journey_due_soon") {
+    if (type === "journey_overdue" || type === "journey_due_soon" || type === "task_overdue" || type === "task_due_soon") {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recent = await this.repository.find(
         {
@@ -119,16 +121,7 @@ export class NotificationService {
   async createNotification(data: {
     organizationId: string | mongoose.Types.ObjectId;
     recipientUserId: string | mongoose.Types.ObjectId;
-    type:
-      | "journey_assigned"
-      | "journey_due_soon"
-      | "journey_overdue"
-      | "journey_completed"
-      | "employee_invited"
-      | "announcement"
-      | "knowledge_update"
-      | "manager_alert"
-      | "system";
+    type: NotificationType;
     channel?: "in_app" | "email" | "push" | "webhook";
     title: string;
     message: string;
@@ -153,10 +146,47 @@ export class NotificationService {
 
     // Determine category key for preference check
     let categoryKey: keyof typeof prefs.categories = "reminders";
-    if (data.type === "journey_assigned") categoryKey = "journeyAssigned";
-    else if (data.type === "journey_overdue") categoryKey = "journeyOverdue";
-    else if (data.type === "journey_due_soon") categoryKey = "complianceDue";
-    else if (data.type === "announcement") categoryKey = "announcements";
+    if (
+      data.type === "journey_assigned" ||
+      data.type === "task_assigned" ||
+      data.type === "checklist_assigned" ||
+      data.type === "document_assigned" ||
+      data.type === "milestone_assigned" ||
+      data.type === "buddy_assigned" ||
+      data.type === "hardware_provisioned"
+    ) {
+      categoryKey = "journeyAssigned";
+    } else if (
+      data.type === "journey_overdue" ||
+      data.type === "task_overdue" ||
+      data.type === "document_overdue" ||
+      data.type === "task_revision_requested" ||
+      data.type === "milestone_revision_requested"
+    ) {
+      categoryKey = "journeyOverdue";
+    } else if (
+      data.type === "journey_due_soon" ||
+      data.type === "task_due_soon" ||
+      data.type === "task_needs_review"
+    ) {
+      categoryKey = "complianceDue";
+    } else if (
+      data.type === "announcement" ||
+      data.type === "journey_completed" ||
+      data.type === "task_completed" ||
+      data.type === "task_verified" ||
+      data.type === "checklist_completed" ||
+      data.type === "document_signed" ||
+      data.type === "milestone_approved" ||
+      data.type === "milestone_submitted" ||
+      data.type === "buddy_checklist_updated" ||
+      data.type === "buddy_nudge" ||
+      data.type === "hardware_dispatched" ||
+      data.type === "hardware_received" ||
+      data.type === "onboarding_signed_off"
+    ) {
+      categoryKey = "announcements";
+    }
 
     // Verify channel enabled in preferences
     const isChannelEnabled =
@@ -171,6 +201,44 @@ export class NotificationService {
       return null;
     }
 
+    const payloadData: any = {};
+    if (data.data) {
+      Object.assign(payloadData, data.data);
+      if (data.data.journeyId && mongoose.Types.ObjectId.isValid(data.data.journeyId)) {
+        payloadData.journeyId = new mongoose.Types.ObjectId(data.data.journeyId.toString());
+      }
+      if (data.data.assignmentId && mongoose.Types.ObjectId.isValid(data.data.assignmentId)) {
+        payloadData.assignmentId = new mongoose.Types.ObjectId(data.data.assignmentId.toString());
+      }
+      if (data.data.taskId && mongoose.Types.ObjectId.isValid(data.data.taskId)) {
+        payloadData.taskId = new mongoose.Types.ObjectId(data.data.taskId.toString());
+      }
+      if (data.data.checklistId && mongoose.Types.ObjectId.isValid(data.data.checklistId)) {
+        payloadData.checklistId = new mongoose.Types.ObjectId(data.data.checklistId.toString());
+      }
+      if (data.data.documentId && mongoose.Types.ObjectId.isValid(data.data.documentId)) {
+        payloadData.documentId = new mongoose.Types.ObjectId(data.data.documentId.toString());
+      }
+      if (data.data.milestoneId && mongoose.Types.ObjectId.isValid(data.data.milestoneId)) {
+        payloadData.milestoneId = new mongoose.Types.ObjectId(data.data.milestoneId.toString());
+      }
+      if (data.data.employeeId && mongoose.Types.ObjectId.isValid(data.data.employeeId)) {
+        payloadData.employeeId = new mongoose.Types.ObjectId(data.data.employeeId.toString());
+      }
+      if (data.data.buddyId && mongoose.Types.ObjectId.isValid(data.data.buddyId)) {
+        payloadData.buddyId = new mongoose.Types.ObjectId(data.data.buddyId.toString());
+      }
+      if (data.data.managerUserId && mongoose.Types.ObjectId.isValid(data.data.managerUserId)) {
+        payloadData.managerUserId = new mongoose.Types.ObjectId(data.data.managerUserId.toString());
+      }
+      if (data.data.articleId && mongoose.Types.ObjectId.isValid(data.data.articleId)) {
+        payloadData.articleId = new mongoose.Types.ObjectId(data.data.articleId.toString());
+      }
+      if (data.data.actorUserId && mongoose.Types.ObjectId.isValid(data.data.actorUserId)) {
+        payloadData.actorUserId = new mongoose.Types.ObjectId(data.data.actorUserId.toString());
+      }
+    }
+
     const notificationData = {
       organizationId: new mongoose.Types.ObjectId(data.organizationId),
       recipientUserId: new mongoose.Types.ObjectId(data.recipientUserId),
@@ -179,15 +247,7 @@ export class NotificationService {
       title: data.title,
       message: data.message,
       priority,
-      data: data.data
-        ? {
-            journeyId: data.data.journeyId ? new mongoose.Types.ObjectId(data.data.journeyId) : undefined,
-            assignmentId: data.data.assignmentId ? new mongoose.Types.ObjectId(data.data.assignmentId) : undefined,
-            articleId: data.data.articleId ? new mongoose.Types.ObjectId(data.data.articleId) : undefined,
-            actorUserId: data.data.actorUserId ? new mongoose.Types.ObjectId(data.data.actorUserId) : undefined,
-            deepLink: data.data.deepLink,
-          }
-        : undefined,
+      data: payloadData,
       status: "pending" as const,
       isRead: false,
       expiresAt,
@@ -324,6 +384,78 @@ export class NotificationService {
       organizationId: orgObjectId,
       userId: userObjectId,
     });
+  }
+
+  /**
+   * Dual-Recipient Delivery Helper:
+   * Dispatches notifications to both the responsible user (assignee / direct actor)
+   * and relevant users (manager, mentor, supervisor, HR ops) deduplicating any overlapping IDs.
+   */
+  async notifyResponsibleAndRelevantUsers(params: {
+    organizationId: string | mongoose.Types.ObjectId;
+    responsibleUserId: string | mongoose.Types.ObjectId;
+    relevantUserIds?: Array<string | mongoose.Types.ObjectId | undefined | null>;
+    responsibleNotification: {
+      type: NotificationType;
+      title: string;
+      message: string;
+      priority?: "low" | "medium" | "high" | "critical";
+      channel?: "in_app" | "email" | "push";
+      data?: any;
+    };
+    relevantNotification?: {
+      type: NotificationType;
+      title: string;
+      message: string;
+      priority?: "low" | "medium" | "high" | "critical";
+      channel?: "in_app" | "email" | "push";
+      data?: any;
+    };
+  }) {
+    const results: any[] = [];
+    const respIdStr = params.responsibleUserId.toString();
+
+    // 1. Notify responsible user
+    const respNotif = await this.createNotification({
+      organizationId: params.organizationId,
+      recipientUserId: params.responsibleUserId,
+      type: params.responsibleNotification.type,
+      title: params.responsibleNotification.title,
+      message: params.responsibleNotification.message,
+      priority: params.responsibleNotification.priority || "medium",
+      channel: params.responsibleNotification.channel || "in_app",
+      data: params.responsibleNotification.data,
+    });
+    if (respNotif) results.push(respNotif);
+
+    // 2. Notify relevant users (excluding responsible user to prevent duplicate spam)
+    if (params.relevantNotification && params.relevantUserIds && params.relevantUserIds.length > 0) {
+      const uniqueRelevantIds = new Set<string>();
+      for (const rId of params.relevantUserIds) {
+        if (rId) {
+          const idStr = rId.toString();
+          if (idStr !== respIdStr) {
+            uniqueRelevantIds.add(idStr);
+          }
+        }
+      }
+
+      for (const relId of uniqueRelevantIds) {
+        const relNotif = await this.createNotification({
+          organizationId: params.organizationId,
+          recipientUserId: relId,
+          type: params.relevantNotification.type,
+          title: params.relevantNotification.title,
+          message: params.relevantNotification.message,
+          priority: params.relevantNotification.priority || "medium",
+          channel: params.relevantNotification.channel || "in_app",
+          data: params.relevantNotification.data,
+        });
+        if (relNotif) results.push(relNotif);
+      }
+    }
+
+    return results;
   }
 }
 

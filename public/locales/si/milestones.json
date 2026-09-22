@@ -42,6 +42,8 @@
     "managerFeedbackRating": "කළමනාකරුගේ ප්‍රතිපෝෂණය (ශ්‍රේණිගත කිරීම: {{rating}}/5):",
     "selfCheckinBtn": "ස්වයං ඇගයීම සම්පූර්ණ කරන්න",
     "submitSelfEvaluation": "ස්වයං ඇගයීම ඉදිරිපත් කරන්න",
+    "resubmitSelfEvaluation": "නැවත ස්වයං ඇගයීම ඉදිරිපත් කරන්න",
+    "clickCheckboxHint": "සම්පූර්ණ කළ අයිතම සලකුණු කිරීමට කොටුව ක්ලික් කරන්න",
     "viewReviewBtn": "ඇගයීම සහ ශ්‍රේණිගත කිරීම බලන්න",
     "paginationLabel": "සන්ධිස්ථාන",
     "status": {
@@ -70,9 +72,13 @@
     "revisionRequested": "සංශෝධනයක් ඉල්ලා ඇත",
     "reviewMilestoneBtn": "සන්ධිස්ථානය සමාලෝචනය කරන්න",
     "selfCheckinPending": "ස්වයං පිරික්සුම පොරොත්තුවෙන්",
+    "viewDetails": "විස්තර බලන්න",
+    "reviewAndSignoff": "සමාලෝචනය / අනුමැතිය",
+    "changeStatus": "තත්ත්වය වෙනස් කරන්න",
     "paginationLabel": "සන්ධිස්ථාන",
     "assignBtn": "සන්ධිස්ථාන වැඩසටහනක් පවරන්න",
-    "reviewBtn": "සමාලෝචනය කර ශ්‍රේණිගත කරන්න"
+    "reviewBtn": "සමාලෝචනය කර ශ්‍රේණිගත කරන්න",
+    "scheduleReviewSync": "1-on-1 සමාලෝචනය උපලේඛනගත කරන්න"
   },
   "templatesTab": {
     "bannerTitle": "සමාගම් සන්ධිස්ථාන වැඩසටහන් සහ පිරික්සුම් ආකෘති",
@@ -228,6 +234,51 @@
     "confirmDelete": "\"{{title}}\" ආකෘතිය මකා දැමීමට ඔබට විශ්වාසද?",
     "templateDeleted": "සන්ධිස්ථාන ආකෘතිය සාර්ථකව මකා දමන ලදී!",
     "failedDeleteTemplate": "ආකෘතිය මකා දැමීමට නොහැකි විය",
-    "quickApprovePopulated": "AI සංස්ලේෂණයෙන් 1-ක්ලික් ප්‍රතිපෝෂණය පුරවන ලදී"
+    "quickApprovePopulated": "AI සංස්ලේෂණයෙන් 1-ක්ලික් ප්‍රතිපෝෂණය පුරවන ලදී",
+    "statusUpdated": "සන්ධිස්ථාන තත්ත්වය සාර්ථකව යාවත්කාලීන විය!",
+    "failedUpdateStatus": "සන්ධිස්ථාන තත්ත්වය යාවත්කාලීන කිරීම අසාර්ථක විය",
+    "goalIncomplete": "ඉලක්කය අසම්පූර්ණ ලෙස සලකුණු කෙරිණි",
+    "goalCompleted": "ඉලක්කය සම්පූර්ණයි!",
+    "failedUpdateGoal": "ඉලක්කය යාවත්කාලීන කිරීම අසාර්ථක විය"
+  },
+  "detailsModal": {
+    "title": "සන්ධිස්ථාන විස්තර",
+    "targetDueDate": "ඉලක්කගත දිනය: {{date}}",
+    "directReport": "ඍජු සේවකයා",
+    "keyObjectives": "සන්ධිස්ථාන ප්‍රධාන අරමුණු සහ ඉලක්ක",
+    "selfEvaluation": "සේවක ස්වයං ඇගයීම",
+    "starsRating": "★ {{rating}} / 5 තරු",
+    "notSubmitted": "ඉදිරිපත් කර නැත",
+    "reflectionAccomplishments": "අදහස් සහ ජයග්‍රහණ:",
+    "reflectionNotSubmitted": "ස්වයං ඇගයීමේ අදහස් තවමත් ඉදිරිපත් කර නැත. ප්‍රධාන අරමුණු සම්පූර්ණ වූ පසු ඉදිරිපත් කළ හැක.",
+    "checkinPrompts": "විමසුම් වලට ප්‍රතිචාර:",
+    "managerSignoff": "කළමනාකරුගේ අනුමැතිය සහ ප්‍රතිපෝෂණය",
+    "managerRatingStars": "★ {{rating}} / 5 ශ්‍රේණිගත කිරීම",
+    "pendingReview": "සමාලෝචනය අපේක්ෂාවෙන්",
+    "evaluatedOn": "{{date}} දින ඇගයීමට ලක්විය",
+    "noManagerEvaluation": "තවමත් කළමනාකරු ඇගයීමක් සටහන් කර නැත.",
+    "changeStatus": "තත්ත්වය වෙනස් කරන්න",
+    "reviewSignoff": "සමාලෝචනය / අනුමැතිය",
+    "submitSelfEvaluation": "ස්වයං ඇගයීම ඉදිරිපත් කරන්න",
+    "close": "වසන්න"
+  },
+  "statusModal": {
+    "title": "සන්ධිස්ථාන තත්ත්වය වෙනස් කරන්න",
+    "desc": "සන්ධිස්ථානයේ තත්ත්වය, ශ්‍රේණිගත කිරීම සහ සටහන් සෘජුවම යාවත්කාලීන කරන්න.",
+    "targetStatusLabel": "අපේක්ෂිත තත්ත්වය *",
+    "options": {
+      "pending": "පොරොත්තුවේ (ස්වයං පරීක්ෂාව පොරොත්තුවේ)",
+      "inReview": "සමාලෝචනයේ (කළමනාකරු සමාලෝචනය අපේක්ෂාවෙන්)",
+      "approved": "අනුමතයි (අනුමැතිය සම්පූර්ණයි)",
+      "completed": "සම්පූර්ණ කර තහවුරු කරන ලදී",
+      "revisionRequested": "සංශෝධනයක් ඉල්ලා ඇත",
+      "overdue": "කල් ඉකුත් වූ"
+    },
+    "ratingLabel": "කාර්යසාධන ශ්‍රේණිගත කිරීම (තරු 1 සිට 5 දක්වා):",
+    "notesLabel": "තත්ත්ව සටහන / ප්‍රතිපෝෂණය:",
+    "notesPlaceholder": "සටහනක් හෝ ප්‍රතිපෝෂණ විස්තර ඇතුළත් කරන්න...",
+    "cancel": "අවලංගු කරන්න",
+    "save": "වෙනස්කම් සුරකින්න",
+    "saving": "යාවත්කාලීන වෙමින් පවතී..."
   }
 }

@@ -112,3 +112,48 @@ export function useSubmitManagerReview() {
     },
   });
 }
+
+export function useMilestone(id?: string) {
+  return useQuery({
+    queryKey: ['milestone', id],
+    queryFn: () => (id ? milestoneService.getMilestone(id) : null),
+    enabled: Boolean(id),
+  });
+}
+
+export function useUpdateMilestoneStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Parameters<typeof milestoneService.updateMilestoneStatus>[1];
+    }) => milestoneService.updateMilestoneStatus(id, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['teamMilestones'] });
+      queryClient.invalidateQueries({ queryKey: ['myMilestones'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone', variables.id] });
+    },
+  });
+}
+
+export function useUpdateMilestoneGoals() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      goalsProgress,
+    }: {
+      id: string;
+      goalsProgress: Array<{ goalTitle: string; completed: boolean }>;
+    }) => milestoneService.updateMilestoneGoals(id, goalsProgress),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['teamMilestones'] });
+      queryClient.invalidateQueries({ queryKey: ['myMilestones'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone', variables.id] });
+    },
+  });
+}
+

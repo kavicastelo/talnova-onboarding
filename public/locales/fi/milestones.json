@@ -42,6 +42,8 @@
     "managerFeedbackRating": "Esihenkilön palaute (Arvosana: {{rating}}/5):",
     "selfCheckinBtn": "Suorita itsearviointi",
     "submitSelfEvaluation": "Lähetä itsearviointi",
+    "resubmitSelfEvaluation": "Lähetä itsearviointi uudelleen",
+    "clickCheckboxHint": "Napsauta valintaruutua merkitäksesi valmiit kohdat",
     "viewReviewBtn": "Näytä arviointi ja luokitus",
     "paginationLabel": "virstanpylväät",
     "status": {
@@ -70,9 +72,13 @@
     "revisionRequested": "Uudelleentarkastelua pyydetty",
     "reviewMilestoneBtn": "Tarkista virstanpylväs",
     "selfCheckinPending": "Itsearviointi odottaa",
+    "viewDetails": "Näytä tiedot",
+    "reviewAndSignoff": "Arvioi ja kuittaa",
+    "changeStatus": "Muuta tilaa",
     "paginationLabel": "virstanpylväät",
     "assignBtn": "Määritä virstanpylväsohjelma",
-    "reviewBtn": "Tarkista ja arvioi"
+    "reviewBtn": "Tarkista ja arvioi",
+    "scheduleReviewSync": "Ajoita 1-on-1-katsaus"
   },
   "templatesTab": {
     "bannerTitle": "Yrityksen virstanpylväsohjelmat ja katsausmallit",
@@ -228,6 +234,51 @@
     "confirmDelete": "Haluatko varmasti poistaa mallin \"{{title}}\"?",
     "templateDeleted": "Virstanpylväsmalli poistettu onnistuneesti!",
     "failedDeleteTemplate": "Mallin poistaminen epäonnistui",
-    "quickApprovePopulated": "1-klikkauksen palaute täytetty tekoälysynteesistä"
+    "quickApprovePopulated": "1-klikkauksen palaute täytetty tekoälysynteesistä",
+    "statusUpdated": "Virstanpylvään tila päivitetty onnistuneesti!",
+    "failedUpdateStatus": "Virstanpylvään tilan päivitys epäonnistui",
+    "goalIncomplete": "Tavoite merkitty keskeneräiseksi",
+    "goalCompleted": "Tavoite suoritettu!",
+    "failedUpdateGoal": "Tavoitteen päivitys epäonnistui"
+  },
+  "detailsModal": {
+    "title": "Virstanpylvään tiedot",
+    "targetDueDate": "Tavoitemääräaika: {{date}}",
+    "directReport": "Suora alainen",
+    "keyObjectives": "Virstanpylvään keskeiset tavoitteet",
+    "selfEvaluation": "Työntekijän itsearviointi",
+    "starsRating": "★ {{rating}} / 5 tähteä",
+    "notSubmitted": "Ei lähetetty",
+    "reflectionAccomplishments": "Pohdintahuomiot ja saavutukset:",
+    "reflectionNotSubmitted": "Itsearvioinnin pohdintaa ei ole vielä lähetetty. Työntekijä voi lähettää sen, kun keskeiset tavoitteet ovat valmiit.",
+    "checkinPrompts": "Vastaukset katsauskysymyksiin:",
+    "managerSignoff": "Esihenkilön kuittaus ja suoriutumispalaute",
+    "managerRatingStars": "★ {{rating}} / 5 arvosana",
+    "pendingReview": "Odottaa arviointia",
+    "evaluatedOn": "Arvioitu {{date}}",
+    "noManagerEvaluation": "Esihenkilön arviointia ei ole vielä tallennettu.",
+    "changeStatus": "Muuta tilaa",
+    "reviewSignoff": "Arvioi ja kuittaa",
+    "submitSelfEvaluation": "Lähetä itsearviointi",
+    "close": "Sulje"
+  },
+  "statusModal": {
+    "title": "Muuta virstanpylvään tilaa",
+    "desc": "Ohita tai päivitä virstanpylvään tila, arvosana ja tarkastusmerkinnät suoraan.",
+    "targetStatusLabel": "Kohdetila *",
+    "options": {
+      "pending": "Odottava (Itsearviointi odottaa)",
+      "inReview": "Tarkastelussa (Odottaa esihenkilön arviointia)",
+      "approved": "Hyväksytty (Kuittaus valmis)",
+      "completed": "Valmis ja vahvistettu",
+      "revisionRequested": "Uudelleentarkastelua pyydetty",
+      "overdue": "Myöhässä"
+    },
+    "ratingLabel": "Suoriutumisarvosana (1 - 5 tähteä):",
+    "notesLabel": "Tilan huomautus / palaute:",
+    "notesPlaceholder": "Kirjoita tarkastusmerkintä, hyväksyntäpalaute tai korjaustoiveet...",
+    "cancel": "Peruuta",
+    "save": "Tallenna tilan muutos",
+    "saving": "Päivitetään..."
   }
 }

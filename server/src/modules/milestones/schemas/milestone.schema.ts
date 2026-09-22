@@ -68,3 +68,28 @@ export const managerReviewSchema = z.object({
 
 export const evaluateMilestoneSchema = managerReviewSchema;
 
+export const updateMilestoneStatusSchema = z.object({
+  status: z.enum(["pending", "in_review", "pending_manager_review", "approved", "completed", "revision_requested", "overdue"]),
+  managerRating: z.number().min(1).max(5).optional(),
+  rating: z.number().min(1).max(5).optional(),
+  managerFeedback: z.string().optional(),
+  feedback: z.string().optional(),
+  notes: z.string().optional(),
+  goalsProgress: z
+    .array(
+      z.object({
+        goalTitle: z.string(),
+        completed: z.boolean(),
+      })
+    )
+    .optional(),
+});
+
+export const updateMilestoneGoalsSchema = z.object({
+  goalsProgress: z.array(
+    z.object({
+      goalTitle: z.string(),
+      completed: z.boolean(),
+    })
+  ),
+});

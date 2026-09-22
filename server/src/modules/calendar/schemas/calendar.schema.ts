@@ -50,3 +50,10 @@ export const updateMeetingEventSchema = z
       path: ["endTime"],
     }
   );
+
+export const availabilityQuerySchema = z.object({
+  userIds: z.union([z.string(), z.array(z.string())]),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  durationMinutes: z.coerce.number().min(15).max(480).default(30).optional(),
+  timezone: z.string().optional(),
+});

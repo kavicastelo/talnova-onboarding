@@ -31,6 +31,7 @@ export interface ScheduledReportItem {
   recipients: string[];
   format: 'csv' | 'json';
   status: 'active' | 'paused';
+  lastSentAt?: string;
   createdAt: string;
 }
 
@@ -50,11 +51,38 @@ export interface AnalyticsOverview {
   activeOnboarding: number;
   avgCompletionDays: number;
   retentionRate: number;
+  retentionDelta?: string;
   completionRate: number;
   funnelStages: FunnelStage[];
   productivityCurve: ProductivityPoint[];
   department?: string | null;
   range?: string;
+}
+
+export interface AtRiskEmployee {
+  healthId: string;
+  employeeId: string;
+  name: string;
+  email: string;
+  department: string;
+  jobTitle: string;
+  riskLevel: 'on_track' | 'at_risk' | 'critical';
+  dropOffRiskScore: number; // 0 - 100
+  daysInactive: number;
+  itemsOverdue: number;
+  lastActiveAt: string;
+  nudgeLevel: number;
+  lastNudgedAt?: string;
+}
+
+export interface CohortHealthSummary {
+  totalEvaluated: number;
+  onTrackCount: number;
+  atRiskCount: number;
+  criticalCount: number;
+  avgVelocity: number;
+  avgDropOffRisk: number;
+  atRiskEmployees: AtRiskEmployee[];
 }
 
 export const analyticsService = {
@@ -76,13 +104,38 @@ export const analyticsService = {
     return response.data.data;
   },
 
-  getTimeToCompletion: async (): Promise<TimeToCompletionMetrics> => {
-    const response = await apiClient.get<ApiResponse<TimeToCompletionMetrics>>('/analytics/time-to-completion');
+  getTimeToCompletion: async (params?: { department?: string }): Promise<TimeToCompletionMetrics> => {
+    const query = new URLSearchParams();
+    if (params?.department && params.department !== 'All' && params.department !== 'all') {
+      query.append('department', params.department);
+    }
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const response = await apiClient.get<ApiResponse<TimeToCompletionMetrics>>(`/analytics/time-to-completion${qs}`);
     return response.data.data;
   },
 
-  getBottlenecks: async (): Promise<AnalyticsBottlenecks> => {
-    const response = await apiClient.get<ApiResponse<AnalyticsBottlenecks>>('/analytics/bottlenecks');
+  getBottlenecks: async (params?: { department?: string }): Promise<AnalyticsBottlenecks> => {
+    const query = new URLSearchParams();
+    if (params?.department && params.department !== 'All' && params.department !== 'all') {
+      query.append('department', params.department);
+    }
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const response = await apiClient.get<ApiResponse<AnalyticsBottlenecks>>(`/analytics/bottlenecks${qs}`);
+    return response.data.data;
+  },
+
+  getCohortHealth: async (params?: { department?: string }): Promise<CohortHealthSummary> => {
+    const query = new URLSearchParams();
+    if (params?.department && params.department !== 'All' && params.department !== 'all') {
+      query.append('department', params.department);
+    }
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const response = await apiClient.get<ApiResponse<CohortHealthSummary>>(`/analytics/cohort-health${qs}`);
+    return response.data.data;
+  },
+
+  nudgeEmployee: async (employeeId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/analytics/nudge/${employeeId}`);
     return response.data.data;
   },
 
@@ -110,6 +163,11 @@ export const analyticsService = {
 
   deleteScheduledReport: async (id: string): Promise<void> => {
     await apiClient.delete(`/analytics/scheduled-reports/${id}`);
+  },
+
+  runScheduledReport: async (id: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/analytics/scheduled-reports/${id}/run`);
+    return response.data.data;
   },
 };
 
