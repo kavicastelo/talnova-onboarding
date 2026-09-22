@@ -7,7 +7,7 @@ export interface WorkflowCondition {
 }
 
 export interface WorkflowAction {
-  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "assign_document" | "trigger_webhook" | "delay";
+  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "assign_document" | "trigger_webhook" | "delay" | "assign_milestone" | "assign_checklist";
   params: {
     journeyId?: string;
     taskTitle?: string;
@@ -15,7 +15,9 @@ export interface WorkflowAction {
     taskCategory?: "it_setup" | "hr_paperwork" | "equipment" | "training" | "general";
     taskStage?: "preboarding" | "day_1" | "week_1" | "month_1" | "custom";
     taskPriority?: "low" | "normal" | "high" | "critical";
-    taskAssigneeRole?: "employee" | "manager" | "hr" | "it";
+    taskAssigneeRole?: "employee" | "manager" | "hr" | "it" | "it_admin" | "hr_admin" | "buddy";
+    relativeOffsetDays?: number;
+    checklistTemplateId?: string;
     notificationTitle?: string;
     notificationMessage?: string;
     notificationChannel?: "in_app" | "email";
@@ -23,6 +25,8 @@ export interface WorkflowAction {
     buddyUserId?: string;
     webhookUrl?: string;
     delayMinutes?: number;
+    templateId?: string;
+    targetDay?: number;
   };
 }
 
@@ -31,7 +35,7 @@ export interface WorkflowRuleItem {
   organizationId: string;
   name: string;
   description?: string;
-  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due";
+  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due" | "milestone_completed";
   conditions: WorkflowCondition[];
   actions: WorkflowAction[];
   isActive: boolean;
@@ -79,7 +83,7 @@ export interface CreateWorkflowRulePayload {
   title?: string;
   description?: string;
   priority?: number;
-  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due" | "ON_USER_CREATED";
+  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due" | "ON_USER_CREATED" | "milestone_completed";
   conditions?: WorkflowCondition[];
   actions: WorkflowAction[];
   isActive?: boolean;

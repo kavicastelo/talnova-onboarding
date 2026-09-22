@@ -9,7 +9,7 @@ import {
 } from '../Dialog';
 import { Button } from '../Button';
 import { Input } from '../Input';
-import { Plus, Trash2, Layers, CheckCircle2, Clock, ShieldCheck, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Layers, CheckCircle2, Clock, ShieldCheck, Sparkles, UserCheck } from 'lucide-react';
 import { IRoleChecklistTemplate, IRoleChecklistItem } from '../../services/task-template.service';
 import { useCreateTaskTemplate, useUpdateTaskTemplate } from '../../hooks/useTaskTemplates';
 import { useDepartments } from '../../hooks/useSettings';
@@ -160,6 +160,7 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
         stage: 'day_1',
         priority: 'normal',
         relativeOffsetDays: 3,
+        responsibleRole: 'employee',
         requiresVerification: false,
       },
     ]);
@@ -420,7 +421,7 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs">
                     {/* Category */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
@@ -454,6 +455,24 @@ export const RoleChecklistEditorModal: React.FC<RoleChecklistEditorModalProps> =
                         <option value="week_1">Week 1</option>
                         <option value="month_1">Month 1</option>
                         <option value="custom">Custom</option>
+                      </select>
+                    </div>
+
+                    {/* Responsible Role */}
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1 flex items-center gap-1">
+                        <UserCheck className="h-3 w-3 text-indigo-600" /> Responsible Role
+                      </label>
+                      <select
+                        value={item.responsibleRole || 'employee'}
+                        onChange={(e) => handleItemChange(idx, 'responsibleRole', e.target.value)}
+                        className="w-full text-xs p-1.5 border rounded-md bg-background focus:outline-none font-medium"
+                      >
+                        <option value="employee">New Hire</option>
+                        <option value="manager">Direct Manager</option>
+                        <option value="it_admin">IT Administrator</option>
+                        <option value="hr_admin">HR Administrator</option>
+                        <option value="buddy">Onboarding Buddy</option>
                       </select>
                     </div>
 

@@ -7,7 +7,7 @@ export interface IWorkflowCondition {
 }
 
 export interface IWorkflowAction {
-  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "assign_document" | "trigger_webhook" | "delay";
+  type: "assign_journey" | "create_task" | "send_notification" | "trigger_buddy" | "assign_document" | "trigger_webhook" | "delay" | "assign_milestone" | "assign_checklist";
   params: {
     journeyId?: string;
     taskTitle?: string;
@@ -15,7 +15,9 @@ export interface IWorkflowAction {
     taskCategory?: "it_setup" | "hr_paperwork" | "equipment" | "training" | "general";
     taskStage?: "preboarding" | "day_1" | "week_1" | "month_1" | "custom";
     taskPriority?: "low" | "normal" | "high" | "critical";
-    taskAssigneeRole?: "employee" | "manager" | "hr" | "it";
+    taskAssigneeRole?: "employee" | "manager" | "hr" | "it" | "it_admin" | "hr_admin" | "buddy";
+    relativeOffsetDays?: number;
+    checklistTemplateId?: string;
     notificationTitle?: string;
     notificationMessage?: string;
     notificationChannel?: "in_app" | "email";
@@ -23,6 +25,8 @@ export interface IWorkflowAction {
     buddyUserId?: string;
     webhookUrl?: string;
     delayMinutes?: number;
+    templateId?: string;
+    targetDay?: number;
   };
 }
 
@@ -30,7 +34,7 @@ export interface IWorkflowRule extends Document {
   organizationId: mongoose.Types.ObjectId;
   name: string;
   description?: string;
-  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due";
+  triggerType: "user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due" | "milestone_completed";
   conditions: IWorkflowCondition[];
   actions: IWorkflowAction[];
   isActive: boolean;
@@ -64,7 +68,7 @@ const WorkflowActionSchema = new Schema<IWorkflowAction>(
   {
     type: {
       type: String,
-      enum: ["assign_journey", "create_task", "send_notification", "trigger_buddy", "assign_document", "trigger_webhook", "delay"],
+      enum: ["assign_journey", "create_task", "send_notification", "trigger_buddy", "assign_document", "trigger_webhook", "delay", "assign_milestone", "assign_checklist"],
       required: true,
     },
     params: {
@@ -88,9 +92,11 @@ const WorkflowActionSchema = new Schema<IWorkflowAction>(
       },
       taskAssigneeRole: {
         type: String,
-        enum: ["employee", "manager", "hr", "it"],
+        enum: ["employee", "manager", "hr", "it", "it_admin", "hr_admin", "buddy"],
         default: "employee",
       },
+      relativeOffsetDays: { type: Number, default: 7 },
+      checklistTemplateId: { type: String },
       notificationTitle: { type: String },
       notificationMessage: { type: String },
       notificationChannel: { type: String, enum: ["in_app", "email"], default: "in_app" },
@@ -98,6 +104,8 @@ const WorkflowActionSchema = new Schema<IWorkflowAction>(
       buddyUserId: { type: String },
       webhookUrl: { type: String },
       delayMinutes: { type: Number, default: 0 },
+      templateId: { type: String },
+      targetDay: { type: Number },
     },
   },
   { _id: false }
@@ -110,7 +118,7 @@ const WorkflowRuleSchema = new Schema<IWorkflowRule>(
     description: { type: String, trim: true },
     triggerType: {
       type: String,
-      enum: ["user_created", "journey_completed", "task_completed", "stage_entered", "checkin_due"],
+      enum: ["user_created", "journey_completed", "task_completed", "stage_entered", "checkin_due", "milestone_completed"],
       required: true,
     },
     conditions: [WorkflowConditionSchema],

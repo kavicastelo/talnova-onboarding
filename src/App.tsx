@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -66,6 +66,7 @@ function DashboardRedirect() {
   const { role } = useRole();
   if (role === 'super_admin') return <SuperAdminDashboard />;
   if (role === 'manager') return <ManagerDashboard />;
+  if (role === 'it_admin') return <Navigate to="/tasks/it-ops" replace />;
   return role === 'admin' || role === 'owner' || role === 'hr_admin' ? <AdminDashboard /> : <EmployeeDashboard />;
 }
 

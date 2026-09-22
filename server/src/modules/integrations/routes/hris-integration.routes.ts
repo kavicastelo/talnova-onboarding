@@ -56,6 +56,16 @@ export async function hrisIntegrationRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(["owner", "admin"])] },
     controller.getSyncLogs as any
   );
+  app.post(
+    "/:id/rotate-secret",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.rotateWebhookSecret as any
+  );
+  app.post(
+    "/:id/dlq/:eventId/retry",
+    { preHandler: [authenticate, requireRole(["owner", "admin"])] },
+    controller.retryDLQEvent as any
+  );
 }
 
 export default hrisIntegrationRoutes;

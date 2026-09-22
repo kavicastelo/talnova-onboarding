@@ -12,7 +12,9 @@ import {
   Trash2,
   ListChecks,
   FileQuestion,
-  Sparkles
+  Sparkles,
+  Search,
+  UserPlus
 } from 'lucide-react';
 import {
   useMyMilestones,
@@ -21,15 +23,18 @@ import {
   useCreateMilestoneTemplate,
   useUpdateMilestoneTemplate,
   useDeleteMilestoneTemplate,
+  useAssignMilestone,
   useSubmitSelfCheckin,
   useSubmitManagerReview
 } from '../hooks/useMilestones';
+import { useEmployees } from '../hooks/useEmployees';
 import { MilestoneTemplate } from '../services/milestone.service';
 import { useRole } from '../context/RoleContext';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
+import { SearchableSelect } from '../components/SearchableSelect';
 import {
   Dialog,
   DialogContent,
@@ -81,16 +86,78 @@ export const Milestones: React.FC = () => {
   const [managerFeedback, setManagerFeedback] = useState('');
   const [approvalStatus, setApprovalStatus] = useState<'approved' | 'needs_action'>('approved');
 
+  // Assign Milestone Modal State
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignTemplateId, setAssignTemplateId] = useState('');
+  const [assignEmployeeId, setAssignEmployeeId] = useState('');
+
+  // Team Reviews Search & Status Filters
+  const [teamFilterStatus, setTeamFilterStatus] = useState<string>('all');
+  const [teamSearchQuery, setTeamSearchQuery] = useState<string>('');
+
   const { data: myMilestones, isLoading: myLoading, refetch: refetchMy } = useMyMilestones();
   const { data: teamMilestones, isLoading: teamLoading, refetch: refetchTeam } = useTeamMilestones();
   const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useMilestoneTemplates();
+  const { data: employeesData } = useEmployees({ limit: 1000 });
+  const employees = employeesData?.employees || [];
 
   const createTemplateMutation = useCreateMilestoneTemplate();
   const updateTemplateMutation = useUpdateMilestoneTemplate();
   const deleteTemplateMutation = useDeleteMilestoneTemplate();
+  const assignMilestoneMutation = useAssignMilestone();
+
+  const handleOpenAssignModal = (preselectedTemplateId?: string, preselectedEmployeeId?: string) => {
+    const tmplId = preselectedTemplateId || (templates && templates.length > 0 ? templates[0]._id : '');
+    const empId = preselectedEmployeeId || (employees.length > 0 ? employees[0].id : '');
+    setAssignTemplateId(tmplId);
+    setAssignEmployeeId(empId);
+    setIsAssignModalOpen(true);
+  };
+
+  const handleConfirmAssign = () => {
+    if (!assignTemplateId || !assignEmployeeId) {
+      toast.error('Please select both an employee and milestone template.');
+      return;
+    }
+    assignMilestoneMutation.mutate(
+      { templateId: assignTemplateId, employeeId: assignEmployeeId },
+      {
+        onSuccess: () => {
+          toast.success('Milestone program successfully assigned to employee!');
+          setIsAssignModalOpen(false);
+          refetchTeam();
+          refetchMy();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign milestone');
+        }
+      }
+    );
+  };
+
+  const filteredTeamMilestones = (teamMilestones || []).filter((m) => {
+    const empName = m.employeeId?.profile
+      ? `${m.employeeId.profile.firstName || ''} ${m.employeeId.profile.lastName || ''}`.toLowerCase()
+      : (m.employeeId?.name || '').toLowerCase();
+    const title = (m.milestoneTitle || '').toLowerCase();
+    const q = teamSearchQuery.toLowerCase().trim();
+    const matchesSearch = !q || empName.includes(q) || title.includes(q);
+
+    if (!matchesSearch) return false;
+
+    if (teamFilterStatus === 'all') return true;
+    if (teamFilterStatus === 'pending_checkin') return m.status === 'pending' || !m.status;
+    if (teamFilterStatus === 'awaiting_review') return m.status === 'in_review' || m.status === 'pending_manager_review';
+    if (teamFilterStatus === 'approved') return m.status === 'completed' || m.status === 'approved';
+    if (teamFilterStatus === 'overdue') {
+      const isOverdue = m.dueDate && new Date(m.dueDate).getTime() < Date.now() && m.status !== 'completed' && m.status !== 'approved';
+      return isOverdue || m.sla?.escalationState === 'escalated';
+    }
+    return true;
+  });
 
   const myPagination = usePagination({ data: myMilestones || [], initialPageSize: 6 });
-  const teamPagination = usePagination({ data: teamMilestones || [], initialPageSize: 6 });
+  const teamPagination = usePagination({ data: filteredTeamMilestones, initialPageSize: 6 });
   const templatesPagination = usePagination({ data: templates || [], initialPageSize: 6 });
 
   const submitSelfCheckinMutation = useSubmitSelfCheckin();
@@ -496,9 +563,61 @@ export const Milestones: React.FC = () => {
       {/* Tab 2: Team Milestones (Manager View) */}
       {activeTab === 'team' && isManager && (
         <Card>
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-base font-semibold">Direct Report 30/60/90 Check-Ins</CardTitle>
-            <CardDescription>Review self-assessments and approve onboarding milestones for team members.</CardDescription>
+          <CardHeader className="pb-3 border-b space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-base font-semibold">Direct Report 30/60/90 Check-Ins</CardTitle>
+                <CardDescription>Review self-assessments, track SLAs, and approve onboarding milestones for team members.</CardDescription>
+              </div>
+              <Button
+                id="assign-milestone-team-btn"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 text-xs h-9 gap-1.5"
+                onClick={() => handleOpenAssignModal()}
+              >
+                <UserPlus className="h-4 w-4" /> Assign Milestone Program
+              </Button>
+            </div>
+
+            {/* Filter Chips and Search Bar */}
+            <div className="pt-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'all', label: 'All Reviews', count: (teamMilestones || []).length },
+                  { id: 'awaiting_review', label: 'Awaiting Sign-off', count: (teamMilestones || []).filter((m) => m.status === 'in_review' || m.status === 'pending_manager_review').length },
+                  { id: 'pending_checkin', label: 'Pending Check-in', count: (teamMilestones || []).filter((m) => m.status === 'pending' || !m.status).length },
+                  { id: 'approved', label: 'Approved', count: (teamMilestones || []).filter((m) => m.status === 'completed' || m.status === 'approved').length },
+                  { id: 'overdue', label: 'Overdue / Escalated', count: (teamMilestones || []).filter((m) => (m.dueDate && new Date(m.dueDate).getTime() < Date.now() && m.status !== 'completed' && m.status !== 'approved') || m.sla?.escalationState === 'escalated').length },
+                ].map((chip) => (
+                  <button
+                    key={chip.id}
+                    onClick={() => setTeamFilterStatus(chip.id)}
+                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      teamFilterStatus === chip.id
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span>{chip.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      teamFilterStatus === chip.id ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'
+                    }`}>
+                      {chip.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search team member or title..."
+                  value={teamSearchQuery}
+                  onChange={(e) => setTeamSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {teamLoading ? (
@@ -636,13 +755,23 @@ export const Milestones: React.FC = () => {
                 Define standard 30, 60, 90, or 180-day expectations, objectives, and reflection questionnaires for new hires.
               </p>
             </div>
-            <Button
-              id="create-milestone-template-btn"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
-              onClick={handleOpenCreateTemplate}
-            >
-              <Plus className="h-4 w-4 mr-2" /> Create Template
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                id="assign-milestone-template-header-btn"
+                variant="outline"
+                className="text-xs h-9 gap-1.5"
+                onClick={() => handleOpenAssignModal()}
+              >
+                <UserPlus className="h-4 w-4" /> Assign to Employee
+              </Button>
+              <Button
+                id="create-milestone-template-btn"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 text-xs h-9"
+                onClick={handleOpenCreateTemplate}
+              >
+                <Plus className="h-4 w-4 mr-1.5" /> Create Template
+              </Button>
+            </div>
           </div>
 
           {templatesLoading ? (
@@ -674,6 +803,14 @@ export const Milestones: React.FC = () => {
                             Day {t.targetDay}
                           </Badge>
                           <div className="flex items-center gap-1.5">
+                            <Button
+                              id={`assign-template-btn-${t._id}`}
+                              size="sm"
+                              className="h-8 px-2.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
+                              onClick={() => handleOpenAssignModal(t._id)}
+                            >
+                              <UserPlus className="h-3.5 w-3.5 mr-1" /> Assign
+                            </Button>
                             <Button
                               id={`edit-template-btn-${t._id}`}
                               variant="outline"
@@ -1200,6 +1337,107 @@ export const Milestones: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Manual Milestone Assignment */}
+      <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-indigo-600" />
+              Assign Milestone Check-in Program
+            </DialogTitle>
+            <DialogDescription>
+              Assign a Day 30, 60, 90, or 180 evaluation checkpoint to an employee.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                Target Employee *
+              </label>
+              <SearchableSelect
+                value={assignEmployeeId}
+                onChange={(val) => setAssignEmployeeId(val)}
+                placeholder="Search employee by name, email, department..."
+                options={employees.map((emp) => ({
+                  value: emp.id,
+                  label: emp.name,
+                  sublabel: `${emp.department || 'Employee'} • ${emp.email}`,
+                  badge: emp.hireDate ? `Hired ${emp.hireDate}` : undefined,
+                }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                Milestone Template *
+              </label>
+              <select
+                id="assign-milestone-template-select"
+                value={assignTemplateId}
+                onChange={(e) => setAssignTemplateId(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Select Milestone Program</option>
+                {(templates || []).map((t) => (
+                  <option key={t._id} value={t._id}>
+                    Day {t.targetDay} - {t.title} ({t.goals?.length || 0} goals)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Projected Due Date Preview */}
+            {(() => {
+              const selEmp = employees.find((e) => e.id === assignEmployeeId);
+              const selTmpl = (templates || []).find((t) => t._id === assignTemplateId);
+              if (!selEmp || !selTmpl) return null;
+
+              const hireDateObj = selEmp.hireDate && !isNaN(new Date(selEmp.hireDate).getTime())
+                ? new Date(selEmp.hireDate)
+                : new Date();
+              const projectedDueDate = new Date(hireDateObj.getTime() + (selTmpl.targetDay || 30) * 24 * 60 * 60 * 1000);
+
+              return (
+                <div className="p-3 bg-muted/40 rounded-xl border border-border/60 text-xs space-y-1.5">
+                  <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
+                    Calculated Milestone Schedule:
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Employee Hire Date:</span>
+                    <span className="font-medium text-foreground">{hireDateObj.toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Target Interval:</span>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      +{selTmpl.targetDay} Days
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-border/50 font-semibold">
+                    <span className="text-indigo-600 dark:text-indigo-400">Projected Due Date:</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">{projectedDueDate.toLocaleDateString()}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <DialogFooter className="pt-3 border-t">
+            <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              id="confirm-assign-milestone-btn"
+              disabled={assignMilestoneMutation.isPending || !assignTemplateId || !assignEmployeeId}
+              onClick={handleConfirmAssign}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+            >
+              {assignMilestoneMutation.isPending ? 'Assigning...' : 'Confirm Assignment'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

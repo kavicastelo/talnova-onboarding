@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect } from 'react';
+import React, { useState, Fragment, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -169,7 +169,7 @@ function titleCase(s: string) {
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, setRole, can, hasFeature } = useRole();
+  const { role, setRole, roles, can, hasFeature } = useRole();
   const { t } = useTranslation('nav');
 
   const isEmployee = role === 'employee';
@@ -607,6 +607,42 @@ export function AppShell() {
   const navSections = filterNavSections(rawNavSections, can, hasFeature);
   const segments = location.pathname.split('/').filter(Boolean);
   const crumbLabel = (seg: string) => labelByPath[seg] ?? titleCase(seg);
+  const roleDisplayNames: Record<Role, string> = {
+    super_admin: 'Super Admin',
+    admin: 'Administrator',
+    owner: 'Owner',
+    hr_admin: 'HR Admin',
+    it_admin: 'IT Admin',
+    manager: 'Manager',
+    employee: 'Employee',
+  };
+
+  const availableRoles: Role[] = useMemo(() => {
+    const assigned = new Set<Role>();
+
+    // 1. If super_admin, can switch to all views
+    if (user?.role === 'super_admin' || roles.includes('super_admin') || role === 'super_admin') {
+      return ['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[];
+    }
+
+    // 2. If admin or owner, can switch between all tenant roles
+    if (user?.role === 'admin' || user?.role === 'owner' || roles.includes('admin') || roles.includes('owner') || role === 'admin' || role === 'owner') {
+      ['admin', 'hr_admin', 'it_admin', 'manager', 'employee'].forEach((r) => assigned.add(r as Role));
+      return Array.from(assigned);
+    }
+
+    // 3. Multi-role user: collect all assigned roles
+    if (user?.role) assigned.add(user.role as Role);
+    if (Array.isArray(user?.roles)) {
+      user.roles.forEach((r: any) => assigned.add(r as Role));
+    }
+    roles.forEach((r) => assigned.add(r));
+    assigned.add(role);
+    assigned.add('employee');
+
+    return Array.from(assigned);
+  }, [user, role, roles]);
+
   const switchRole = (next: Role) => {
     const action = () => {
       setRole(next);
@@ -614,8 +650,12 @@ export function AppShell() {
         navigate('/super-admin');
       } else if (next === 'it_admin') {
         navigate('/tasks/it-ops');
+      } else if (next === 'manager') {
+        navigate('/manager');
+      } else if (next === 'admin' || next === 'owner' || next === 'hr_admin') {
+        navigate('/');
       } else {
-        navigate(next === 'admin' ? '/' : '/employee');
+        navigate('/employee');
       }
     };
 
@@ -760,7 +800,7 @@ export function AppShell() {
                         {userLoading ? 'Loading...' : (user?.name || 'Jane Doe')}
                       </span>
                       <span className="truncate text-xs capitalize text-muted-foreground">
-                        {role}
+                        {roleDisplayNames[role] || role}
                       </span>
                     </div>
                     <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
@@ -863,41 +903,40 @@ export function AppShell() {
               {hasToken && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1.5">
+                    <Button variant="outline" size="sm" className="gap-1.5" data-testid="role-switcher-btn">
                       <Badge
-                        variant={role === 'super_admin' ? 'default' : role === 'admin' ? 'default' : 'secondary'}
+                        variant={role === 'super_admin' || role === 'admin' ? 'default' : 'secondary'}
                         className="px-1.5 capitalize">
-
-                        {role === 'super_admin' ? 'Super Admin' : role}
+                        {roleDisplayNames[role] || role}
                       </Badge>
                       <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>View as</DropdownMenuLabel>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuLabel className="flex items-center justify-between text-xs">
+                      <span>Switch View</span>
+                      {availableRoles.length > 1 && (
+                        <Badge variant="secondary" className="text-[10px] py-0 px-1 font-normal">
+                          {availableRoles.length} roles
+                        </Badge>
+                      )}
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {(user?.role === 'super_admin') && (
-                      <DropdownMenuItem onSelect={() => switchRole('super_admin')}>
-                        {role === 'super_admin' && <Check className="mr-2 h-4 w-4" />}
-                        <span className={role === 'super_admin' ? '' : 'ml-6'}>
-                          Super Admin
-                        </span>
+                    {availableRoles.map((r: Role) => (
+                      <DropdownMenuItem
+                        key={r}
+                        onSelect={() => switchRole(r)}
+                        className="cursor-pointer"
+                        data-testid={`switch-role-${r}`}
+                      >
+                        {role === r ? (
+                          <Check className="mr-2 h-4 w-4 text-primary" />
+                        ) : (
+                          <span className="w-4 mr-2 inline-block" />
+                        )}
+                        <span>{roleDisplayNames[r] || r}</span>
                       </DropdownMenuItem>
-                    )}
-                    {(user?.role === 'super_admin' || user?.role === 'admin') && (
-                      <DropdownMenuItem onSelect={() => switchRole('admin')}>
-                        {role === 'admin' && <Check className="mr-2 h-4 w-4" />}
-                        <span className={role === 'admin' ? '' : 'ml-6'}>
-                          Administrator
-                        </span>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onSelect={() => switchRole('employee')}>
-                      {role === 'employee' && <Check className="mr-2 h-4 w-4" />}
-                      <span className={role === 'employee' ? '' : 'ml-6'}>
-                        Employee
-                      </span>
-                    </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

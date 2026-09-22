@@ -6,7 +6,9 @@ export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 
 
 interface RoleContextValue {
   role: Role;
+  roles: Role[];
   setRole: (role: Role) => void;
+  setRoles: (roles: Role[]) => void;
   toggleRole: () => void;
   can: (capability: Capability) => boolean;
   features: Record<string, boolean>;
@@ -19,10 +21,11 @@ const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 interface RoleProviderProps {
   children: React.ReactNode;
   initialRole?: Role;
+  initialRoles?: Role[];
   initialFeatures?: Record<string, boolean>;
 }
 
-export function RoleProvider({ children, initialRole, initialFeatures }: RoleProviderProps) {
+export function RoleProvider({ children, initialRole, initialRoles, initialFeatures }: RoleProviderProps) {
   const [role, setRoleState] = useState<Role>(() => {
     if (initialRole) return initialRole;
     const saved = localStorage.getItem('user_role');
@@ -30,6 +33,20 @@ export function RoleProvider({ children, initialRole, initialFeatures }: RolePro
       return saved as Role;
     }
     return 'admin';
+  });
+
+  const [roles, setRolesState] = useState<Role[]>(() => {
+    if (initialRoles) return initialRoles;
+    try {
+      const saved = localStorage.getItem('user_roles');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed as Role[];
+      }
+    } catch {
+      // ignore
+    }
+    return [role];
   });
 
   const [features, setFeatures] = useState<Record<string, boolean>>(initialFeatures || {});
@@ -42,6 +59,9 @@ export function RoleProvider({ children, initialRole, initialFeatures }: RolePro
       const res = await apiClient.get<any>('/auth/me').catch(() => apiClient.get<any>('/employees/me'));
       if (res.data?.data?.features) {
         setFeatures(res.data.data.features);
+      }
+      if (res.data?.data?.roles && Array.isArray(res.data.data.roles)) {
+        setRolesState(res.data.data.roles);
       }
     } catch {
       // Non-fatal if unauthenticated
@@ -57,6 +77,11 @@ export function RoleProvider({ children, initialRole, initialFeatures }: RolePro
     setRoleState(newRole);
   }, []);
 
+  const setRoles = useCallback((newRoles: Role[]) => {
+    localStorage.setItem('user_roles', JSON.stringify(newRoles));
+    setRolesState(newRoles);
+  }, []);
+
   const toggleRole = useCallback(
     () => setRoleState((r) => {
       const next = r === 'admin' ? 'manager' : r === 'manager' ? 'employee' : r === 'employee' ? 'super_admin' : 'admin';
@@ -66,11 +91,14 @@ export function RoleProvider({ children, initialRole, initialFeatures }: RolePro
     []
   );
 
-  const can = useCallback((capability: Capability) => hasCapability(role, capability), [role]);
+  const can = useCallback((capability: Capability) => {
+    const activeRoles = Array.from(new Set([role, ...roles]));
+    return hasCapability(activeRoles, capability);
+  }, [role, roles]);
 
   const hasFeature = useCallback(
     (flagKey: string) => {
-      if (role === 'super_admin') {
+      if (role === 'super_admin' || roles.includes('super_admin')) {
         return true;
       }
       if (features[flagKey] !== undefined) {
@@ -79,14 +107,16 @@ export function RoleProvider({ children, initialRole, initialFeatures }: RolePro
       // If feature is not explicitly mapped or loading, default to enabled
       return true;
     },
-    [features, role]
+    [features, role, roles]
   );
 
   return (
     <RoleContext.Provider
       value={{
         role,
+        roles,
         setRole,
+        setRoles,
         toggleRole,
         can,
         features,

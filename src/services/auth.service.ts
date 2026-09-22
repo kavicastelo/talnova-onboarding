@@ -14,13 +14,17 @@ export const authService = {
     const orgName = orgRes.data.data?.name || 'Talnova';
 
     // 3. Map to frontend user format
+    const userRole = (user.permissions?.role || 'employee') as any;
+    const userRoles = Array.isArray(user.permissions?.roles) && user.permissions.roles.length > 0
+      ? user.permissions.roles
+      : [userRole];
+
     return {
       id: user._id,
       name: user.profile?.fullName || `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'Employee',
       email: user.auth?.email || '',
-      role: user.permissions?.role === 'super_admin' 
-        ? 'super_admin' 
-        : (user.permissions?.role === 'owner' || user.permissions?.role === 'admin' ? 'admin' : 'employee'),
+      role: userRole,
+      roles: userRoles,
       avatar: user.profile?.avatar?.publicUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.profile?.firstName || 'User')}`,
       company: orgName,
     };

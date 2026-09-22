@@ -57,7 +57,7 @@ export interface TaskItem {
     note?: string;
   }>;
   hardwareMetadata?: {
-    deviceType?: "laptop" | "monitor" | "mobile" | "security_key" | "peripherals";
+    deviceType?: string;
     serialNumber?: string;
     assetTag?: string;
     courierTrackingUrl?: string;
@@ -69,8 +69,10 @@ export interface TaskItem {
       fileName?: string;
       uploadedAt?: string;
     };
-    mdmStatus?: "pending_dispatch" | "dispatched" | "enrolled" | "failed";
+    mdmStatus?: string;
     mdmExternalId?: string;
+    receivedConfirmedAt?: string;
+    receivedConfirmedBy?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -171,6 +173,13 @@ export class FrontendTaskService {
 
   async attachHardwareReceipt(id: string, receiptData: { fileUrl: string; fileName: string; uploadId?: string }): Promise<TaskItem> {
     const response = await apiClient.post<{ success: boolean; data: TaskItem }>(`/tasks/${id}/hardware/receipt`, receiptData);
+    return response.data.data;
+  }
+
+  async confirmHardwareReceipt(id: string, note?: string): Promise<TaskItem> {
+    const response = await apiClient.post<{ success: boolean; data: TaskItem }>(`/tasks/${id}/hardware/confirm-receipt`, {
+      note,
+    });
     return response.data.data;
   }
 }

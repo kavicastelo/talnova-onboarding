@@ -29,6 +29,7 @@ import {
 import { parseDelimitedText } from '../../utils/csv-parser';
 import { autoDetectColumnMapping, CANONICAL_EMPLOYEE_FIELDS } from '../../utils/column-mapper';
 import { employeeService } from '../../services/employee.service';
+import { useOrganizationCapabilities } from '../../hooks/useOrganizationCapabilities';
 import { toast } from 'sonner';
 
 interface BulkImportWizardProps {
@@ -58,6 +59,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; field: string } | null>(null);
 
   // Automation Options
+  const { isEmailAvailable, emailReason } = useOrganizationCapabilities();
   const [triggerWorkflows, setTriggerWorkflows] = useState<boolean>(true);
   const [autoAssignRoleChecklists, setAutoAssignRoleChecklists] = useState<boolean>(true);
   const [sendInvites, setSendInvites] = useState<boolean>(false);
@@ -694,19 +696,40 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 </div>
 
                 {/* Email Invitation Toggle */}
-                <div className="p-4 rounded-xl border bg-card flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="font-bold text-xs text-foreground">Send Welcome & Invitation Emails</div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Sends an onboarding portal activation email with temporary login credentials (<code className="font-mono bg-muted px-1 rounded">Welcome@2026!</code>).
-                    </p>
+                <div className="p-4 rounded-xl border bg-card space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="font-bold text-xs text-foreground flex items-center gap-2">
+                        Send Welcome & Invitation Emails
+                        {!isEmailAvailable && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300">
+                            Email Config Required
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Sends an onboarding portal activation email with temporary login credentials (<code className="font-mono bg-muted px-1 rounded">Welcome@2026!</code>).
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={sendInvites && isEmailAvailable}
+                      disabled={!isEmailAvailable}
+                      onChange={(e) => setSendInvites(e.target.checked)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer mt-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={sendInvites}
-                    onChange={(e) => setSendInvites(e.target.checked)}
-                    className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer mt-0.5"
-                  />
+                  {!isEmailAvailable && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs flex items-start gap-2" data-testid="bulk-import-email-warning">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-semibold text-foreground">Email Service Not Configured: </span>
+                        <span className="text-muted-foreground">
+                          {emailReason || 'Configure an email provider in Settings > Integrations before sending invitations.'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Upsert Mode Radio */}

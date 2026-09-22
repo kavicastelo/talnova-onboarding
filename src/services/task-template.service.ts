@@ -9,6 +9,7 @@ export interface IRoleChecklistItem {
   stage: 'preboarding' | 'day_1' | 'week_1' | 'month_1' | 'custom';
   priority: 'low' | 'normal' | 'high' | 'critical';
   relativeOffsetDays: number;
+  responsibleRole?: 'employee' | 'manager' | 'it_admin' | 'hr_admin' | 'buddy';
   requiresVerification: boolean;
   autoVerification?: {
     enabled: boolean;

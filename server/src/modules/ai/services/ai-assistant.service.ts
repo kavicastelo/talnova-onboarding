@@ -247,17 +247,69 @@ CRITICAL RULES:
 
   /**
    * AI-powered Reflection Summarization (Prompt 06 Step 2)
-   * Generates a 3-bullet executive briefing highlighting achievements, sentiment, and flagged risks.
+   * Uses client-configured AI provider (Gemini / OpenAI / Anthropic / Azure) or graceful heuristic fallback.
+   * Generates structured executive briefing with key achievements, sentiment, and flagged blockers.
    */
   async summarizeReflection(
     reflectionText: string,
-    metadata?: { employeeName?: string; rating?: number; targetDay?: number }
-  ): Promise<string> {
-    if (!reflectionText || reflectionText.trim().length === 0) {
-      return "• Key Achievements: Completed Day milestone self-check assessment.\n• Sentiment Analysis: Positive/Constructive ramp-up.\n• Flagged Risks: No impediments reported.";
+    metadata?: { employeeName?: string; rating?: number; targetDay?: number; organizationId?: any }
+  ): Promise<any> {
+    const orgId = metadata?.organizationId;
+
+    // 1. Check if client has configured an active AI provider
+    if (orgId) {
+      try {
+        const activeClient = await this.integrationService.getActiveAIClient(orgId);
+        if (activeClient && !activeClient.isFallbackMock) {
+          const modelName = (activeClient.config as any)?.model || activeClient.config.provider;
+          const prompt = `You are an executive HR onboarding assistant. Analyze this employee reflection for their onboarding milestone check-in and return ONLY a valid JSON object.
+
+Employee: ${metadata?.employeeName || "New Hire"}
+Milestone: Day ${metadata?.targetDay || 30} Onboarding Check-in
+Self-Rating: ${metadata?.rating || 4}/5
+Reflection text: "${reflectionText || "Self-check completed."}"
+
+Required JSON format:
+{
+  "summary": "1-2 sentence executive summary of ramp-up progress",
+  "keyAchievements": ["Achievement 1", "Achievement 2"],
+  "sentiment": "positive" | "neutral" | "concerned",
+  "flaggedBlockers": ["Specific blocker 1 if any, else empty array"],
+  "recommendedRating": number between 1 and 5,
+  "modelName": "${modelName}"
+}`;
+
+          const responseText = await activeClient.service.chatCompletion(
+            activeClient.config,
+            activeClient.secrets,
+            [
+              { role: "system", content: "You are an expert HR coach. Output only valid JSON with no markdown wrapping." },
+              { role: "user", content: prompt },
+            ],
+            { organizationId: orgId, feature: "milestone_reflection" as any }
+          );
+
+          const cleanJson = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const parsed = JSON.parse(cleanJson);
+          if (parsed && typeof parsed === "object") {
+            const achievementsList = Array.isArray(parsed.keyAchievements) && parsed.keyAchievements.length > 0
+              ? parsed.keyAchievements.map((a: string) => `- ${a}`).join("\n")
+              : `- Completed Day ${metadata?.targetDay || 30} core milestones`;
+            const sentimentStr = `${(parsed.sentiment || "positive").toUpperCase()} (Self-Rating: ${metadata?.rating || 4}/5)`;
+            const risksStr = Array.isArray(parsed.flaggedBlockers) && parsed.flaggedBlockers.length > 0
+              ? parsed.flaggedBlockers.join("; ")
+              : "None reported - on track";
+
+            return `[Model: ${modelName}]\n• Key Achievements:\n${achievementsList}\n\n• Sentiment Analysis: ${sentimentStr}\n\n• Flagged Risks: ${risksStr}`;
+          }
+        }
+      } catch (err: any) {
+        console.warn("[AIAssistantService] Client AI reflection completion failed, falling back to heuristic:", err.message);
+      }
     }
 
-    const lower = reflectionText.toLowerCase();
+    // 2. Deterministic Heuristic Fallback
+    const lower = (reflectionText || "").toLowerCase();
     const hasBlockers =
       lower.includes("block") ||
       lower.includes("stuck") ||
@@ -275,20 +327,30 @@ CRITICAL RULES:
       lower.includes("exceed") ||
       lower.includes("smooth");
 
-    const sentiment = isHighConfidence && !hasBlockers
-      ? "Strongly Positive & Self-Driven"
+    const sentiment: "positive" | "neutral" | "concerned" = isHighConfidence && !hasBlockers
+      ? "positive"
       : hasBlockers
-      ? "Needs Manager Guidance / Blockers Encountered"
-      : "Constructive Ramp-up / Steady Velocity";
+      ? "concerned"
+      : "neutral";
 
     const achievements = isHighConfidence
-      ? `High onboarding velocity during Day ${metadata?.targetDay || 30}; met expected targets and collaborated effectively.`
-      : `Progressed through assigned roadmap goals with areas highlighted for team alignment.`;
+      ? [
+          `Achieved high onboarding velocity during Day ${metadata?.targetDay || 30}`,
+          `Demonstrated strong role self-efficacy and alignment with initial deliverables`,
+        ]
+      : [
+          `Progressed through assigned Day ${metadata?.targetDay || 30} roadmap milestones`,
+          `Maintained active alignment with manager and team check-ins`,
+        ];
 
-    const risks = hasBlockers
-      ? `Flagged potential workflow friction or blockers requiring human review.`
-      : `No critical risks, compliance gaps, or operational impediments identified.`;
+    const flaggedBlockers = hasBlockers
+      ? ["Identified operational dependencies or friction requiring manager guidance"]
+      : [];
 
-    return `• Key Achievements: ${achievements}\n• Sentiment Analysis: ${sentiment} (${metadata?.rating ? `Self-rating: ${metadata.rating}/5` : "Self-assessed"}).\n• Flagged Risks: ${risks}`;
+    const achievementsList = achievements.map((a) => `- ${a}`).join("\n");
+    const sentimentStr = `${sentiment.toUpperCase()} (Self-Rating: ${metadata?.rating || 4}/5)`;
+    const risksStr = flaggedBlockers.length > 0 ? flaggedBlockers.join("; ") : "None reported - on track";
+
+    return `[Model: Heuristic Sentinel]\n• Key Achievements:\n${achievementsList}\n\n• Sentiment Analysis: ${sentimentStr}\n\n• Flagged Risks: ${risksStr}`;
   }
 }

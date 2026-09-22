@@ -23,6 +23,7 @@ import {
 import { SearchableSelect } from '../components/SearchableSelect';
 import {
   ChevronLeft,
+  Plus,
   Mail,
   MapPin,
   Calendar,
@@ -53,6 +54,8 @@ import {
   Star,
   Activity,
   HeartHandshake,
+  Laptop,
+  ExternalLink,
 } from 'lucide-react';
 import {
   useEmployee,
@@ -62,7 +65,7 @@ import {
 } from '../hooks/useEmployees';
 import { useTasks, useUpdateTaskStatus } from '../hooks/useTasks';
 import { useBuddyAssignments, useMyBuddy } from '../hooks/useBuddy';
-import { useTeamMilestones, useMyMilestones } from '../hooks/useMilestones';
+import { useTeamMilestones, useMyMilestones, useMilestoneTemplates, useAssignMilestone } from '../hooks/useMilestones';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useDepartments } from '../hooks/useSettings';
 import { uploadService } from '../services/upload.service';
@@ -117,6 +120,10 @@ export function EmployeeProfile() {
     return Array.from(map.values());
   }, [employeeTasksData, myAssignedTasksData, isOwnProfile]);
 
+  const equipmentTasks = useMemo(() => {
+    return allTasks.filter((t: any) => t.hardwareMetadata || t.category === 'equipment' || t.category === 'it_setup');
+  }, [allTasks]);
+
   // 2. Buddy / Mentor Pairing
   const { data: buddyAssignments = [] } = useBuddyAssignments();
   const { data: myBuddyData } = useMyBuddy();
@@ -135,6 +142,10 @@ export function EmployeeProfile() {
   // 3. Milestone Reviews (30/60/90/180-Day Track)
   const { data: myMilestones = [] } = useMyMilestones();
   const { data: teamMilestones = [] } = useTeamMilestones();
+  const { data: milestoneTemplates = [] } = useMilestoneTemplates();
+  const assignMilestoneMutation = useAssignMilestone();
+  const [assignMilestoneOpen, setAssignMilestoneOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   const employeeMilestones = useMemo(() => {
     if (isOwnProfile && myMilestones.length > 0) return myMilestones;
@@ -144,6 +155,25 @@ export function EmployeeProfile() {
       return eId === employeeMongoId;
     });
   }, [isOwnProfile, myMilestones, teamMilestones, employeeMongoId]);
+
+  const handleAssignMilestoneToEmployee = () => {
+    if (!selectedTemplateId || !employeeMongoId) {
+      toast.error('Please select a milestone template.');
+      return;
+    }
+    assignMilestoneMutation.mutate(
+      { templateId: selectedTemplateId, employeeId: employeeMongoId },
+      {
+        onSuccess: () => {
+          toast.success('Milestone program successfully assigned to employee!');
+          setAssignMilestoneOpen(false);
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to assign milestone');
+        }
+      }
+    );
+  };
 
   // File Upload Reference
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,7 +210,8 @@ export function EmployeeProfile() {
   const [adminFirstName, setAdminFirstName] = useState('');
   const [adminLastName, setAdminLastName] = useState('');
   const [adminDeptId, setAdminDeptId] = useState('');
-  const [adminRole, setAdminRole] = useState<'owner' | 'admin' | 'manager' | 'employee'>('employee');
+  const [adminRole, setAdminRole] = useState<'owner' | 'admin' | 'manager' | 'employee' | 'hr_admin' | 'it_admin'>('employee');
+  const [adminRoles, setAdminRoles] = useState<string[]>([]);
   const [adminStatus, setAdminStatus] = useState<'active' | 'onboarding' | 'inactive'>('active');
   const [adminDesignation, setAdminDesignation] = useState('');
   const [adminPayrollCategory, setAdminPayrollCategory] = useState('');
@@ -222,10 +253,11 @@ export function EmployeeProfile() {
       const matchedDept = activeDepartments.find((d) => d.name === employee.department);
       setAdminDeptId(matchedDept?._id || '');
       setAdminRole(
-        (employee.role === 'owner' || employee.role === 'admin' || employee.role === 'manager' || employee.role === 'employee'
+        (employee.role === 'owner' || employee.role === 'admin' || employee.role === 'manager' || employee.role === 'employee' || (employee.role as string) === 'hr_admin' || (employee.role as string) === 'it_admin'
           ? employee.role
           : 'employee') as any
       );
+      setAdminRoles(Array.isArray(employee.roles) && employee.roles.length > 0 ? employee.roles : [employee.role]);
       setAdminStatus(
         employee.status === 'Active' ? 'active' : employee.status === 'Onboarding' ? 'onboarding' : 'inactive'
       );
@@ -323,6 +355,7 @@ export function EmployeeProfile() {
     e.preventDefault();
     if (!employee) return;
     try {
+      const combinedRoles = Array.from(new Set([adminRole, ...adminRoles])).filter(Boolean);
       await updateEmployeeMutation.mutateAsync({
         id: employee.id,
         employee: {
@@ -330,6 +363,7 @@ export function EmployeeProfile() {
           lastName: adminLastName,
           departmentId: adminDeptId || null,
           role: adminRole,
+          roles: combinedRoles,
           status: adminStatus === 'active' ? 'Active' : adminStatus === 'onboarding' ? 'Onboarding' : 'Inactive',
           designation: adminDesignation,
           payrollCategory: adminPayrollCategory,
@@ -402,10 +436,10 @@ export function EmployeeProfile() {
         noteCategory === 'encouragement'
           ? 'Welcome & Encouragement'
           : noteCategory === 'guidance'
-          ? 'Onboarding Guidance'
-          : noteCategory === 'kudos'
-          ? 'Kudos & Recognition'
-          : 'Action Required Note',
+            ? 'Onboarding Guidance'
+            : noteCategory === 'kudos'
+              ? 'Kudos & Recognition'
+              : 'Action Required Note',
       message: customNote.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }),
       badge: noteCategory.replace('_', ' ').toUpperCase(),
@@ -636,10 +670,10 @@ export function EmployeeProfile() {
                     employee.legalHold
                       ? 'legal_hold'
                       : employee.status === 'Active'
-                      ? 'online'
-                      : employee.status === 'Onboarding'
-                      ? 'onboarding'
-                      : undefined
+                        ? 'online'
+                        : employee.status === 'Onboarding'
+                          ? 'onboarding'
+                          : undefined
                   }
                   borderClass="ring-4 ring-background shadow-md"
                 />
@@ -665,8 +699,8 @@ export function EmployeeProfile() {
                       employee.status === 'Active'
                         ? 'default'
                         : employee.status === 'Onboarding'
-                        ? 'secondary'
-                        : 'destructive'
+                          ? 'secondary'
+                          : 'destructive'
                     }
                     className="capitalize text-xs font-semibold px-2.5 py-0.5 rounded-full"
                   >
@@ -684,6 +718,15 @@ export function EmployeeProfile() {
                   <span className="font-semibold text-primary">{employee.designation || employee.role}</span>
                   <span className="text-muted-foreground"> • {employee.department}</span>
                 </p>
+
+                {/* Assigned Multi-Roles Badges */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {Array.from(new Set([employee.role, ...(employee.roles || [])])).filter(Boolean).map((r) => (
+                    <Badge key={r} variant="outline" className="text-[10px] uppercase font-mono px-2 py-0.5 bg-background/50">
+                      {r.replace('_', ' ')}
+                    </Badge>
+                  ))}
+                </div>
 
                 {/* Metadata Pills */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground pt-1">
@@ -922,20 +965,18 @@ export function EmployeeProfile() {
                     ].map((stage, idx) => (
                       <div key={idx} className="flex flex-col items-center text-center space-y-1">
                         <div
-                          className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
-                            stage.done
+                          className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${stage.done
                               ? 'bg-emerald-500 text-white shadow-sm'
                               : stage.active
-                              ? 'bg-primary text-primary-foreground ring-2 ring-primary/30 animate-pulse'
-                              : 'bg-muted text-muted-foreground border border-border'
-                          }`}
+                                ? 'bg-primary text-primary-foreground ring-2 ring-primary/30 animate-pulse'
+                                : 'bg-muted text-muted-foreground border border-border'
+                            }`}
                         >
                           {stage.done ? <Check className="w-3 h-3" /> : idx + 1}
                         </div>
                         <span
-                          className={`text-[10px] leading-tight font-medium ${
-                            stage.done || stage.active ? 'text-foreground' : 'text-muted-foreground'
-                          }`}
+                          className={`text-[10px] leading-tight font-medium ${stage.done || stage.active ? 'text-foreground' : 'text-muted-foreground'
+                            }`}
                         >
                           {stage.label}
                         </span>
@@ -964,33 +1005,29 @@ export function EmployeeProfile() {
                   <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/60">
                     <button
                       onClick={() => setTaskFilter('all')}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
-                        taskFilter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       All ({taskCounts.total})
                     </button>
                     <button
                       onClick={() => setTaskFilter('due')}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
-                        taskFilter === 'due' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'due' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold' : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Urgent ({taskCounts.dueCount})
                     </button>
                     <button
                       onClick={() => setTaskFilter('upcoming')}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
-                        taskFilter === 'upcoming' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'upcoming' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Upcoming ({taskCounts.upcomingCount})
                     </button>
                     <button
                       onClick={() => setTaskFilter('completed')}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
-                        taskFilter === 'completed' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${taskFilter === 'completed' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold' : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       Done ({taskCounts.completedCount})
                     </button>
@@ -1014,20 +1051,18 @@ export function EmployeeProfile() {
                       return (
                         <div
                           key={task._id}
-                          className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border transition-all ${
-                            isDone
+                          className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border transition-all ${isDone
                               ? 'bg-muted/30 border-border/40 opacity-75'
                               : 'bg-card border-border/80 hover:border-primary/40 shadow-xs'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start gap-3 min-w-0">
                             <button
                               onClick={() => handleToggleTaskStatus(task)}
-                              className={`mt-0.5 size-4.5 rounded-md flex items-center justify-center border transition-colors cursor-pointer ${
-                                isDone
+                              className={`mt-0.5 size-4.5 rounded-md flex items-center justify-center border transition-colors cursor-pointer ${isDone
                                   ? 'bg-emerald-500 border-emerald-500 text-white'
                                   : 'border-border hover:border-primary bg-background'
-                              }`}
+                                }`}
                               title={isDone ? 'Mark task pending' : 'Mark task complete'}
                             >
                               {isDone && <Check className="w-3 h-3" />}
@@ -1035,9 +1070,8 @@ export function EmployeeProfile() {
 
                             <div className="space-y-0.5 min-w-0">
                               <p
-                                className={`text-xs font-semibold truncate ${
-                                  isDone ? 'line-through text-muted-foreground' : 'text-foreground'
-                                }`}
+                                className={`text-xs font-semibold truncate ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'
+                                  }`}
                               >
                                 {task.title}
                               </p>
@@ -1176,9 +1210,8 @@ export function EmployeeProfile() {
                     <div className="flex items-center gap-3.5">
                       <EmployeeAvatar
                         src={matchedBuddyAssignment.buddyUserId.profile?.avatarUrl}
-                        name={`${matchedBuddyAssignment.buddyUserId.profile?.firstName || ''} ${
-                          matchedBuddyAssignment.buddyUserId.profile?.lastName || ''
-                        }`.trim()}
+                        name={`${matchedBuddyAssignment.buddyUserId.profile?.firstName || ''} ${matchedBuddyAssignment.buddyUserId.profile?.lastName || ''
+                          }`.trim()}
                         email={matchedBuddyAssignment.buddyUserId.auth?.email}
                         userId={matchedBuddyAssignment.buddyUserId._id}
                         size="xl"
@@ -1329,11 +1362,10 @@ export function EmployeeProfile() {
 
               {/* Regulatory Compliance & Retention Policy Card (SOC-2 CC6.1) */}
               <Card
-                className={`rounded-2xl border p-5 shadow-sm space-y-3 transition-colors ${
-                  employee.legalHold
+                className={`rounded-2xl border p-5 shadow-sm space-y-3 transition-colors ${employee.legalHold
                     ? 'border-rose-500/50 bg-rose-500/5'
                     : 'border-border/70 bg-card'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1455,6 +1487,74 @@ export function EmployeeProfile() {
             </Button>
           </div>
 
+          {equipmentTasks.length > 0 && (
+            <Card className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <Laptop className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Allocated Hardware & Workstation Equipment</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Asset tracking, dispatch status, and workstation provisioning
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs font-mono">
+                  {equipmentTasks.length} {equipmentTasks.length === 1 ? 'Asset' : 'Assets'}
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {equipmentTasks.map((t: any) => {
+                  const hw = t.hardwareMetadata || {};
+                  return (
+                    <div key={t._id} className="p-3.5 rounded-xl bg-muted/40 border border-border/60 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{t.title}</p>
+                          <p className="text-[11px] text-muted-foreground capitalize">
+                            Type: {hw.deviceType?.replace(/_/g, ' ') || 'Hardware / Equipment'}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={hw.deliveryStatus === 'delivered' ? 'default' : 'secondary'}
+                          className="text-[10px] capitalize shrink-0"
+                        >
+                          {hw.deliveryStatus || t.status}
+                        </Badge>
+                      </div>
+                      {(hw.assetTag || hw.serialNumber) && (
+                        <div className="flex flex-wrap gap-2 text-[11px] font-mono text-muted-foreground">
+                          {hw.assetTag && <span className="bg-background px-1.5 py-0.5 rounded border border-border/60">Asset: {hw.assetTag}</span>}
+                          {hw.serialNumber && <span className="bg-background px-1.5 py-0.5 rounded border border-border/60">S/N: {hw.serialNumber}</span>}
+                        </div>
+                      )}
+                      {hw.trackingNumber && (
+                        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
+                          <span className="text-muted-foreground">
+                            {hw.courierProvider ? `${hw.courierProvider}: ` : 'Tracking: '}{hw.trackingNumber}
+                          </span>
+                          {hw.trackingUrl && (
+                            <a
+                              href={hw.trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1 font-semibold"
+                            >
+                              Track <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           <div className="space-y-3">
             {allTasks.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground border border-dashed rounded-2xl bg-card p-8">
@@ -1471,9 +1571,8 @@ export function EmployeeProfile() {
                     <div className="flex items-start gap-3.5 min-w-0">
                       <button
                         onClick={() => handleToggleTaskStatus(t)}
-                        className={`mt-0.5 size-5 rounded-md flex items-center justify-center border transition-colors cursor-pointer ${
-                          isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border bg-background'
-                        }`}
+                        className={`mt-0.5 size-5 rounded-md flex items-center justify-center border transition-colors cursor-pointer ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border bg-background'
+                          }`}
                       >
                         {isDone && <Check className="w-3.5 h-3.5" />}
                       </button>
@@ -1523,9 +1622,26 @@ export function EmployeeProfile() {
                 30, 60, 90, and 180-day probation and performance review records
               </p>
             </div>
-            <Button size="sm" className="rounded-xl text-xs" asChild>
-              <Link to="/milestones">Milestones Dashboard</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              {(isAdmin || !isOwnProfile) && (
+                <Button
+                  id="assign-milestone-profile-btn"
+                  size="sm"
+                  className="rounded-xl text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => {
+                    if (milestoneTemplates.length > 0 && !selectedTemplateId) {
+                      setSelectedTemplateId(milestoneTemplates[0]._id);
+                    }
+                    setAssignMilestoneOpen(true);
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Assign Milestone
+                </Button>
+              )}
+              <Button size="sm" variant="outline" className="rounded-xl text-xs" asChild>
+                <Link to="/milestones">Milestones Dashboard</Link>
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -1553,14 +1669,14 @@ export function EmployeeProfile() {
 
                   {m.goalsProgress && m.goalsProgress.length > 0 && (
                     <div className="space-y-2">
-                      <span className="text-xs font-semibold text-foreground block">Key Goals:</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {m.goalsProgress.map((g: any, gIdx: number) => (
-                          <div key={gIdx} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40 border text-xs">
-                            <CheckCircle2
-                              className={`w-3.5 h-3.5 ${g.completed ? 'text-emerald-500' : 'text-muted-foreground'}`}
-                            />
-                            <span className={g.completed ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Goals & Objectives Progress:
+                      </p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {m.goalsProgress.map((g: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-muted/30 border border-border/50">
+                            <CheckCircle2 className={`w-4 h-4 shrink-0 ${g.completed ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                            <span className={g.completed ? 'line-through text-muted-foreground' : 'text-foreground'}>
                               {g.goalTitle}
                             </span>
                           </div>
@@ -1579,6 +1695,87 @@ export function EmployeeProfile() {
               ))
             )}
           </div>
+
+          {/* Assign Milestone Dialog for this Employee */}
+          <Dialog open={assignMilestoneOpen} onOpenChange={setAssignMilestoneOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-indigo-600" />
+                  Assign Milestone Check-in to {employee.name}
+                </DialogTitle>
+                <DialogDescription>
+                  Assign a structured 30, 60, 90, or 180-day milestone program.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Milestone Template *
+                  </label>
+                  <select
+                    id="profile-assign-milestone-select"
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select Milestone Program</option>
+                    {milestoneTemplates.map((t: any) => (
+                      <option key={t._id} value={t._id}>
+                        Day {t.targetDay} - {t.title} ({t.goals?.length || 0} goals)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(() => {
+                  const selTmpl = milestoneTemplates.find((t: any) => t._id === selectedTemplateId);
+                  if (!selTmpl) return null;
+                  const hireDateObj = employee.hireDate && !isNaN(new Date(employee.hireDate).getTime())
+                    ? new Date(employee.hireDate)
+                    : new Date();
+                  const projectedDueDate = new Date(hireDateObj.getTime() + (selTmpl.targetDay || 30) * 24 * 60 * 60 * 1000);
+
+                  return (
+                    <div className="p-3 bg-muted/40 rounded-xl border border-border/60 text-xs space-y-1.5">
+                      <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
+                        Calculated Milestone Schedule:
+                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Hire Date:</span>
+                        <span className="font-medium text-foreground">{hireDateObj.toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Target Interval:</span>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          +{selTmpl.targetDay} Days
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-border/50 font-semibold">
+                        <span className="text-indigo-600 dark:text-indigo-400">Projected Due Date:</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-bold">{projectedDueDate.toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <DialogFooter className="pt-3 border-t">
+                <Button variant="outline" onClick={() => setAssignMilestoneOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  id="confirm-assign-milestone-profile-btn"
+                  disabled={assignMilestoneMutation.isPending || !selectedTemplateId}
+                  onClick={handleAssignMilestoneToEmployee}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                >
+                  {assignMilestoneMutation.isPending ? 'Assigning...' : 'Confirm Assignment'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ============================================================ */}
@@ -1761,9 +1958,60 @@ export function EmployeeProfile() {
                   >
                     <option value="employee">Employee</option>
                     <option value="manager">Manager</option>
+                    <option value="hr_admin">HR Administrator</option>
+                    <option value="it_admin">IT Administrator</option>
                     <option value="admin">Administrator</option>
                     <option value="owner">Organization Owner</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Multi-Role Privilege Checkboxes */}
+              <div className="space-y-2 p-3 rounded-xl border bg-muted/20">
+                <Label className="text-xs font-semibold block">Additional Functional Roles</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={adminRoles.includes('it_admin') || adminRole === 'it_admin'}
+                      disabled={adminRole === 'it_admin'}
+                      onChange={() =>
+                        setAdminRoles((prev) =>
+                          prev.includes('it_admin') ? prev.filter((r) => r !== 'it_admin') : [...prev, 'it_admin']
+                        )
+                      }
+                      className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    <span>IT Admin</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={adminRoles.includes('hr_admin') || adminRole === 'hr_admin'}
+                      disabled={adminRole === 'hr_admin'}
+                      onChange={() =>
+                        setAdminRoles((prev) =>
+                          prev.includes('hr_admin') ? prev.filter((r) => r !== 'hr_admin') : [...prev, 'hr_admin']
+                        )
+                      }
+                      className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    <span>HR Admin</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={adminRoles.includes('manager') || adminRole === 'manager'}
+                      disabled={adminRole === 'manager'}
+                      onChange={() =>
+                        setAdminRoles((prev) =>
+                          prev.includes('manager') ? prev.filter((r) => r !== 'manager') : [...prev, 'manager']
+                        )
+                      }
+                      className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    <span>Manager</span>
+                  </label>
                 </div>
               </div>
 
@@ -1869,5 +2117,3 @@ export function EmployeeProfile() {
     </div>
   );
 }
-
-export default EmployeeProfile;

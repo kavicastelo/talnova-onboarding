@@ -58,7 +58,7 @@ export interface IEmployeeMilestone extends Document {
   managerFeedback?: string;
   evaluatedAt?: Date;
   sla?: IMilestoneSLA;
-  aiSummary?: string;
+  aiSummary?: any;
   approvedBy?: mongoose.Types.ObjectId | string;
   isDeleted: boolean;
   createdAt: Date;
@@ -136,7 +136,7 @@ const EmployeeMilestoneSchema = new Schema<IEmployeeMilestone>(
       },
       blockersReported: { type: Boolean, default: false },
     },
-    aiSummary: { type: String },
+    aiSummary: { type: Schema.Types.Mixed },
     approvedBy: { type: Schema.Types.Mixed },
     isDeleted: { type: Boolean, default: false },
   },

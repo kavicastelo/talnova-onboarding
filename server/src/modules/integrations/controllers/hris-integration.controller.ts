@@ -140,6 +140,38 @@ export class HRISIntegrationController {
     });
   };
 
+  rotateWebhookSecret = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const integration = await this.service.rotateWebhookSecret(user.organizationId, params.id);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Webhook secret rotated successfully",
+      data: {
+        webhookSecret: integration.webhookSecret,
+      },
+    });
+  };
+
+  retryDLQEvent = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const result = await this.service.retryDLQEvent(
+      user.organizationId,
+      params.id,
+      params.eventId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "DLQ event reprocessed successfully",
+      data: result,
+    });
+  };
+
   handleWebhook = async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const signature = (

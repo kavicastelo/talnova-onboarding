@@ -21,6 +21,8 @@ import {
 import { useJourneys } from '../hooks/useJourneys';
 import { useEmployees } from '../hooks/useEmployees';
 import { useDocumentTemplates } from '../hooks/useDocuments';
+import { useMilestoneTemplates } from '../hooks/useMilestones';
+import { useTaskTemplates } from '../hooks/useTaskTemplates';
 import { WorkflowRuleItem, WorkflowAction, WorkflowCondition } from '../services/workflow.service';
 import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -49,7 +51,7 @@ export function Workflows() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<number>(10);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [triggerType, setTriggerType] = useState<"user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due">('user_created');
+  const [triggerType, setTriggerType] = useState<"user_created" | "journey_completed" | "task_completed" | "stage_entered" | "checkin_due" | "milestone_completed">('user_created');
   const [conditions, setConditions] = useState<WorkflowCondition[]>([]);
   const [actions, setActions] = useState<WorkflowAction[]>([
     { type: 'assign_journey', params: { journeyId: '' } },
@@ -61,6 +63,8 @@ export function Workflows() {
   const { data: journeys = [] } = useJourneys();
   const { data: employeesData } = useEmployees({ limit: 1000 });
   const { data: documentTemplates = [] } = useDocumentTemplates();
+  const { data: milestoneTemplates = [] } = useMilestoneTemplates();
+  const { data: taskTemplates = [] } = useTaskTemplates({ isActive: true });
 
   const createWorkflowMutation = useCreateWorkflow();
   const toggleWorkflowMutation = useToggleWorkflow();
@@ -120,6 +124,14 @@ export function Workflows() {
         setValidationError('Target template is required for journey assignment.');
         return;
       }
+      if (act.type === 'assign_checklist' && !act.params.checklistTemplateId) {
+        setValidationError('Target checklist template is required.');
+        return;
+      }
+      if (act.type === 'create_task' && !act.params.taskTitle) {
+        setValidationError('Task title is required for task creation.');
+        return;
+      }
     }
 
     createWorkflowMutation.mutate(
@@ -170,6 +182,7 @@ export function Workflows() {
       task_completed: 'Task Completed',
       stage_entered: 'Stage Entered',
       checkin_due: 'Compliance Checkin Due',
+      milestone_completed: 'Milestone Completed',
     };
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
@@ -271,6 +284,7 @@ export function Workflows() {
                 <option value="journey_completed">Journey Completed</option>
                 <option value="task_completed">Task Completed</option>
                 <option value="stage_entered">Stage Entered</option>
+                <option value="milestone_completed">Milestone Completed</option>
               </select>
             </div>
           </div>
@@ -522,6 +536,7 @@ export function Workflows() {
                     <option value="journey_completed">ON_JOURNEY_COMPLETED (Journey Completed)</option>
                     <option value="task_completed">ON_TASK_COMPLETED (Task Completed)</option>
                     <option value="stage_entered">ON_STAGE_ENTERED (Stage Entered)</option>
+                    <option value="milestone_completed">ON_MILESTONE_COMPLETED (Milestone Check-in Completed)</option>
                   </select>
                 </div>
 
@@ -654,12 +669,57 @@ export function Workflows() {
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
                     >
                       <option value="assign_journey">Assign Onboarding Journey</option>
+                      <option value="assign_checklist">Assign Checklist Template</option>
                       <option value="create_task">Create Operational Task</option>
                       <option value="send_notification">Send Multi-Channel Notification</option>
                       <option value="assign_document">Assign E-Signature Document Template</option>
                       <option value="trigger_buddy">Trigger Buddy Pairing</option>
                       <option value="trigger_webhook">Trigger Outbound Webhook</option>
+                      <option value="assign_milestone">Assign Milestone Check-in Program</option>
                     </select>
+
+                    {act.type === 'assign_milestone' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] text-slate-500 mb-1">Milestone Template (Optional)</label>
+                          <select
+                            value={act.params.templateId || ''}
+                            onChange={(e) => {
+                              const updated = [...actions];
+                              updated[idx].params = { ...updated[idx].params, templateId: e.target.value };
+                              setActions(updated);
+                              if (validationError) setValidationError(null);
+                            }}
+                            className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          >
+                            <option value="">Auto-Detect by Target Day</option>
+                            {milestoneTemplates.map((mt: any) => (
+                              <option key={mt._id} value={mt._id}>
+                                Day {mt.targetDay} - {mt.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-slate-500 mb-1">Target Day (e.g. 30, 60, 90, 180)</label>
+                          <select
+                            value={act.params.targetDay || 30}
+                            onChange={(e) => {
+                              const updated = [...actions];
+                              updated[idx].params = { ...updated[idx].params, targetDay: Number(e.target.value) };
+                              setActions(updated);
+                              if (validationError) setValidationError(null);
+                            }}
+                            className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          >
+                            <option value={30}>Day 30 Milestone</option>
+                            <option value={60}>Day 60 Milestone</option>
+                            <option value={90}>Day 90 Milestone</option>
+                            <option value={180}>Day 180 Milestone</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
 
                     {act.type === 'assign_journey' && (
                       <div>
@@ -740,18 +800,146 @@ export function Workflows() {
                       />
                     )}
 
+                    {act.type === 'assign_checklist' && (
+                      <div>
+                        <label className="block text-[11px] text-slate-500 mb-1">Checklist Template *</label>
+                        <select
+                          id={`action-target-checklist-select-${idx}`}
+                          value={act.params.checklistTemplateId || ''}
+                          onChange={(e) => {
+                            const updated = [...actions];
+                            updated[idx].params = { ...updated[idx].params, checklistTemplateId: e.target.value };
+                            setActions(updated);
+                            if (validationError) setValidationError(null);
+                          }}
+                          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        >
+                          <option value="">Select Checklist Template</option>
+                          {taskTemplates.map((tt: any) => (
+                            <option key={tt._id} value={tt._id}>
+                              {tt.title} ({tt.items?.length || 0} items)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     {act.type === 'create_task' && (
-                      <input
-                        type="text"
-                        placeholder="Task Title (e.g. IT Workstation Provisioning)"
-                        value={act.params.taskTitle || ''}
-                        onChange={(e) => {
-                          const updated = [...actions];
-                          updated[idx].params = { ...updated[idx].params, taskTitle: e.target.value };
-                          setActions(updated);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
-                      />
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Task Title (e.g. IT Workstation Provisioning) *"
+                          value={act.params.taskTitle || ''}
+                          onChange={(e) => {
+                            const updated = [...actions];
+                            updated[idx].params = { ...updated[idx].params, taskTitle: e.target.value };
+                            setActions(updated);
+                            if (validationError) setValidationError(null);
+                          }}
+                          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        />
+                        <textarea
+                          placeholder="Task Description / Instructions (Optional)"
+                          value={act.params.taskDescription || ''}
+                          rows={2}
+                          onChange={(e) => {
+                            const updated = [...actions];
+                            updated[idx].params = { ...updated[idx].params, taskDescription: e.target.value };
+                            setActions(updated);
+                          }}
+                          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg resize-none"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">Assigned To Role</label>
+                            <select
+                              value={act.params.taskAssigneeRole || 'employee'}
+                              onChange={(e) => {
+                                const updated = [...actions];
+                                updated[idx].params = { ...updated[idx].params, taskAssigneeRole: e.target.value as any };
+                                setActions(updated);
+                              }}
+                              className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                            >
+                              <option value="employee">New Hire (Employee)</option>
+                              <option value="manager">Direct Manager</option>
+                              <option value="it_admin">IT Administrator</option>
+                              <option value="hr_admin">HR Administrator</option>
+                              <option value="buddy">Assigned Buddy</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">Category</label>
+                            <select
+                              value={act.params.taskCategory || 'general'}
+                              onChange={(e) => {
+                                const updated = [...actions];
+                                updated[idx].params = { ...updated[idx].params, taskCategory: e.target.value as any };
+                                setActions(updated);
+                              }}
+                              className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                            >
+                              <option value="general">General</option>
+                              <option value="it_setup">IT Setup</option>
+                              <option value="equipment">Hardware / Equipment</option>
+                              <option value="hr_paperwork">HR Paperwork</option>
+                              <option value="training">Training</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">Stage</label>
+                            <select
+                              value={act.params.taskStage || 'day_1'}
+                              onChange={(e) => {
+                                const updated = [...actions];
+                                updated[idx].params = { ...updated[idx].params, taskStage: e.target.value as any };
+                                setActions(updated);
+                              }}
+                              className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                            >
+                              <option value="preboarding">Pre-boarding</option>
+                              <option value="day_1">Day 1</option>
+                              <option value="week_1">Week 1</option>
+                              <option value="month_1">Month 1</option>
+                              <option value="custom">Custom</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">Priority</label>
+                            <select
+                              value={act.params.taskPriority || 'normal'}
+                              onChange={(e) => {
+                                const updated = [...actions];
+                                updated[idx].params = { ...updated[idx].params, taskPriority: e.target.value as any };
+                                setActions(updated);
+                              }}
+                              className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                            >
+                              <option value="low">Low</option>
+                              <option value="normal">Normal</option>
+                              <option value="high">High</option>
+                              <option value="critical">Critical</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-0.5">Due In (Days from trigger)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="365"
+                              value={act.params.relativeOffsetDays ?? 7}
+                              onChange={(e) => {
+                                const updated = [...actions];
+                                updated[idx].params = { ...updated[idx].params, relativeOffsetDays: Number(e.target.value) };
+                                setActions(updated);
+                              }}
+                              className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}

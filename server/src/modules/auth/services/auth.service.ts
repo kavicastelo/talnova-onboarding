@@ -11,6 +11,7 @@ export interface TokenPayload {
   userId: string;
   organizationId: string;
   role: string;
+  roles?: string[];
   sessionId: string;
   tokenVersion: number;
 }
@@ -95,11 +96,20 @@ export class AuthService {
       "auth.lastLoginAt": new Date(),
     } as any);
 
+    const userRoles = Array.from(
+      new Set([
+        user.permissions.role,
+        ...(Array.isArray((user.permissions as any).roles) ? (user.permissions as any).roles : []),
+        ...(Array.isArray(user.permissions.customRoles) ? user.permissions.customRoles : []),
+      ].filter(Boolean))
+    );
+
     // Generate Tokens
     const payload: TokenPayload = {
       userId: (user._id as mongoose.Types.ObjectId).toString(),
       organizationId: user.organizationId.toString(),
       role: user.permissions.role,
+      roles: userRoles,
       sessionId: (session._id as mongoose.Types.ObjectId).toString(),
       tokenVersion: 1,
     };
@@ -116,6 +126,7 @@ export class AuthService {
         firstName: user.profile.firstName,
         lastName: user.profile.lastName,
         role: user.permissions.role,
+        roles: userRoles,
         organizationId: user.organizationId,
       },
     };
@@ -162,10 +173,19 @@ export class AuthService {
     }
 
     // Generate new payload with incremented tokenVersion
+    const userRoles = Array.from(
+      new Set([
+        user.permissions.role,
+        ...(Array.isArray((user.permissions as any).roles) ? (user.permissions as any).roles : []),
+        ...(Array.isArray(user.permissions.customRoles) ? user.permissions.customRoles : []),
+      ].filter(Boolean))
+    );
+
     const newPayload: TokenPayload = {
       userId: user._id.toString(),
       organizationId: user.organizationId.toString(),
       role: user.permissions.role,
+      roles: userRoles,
       sessionId: updatedSession._id.toString(),
       tokenVersion: updatedSession.tokenVersion,
     };

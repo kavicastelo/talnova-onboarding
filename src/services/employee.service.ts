@@ -9,6 +9,10 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
     firstName: user.profile?.firstName || '',
     lastName: user.profile?.lastName || '',
     role: user.permissions?.role || 'employee',
+    roles: Array.isArray(user.permissions?.roles) && user.permissions.roles.length > 0
+      ? user.permissions.roles
+      : [user.permissions?.role || 'employee'],
+    customRoles: user.permissions?.customRoles || [],
     department: deptName,
     status: user.employment?.status === 'active' 
       ? 'Active' 
@@ -123,9 +127,9 @@ export const employeeService = {
       email: employee.email,
       firstName,
       lastName,
-      role: 'employee',
-      departmentId,
-      employmentType: 'full_time',
+      role: employee.role || 'employee',
+      roles: employee.roles,
+      departmentId: departmentId,
       designation: employee.designation,
       payrollCategory: employee.payrollCategory,
       hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString() : undefined
@@ -145,6 +149,8 @@ export const employeeService = {
       payload.lastName = nameParts.slice(1).join(' ');
     }
     if (employee.role) payload.role = employee.role;
+    if (employee.roles) payload.roles = employee.roles;
+    if (employee.customRoles) payload.customRoles = employee.customRoles;
     if (employee.departmentId) payload.departmentId = employee.departmentId;
     if (employee.status) {
       payload.status = employee.status.toLowerCase();

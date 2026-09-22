@@ -24,6 +24,7 @@ import {
   useNudgeDirectReport,
   useSignOffDirectReport
 } from '../hooks/useManager';
+import { useTeamMilestones } from '../hooks/useMilestones';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -47,6 +48,11 @@ export const ManagerDashboard: React.FC = () => {
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useManagerDashboard();
   const { data: team, isLoading: teamLoading, refetch: refetchTeam } = useTeamDirectReports();
   const { refetch: refetchOverview } = useTeamOverview();
+  const { data: teamMilestones = [] } = useTeamMilestones();
+
+  const pendingMilestones = (teamMilestones || []).filter(
+    (m: any) => m.status === 'in_review' || m.status === 'pending_manager_review'
+  );
 
   const [search, setSearch] = useState('');
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
@@ -212,12 +218,19 @@ export const ManagerDashboard: React.FC = () => {
                   <Flag className="h-4 w-4 text-purple-600" />
                   Milestone Approvals
                 </CardTitle>
+                {pendingMilestones.length > 0 && (
+                  <Badge className="bg-amber-500 text-white font-bold text-xs px-2 py-0.5">
+                    {pendingMilestones.length} Pending
+                  </Badge>
+                )}
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Review 30-60-90 day check-ins, assess goal completion, and sign off ratings.
+                  {pendingMilestones.length > 0
+                    ? `${pendingMilestones.length} direct reports have submitted self check-ins awaiting your sign-off.`
+                    : 'Review 30-60-90 day check-ins, assess goal completion, and sign off ratings.'}
                 </p>
-                <Button size="sm" variant="outline" className="w-full" asChild>
+                <Button size="sm" variant={pendingMilestones.length > 0 ? "default" : "outline"} className={`w-full ${pendingMilestones.length > 0 ? 'bg-purple-600 hover:bg-purple-700 text-white font-semibold' : ''}`} asChild>
                   <Link to="/milestones">Review Milestone Approvals</Link>
                 </Button>
               </CardContent>
@@ -262,6 +275,55 @@ export const ManagerDashboard: React.FC = () => {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Pending Milestone Reviews Queue Card */}
+      {pendingMilestones.length > 0 && (
+        <Card className="border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-background to-background dark:from-amber-950/20 shadow-xs">
+          <CardHeader className="pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                  <Flag className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                    Action Required: {pendingMilestones.length} Pending Milestone {pendingMilestones.length === 1 ? 'Evaluation' : 'Evaluations'}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Direct reports have submitted self check-in reflections and are awaiting manager review and sign-off.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button size="sm" asChild className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 shrink-0">
+                <Link to="/milestones">Review All Milestones</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-1">
+            <div className="divide-y divide-border/60">
+              {pendingMilestones.slice(0, 3).map((pm: any) => {
+                const empName = pm.employeeId?.profile
+                  ? `${pm.employeeId.profile.firstName || ''} ${pm.employeeId.profile.lastName || ''}`.trim()
+                  : (pm.employeeId?.name || 'Direct Report');
+                return (
+                  <div key={pm._id} className="py-2.5 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">{empName}</span>
+                      <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">
+                        Day {pm.targetDay}
+                      </Badge>
+                      <span className="text-muted-foreground truncate max-w-xs">{pm.milestoneTitle}</span>
+                    </div>
+                    <Button size="sm" variant="ghost" asChild className="h-7 text-xs text-indigo-600 hover:text-indigo-700">
+                      <Link to="/milestones">Review &rarr;</Link>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Direct Report Roster Table */}

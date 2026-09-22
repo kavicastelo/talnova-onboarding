@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export type AIFeatureType = "ai_course_builder" | "ai_assistant" | "kb_rag" | "document_summary";
+export type AIFeatureType = "ai_course_builder" | "ai_assistant" | "kb_rag" | "document_summary" | "milestone_reflection";
 export type AIProviderType = "gemini" | "openai" | "anthropic" | "azure_openai" | "custom";
 export type AIInvocationStatus = "success" | "error";
 
@@ -37,7 +37,7 @@ const AIUsageRecordSchema = new Schema<IAIUsageRecord>(
     },
     feature: {
       type: String,
-      enum: ["ai_course_builder", "ai_assistant", "kb_rag", "document_summary"],
+      enum: ["ai_course_builder", "ai_assistant", "kb_rag", "document_summary", "milestone_reflection"],
       required: true,
       index: true
     },

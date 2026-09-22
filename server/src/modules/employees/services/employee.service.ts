@@ -97,7 +97,10 @@ export class EmployeeService {
       email: string;
       firstName: string;
       lastName: string;
-      role: "owner" | "admin" | "manager" | "employee";
+      role: "owner" | "admin" | "manager" | "employee" | "super_admin" | "it_admin" | "hr_admin";
+      roles?: string[];
+      customRoles?: string[];
+      department?: string;
       departmentId?: string;
       teamId?: string;
       jobTitleId?: string;
@@ -110,6 +113,9 @@ export class EmployeeService {
     invitedBy: string | mongoose.Types.ObjectId
   ) {
     const email = invitationData.email.toLowerCase();
+
+    // Verify client email configuration before proceeding with invitation
+    const activeEmail = await this.integrationService.getActiveEmailClient(orgId);
     const existing = await this.employeeRepository.findById(invitedBy); // check inviter
     const existingEmail = await User.findOne({ "auth.email": email, isDeleted: false });
     if (existingEmail) {
@@ -150,7 +156,8 @@ export class EmployeeService {
       },
       permissions: {
         role: invitationData.role,
-        customRoles: [],
+        roles: invitationData.roles && invitationData.roles.length > 0 ? invitationData.roles : [invitationData.role],
+        customRoles: invitationData.customRoles || [],
       },
       security: {
         mfaEnabled: false,
@@ -184,7 +191,6 @@ export class EmployeeService {
     const orgName = org?.name || "Talnova Workspace";
 
     // Send invitation email using organization email service
-    const activeEmail = await this.integrationService.getActiveEmailClient(orgId);
     await activeEmail.service.sendInvitationEmail(activeEmail.config, activeEmail.secrets, email, rawToken, orgName);
 
     // Publish USER_CREATED event to trigger workflows, auto-enrollment, documents, milestones, buddy, calendar
@@ -259,7 +265,12 @@ export class EmployeeService {
     }
     if (updateData.status !== undefined) updateObj["employment.status"] = updateData.status;
     if (updateData.role !== undefined) updateObj["permissions.role"] = updateData.role;
-    if (updateData.designation !== undefined) updateObj["employment.designation"] = updateData.designation;
+    if (updateData.roles !== undefined) updateObj["permissions.roles"] = updateData.roles;
+    if (updateData.customRoles !== undefined) updateObj["permissions.customRoles"] = updateData.customRoles;
+    if (updateData.designation !== undefined) {
+      updateObj["employment.designation"] = updateData.designation;
+      updateObj["profile.title"] = updateData.designation;
+    }
     if (updateData.payrollCategory !== undefined) updateObj["employment.payrollCategory"] = updateData.payrollCategory;
     if (updateData.hireDate !== undefined) {
       updateObj["employment.hireDate"] = updateData.hireDate ? new Date(updateData.hireDate) : null;
@@ -585,6 +596,12 @@ export class EmployeeService {
     const defaultPasswordHash = await hashPassword("Welcome@2026!");
     const shouldTriggerWorkflows = options?.triggerWorkflows !== false;
 
+    // Verify active email configuration if invitations are requested
+    let activeEmailClient: any = null;
+    if (options?.sendInvites) {
+      activeEmailClient = await this.integrationService.getActiveEmailClient(orgId);
+    }
+
     // 1. Pre-fetch existing emails for fast duplicate and upsert checks
     const targetEmails = usersData
       .map((u) => u.email?.toLowerCase().trim())
@@ -773,6 +790,7 @@ export class EmployeeService {
         },
         permissions: {
           role: (data.role || "employee") as any,
+          roles: Array.isArray((data as any).roles) && (data as any).roles.length > 0 ? (data as any).roles : [data.role || "employee"],
           customRoles: [],
         },
         security: {
@@ -877,8 +895,8 @@ export class EmployeeService {
                   },
                 }
               );
-              const activeEmail = await this.integrationService.getActiveEmailClient(userDoc.organizationId);
-              activeEmail.service.sendInvitationEmail(activeEmail.config, activeEmail.secrets, userDoc.auth.email, rawToken, org.name).catch((err) => {
+              const activeEmail = activeEmailClient || (await this.integrationService.getActiveEmailClient(userDoc.organizationId));
+              activeEmail.service.sendInvitationEmail(activeEmail.config, activeEmail.secrets, userDoc.auth.email, rawToken, org.name).catch((err: any) => {
                 console.warn(`[EmployeeService] Failed to send invite email to ${userDoc.auth.email}:`, err);
               });
             } catch (invErr) {

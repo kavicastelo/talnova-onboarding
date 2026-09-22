@@ -47,8 +47,13 @@ export function useIntegrationLogs(id?: string) {
 export function useConnectProvider() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ provider, data }: { provider: string; data: { subdomain?: string; apiKey?: string; name?: string } }) =>
-      integrationService.connectProvider(provider, data),
+    mutationFn: ({
+      provider,
+      data,
+    }: {
+      provider: string;
+      data: Parameters<typeof integrationService.connectProvider>[1];
+    }) => integrationService.connectProvider(provider, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
     },
@@ -72,6 +77,29 @@ export function useDisconnectProvider() {
     mutationFn: (provider: string) => integrationService.disconnectProvider(provider),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
+  });
+}
+
+export function useRotateWebhookSecret() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => integrationService.rotateWebhookSecret(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
+  });
+}
+
+export function useRetryDLQEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, eventId }: { id: string; eventId: string }) =>
+      integrationService.retryDLQEvent(id, eventId),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['integrationLogs', id] });
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
   });
 }
