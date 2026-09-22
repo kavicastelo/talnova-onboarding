@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../Dialog';
 import { Button } from '../Button';
@@ -77,7 +78,7 @@ export const ApplyChecklistModal: React.FC<ApplyChecklistModalProps> = ({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 py-3 text-xs">
+        <DialogBody className="space-y-4 text-xs">
           {/* Target Employee Selector */}
           <div className="space-y-1.5">
             <label className="font-bold text-foreground block">Select Target Employee *</label>
@@ -132,7 +133,7 @@ export const ApplyChecklistModal: React.FC<ApplyChecklistModalProps> = ({
               })}
             </div>
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs">

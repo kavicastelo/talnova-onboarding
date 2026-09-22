@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -413,14 +414,15 @@ export const CalendarIntegration: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Modal: Schedule Meeting */}
+      {/* Modal: Schedule 1-on-1 */}
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Schedule 1-on-1 Onboarding Check-in</DialogTitle>
             <DialogDescription>Create a meeting event with direct reports, agenda, and calendar sync.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             {validationError && (
               <div
                 data-testid="schedule-validation-error"
@@ -441,7 +443,7 @@ export const CalendarIntegration: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Category</label>
                 <select
@@ -476,7 +478,7 @@ export const CalendarIntegration: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Date *</label>
                 <Input
@@ -527,7 +529,8 @@ export const CalendarIntegration: React.FC = () => {
                 onChange={(e: any) => setLocationUrl(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsScheduleModalOpen(false)}>
               Cancel
@@ -552,7 +555,8 @@ export const CalendarIntegration: React.FC = () => {
               Record check-in observations, blockers, and agreed next steps for {selectedEventForNotes?.title}.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">1-on-1 Discussion Notes</label>
               <textarea
@@ -564,7 +568,8 @@ export const CalendarIntegration: React.FC = () => {
                 onChange={(e) => setNotesText(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsNotesModalOpen(false)}>
               Cancel
@@ -589,7 +594,8 @@ export const CalendarIntegration: React.FC = () => {
               Copy your personal `.ics` URL to subscribe in Google Calendar, Outlook, or Apple Calendar.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">iCal (.ics) Feed URL</label>
               <div className="flex gap-2">
@@ -602,7 +608,8 @@ export const CalendarIntegration: React.FC = () => {
             <p className="text-xs text-muted-foreground">
               Updates made to onboarding meetings in Talnova automatically sync to your calendar.
             </p>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSyncModalOpen(false)}>
               Close

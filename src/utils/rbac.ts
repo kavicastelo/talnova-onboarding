@@ -3,6 +3,7 @@ import { Role } from '../context/RoleContext';
 export type Capability =
   | 'manage_organization'
   | 'manage_employees'
+  | 'view_directory'
   | 'create_journey'
   | 'create_course'
   | 'create_task_template'
@@ -23,6 +24,7 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   super_admin: [
     'manage_organization',
     'manage_employees',
+    'view_directory',
     'create_journey',
     'create_course',
     'create_task_template',
@@ -42,6 +44,7 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   admin: [
     'manage_organization',
     'manage_employees',
+    'view_directory',
     'create_journey',
     'create_course',
     'create_task_template',
@@ -60,6 +63,7 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   owner: [
     'manage_organization',
     'manage_employees',
+    'view_directory',
     'create_journey',
     'create_course',
     'create_task_template',
@@ -76,12 +80,14 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'view_analytics',
   ],
   it_admin: [
+    'view_directory',
     'assign_task',
     'manage_it_ops',
     'manage_integrations',
   ],
   hr_admin: [
     'manage_employees',
+    'view_directory',
     'create_journey',
     'create_course',
     'create_task_template',
@@ -96,6 +102,7 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'view_analytics',
   ],
   manager: [
+    'view_directory',
     'create_task_template',
     'assign_task',
     'create_milestone',

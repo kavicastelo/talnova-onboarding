@@ -20,7 +20,10 @@ export const updateOrganizationSchema = z.object({
   }).optional(),
   categories: z.array(z.string()).optional(),
   certificate: z.object({
-    template: z.enum(["classic", "modern", "minimalist"]).optional(),
+    template: z.enum(["classic", "modern", "minimalist", "academic", "gradient", "executive"]).optional(),
+    theme: z.enum(["light", "dark"]).optional(),
+    accentColor: z.string().optional().nullable(),
+    badgeStyle: z.enum(["medal", "laurel", "shield", "crypto", "ribbon"]).optional(),
     signatureUrl: z.string().optional().nullable(),
     signatoryName: z.string().optional().nullable(),
     signatoryTitle: z.string().optional().nullable(),

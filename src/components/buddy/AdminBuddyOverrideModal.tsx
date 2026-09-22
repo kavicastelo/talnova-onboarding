@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../Dialog';
 import { Button } from '../Button';
@@ -119,7 +120,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)]">
+          <DialogBody className="space-y-4">
             {/* Pairing Context Summary Card */}
             <div className="p-4 rounded-xl border border-border/70 bg-muted/30 space-y-2.5 text-xs">
               <div className="flex items-center justify-between font-medium text-muted-foreground pb-2 border-b border-border/40">
@@ -237,7 +238,7 @@ export const AdminBuddyOverrideModal: React.FC<AdminBuddyOverrideModalProps> = (
                 <span>{validationError}</span>
               </div>
             )}
-          </div>
+          </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>

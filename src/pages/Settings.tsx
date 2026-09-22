@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight, Workflow, Sparkles, Mail } from 'lucide-react';
 import { AIIntegrationSettings } from '../components/settings/AIIntegrationSettings';
 import { EmailIntegrationSettings } from '../components/settings/EmailIntegrationSettings';
+import { CertificateRenderer, CertificateTemplateId, CertificateTheme, CertificateBadge } from '../components/certificates/CertificateRenderer';
 import { Skeleton } from '../components/Skeleton';
 import { useTranslation } from 'react-i18next';
 import { uploadService } from '../services/upload.service';
@@ -76,7 +77,10 @@ export function Settings() {
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [signatureUploadProgress, setSignatureUploadProgress] = useState(0);
 
-  const [certTemplate, setCertTemplate] = useState<'classic' | 'modern' | 'minimalist'>('classic');
+  const [certTemplate, setCertTemplate] = useState<CertificateTemplateId>('classic');
+  const [certTheme, setCertTheme] = useState<CertificateTheme>('light');
+  const [certAccentColor, setCertAccentColor] = useState<string>('#d97706');
+  const [certBadgeStyle, setCertBadgeStyle] = useState<CertificateBadge>('medal');
   const [certSignatureUrl, setCertSignatureUrl] = useState('');
   const [certSignatoryName, setCertSignatoryName] = useState('');
   const [certSignatoryTitle, setCertSignatoryTitle] = useState('');
@@ -105,7 +109,10 @@ export function Settings() {
         setSessionTimeout(settings.security.sessionTimeout ?? 3600);
       }
       if (settings.certificate) {
-        setCertTemplate(settings.certificate.template || 'classic');
+        setCertTemplate((settings.certificate.template as any) || 'classic');
+        setCertTheme((settings.certificate.theme as any) || 'light');
+        setCertAccentColor(settings.certificate.accentColor || '#d97706');
+        setCertBadgeStyle((settings.certificate.badgeStyle as any) || 'medal');
         setCertSignatureUrl(settings.certificate.signatureUrl || '');
         setCertSignatoryName(settings.certificate.signatoryName || '');
         setCertSignatoryTitle(settings.certificate.signatoryTitle || '');
@@ -292,6 +299,9 @@ export function Settings() {
       {
         certificate: {
           template: certTemplate,
+          theme: certTheme,
+          accentColor: certAccentColor,
+          badgeStyle: certBadgeStyle,
           signatureUrl: certSignatureUrl,
           signatoryName: certSignatoryName,
           signatoryTitle: certSignatoryTitle,
@@ -1039,23 +1049,110 @@ export function Settings() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Side: Form Controls */}
-                <div className="lg:col-span-5 space-y-6">
+                <div className="lg:col-span-5 space-y-5">
                   {/* Template Picker */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-medium">Choose Template Style</label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {(['classic', 'modern', 'minimalist'] as const).map((style) => (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">Choose Template Style</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'classic', label: 'Classic Gold', desc: 'Formal gold frame' },
+                        { id: 'modern', label: 'Cyber Tech', desc: 'Futuristic glowing' },
+                        { id: 'minimalist', label: 'Minimalist', desc: 'Swiss whitespace' },
+                        { id: 'academic', label: 'Academic', desc: 'Collegiate diploma' },
+                        { id: 'gradient', label: 'Vibrant Mesh', desc: 'Modern aurora' },
+                        { id: 'executive', label: 'Obsidian', desc: 'Luxury metallic' },
+                      ].map((style) => (
                         <button
-                          key={style}
+                          key={style.id}
                           type="button"
-                          onClick={() => setCertTemplate(style)}
-                          className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${
-                            certTemplate === style
-                              ? 'border-indigo-500 bg-indigo-500/10 text-white'
-                              : 'border-white/10 bg-white/[0.02] text-slate-400 hover:bg-white/[0.05]'
+                          onClick={() => setCertTemplate(style.id as CertificateTemplateId)}
+                          className={`flex flex-col items-start p-2.5 border rounded-xl transition-all text-left cursor-pointer ${
+                            certTemplate === style.id
+                              ? 'border-indigo-500 bg-indigo-500/10 text-foreground ring-1 ring-indigo-500 font-semibold'
+                              : 'border-border bg-card hover:bg-muted/50 text-muted-foreground'
                           }`}
                         >
-                          <span className="text-xs font-semibold capitalize">{style}</span>
+                          <span className="text-xs font-medium text-foreground">{style.label}</span>
+                          <span className="text-[10px] text-muted-foreground truncate max-w-full">{style.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Theme Mode Selector (Light vs Dark) */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">Theme Mode</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCertTheme('light')}
+                        className={`py-2 px-3 text-xs font-medium rounded-lg border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                          certTheme === 'light'
+                            ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                            : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        ☀️ Light Theme
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCertTheme('dark')}
+                        className={`py-2 px-3 text-xs font-medium rounded-lg border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                          certTheme === 'dark'
+                            ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                            : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        🌙 Dark Theme
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Accent Color Palette */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">Accent & Seal Color</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: 'Gold', value: '#d97706' },
+                        { label: 'Indigo', value: '#6366f1' },
+                        { label: 'Emerald', value: '#059669' },
+                        { label: 'Cyan', value: '#0891b2' },
+                        { label: 'Rose', value: '#e11d48' },
+                        { label: 'Violet', value: '#7c3aed' },
+                      ].map((col) => (
+                        <button
+                          key={col.value}
+                          type="button"
+                          onClick={() => setCertAccentColor(col.value)}
+                          className={`h-7 px-2.5 rounded-full border text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                            certAccentColor === col.value
+                              ? 'ring-2 ring-primary ring-offset-2 border-transparent font-medium bg-card'
+                              : 'border-border bg-muted/20 hover:bg-muted/40'
+                          }`}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: col.value }} />
+                          <span className="text-[11px]">{col.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Badge / Seal Style */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">Badge / Seal Design</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {(['medal', 'laurel', 'shield', 'crypto'] as const).map((b) => (
+                        <button
+                          key={b}
+                          type="button"
+                          onClick={() => setCertBadgeStyle(b)}
+                          className={`py-1.5 px-2 text-xs capitalize rounded-lg border transition-all cursor-pointer text-center ${
+                            certBadgeStyle === b
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40'
+                          }`}
+                        >
+                          {b}
                         </button>
                       ))}
                     </div>
@@ -1064,23 +1161,25 @@ export function Settings() {
                   <Separator />
 
                   {/* Signatory Settings */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold">Signatory Details</h3>
-                    <div className="space-y-3">
-                      <div className="space-y-2">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase text-muted-foreground">Signatory Details</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">Signatory Name</label>
                         <Input
                           placeholder="e.g. Jane Doe"
                           value={certSignatoryName}
                           onChange={(e: any) => setCertSignatoryName(e.target.value)}
+                          className="text-xs"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">Signatory Title</label>
                         <Input
                           placeholder="e.g. Head of Human Resources"
                           value={certSignatoryTitle}
                           onChange={(e: any) => setCertSignatoryTitle(e.target.value)}
+                          className="text-xs"
                         />
                       </div>
                     </div>
@@ -1090,7 +1189,7 @@ export function Settings() {
 
                   {/* Signature Upload */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium block">Authorized Signature Image</label>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground block">Authorized Digital Signature</label>
                     <div className="flex items-center gap-4">
                       {certSignatureUrl ? (
                         <div className="w-24 h-12 bg-white rounded border flex items-center justify-center p-1">
@@ -1115,6 +1214,7 @@ export function Settings() {
                           size="sm"
                           onClick={() => signatureInputRef.current?.click()}
                           disabled={isUploadingSignature}
+                          className="text-xs"
                         >
                           {isUploadingSignature ? (
                             <>
@@ -1122,7 +1222,7 @@ export function Settings() {
                               Uploading ({signatureUploadProgress}%)
                             </>
                           ) : (
-                            'Upload Signature'
+                            'Upload Signature Image'
                           )}
                         </Button>
                         <p className="text-[10px] text-muted-foreground">
@@ -1140,153 +1240,33 @@ export function Settings() {
                   </Button>
                 </div>
 
-                {/* Right Side: Live Certificate Preview */}
-                <div className="lg:col-span-7 flex flex-col justify-center">
-                  <div className="text-xs text-slate-400 font-semibold mb-2 uppercase tracking-wider">Live Certificate Preview</div>
-                  
-                  {/* Outer Frame */}
-                  <div className="relative w-full aspect-[4/3] rounded-2xl shadow-2xl overflow-hidden border border-white/10 flex flex-col justify-between p-6 md:p-10 select-none bg-slate-950">
-                    
-                    {/* Render different styling depending on selected template */}
-                    {certTemplate === 'classic' && (
-                      <div className="absolute inset-2 border-4 double border-yellow-850/40 rounded-lg flex flex-col justify-between p-6 bg-amber-50/5 text-amber-50">
-                        {/* Certificate Header */}
-                        <div className="text-center font-serif">
-                          <h4 className="text-xs uppercase tracking-widest text-amber-500 font-semibold mb-1">Certificate of Completion</h4>
-                          <p className="text-[10px] italic text-amber-100/60">This credential is proudly presented to</p>
-                        </div>
+                {/* Right Side: Live Interactive Certificate Preview */}
+                <div className="lg:col-span-7 flex flex-col justify-start space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                      Live Certificate Preview
+                    </div>
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                      Template: {certTemplate} · {certTheme} theme
+                    </span>
+                  </div>
 
-                        {/* Recipient */}
-                        <div className="text-center my-2">
-                          <h2 className="text-xl md:text-2xl font-bold font-serif text-white tracking-wide border-b border-white/10 pb-1 inline-block px-6">
-                            John Doe
-                          </h2>
-                          <p className="text-[10px] text-amber-100/60 mt-1 max-w-sm mx-auto font-serif">
-                            for completing all curriculum requirements in the onboarding journey
-                          </p>
-                          <h3 className="text-xs md:text-sm font-bold text-white mt-1">
-                            Talnova General Onboarding
-                          </h3>
-                        </div>
-
-                        {/* Certificate Footer */}
-                        <div className="flex justify-between items-end border-t border-white/10 pt-3 text-[9px] font-mono">
-                          <div>
-                            <p className="text-amber-500/70 font-semibold">ISSUED DATE</p>
-                            <p>{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                          </div>
-                          
-                          {/* Signature block */}
-                          <div className="text-center max-w-[120px] flex flex-col items-center">
-                            {certSignatureUrl ? (
-                              <img src={certSignatureUrl} alt="Signature" className="h-6 object-contain mb-1 brightness-200" />
-                            ) : (
-                              <div className="h-6 w-16 border border-dashed border-white/20 rounded flex items-center justify-center text-[8px] text-white/40 mb-1">
-                                Pending Sign
-                              </div>
-                            )}
-                            <p className="font-semibold text-white truncate max-w-full">{certSignatoryName || 'Signatory Name'}</p>
-                            <p className="text-white/50 text-[7px] truncate max-w-full">{certSignatoryTitle || 'Signatory Title'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {certTemplate === 'modern' && (
-                      <div className="absolute inset-0 bg-[#0c101d] text-slate-100 flex flex-col justify-between p-8">
-                        {/* Decorative Top Left Tech Accent */}
-                        <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-indigo-500/20 to-transparent rounded-br-full" />
-                        
-                        {/* Certificate Header */}
-                        <div className="flex justify-between items-start z-10">
-                          <div>
-                            <span className="text-[8px] font-mono tracking-widest text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full font-semibold uppercase">Verification Credential</span>
-                            <h4 className="text-base font-bold text-white mt-2">CERTIFICATE OF COMPLETION</h4>
-                          </div>
-                          <div className="text-right text-[8px] text-slate-400 font-mono">
-                            <p>CREDENTIAL ID</p>
-                            <p className="text-white font-semibold">TLNV-0000000000</p>
-                          </div>
-                        </div>
-
-                        {/* Recipient */}
-                        <div className="my-auto z-10">
-                          <p className="text-[10px] text-slate-400">Awarded to:</p>
-                          <h2 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 tracking-tight mt-1">
-                            John Doe
-                          </h2>
-                          <p className="text-[10px] text-slate-400 mt-2 max-w-md">
-                            For completion of all core lessons, quizzes, and requirements of the learning track:
-                            <span className="block text-xs font-semibold text-white mt-1">Talnova General Onboarding</span>
-                          </p>
-                        </div>
-
-                        {/* Certificate Footer */}
-                        <div className="flex justify-between items-end pt-4 border-t border-white/10 z-10 text-[9px] font-mono">
-                          <div>
-                            <p className="text-slate-500">DATE OF ISSUANCE</p>
-                            <p className="text-white">{new Date().toLocaleDateString()}</p>
-                          </div>
-                          
-                          {/* Signature block */}
-                          <div className="text-right flex flex-col items-end">
-                            {certSignatureUrl ? (
-                              <img src={certSignatureUrl} alt="Signature" className="h-6 object-contain mb-1 brightness-200" />
-                            ) : (
-                              <div className="h-6 w-16 border border-dashed border-white/20 rounded flex items-center justify-center text-[8px] text-white/40 mb-1">
-                                Pending Sign
-                              </div>
-                            )}
-                            <p className="font-semibold text-white">{certSignatoryName || 'Signatory Name'}</p>
-                            <p className="text-slate-400 text-[8px]">{certSignatoryTitle || 'Signatory Title'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {certTemplate === 'minimalist' && (
-                      <div className="absolute inset-4 bg-slate-900 border border-white/10 text-slate-300 flex flex-col justify-between p-6">
-                        {/* Certificate Header */}
-                        <div>
-                          <h4 className="text-xs uppercase tracking-widest text-slate-400 font-mono text-center">Completion Attestation</h4>
-                        </div>
-
-                        {/* Recipient */}
-                        <div className="text-center my-auto">
-                          <p className="text-[9px] uppercase tracking-wider text-slate-500 font-mono">This is to certify that</p>
-                          <h2 className="text-2xl font-light text-white my-2 tracking-wide font-sans">
-                            John Doe
-                          </h2>
-                          <p className="text-[9px] text-slate-400 max-w-xs mx-auto leading-relaxed">
-                            has satisfied all course requirements and successfully completed the onboarding curriculum
-                          </p>
-                          <p className="text-xs font-semibold text-white mt-2 font-mono uppercase tracking-wider">
-                            Talnova General Onboarding
-                          </p>
-                        </div>
-
-                        {/* Certificate Footer */}
-                        <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/10 text-[8px] font-mono">
-                          <div>
-                            <p className="text-slate-500">DATE</p>
-                            <p className="text-white">{new Date().toLocaleDateString()}</p>
-                          </div>
-                          
-                          {/* Signature block */}
-                          <div className="flex flex-col items-end">
-                            {certSignatureUrl ? (
-                              <img src={certSignatureUrl} alt="Signature" className="h-6 object-contain mb-1 brightness-200" />
-                            ) : (
-                              <div className="h-6 w-16 border border-dashed border-white/20 rounded flex items-center justify-center text-[8px] text-white/40 mb-1">
-                                Pending Sign
-                              </div>
-                            )}
-                            <p className="font-semibold text-white">{certSignatoryName || 'Signatory Name'}</p>
-                            <p className="text-slate-400 text-[7px]">{certSignatoryTitle || 'Signatory Title'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  <div className="shadow-xl rounded-2xl overflow-hidden border border-border/80">
+                    <CertificateRenderer
+                      template={certTemplate}
+                      theme={certTheme}
+                      accentColor={certAccentColor}
+                      badgeStyle={certBadgeStyle}
+                      recipientName="Alex Morgan"
+                      organizationName={orgName || 'Talnova'}
+                      logoUrl={settings?.logoUrl}
+                      journeyTitle="Talnova General Onboarding"
+                      issuedAt={new Date()}
+                      signatoryName={certSignatoryName || 'Authorized Officer'}
+                      signatoryTitle={certSignatoryTitle || 'Head of People & Operations'}
+                      signatureUrl={certSignatureUrl}
+                      qrCode={true}
+                    />
                   </div>
                 </div>
               </div>

@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -844,7 +845,7 @@ export const HROpsExceptions: React.FC = () => {
           </DialogHeader>
 
           {selectedCase && (
-            <div className="overflow-y-auto p-5 sm:p-6 space-y-5 max-h-[calc(85vh-140px)]">
+            <DialogBody className="space-y-5">
               {/* Target Employee Info Banner */}
               <div className="p-4 rounded-xl bg-muted/40 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -1010,7 +1011,7 @@ export const HROpsExceptions: React.FC = () => {
                   className="w-full p-3 text-xs rounded-xl border border-border bg-background focus:ring-2 focus:ring-indigo-500 min-h-[85px] resize-none"
                 />
               </div>
-            </div>
+            </DialogBody>
           )}
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
@@ -1059,7 +1060,7 @@ export const HROpsExceptions: React.FC = () => {
           </DialogHeader>
 
           {selectedHoldEmployee && (
-            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-xs">
+            <DialogBody className="space-y-4 text-xs">
               <div className="p-3.5 bg-muted/40 rounded-xl border border-border/60 space-y-1">
                 <div className="font-semibold text-foreground text-sm">{selectedHoldEmployee.name}</div>
                 <div className="text-muted-foreground">{selectedHoldEmployee.email} • {selectedHoldEmployee.department}</div>
@@ -1086,7 +1087,7 @@ export const HROpsExceptions: React.FC = () => {
                   className="w-full p-3 rounded-xl border border-border bg-background focus:ring-2 focus:ring-rose-500 min-h-[90px] resize-none"
                 />
               </div>
-            </div>
+            </DialogBody>
           )}
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">

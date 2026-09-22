@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../components/Dialog';
 
@@ -497,7 +498,7 @@ export function Workflows() {
           </DialogHeader>
 
           <form onSubmit={handleCreateWorkflow} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+            <DialogBody className="space-y-4 text-sm">
               {validationError && (
                 <div
                   id="rule-validation-error"
@@ -944,7 +945,7 @@ export function Workflows() {
                   </div>
                 ))}
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
               <button
@@ -978,7 +979,7 @@ export function Workflows() {
           </DialogHeader>
 
           {testRunModalRule && (
-            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-xs">
+            <DialogBody className="space-y-4 text-xs">
               <div className="space-y-1.5">
                 <label className="block text-xs font-medium text-foreground">Target Employee *</label>
                 <SearchableSelect
@@ -994,7 +995,7 @@ export function Workflows() {
                   }))}
                 />
               </div>
-            </div>
+            </DialogBody>
           )}
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">

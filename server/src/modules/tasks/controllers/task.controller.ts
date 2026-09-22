@@ -23,6 +23,7 @@ export class TaskController {
     if (query.category) filter.category = query.category;
     if (query.priority) filter.priority = query.priority;
     if (query.isOverdue === "true") filter.isOverdue = true;
+    if (query.isHardwareQueue === "true" || query.isHardwareQueue === true) filter.isHardwareQueue = true;
 
     // Filter by direct reports
     if (
@@ -49,6 +50,19 @@ export class TaskController {
       ];
     } else if (query.assignedToMe === "true" || query.assignedToMe === true || query.assignedToMe === "1") {
       filter.assignedToUserId = user.userId;
+    } else {
+      const userRoles = Array.from(
+        new Set([user.role, ...(Array.isArray(user.roles) ? user.roles : [])].filter(Boolean))
+      );
+      const isStaffOrAdmin = userRoles.some((r) =>
+        ["owner", "admin", "hr_admin", "manager", "it_admin", "super_admin"].includes(r)
+      );
+      if (!isStaffOrAdmin) {
+        filter.$or = [
+          { assignedToUserId: user.userId },
+          { employeeId: user.userId },
+        ];
+      }
     }
 
     const pagination = {

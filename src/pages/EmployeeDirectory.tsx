@@ -32,6 +32,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogTrigger,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import {
@@ -80,7 +81,8 @@ export function EmployeeDirectory() {
   const [email, setEmail] = useState('');
   const [designation, setDesignation] = useState('');
   const [department, setDepartment] = useState('');
-  const [payrollCategory, setPayrollCategory] = useState('');
+  const [employmentType, setEmploymentType] = useState<'full_time' | 'part_time' | 'contractor' | 'intern'>('full_time');
+  const [payrollCategory, setPayrollCategory] = useState('Salaried (Exempt)');
   const [hireDate, setHireDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Import Wizard State
@@ -148,6 +150,7 @@ export function EmployeeDirectory() {
         status: 'Onboarding',
         progress: 0,
         designation,
+        employmentType,
         payrollCategory,
         hireDate
       },
@@ -159,11 +162,12 @@ export function EmployeeDirectory() {
           setEmail('');
           setDesignation('');
           setDepartment('');
-          setPayrollCategory('');
+          setEmploymentType('full_time');
+          setPayrollCategory('Salaried (Exempt)');
           setHireDate(new Date().toISOString().split('T')[0]);
         },
         onError: (err: any) => {
-          toast.error(err?.message || 'Failed to invite employee.');
+          toast.error(err?.response?.data?.message || err?.message || 'Failed to invite employee.');
         }
       }
     );
@@ -204,14 +208,15 @@ export function EmployeeDirectory() {
                 Invite Employee
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-              <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
                 <DialogTitle className="text-lg font-bold">Invite Employee</DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-1">
                   Send an onboarding activation invite to a newly hired team member.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-3.5 p-5 sm:p-6 overflow-y-auto max-h-[calc(85vh-140px)] text-xs">
+
+              <DialogBody className="space-y-3.5 text-xs">
                 {!isEmailAvailable && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs flex flex-col gap-2" data-testid="email-capability-invite-banner">
                     <div className="flex items-start gap-2">
@@ -264,16 +269,45 @@ export function EmployeeDirectory() {
                     }))}
                   />
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">Employment Type *</label>
+                    <select
+                      value={employmentType}
+                      onChange={(e: any) => setEmploymentType(e.target.value)}
+                      className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="full_time">Full-Time</option>
+                      <option value="part_time">Part-Time</option>
+                      <option value="contractor">Contractor</option>
+                      <option value="intern">Intern</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">Payroll Type / Category *</label>
+                    <select
+                      value={payrollCategory}
+                      onChange={(e: any) => setPayrollCategory(e.target.value)}
+                      className="w-full h-9 px-2.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="Salaried (Exempt)">Salaried (Exempt)</option>
+                      <option value="Salaried (Non-Exempt)">Salaried (Non-Exempt)</option>
+                      <option value="Hourly">Hourly</option>
+                      <option value="Executive">Executive</option>
+                      <option value="Contract / 1099">Contract / 1099</option>
+                      <option value="Intern / Stipend">Intern / Stipend</option>
+                      <option value="Standard">Standard</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="grid gap-1.5">
                   <label className="text-xs font-semibold text-foreground">Date of Join *</label>
                   <Input type="date" value={hireDate} onChange={(e: any) => setHireDate(e.target.value)} className="text-xs" />
                 </div>
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">Payroll Category</label>
-                  <Input value={payrollCategory} onChange={(e: any) => setPayrollCategory(e.target.value)} placeholder="e.g. Standard, Executive" className="text-xs" />
-                </div>
-              </div>
-              <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30 flex items-center justify-between sm:justify-between">
+              </DialogBody>
+
+              <DialogFooter className="flex items-center justify-between sm:justify-between">
                 <div className="text-left">
                   {!isEmailAvailable && (
                     <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
@@ -649,8 +683,8 @@ export function EmployeeDirectory() {
 
       {/* Manage Employee Role & Access Modal */}
       <Dialog open={Boolean(manageRoleEmployee)} onOpenChange={(open) => !open && setManageRoleEmployee(null)}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
               <div>
@@ -663,7 +697,7 @@ export function EmployeeDirectory() {
           </DialogHeader>
 
           {manageRoleEmployee && (
-            <div className="p-5 sm:p-6 space-y-4 text-xs">
+            <DialogBody className="space-y-4 text-xs">
               <div className="p-3 rounded-xl bg-muted/40 border space-y-1">
                 <p className="font-semibold text-foreground">{manageRoleEmployee.name}</p>
                 <p className="text-muted-foreground">{manageRoleEmployee.email} • {manageRoleEmployee.department}</p>
@@ -742,10 +776,10 @@ export function EmployeeDirectory() {
                   </label>
                 </div>
               </div>
-            </div>
+            </DialogBody>
           )}
 
-          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+          <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setManageRoleEmployee(null)}>
               Cancel
             </Button>

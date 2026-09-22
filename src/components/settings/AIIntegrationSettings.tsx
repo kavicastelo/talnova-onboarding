@@ -31,6 +31,8 @@ export function AIIntegrationSettings() {
   const [apiKey, setApiKey] = useState('');
   const [resourceName, setResourceName] = useState('');
   const [deploymentName, setDeploymentName] = useState('');
+  const [temperature, setTemperature] = useState(0.3);
+  const [maxTokens, setMaxTokens] = useState(1024);
   const [enabled, setEnabled] = useState(true);
 
   const [testStatus, setTestStatus] = useState<{
@@ -46,6 +48,8 @@ export function AIIntegrationSettings() {
       setEndpoint(config.publicConfig?.endpoint || '');
       setResourceName(config.publicConfig?.resourceName || '');
       setDeploymentName(config.publicConfig?.deploymentName || '');
+      setTemperature(config.publicConfig?.temperature ?? 0.3);
+      setMaxTokens(config.publicConfig?.maxTokens ?? 1024);
       setEnabled(config.enabled ?? true);
       if (config.validationError) {
         setTestStatus({ success: false, error: config.validationError });
@@ -74,7 +78,7 @@ export function AIIntegrationSettings() {
     testMut.mutate(
       {
         provider,
-        publicConfig: { model, endpoint, resourceName, deploymentName },
+        publicConfig: { model, endpoint, resourceName, deploymentName, temperature, maxTokens },
         secrets: apiKey ? { apiKey, resourceName, deploymentName } : undefined,
       },
       {
@@ -105,6 +109,8 @@ export function AIIntegrationSettings() {
           endpoint: endpoint.trim() || undefined,
           resourceName: resourceName.trim() || undefined,
           deploymentName: deploymentName.trim() || undefined,
+          temperature,
+          maxTokens,
         },
         secrets: apiKey.trim()
           ? {
@@ -240,39 +246,113 @@ export function AIIntegrationSettings() {
           </div>
 
           {/* Model / Deployment */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Model ID</label>
-              <Input
-                value={model}
-                onChange={(e: any) => setModel(e.target.value)}
-                placeholder={
-                  provider === 'gemini'
-                    ? 'gemini-1.5-flash'
-                    : provider === 'anthropic'
-                    ? 'claude-3-5-sonnet-20241022'
-                    : 'gpt-4o-mini'
-                }
-              />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Model Configuration</label>
+              {/* Preset Chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {(provider === 'gemini'
+                  ? ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+                  : provider === 'anthropic'
+                  ? ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
+                  : provider === 'azure_openai'
+                  ? ['gpt-4o', 'gpt-4o-mini']
+                  : ['gpt-4o-mini', 'gpt-4o', 'o1-mini']
+                ).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setModel(preset)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                      model === preset
+                        ? 'bg-indigo-600 text-white border-indigo-600 font-medium'
+                        : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Custom Endpoint / Azure Resource */}
-            {(provider === 'custom' || provider === 'azure_openai') && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  {provider === 'azure_openai' ? 'Azure Resource URL' : 'Custom Base API Endpoint'}
-                </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Model Identifier (or Custom Model)</label>
                 <Input
-                  value={endpoint}
-                  onChange={(e: any) => setEndpoint(e.target.value)}
+                  value={model}
+                  onChange={(e: any) => setModel(e.target.value)}
                   placeholder={
-                    provider === 'azure_openai'
-                      ? 'https://your-resource.openai.azure.com'
-                      : 'https://api.together.xyz/v1'
+                    provider === 'gemini'
+                      ? 'gemini-1.5-flash'
+                      : provider === 'anthropic'
+                      ? 'claude-3-5-sonnet-20241022'
+                      : 'gpt-4o-mini'
                   }
+                  className="text-sm"
                 />
               </div>
-            )}
+
+              {/* Custom Endpoint / Azure Resource */}
+              {(provider === 'custom' || provider === 'azure_openai') && (
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    {provider === 'azure_openai' ? 'Azure Resource URL' : 'Custom Base API Endpoint'}
+                  </label>
+                  <Input
+                    value={endpoint}
+                    onChange={(e: any) => setEndpoint(e.target.value)}
+                    placeholder={
+                      provider === 'azure_openai'
+                        ? 'https://your-resource.openai.azure.com'
+                        : 'https://api.together.xyz/v1'
+                    }
+                    className="text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Temperature & Token Limits */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-muted/20">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="font-medium">Creativity / Temperature</span>
+                <span className="font-mono text-muted-foreground font-semibold">{temperature.toFixed(2)}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>0.0 (Strict / Factual)</span>
+                <span>1.0 (Creative)</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="font-medium">Max Output Tokens</span>
+                <span className="font-mono text-muted-foreground font-semibold">{maxTokens} tokens</span>
+              </div>
+              <select
+                value={maxTokens}
+                onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
+                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value={256}>256 tokens (~190 words)</option>
+                <option value={512}>512 tokens (~380 words)</option>
+                <option value={1024}>1024 tokens (~760 words)</option>
+                <option value={2048}>2048 tokens (~1500 words)</option>
+                <option value={4096}>4096 tokens (~3000 words)</option>
+              </select>
+              <p className="text-[10px] text-muted-foreground">Upper token limit per generated lesson, quiz, or chatbot response.</p>
+            </div>
           </div>
 
           {/* API Key / Secrets */}

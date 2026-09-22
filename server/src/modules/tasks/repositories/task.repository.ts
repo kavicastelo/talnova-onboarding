@@ -11,6 +11,7 @@ export interface TaskFilter {
   category?: string;
   priority?: string;
   isOverdue?: boolean;
+  isHardwareQueue?: boolean;
   $or?: any[];
 }
 
@@ -101,6 +102,18 @@ export class TaskRepository {
     if (filter.isOverdue) {
       query.status = { $in: ["pending", "in_progress", "overdue"] };
       query.dueDate = { $lt: new Date() };
+    }
+    if (filter.isHardwareQueue) {
+      const hwCondition = [
+        { category: { $in: ["it_setup", "equipment"] } },
+        { "hardwareMetadata.deviceType": { $exists: true, $ne: null } },
+      ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: hwCondition }];
+        delete query.$or;
+      } else {
+        query.$or = hwCondition;
+      }
     }
 
     console.log('[TaskRepository.find] query:', JSON.stringify(query));

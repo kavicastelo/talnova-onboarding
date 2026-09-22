@@ -18,6 +18,7 @@ import {
   useSidebar
 } from './Sidebar';
 import { EmployeeAvatar } from './EmployeeAvatar';
+import { SessionTimeoutWatcher } from './auth/SessionTimeoutWatcher';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -104,6 +105,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogBody,
   DialogFooter
 } from './Dialog';
 
@@ -213,7 +215,7 @@ export function AppShell() {
     {
       label: 'People & Teams',
       items: [
-        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'manage_employees' },
+        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
         { title: 'Buddy Program', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
         { title: '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
       ],
@@ -276,7 +278,7 @@ export function AppShell() {
     {
       label: 'People & Mentorship',
       items: [
-        { title: 'Employee Directory', url: '/directory', icon: Users },
+        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
         { title: 'Buddy Support', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
         { title: '1-on-1 Calendar', url: '/calendar', icon: Calendar },
       ],
@@ -341,7 +343,7 @@ export function AppShell() {
       label: 'Systems & Directory',
       items: [
         { title: 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
-        { title: 'Employee Directory', url: '/directory', icon: Users },
+        { title: 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
         { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
         { title: 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
       ],
@@ -621,27 +623,28 @@ export function AppShell() {
     const assigned = new Set<Role>();
 
     // 1. If super_admin, can switch to all views
-    if (user?.role === 'super_admin' || roles.includes('super_admin') || role === 'super_admin') {
+    if (user?.role === 'super_admin' || roles.includes('super_admin')) {
       return ['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[];
     }
 
     // 2. If admin or owner, can switch between all tenant roles
-    if (user?.role === 'admin' || user?.role === 'owner' || roles.includes('admin') || roles.includes('owner') || role === 'admin' || role === 'owner') {
-      ['admin', 'hr_admin', 'it_admin', 'manager', 'employee'].forEach((r) => assigned.add(r as Role));
-      return Array.from(assigned);
+    if (user?.role === 'admin' || user?.role === 'owner' || roles.includes('admin') || roles.includes('owner')) {
+      return ['admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[];
     }
 
-    // 3. Multi-role user: collect all assigned roles
+    // 3. Multi-role user: ONLY include genuinely assigned roles from server
     if (user?.role) assigned.add(user.role as Role);
     if (Array.isArray(user?.roles)) {
       user.roles.forEach((r: any) => assigned.add(r as Role));
     }
     roles.forEach((r) => assigned.add(r));
-    assigned.add(role);
-    assigned.add('employee');
+
+    if (assigned.size === 0) {
+      assigned.add('employee');
+    }
 
     return Array.from(assigned);
-  }, [user, role, roles]);
+  }, [user, roles]);
 
   const switchRole = (next: Role) => {
     const action = () => {
@@ -901,44 +904,52 @@ export function AppShell() {
 
               {/* Role switcher */}
               {hasToken && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1.5" data-testid="role-switcher-btn">
-                      <Badge
-                        variant={role === 'super_admin' || role === 'admin' ? 'default' : 'secondary'}
-                        className="px-1.5 capitalize">
-                        {roleDisplayNames[role] || role}
-                      </Badge>
-                      <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    <DropdownMenuLabel className="flex items-center justify-between text-xs">
-                      <span>Switch View</span>
-                      {availableRoles.length > 1 && (
+                availableRoles.length > 1 ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5" data-testid="role-switcher-btn">
+                        <Badge
+                          variant={role === 'super_admin' || role === 'admin' ? 'default' : 'secondary'}
+                          className="px-1.5 capitalize">
+                          {roleDisplayNames[role] || role}
+                        </Badge>
+                        <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuLabel className="flex items-center justify-between text-xs">
+                        <span>Switch View</span>
                         <Badge variant="secondary" className="text-[10px] py-0 px-1 font-normal">
                           {availableRoles.length} roles
                         </Badge>
-                      )}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {availableRoles.map((r: Role) => (
-                      <DropdownMenuItem
-                        key={r}
-                        onSelect={() => switchRole(r)}
-                        className="cursor-pointer"
-                        data-testid={`switch-role-${r}`}
-                      >
-                        {role === r ? (
-                          <Check className="mr-2 h-4 w-4 text-primary" />
-                        ) : (
-                          <span className="w-4 mr-2 inline-block" />
-                        )}
-                        <span>{roleDisplayNames[r] || r}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {availableRoles.map((r: Role) => (
+                        <DropdownMenuItem
+                          key={r}
+                          onSelect={() => switchRole(r)}
+                          className="cursor-pointer"
+                          data-testid={`switch-role-${r}`}
+                        >
+                          {role === r ? (
+                            <Check className="mr-2 h-4 w-4 text-primary" />
+                          ) : (
+                            <span className="w-4 mr-2 inline-block" />
+                          )}
+                          <span>{roleDisplayNames[r] || r}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <div className="flex items-center" data-testid="static-role-badge">
+                    <Badge
+                      variant={role === 'super_admin' || role === 'admin' ? 'default' : 'secondary'}
+                      className="px-2 py-1 capitalize text-xs">
+                      {roleDisplayNames[role] || role}
+                    </Badge>
+                  </div>
+                )
               )}
 
               {/* Notifications */}
@@ -1017,9 +1028,11 @@ export function AppShell() {
           <DialogHeader>
             <DialogTitle>Unsaved Changes</DialogTitle>
           </DialogHeader>
-          <div className="py-4 text-sm text-muted-foreground">
+
+          <DialogBody className="text-sm text-muted-foreground">
             You have unsaved changes in the Journey Builder. If you leave, your changes will be lost. Are you sure you want to discard your changes and leave?
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingNavAction(null)}>Stay</Button>
             <Button
@@ -1038,6 +1051,7 @@ export function AppShell() {
         </DialogContent>
       </Dialog>
       <MobileBottomNav />
+      <SessionTimeoutWatcher />
     </>
   );
 }

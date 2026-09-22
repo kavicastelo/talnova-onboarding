@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -723,7 +724,8 @@ export const HROperations: React.FC = () => {
               Temporarily hold onboarding requirements for {activeEmpUser?.name}.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Reason for Pause</label>
               <Input
@@ -732,7 +734,8 @@ export const HROperations: React.FC = () => {
                 onChange={(e: any) => setPauseReason(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPauseModalOpen(false)}>
               Cancel
@@ -753,7 +756,8 @@ export const HROperations: React.FC = () => {
               Grant additional time for {activeEmpUser?.name} across active assignments.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Extension Days</label>
               <Input
@@ -764,7 +768,8 @@ export const HROperations: React.FC = () => {
                 onChange={(e: any) => setExtensionDays(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsExtendModalOpen(false)}>
               Cancel
@@ -783,7 +788,8 @@ export const HROperations: React.FC = () => {
             <DialogTitle>Execute HR Bulk Action ({selectedEmpIds.length} Selected)</DialogTitle>
             <DialogDescription>Perform batch operations across selected employee cohorts.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Action Type</label>
               <select
@@ -823,7 +829,8 @@ export const HROperations: React.FC = () => {
                 />
               </div>
             )}
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsBulkModalOpen(false)}>
               Cancel
@@ -842,28 +849,54 @@ export const HROperations: React.FC = () => {
             <DialogTitle>HR Compliance Audit Report Summary</DialogTitle>
             <DialogDescription>Exportable audit summary of onboarding compliance status across all employees.</DialogDescription>
           </DialogHeader>
-          <div className="max-h-96 overflow-y-auto py-2">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-muted/50 font-semibold border-b">
-                <tr>
-                  <th className="p-2">Employee</th>
-                  <th className="p-2">Department</th>
-                  <th className="p-2">State</th>
-                  <th className="p-2 text-right">Completion Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {compPagination.paginatedData.map((row) => (
-                  <tr key={row.employeeId}>
-                    <td className="p-2 font-medium">{row.name} ({row.email})</td>
-                    <td className="p-2 text-muted-foreground">{row.department}</td>
-                    <td className="p-2">{row.onboardingState}</td>
-                    <td className="p-2 text-right font-bold">{row.completionRate}%</td>
+
+          <DialogBody className="p-0 sm:p-0">
+            {/* Mobile View: Stacked Cards */}
+            <div className="sm:hidden p-4 space-y-2.5">
+              {compPagination.paginatedData.map((row) => (
+                <div key={row.employeeId} className="p-3 border rounded-xl bg-card space-y-1.5 text-xs shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-semibold text-foreground text-sm block">{row.name}</span>
+                      <span className="text-muted-foreground text-[11px]">{row.department} • {row.email}</span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                      {row.onboardingState}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t text-[11px]">
+                    <span className="text-muted-foreground">Completion Rate:</span>
+                    <span className="font-bold text-indigo-600">{row.completionRate}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop View: Full Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-muted/50 font-semibold border-b">
+                  <tr>
+                    <th className="p-3">Employee</th>
+                    <th className="p-3">Department</th>
+                    <th className="p-3">State</th>
+                    <th className="p-3 text-right">Completion Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="pt-2 border-t">
+                </thead>
+                <tbody className="divide-y">
+                  {compPagination.paginatedData.map((row) => (
+                    <tr key={row.employeeId} className="hover:bg-muted/10 transition-colors">
+                      <td className="p-3 font-medium">{row.name} ({row.email})</td>
+                      <td className="p-3 text-muted-foreground">{row.department}</td>
+                      <td className="p-3">{row.onboardingState}</td>
+                      <td className="p-3 text-right font-bold text-indigo-600">{row.completionRate}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-4 border-t">
               <SimplePagination
                 currentPage={compPagination.page}
                 totalPages={compPagination.totalPages}
@@ -876,7 +909,8 @@ export const HROperations: React.FC = () => {
                 itemLabel="records"
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
               Close
@@ -898,7 +932,7 @@ export const HROperations: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <DialogBody className="space-y-3">
             <div className="p-3 bg-muted/40 rounded-xl space-y-2 border">
               <div className="flex justify-between items-center font-medium text-foreground">
                 <span>Learning Modules & Quizzes</span>
@@ -921,7 +955,7 @@ export const HROperations: React.FC = () => {
             <p className="text-muted-foreground text-[11px]">
               Confirming handover sign-off will issue the completion record, notify department management, and officially activate the employee account.
             </p>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsHandoverModalOpen(false)}>

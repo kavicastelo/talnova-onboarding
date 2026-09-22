@@ -32,7 +32,7 @@ export async function journeyRoutes(app: FastifyInstance) {
   app.post(
     "/",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: createJourneySchema },
     },
     controller.createJourney as any
@@ -42,7 +42,7 @@ export async function journeyRoutes(app: FastifyInstance) {
   app.patch(
     "/:id",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: updateJourneySchema },
     },
     controller.updateJourney as any
@@ -51,21 +51,21 @@ export async function journeyRoutes(app: FastifyInstance) {
   // DELETE /api/v1/journeys/:id
   app.delete(
     "/:id",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.deleteJourney as any
   );
 
   // POST /api/v1/journeys/:id/publish
   app.post(
     "/:id/publish",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.publishJourney as any
   );
 
   // POST /api/v1/journeys/:id/archive
   app.post(
     "/:id/archive",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.archiveJourney as any
   );
 
@@ -73,7 +73,7 @@ export async function journeyRoutes(app: FastifyInstance) {
   app.post(
     "/:id/duplicate",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: duplicateJourneySchema },
     },
     controller.duplicateJourney as any
@@ -89,21 +89,21 @@ export async function journeyRoutes(app: FastifyInstance) {
   // POST /api/v1/journeys/:id/assignment-preview
   app.post(
     "/:id/assignment-preview",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.previewSmartAssignment as any
   );
 
   // POST /api/v1/journeys/:id/smart-assign
   app.post(
     "/:id/smart-assign",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.executeSmartAssignment as any
   );
 
   // PATCH /api/v1/journeys/:id/targeting
   app.patch(
     "/:id/targeting",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.updateTargeting as any
   );
 
@@ -113,21 +113,21 @@ export async function journeyRoutes(app: FastifyInstance) {
   // POST /api/v1/journeys/:id/clone
   app.post(
     "/:id/clone",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.cloneJourney as any
   );
 
   // PUT /api/v1/journeys/:id/reorder
   app.put(
     "/:id/reorder",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.reorderCurriculum as any
   );
 
   // POST /api/v1/journeys/reminders/dispatch
   app.post(
     "/reminders/dispatch",
-    { preHandler: [requireRole(["owner", "admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin"])] },
     controller.dispatchReminders as any
   );
 }

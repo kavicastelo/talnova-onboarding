@@ -37,6 +37,7 @@ const mapBackendUserToEmployee = (user: any, departments: any[] = []): Employee 
     assignedJourneys: [],
     designation: user.employment?.designation || '',
     payrollCategory: user.employment?.payrollCategory || '',
+    employmentType: user.employment?.employmentType || 'full_time',
     employeeId: user.employment?.employeeId || user._id,
     onboardingState: user.employment?.onboardingState || 'active',
     legalHold: !!user.compliance?.legalHold,
@@ -131,7 +132,8 @@ export const employeeService = {
       roles: employee.roles,
       departmentId: departmentId,
       designation: employee.designation,
-      payrollCategory: employee.payrollCategory,
+      payrollCategory: employee.payrollCategory || 'Salaried (Exempt)',
+      employmentType: employee.employmentType || 'full_time',
       hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString() : undefined
     };
 

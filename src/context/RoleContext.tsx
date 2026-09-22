@@ -28,40 +28,85 @@ interface RoleProviderProps {
 export function RoleProvider({ children, initialRole, initialRoles, initialFeatures }: RoleProviderProps) {
   const [role, setRoleState] = useState<Role>(() => {
     if (initialRole) return initialRole;
-    const saved = localStorage.getItem('user_role');
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_role') : null;
     if (saved === 'super_admin' || saved === 'admin' || saved === 'employee' || saved === 'manager' || saved === 'hr_admin' || saved === 'owner' || saved === 'it_admin') {
       return saved as Role;
     }
-    return 'admin';
+    return 'employee'; // Safe default: never default an unverified session to admin
   });
 
   const [roles, setRolesState] = useState<Role[]>(() => {
-    if (initialRoles) return initialRoles;
+    if (initialRoles && initialRoles.length > 0) return initialRoles;
     try {
-      const saved = localStorage.getItem('user_roles');
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_roles') : null;
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed as Role[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as Role[];
       }
     } catch {
       // ignore
     }
-    return [role];
+    return [role || 'employee'];
   });
 
   const [features, setFeatures] = useState<Record<string, boolean>>(initialFeatures || {});
 
   const refreshFeatures = useCallback(async () => {
     try {
-      if (initialFeatures && Object.keys(initialFeatures).length > 0) return;
-      const token = localStorage.getItem('auth_token');
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
       if (!token) return;
+
       const res = await apiClient.get<any>('/auth/me').catch(() => apiClient.get<any>('/employees/me'));
-      if (res.data?.data?.features) {
-        setFeatures(res.data.data.features);
+      const resData = res.data?.data;
+      if (!resData) return;
+
+      if (resData.features && (!initialFeatures || Object.keys(initialFeatures).length === 0)) {
+        setFeatures(resData.features);
       }
-      if (res.data?.data?.roles && Array.isArray(res.data.data.roles)) {
-        setRolesState(res.data.data.roles);
+
+      const userData = resData.user || resData;
+      const backendRole: Role = (userData.role || userData.permissions?.role || 'employee') as Role;
+      
+      let backendRoles: Role[] = [];
+      if (Array.isArray(userData.roles) && userData.roles.length > 0) {
+        backendRoles = userData.roles;
+      } else if (Array.isArray(resData.roles) && resData.roles.length > 0) {
+        backendRoles = resData.roles;
+      } else if (Array.isArray(userData.permissions?.roles) && userData.permissions.roles.length > 0) {
+        backendRoles = userData.permissions.roles;
+      } else {
+        backendRoles = [backendRole];
+      }
+
+      backendRoles = backendRoles.filter((r) =>
+        ['super_admin', 'admin', 'owner', 'hr_admin', 'it_admin', 'manager', 'employee'].includes(r)
+      ) as Role[];
+      if (backendRoles.length === 0) {
+        backendRoles = [backendRole];
+      }
+
+      // Determine permitted roles for switching
+      const isSuperAdmin = backendRole === 'super_admin' || backendRoles.includes('super_admin');
+      const isAdminOrOwner = backendRole === 'admin' || backendRole === 'owner' || backendRoles.includes('admin') || backendRoles.includes('owner');
+
+      const allowedRoles: Role[] = isSuperAdmin
+        ? ['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee']
+        : isAdminOrOwner
+          ? ['admin', 'hr_admin', 'it_admin', 'manager', 'employee']
+          : Array.from(new Set([backendRole, ...backendRoles]));
+
+      // Clamp active role if invalid
+      setRoleState((current) => {
+        const nextRole = allowedRoles.includes(current) ? current : backendRole;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('user_role', nextRole);
+        }
+        return nextRole;
+      });
+
+      setRolesState(backendRoles);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('user_roles', JSON.stringify(backendRoles));
       }
     } catch {
       // Non-fatal if unauthenticated
@@ -70,29 +115,66 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
 
   useEffect(() => {
     refreshFeatures();
-  }, [refreshFeatures, role]);
+  }, [refreshFeatures]);
 
   const setRole = useCallback((newRole: Role) => {
-    localStorage.setItem('user_role', newRole);
+    const isSuperAdmin = roles.includes('super_admin');
+    const isAdminOrOwner = roles.includes('admin') || roles.includes('owner');
+    const allowed = isSuperAdmin
+      ? ['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee']
+      : isAdminOrOwner
+        ? ['admin', 'hr_admin', 'it_admin', 'manager', 'employee']
+        : roles;
+
+    if (!allowed.includes(newRole)) {
+      console.warn(`[RoleContext] Blocked unauthorized role switch to: ${newRole}`);
+      return;
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('user_role', newRole);
+    }
     setRoleState(newRole);
-  }, []);
+  }, [roles]);
 
   const setRoles = useCallback((newRoles: Role[]) => {
-    localStorage.setItem('user_roles', JSON.stringify(newRoles));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('user_roles', JSON.stringify(newRoles));
+    }
     setRolesState(newRoles);
   }, []);
 
-  const toggleRole = useCallback(
-    () => setRoleState((r) => {
-      const next = r === 'admin' ? 'manager' : r === 'manager' ? 'employee' : r === 'employee' ? 'super_admin' : 'admin';
-      localStorage.setItem('user_role', next);
+  const toggleRole = useCallback(() => {
+    const isSuperAdmin = roles.includes('super_admin');
+    const isAdminOrOwner = roles.includes('admin') || roles.includes('owner');
+    const available = isSuperAdmin
+      ? (['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[])
+      : isAdminOrOwner
+        ? (['admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[])
+        : roles;
+
+    if (available.length <= 1) return;
+
+    setRoleState((curr) => {
+      const idx = available.indexOf(curr);
+      const next = available[(idx + 1) % available.length] || available[0];
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('user_role', next);
+      }
       return next;
-    }),
-    []
-  );
+    });
+  }, [roles]);
 
   const can = useCallback((capability: Capability) => {
-    const activeRoles = Array.from(new Set([role, ...roles]));
+    const isSuperAdmin = roles.includes('super_admin');
+    const isAdminOrOwner = roles.includes('admin') || roles.includes('owner');
+
+    let effectiveRole = role;
+    if (!isSuperAdmin && !isAdminOrOwner && !roles.includes(role)) {
+      effectiveRole = roles[0] || 'employee';
+    }
+
+    const activeRoles = Array.from(new Set([effectiveRole, ...roles]));
     return hasCapability(activeRoles, capability);
   }, [role, roles]);
 

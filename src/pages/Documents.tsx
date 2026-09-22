@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -422,7 +423,8 @@ export const Documents: React.FC = () => {
               Configure compliance agreements with mandatory signatures and dynamic variable placeholders.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Document Title *</label>
               <Input
@@ -506,7 +508,8 @@ export const Documents: React.FC = () => {
                 Auto-assign this document template to all new hires upon registration
               </label>
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
@@ -536,7 +539,7 @@ export const Documents: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-96 overflow-y-auto py-2">
+          <DialogBody className="p-0 sm:p-0">
             {signaturesLoading ? (
               <div className="p-8 text-center text-muted-foreground">Loading audit trail signatures...</div>
             ) : (signatures || []).length === 0 ? (
@@ -544,17 +547,9 @@ export const Documents: React.FC = () => {
                 No signatures recorded for this template yet. Once assigned employees execute the agreement, signed timestamps and SHA-256 audit hashes will appear here.
               </div>
             ) : (
-              <table className="w-full text-xs text-left" id="signatures-audit-table">
-                <thead className="bg-muted/50 font-semibold border-b uppercase text-muted-foreground">
-                  <tr>
-                    <th className="p-2.5">Signer Name</th>
-                    <th className="p-2.5">Department / Email</th>
-                    <th className="p-2.5">Signed Timestamp</th>
-                    <th className="p-2.5">SHA-256 Checksum Hash</th>
-                    <th className="p-2.5 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
+              <>
+                {/* Mobile View: Stacked Cards */}
+                <div className="sm:hidden p-4 space-y-3">
                   {(signatures || []).map((sig: any) => {
                     const signerName =
                       sig.signatureData?.signerName ||
@@ -567,34 +562,89 @@ export const Documents: React.FC = () => {
                     const shaHash =
                       sig.signatureData?.sha256Hash ||
                       'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-                    const truncatedHash = shaHash.length > 16 ? `${shaHash.substring(0, 16)}...` : shaHash;
+                    const truncatedHash = shaHash.length > 18 ? `${shaHash.substring(0, 18)}...` : shaHash;
 
                     return (
-                      <tr key={sig._id} className="hover:bg-muted/10 transition-colors">
-                        <td className="p-2.5 font-semibold text-foreground">{signerName}</td>
-                        <td className="p-2.5 text-muted-foreground">
-                          {dept} {email ? `• ${email}` : ''}
-                        </td>
-                        <td className="p-2.5 text-muted-foreground font-mono">
-                          {signedDate ? new Date(signedDate).toLocaleString() : 'N/A'}
-                        </td>
-                        <td className="p-2.5">
-                          <code className="font-mono text-[11px] bg-muted/70 px-2 py-0.5 rounded text-foreground font-semibold">
-                            {truncatedHash}
-                          </code>
-                        </td>
-                        <td className="p-2.5 text-right">
-                          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                      <div key={sig._id} className="p-3 border rounded-xl bg-card space-y-2 text-xs shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-semibold text-foreground text-sm block">{signerName}</span>
+                            <span className="text-muted-foreground text-[11px]">{dept} {email ? `• ${email}` : ''}</span>
+                          </div>
+                          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] shrink-0">
                             Verified SHA-256
                           </Badge>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground text-[11px] pt-1 border-t border-border/50">
+                          <span>Signed:</span>
+                          <span className="font-mono text-foreground">{signedDate ? new Date(signedDate).toLocaleString() : 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                          <span>Checksum:</span>
+                          <code className="font-mono text-[10px] bg-muted/70 px-1.5 py-0.5 rounded text-foreground font-semibold">
+                            {truncatedHash}
+                          </code>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+
+                {/* Desktop View: Full Audit Table with overflow protection */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-xs text-left" id="signatures-audit-table">
+                    <thead className="bg-muted/50 font-semibold border-b uppercase text-muted-foreground">
+                      <tr>
+                        <th className="p-3">Signer Name</th>
+                        <th className="p-3">Department / Email</th>
+                        <th className="p-3">Signed Timestamp</th>
+                        <th className="p-3">SHA-256 Checksum Hash</th>
+                        <th className="p-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(signatures || []).map((sig: any) => {
+                        const signerName =
+                          sig.signatureData?.signerName ||
+                          sig.employeeId?.profile?.fullName ||
+                          sig.employeeId?.profile?.firstName ||
+                          'Signer';
+                        const email = sig.employeeId?.auth?.email || '';
+                        const dept = sig.employeeId?.employment?.department || 'General';
+                        const signedDate = sig.signedAt || sig.signatureData?.signedAt;
+                        const shaHash =
+                          sig.signatureData?.sha256Hash ||
+                          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+                        const truncatedHash = shaHash.length > 16 ? `${shaHash.substring(0, 16)}...` : shaHash;
+
+                        return (
+                          <tr key={sig._id} className="hover:bg-muted/10 transition-colors">
+                            <td className="p-3 font-semibold text-foreground">{signerName}</td>
+                            <td className="p-3 text-muted-foreground">
+                              {dept} {email ? `• ${email}` : ''}
+                            </td>
+                            <td className="p-3 text-muted-foreground font-mono">
+                              {signedDate ? new Date(signedDate).toLocaleString() : 'N/A'}
+                            </td>
+                            <td className="p-3">
+                              <code className="font-mono text-[11px] bg-muted/70 px-2 py-0.5 rounded text-foreground font-semibold">
+                                {truncatedHash}
+                              </code>
+                            </td>
+                            <td className="p-3 text-right">
+                              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                                Verified SHA-256
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSignaturesModalOpen(false)}>
@@ -611,7 +661,8 @@ export const Documents: React.FC = () => {
             <DialogTitle>Assign Document for Signature</DialogTitle>
             <DialogDescription>Select an employee to assign this document template.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Employee *</label>
               <SearchableSelect
@@ -627,7 +678,8 @@ export const Documents: React.FC = () => {
                 }))}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
               Cancel

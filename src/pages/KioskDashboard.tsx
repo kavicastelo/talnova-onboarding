@@ -33,6 +33,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import { toast } from 'sonner';
@@ -842,7 +843,8 @@ export function KioskDashboard() {
           <DialogHeader>
             <DialogTitle>Create Kiosk Journey</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-3">
+
+          <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-600 uppercase">Journey Title</label>
               <Input
@@ -883,7 +885,8 @@ export function KioskDashboard() {
                 })}
               </div>
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
               Cancel
@@ -901,7 +904,8 @@ export function KioskDashboard() {
           <DialogHeader>
             <DialogTitle>Pair Journey to Terminal</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-3">
+
+          <DialogBody className="space-y-4">
             <p className="text-xs text-slate-500">
               Select which interactive kiosk layout journey should render on the terminal <span className="font-semibold text-slate-800">"{selectedDevice?.name}"</span> located at <span className="font-semibold text-slate-800">"{selectedDevice?.location}"</span>.
             </p>
@@ -921,7 +925,8 @@ export function KioskDashboard() {
                 ]}
               />
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setPairModalOpen(false)}>
               Cancel
@@ -935,7 +940,7 @@ export function KioskDashboard() {
 
       {/* PAIR NEW TERMINAL CODE GENERATOR MODAL */}
       <Dialog open={pairTerminalModalOpen} onOpenChange={(open) => !open && handleClosePairTerminalModal()}>
-        <DialogContent className="sm:max-w-md bg-white rounded-2xl shadow-2xl p-6" data-testid="pair-terminal-modal">
+        <DialogContent className="sm:max-w-md bg-white rounded-2xl shadow-2xl" data-testid="pair-terminal-modal">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center space-x-2">
               <Tv className="w-5 h-5 text-indigo-600" />
@@ -943,7 +948,7 @@ export function KioskDashboard() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-3">
+          <DialogBody className="space-y-4">
             <p className="text-xs text-slate-500 leading-relaxed">
               Generate a secure 6-digit one-time activation code to link physical tablet hardware to your organization.
             </p>
@@ -1030,7 +1035,7 @@ export function KioskDashboard() {
                 </div>
               </div>
             )}
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
@@ -1044,7 +1049,7 @@ export function KioskDashboard() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 text-xs">
+          <DialogBody className="space-y-4 text-xs">
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 space-y-1">
               <div className="font-bold">Frontline Kiosk Witness Protocol (§UQ-01):</div>
               <p className="text-[11px] leading-relaxed">
@@ -1080,7 +1085,7 @@ export function KioskDashboard() {
                 className="text-center tracking-widest font-mono text-base h-10 font-bold"
               />
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter className="border-t pt-3">
             <Button

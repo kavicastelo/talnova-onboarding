@@ -42,6 +42,24 @@ export class TaskService {
         entityModel?: "DocumentTemplate" | "Course" | "Quiz";
         minScorePercent?: number;
       };
+      hardwareMetadata?: {
+        deviceType?: string;
+        serialNumber?: string;
+        assetTag?: string;
+        courierTrackingUrl?: string;
+        courierProvider?: string;
+        shipDate?: string;
+        receiptAttachment?: {
+          uploadId?: string;
+          fileUrl?: string;
+          fileName?: string;
+          uploadedAt?: string;
+        };
+        mdmStatus?: string;
+        mdmExternalId?: string;
+        receivedConfirmedAt?: string;
+        receivedConfirmedBy?: string;
+      };
     },
     userRole?: string
   ) {
@@ -104,6 +122,23 @@ export class TaskService {
       relativeOffsetDays: data.relativeOffsetDays,
       prerequisiteTaskIds: (data.prerequisiteTaskIds || []).map((id) => new mongoose.Types.ObjectId(id)),
       requiresVerification: data.requiresVerification ?? false,
+      hardwareMetadata: data.hardwareMetadata
+        ? {
+            deviceType: data.hardwareMetadata.deviceType,
+            serialNumber: data.hardwareMetadata.serialNumber?.trim() || undefined,
+            assetTag: data.hardwareMetadata.assetTag?.trim() || undefined,
+            courierTrackingUrl: data.hardwareMetadata.courierTrackingUrl?.trim() || undefined,
+            courierProvider: data.hardwareMetadata.courierProvider?.trim() || undefined,
+            shipDate: data.hardwareMetadata.shipDate ? new Date(data.hardwareMetadata.shipDate) : undefined,
+            receiptAttachment: data.hardwareMetadata.receiptAttachment,
+            mdmStatus: data.hardwareMetadata.mdmStatus || "pending_dispatch",
+            mdmExternalId: data.hardwareMetadata.mdmExternalId,
+            receivedConfirmedAt: data.hardwareMetadata.receivedConfirmedAt
+              ? new Date(data.hardwareMetadata.receivedConfirmedAt)
+              : undefined,
+            receivedConfirmedBy: data.hardwareMetadata.receivedConfirmedBy,
+          }
+        : undefined,
       autoVerification: data.autoVerification
         ? {
             enabled: data.autoVerification.enabled ?? false,

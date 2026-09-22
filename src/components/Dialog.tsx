@@ -179,7 +179,7 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
           data-slot="dialog-content"
           className={cn(
             // Positioning & Mobile Sheet Transform:
-            'relative z-50 w-full bg-card text-card-foreground shadow-2xl border border-border/80 outline-none flex flex-col',
+            'relative z-50 w-full bg-card text-card-foreground shadow-2xl border border-border/80 outline-none flex flex-col overflow-hidden',
             // Mobile: Bottom Sheet with rounded top, max-h 92vh, slide in from bottom
             'max-sm:rounded-t-2xl max-sm:rounded-b-none max-sm:max-h-[92vh] max-sm:border-b-0 max-sm:border-x-0 max-sm:animate-in max-sm:slide-in-from-bottom max-sm:duration-300',
             // Desktop: Floating modal, rounded-2xl, max-h 90vh, zoom & fade in
@@ -216,12 +216,33 @@ export const DialogHeader = React.forwardRef<HTMLDivElement, React.HTMLAttribute
     <div
       ref={ref}
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-1.5 p-5 pb-3 border-b border-border/60 bg-card/60 shrink-0', className)}
+      className={cn('flex flex-col gap-1.5 p-5 pb-3 pr-10 sm:pr-12 border-b border-border/60 bg-card/60 shrink-0', className)}
       {...props}
     />
   )
 );
 DialogHeader.displayName = 'DialogHeader';
+
+// --- DialogBody ---
+export interface DialogBodyProps extends React.HTMLAttributes<HTMLDivElement> {
+  scrollable?: boolean;
+}
+
+export const DialogBody = React.forwardRef<HTMLDivElement, DialogBodyProps>(
+  ({ className, scrollable = true, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="dialog-body"
+      className={cn(
+        'p-5 sm:p-6 text-sm',
+        scrollable && 'flex-1 overflow-y-auto min-h-0 overscroll-contain',
+        className
+      )}
+      {...props}
+    />
+  )
+);
+DialogBody.displayName = 'DialogBody';
 
 // --- DialogFooter ---
 export const DialogFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(

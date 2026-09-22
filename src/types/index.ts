@@ -92,6 +92,7 @@ export interface Employee {
   timezone?: string;
   designation?: string;
   payrollCategory?: string;
+  employmentType?: 'full_time' | 'part_time' | 'contractor' | 'intern';
   employeeId?: string;
   onboardingState?: string;
   legalHold?: boolean;
@@ -275,7 +276,10 @@ export interface WorkspaceSettings {
   };
   categories?: string[];
   certificate?: {
-    template: 'classic' | 'modern' | 'minimalist';
+    template: 'classic' | 'modern' | 'minimalist' | 'academic' | 'gradient' | 'executive';
+    theme?: 'light' | 'dark';
+    accentColor?: string;
+    badgeStyle?: 'medal' | 'laurel' | 'shield' | 'crypto' | 'ribbon';
     signatureUrl?: string;
     signatoryName?: string;
     signatoryTitle?: string;

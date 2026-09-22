@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '../components/Dialog';
 import {
@@ -659,7 +660,7 @@ export function HRISIntegrations() {
             </div>
           </DialogHeader>
 
-          <div className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto max-h-[calc(85vh-160px)]">
+          <DialogBody className="space-y-4 text-xs">
             {configTab === 'credentials' && (
               <div className="space-y-4">
                 <div>
@@ -816,7 +817,7 @@ export function HRISIntegrations() {
                 </Button>
               </div>
             )}
-          </div>
+          </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button variant="outline" size="sm" onClick={() => setIsConnectModalOpen(false)}>
@@ -848,7 +849,7 @@ export function HRISIntegrations() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-5 sm:p-6 space-y-4 text-xs">
+          <DialogBody className="space-y-4 text-xs">
             {/* Target Webhook URL */}
             <div>
               <label className="font-semibold text-foreground block mb-1">Webhook Target URL</label>
@@ -932,7 +933,7 @@ export function HRISIntegrations() {
                 <li>Ensure HMAC-SHA256 signature is enabled using the provided secret.</li>
               </ul>
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
             <Button size="sm" onClick={() => setIsWebhookModalOpen(false)}>

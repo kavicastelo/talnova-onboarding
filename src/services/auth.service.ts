@@ -37,6 +37,10 @@ export const authService = {
     });
     const { accessToken, user } = res.data.data;
     localStorage.setItem('auth_token', accessToken);
+    const userRole = user?.role || 'employee';
+    const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
+    localStorage.setItem('user_role', userRole);
+    localStorage.setItem('user_roles', JSON.stringify(userRoles));
     return { accessToken, user };
   },
 
@@ -45,6 +49,8 @@ export const authService = {
       await apiClient.post('/auth/logout');
     } finally {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_roles');
     }
   },
 
@@ -59,5 +65,34 @@ export const authService = {
   register: async (payload: any): Promise<any> => {
     const res = await apiClient.post<ApiResponse<any>>('/auth/register', payload);
     return res.data.data;
+  },
+
+  verifyInvitation: async (token: string): Promise<{
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    role?: string;
+    organizationName: string;
+    organizationSlug?: string;
+    organizationLogo?: string;
+  }> => {
+    const res = await apiClient.get<ApiResponse<any>>('/auth/invitations/verify', {
+      params: { token },
+    });
+    return res.data.data;
+  },
+
+  acceptInvitation: async (payload: { token: string; password: string }): Promise<any> => {
+    const res = await apiClient.post<ApiResponse<any>>('/auth/invitations/accept', payload);
+    const { accessToken, user } = res.data.data || {};
+    if (accessToken) {
+      localStorage.setItem('auth_token', accessToken);
+    }
+    const userRole = user?.role || 'employee';
+    const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
+    localStorage.setItem('user_role', userRole);
+    localStorage.setItem('user_roles', JSON.stringify(userRoles));
+    return { accessToken, user };
   }
 };

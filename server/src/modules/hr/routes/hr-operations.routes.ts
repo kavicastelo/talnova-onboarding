@@ -14,8 +14,8 @@ export async function hrOperationsRoutes(app: FastifyInstance) {
   app.register(async (authApp) => {
     authApp.addHook("preHandler", authenticate);
 
-    const staffOnly = requireRole(["owner", "admin", "manager"]);
-    const adminOnly = requireRole(["owner", "admin"]);
+    const staffOnly = requireRole(["owner", "admin", "hr_admin", "manager"]);
+    const adminOnly = requireRole(["owner", "admin", "hr_admin"]);
 
     // Dashboard metrics & exception queue
     authApp.get("/dashboard", { preHandler: [staffOnly] }, controller.getDashboardMetrics as any);

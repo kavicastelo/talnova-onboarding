@@ -16,6 +16,15 @@ import {
   FileText,
   RotateCcw,
   ListChecks,
+  Truck,
+  PackageCheck,
+  Package,
+  AlertCircle,
+  Monitor,
+  Smartphone,
+  Key,
+  HardHat,
+  Wrench,
 } from 'lucide-react';
 import {
   useTasks,
@@ -39,6 +48,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import {
@@ -70,6 +80,10 @@ export function Tasks() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
+  // IT Hardware Queue sub-filters
+  const [hwDeviceTypeFilter, setHwDeviceTypeFilter] = useState<string>('all');
+  const [hwStatusFilter, setHwStatusFilter] = useState<string>('all');
+
   // Drawer / Modal States
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -92,7 +106,22 @@ export function Tasks() {
   const [hwMdmStatus, setHwMdmStatus] = useState<string>('pending_dispatch');
   const [isSavingHardware, setIsSavingHardware] = useState(false);
 
-  // Create Form State
+  // Hardware Creation Form State
+  const [createWithHardware, setCreateWithHardware] = useState(false);
+  const [newHwDeviceType, setNewHwDeviceType] = useState<string>('laptop');
+  const [newHwSerialNumber, setNewHwSerialNumber] = useState('');
+  const [newHwAssetTag, setNewHwAssetTag] = useState('');
+  const [newHwCourierProvider, setNewHwCourierProvider] = useState('');
+  const [newHwCourierUrl, setNewHwCourierUrl] = useState('');
+  const [newHwMdmStatus, setNewHwMdmStatus] = useState<string>('pending_dispatch');
+  const [newHwReceiptFileName, setNewHwReceiptFileName] = useState('');
+  const [newHwReceiptFileUrl, setNewHwReceiptFileUrl] = useState('');
+
+  // Validation errors state
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [hwModalErrors, setHwModalErrors] = useState<Record<string, string>>({});
+
+  // Create Form Base State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState('');
@@ -101,6 +130,7 @@ export function Tasks() {
   const [stage, setStage] = useState<'preboarding' | 'day_1' | 'week_1' | 'month_1' | 'custom'>('day_1');
   const [priority, setPriority] = useState<'low' | 'normal' | 'high' | 'critical'>('normal');
   const [dueDate, setDueDate] = useState('');
+  const [requiresVerification, setRequiresVerification] = useState(false);
 
   // API Queries & Mutations
   const { data: employeesData } = useEmployees({ limit: 1000 });
@@ -109,7 +139,8 @@ export function Tasks() {
     directReportsOnly: activeTab === 'direct_reports',
     isOverdue: activeTab === 'overdue' ? true : undefined,
     stage: selectedStage !== 'all' ? selectedStage : undefined,
-    category: activeTab === 'it_ops' ? 'it_setup' : (categoryFilter !== 'all' ? categoryFilter : undefined),
+    category: activeTab === 'it_ops' ? undefined : (categoryFilter !== 'all' ? categoryFilter : undefined),
+    isHardwareQueue: activeTab === 'it_ops' ? true : undefined,
     priority: priorityFilter !== 'all' ? priorityFilter : undefined,
   });
 
@@ -120,14 +151,48 @@ export function Tasks() {
   const employees = employeesData?.employees || [];
   const tasks = tasksData?.tasks || [];
 
+  // IT Hardware Queue Stats
+  const hwQueueTasks = tasks.filter(
+    (t) => t.category === 'it_setup' || t.category === 'equipment' || !!t.hardwareMetadata
+  );
+  const totalHardwareCount = hwQueueTasks.length;
+  const pendingDispatchCount = hwQueueTasks.filter(
+    (t) =>
+      t.hardwareMetadata?.mdmStatus === 'pending_dispatch' ||
+      (!t.hardwareMetadata?.mdmStatus && t.status === 'pending')
+  ).length;
+  const inTransitCount = hwQueueTasks.filter(
+    (t) => t.hardwareMetadata?.mdmStatus === 'dispatched' || t.status === 'in_progress'
+  ).length;
+  const deliveredOrEnrolledCount = hwQueueTasks.filter(
+    (t) =>
+      t.hardwareMetadata?.mdmStatus === 'enrolled' ||
+      t.hardwareMetadata?.mdmStatus === 'delivered' ||
+      t.status === 'completed' ||
+      t.status === 'verified'
+  ).length;
+
   const filteredTasks = tasks.filter((t) => {
+    if (activeTab === 'it_ops') {
+      if (hwDeviceTypeFilter !== 'all') {
+        const devType = t.hardwareMetadata?.deviceType || (t.category === 'it_setup' ? 'laptop' : 'equipment');
+        if (devType !== hwDeviceTypeFilter) return false;
+      }
+      if (hwStatusFilter !== 'all') {
+        const mdm = t.hardwareMetadata?.mdmStatus || (t.status === 'completed' || t.status === 'verified' ? 'delivered' : 'pending_dispatch');
+        if (mdm !== hwStatusFilter) return false;
+      }
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
         t.title.toLowerCase().includes(q) ||
         (t.description && t.description.toLowerCase().includes(q)) ||
         (t.hardwareMetadata?.serialNumber && t.hardwareMetadata.serialNumber.toLowerCase().includes(q)) ||
-        (t.hardwareMetadata?.assetTag && t.hardwareMetadata.assetTag.toLowerCase().includes(q))
+        (t.hardwareMetadata?.assetTag && t.hardwareMetadata.assetTag.toLowerCase().includes(q)) ||
+        (t.hardwareMetadata?.courierProvider && t.hardwareMetadata.courierProvider.toLowerCase().includes(q)) ||
+        (t.hardwareMetadata?.deviceType && t.hardwareMetadata.deviceType.toLowerCase().includes(q))
       );
     }
     return true;
@@ -145,6 +210,34 @@ export function Tasks() {
     endIndex,
   } = usePagination({ data: filteredTasks, initialPageSize: 10 });
 
+  const validateHardwareFields = (
+    fields: {
+      courierUrl?: string;
+      serialNumber?: string;
+      assetTag?: string;
+      courierProvider?: string;
+      mdmStatus?: string;
+    }
+  ) => {
+    const errors: Record<string, string> = {};
+    if (fields.courierUrl && fields.courierUrl.trim()) {
+      const url = fields.courierUrl.trim();
+      if (!/^https?:\/\/.+/i.test(url)) {
+        errors.courierUrl = 'Tracking URL must start with http:// or https://';
+      }
+    }
+    if (fields.assetTag && fields.assetTag.trim().length > 0 && fields.assetTag.trim().length < 2) {
+      errors.assetTag = 'Asset tag must be at least 2 characters';
+    }
+    if (fields.serialNumber && fields.serialNumber.trim().length > 0 && fields.serialNumber.trim().length < 2) {
+      errors.serialNumber = 'Serial number must be at least 2 characters';
+    }
+    if (fields.mdmStatus === 'dispatched' && !fields.courierProvider?.trim() && !fields.courierUrl?.trim()) {
+      errors.courierProvider = 'Courier provider or tracking URL recommended when dispatched';
+    }
+    return errors;
+  };
+
   const handleOpenHardwareModal = (task: TaskItem) => {
     setHardwareTask(task);
     setHwDeviceType(task.hardwareMetadata?.deviceType || 'laptop');
@@ -155,12 +248,29 @@ export function Tasks() {
     setHwReceiptFileName(task.hardwareMetadata?.receiptAttachment?.fileName || '');
     setHwReceiptFileUrl(task.hardwareMetadata?.receiptAttachment?.fileUrl || '');
     setHwMdmStatus(task.hardwareMetadata?.mdmStatus || 'pending_dispatch');
+    setHwModalErrors({});
     setIsHardwareModalOpen(true);
   };
 
   const handleSaveHardware = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hardwareTask) return;
+
+    const validationErrors = validateHardwareFields({
+      courierUrl: hwCourierUrl,
+      serialNumber: hwSerialNumber,
+      assetTag: hwAssetTag,
+      courierProvider: hwCourierProvider,
+      mdmStatus: hwMdmStatus,
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setHwModalErrors(validationErrors);
+      toast.error('Please fix validation errors before saving');
+      return;
+    }
+
+    setHwModalErrors({});
     setIsSavingHardware(true);
     try {
       const targetId = hardwareTask.taskCode || hardwareTask._id;
@@ -193,12 +303,79 @@ export function Tasks() {
     }
   };
 
+  const handleOpenCreateHardwareTask = () => {
+    setTitle('');
+    setDescription('');
+    setAssignedToUserId('');
+    setEmployeeId('');
+    setDueDate('');
+    setCategory('equipment');
+    setCreateWithHardware(true);
+    setNewHwDeviceType('laptop');
+    setNewHwSerialNumber('');
+    setNewHwAssetTag('');
+    setNewHwCourierProvider('');
+    setNewHwCourierUrl('');
+    setNewHwMdmStatus('pending_dispatch');
+    setNewHwReceiptFileName('');
+    setNewHwReceiptFileUrl('');
+    setFormErrors({});
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCategoryChange = (newCategory: 'it_setup' | 'hr_paperwork' | 'equipment' | 'training' | 'general') => {
+    setCategory(newCategory);
+    if (newCategory === 'equipment' || newCategory === 'it_setup') {
+      setCreateWithHardware(true);
+    }
+  };
+
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !assignedToUserId) {
-      toast.error('Please enter a task title and select an assignee');
+    const errors: Record<string, string> = {};
+    if (!title.trim()) {
+      errors.title = 'Task title is required';
+    }
+    if (!assignedToUserId) {
+      errors.assignedToUserId = 'Please select a responsible user';
+    }
+
+    if (createWithHardware) {
+      const hwErrors = validateHardwareFields({
+        courierUrl: newHwCourierUrl,
+        serialNumber: newHwSerialNumber,
+        assetTag: newHwAssetTag,
+        courierProvider: newHwCourierProvider,
+        mdmStatus: newHwMdmStatus,
+      });
+      Object.assign(errors, hwErrors);
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast.error('Please fix validation errors before creating the task');
       return;
     }
+
+    setFormErrors({});
+
+    const hardwarePayload = createWithHardware
+      ? {
+          deviceType: newHwDeviceType,
+          serialNumber: newHwSerialNumber.trim() || undefined,
+          assetTag: newHwAssetTag.trim() || undefined,
+          courierProvider: newHwCourierProvider.trim() || undefined,
+          courierTrackingUrl: newHwCourierUrl.trim() || undefined,
+          mdmStatus: newHwMdmStatus,
+          receiptAttachment: newHwReceiptFileUrl.trim()
+            ? {
+                fileUrl: newHwReceiptFileUrl.trim(),
+                fileName: newHwReceiptFileName.trim() || 'receipt.pdf',
+                uploadedAt: new Date().toISOString(),
+              }
+            : undefined,
+        }
+      : undefined;
 
     createTaskMutation.mutate(
       {
@@ -210,17 +387,25 @@ export function Tasks() {
         stage,
         priority,
         dueDate: dueDate || undefined,
+        requiresVerification: requiresVerification || undefined,
+        hardwareMetadata: hardwarePayload as any,
       },
       {
         onSuccess: () => {
-          toast.success('Operational task created successfully');
+          toast.success(createWithHardware ? 'Hardware task & asset registered successfully' : 'Operational task created successfully');
           setIsCreateModalOpen(false);
           setTitle('');
           setDescription('');
           setAssignedToUserId('');
           setEmployeeId('');
           setDueDate('');
-          setActiveTab('all');
+          setRequiresVerification(false);
+          setCreateWithHardware(false);
+          setFormErrors({});
+          refetch();
+          if (createWithHardware && activeTab !== 'it_ops') {
+            setActiveTab('it_ops');
+          }
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || 'Failed to create task');
@@ -333,6 +518,104 @@ export function Tasks() {
     );
   };
 
+  const getDeviceIcon = (deviceType?: string) => {
+    switch (deviceType?.toLowerCase()) {
+      case 'laptop':
+        return <Laptop className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />;
+      case 'desktop':
+        return <Monitor className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+      case 'monitor':
+        return <Monitor className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
+      case 'mobile':
+        return <Smartphone className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+      case 'security_key':
+        return <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
+      case 'safety_kit':
+        return <HardHat className="w-4 h-4 text-orange-600 dark:text-orange-400" />;
+      case 'tools':
+        return <Wrench className="w-4 h-4 text-amber-700 dark:text-amber-400" />;
+      case 'badge_access':
+        return <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
+      default:
+        return <Cpu className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />;
+    }
+  };
+
+  const getDeviceLabel = (deviceType?: string) => {
+    switch (deviceType?.toLowerCase()) {
+      case 'laptop':
+        return 'Laptop';
+      case 'desktop':
+        return 'Desktop PC';
+      case 'monitor':
+        return 'Monitor';
+      case 'mobile':
+        return 'Mobile Phone';
+      case 'security_key':
+        return 'Security Key';
+      case 'peripherals':
+        return 'Peripherals';
+      case 'notebook':
+        return 'Stationery';
+      case 'safety_kit':
+        return 'Safety Kit / PPE';
+      case 'uniform':
+        return 'Uniform';
+      case 'tools':
+        return 'Field Tools';
+      case 'badge_access':
+        return 'Access Badge';
+      default:
+        return deviceType ? deviceType.toUpperCase() : 'Equipment';
+    }
+  };
+
+  const getMdmBadge = (status?: string) => {
+    switch (status) {
+      case 'pending_dispatch':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            Pending Prep
+          </span>
+        );
+      case 'dispatched':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800 flex items-center gap-1">
+            <Truck className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            In Transit
+          </span>
+        );
+      case 'enrolled':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 flex items-center gap-1">
+            <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+            MDM Enrolled
+          </span>
+        );
+      case 'delivered':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+            <PackageCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            Delivered
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-300 border border-red-300 dark:border-red-800 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3 text-red-600 dark:text-red-400" />
+            Delivery Failed
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            {status || 'PENDING'}
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -340,23 +623,52 @@ export function Tasks() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-              <CheckCircle2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              Tasks & Onboarding Checklists
+              {activeTab === 'it_ops' ? (
+                <>
+                  <Laptop className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+                  IT Hardware & Equipment Queue
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                  Tasks & Onboarding Checklists
+                </>
+              )}
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-              Manage operational tasks, cross-person onboarding checklists, deadlines, and prerequisites.
+              {activeTab === 'it_ops'
+                ? 'Provision hardware assets, track courier delivery, configure MDM enrollment, and verify equipment sign-offs.'
+                : 'Manage operational tasks, cross-person onboarding checklists, deadlines, and prerequisites.'}
             </p>
           </div>
           {canManageTasks && (
-            <button
-              id="add-task-btn"
-              data-testid="add-task-btn"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Add Task
-            </button>
+            <div className="flex items-center gap-2">
+              {activeTab === 'it_ops' && (
+                <button
+                  id="provision-hardware-btn"
+                  data-testid="provision-hardware-btn"
+                  onClick={handleOpenCreateHardwareTask}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-cyan-200 dark:shadow-none cursor-pointer"
+                >
+                  <Cpu className="w-4 h-4" />
+                  Provision Hardware Asset
+                </button>
+              )}
+              <button
+                id="add-task-btn"
+                data-testid="add-task-btn"
+                onClick={() => {
+                  setCategory('general');
+                  setCreateWithHardware(false);
+                  setFormErrors({});
+                  setIsCreateModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-none cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add Task
+              </button>
+            </div>
           )}
         </div>
 
@@ -420,7 +732,7 @@ export function Tasks() {
               data-testid="tab-it-ops"
               onClick={() => setActiveTab('it_ops')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'it_ops'
-                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-semibold'
+                ? 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300 font-semibold border border-cyan-200 dark:border-cyan-800'
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
@@ -441,8 +753,119 @@ export function Tasks() {
             </button>
           </div>
 
-          {/* Sub-filters Bar */}
-          {activeTab !== 'templates' && (
+          {/* IT Hardware Queue KPI Dashboard */}
+          {activeTab === 'it_ops' && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                  <Laptop className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Assets</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalHardwareCount}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-amber-200/60 dark:border-amber-900/40 flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Pending Prep</p>
+                  <p className="text-xl font-bold text-amber-900 dark:text-amber-100">{pendingDispatchCount}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-blue-200/60 dark:border-blue-900/40 flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">In Transit / Dispatched</p>
+                  <p className="text-xl font-bold text-blue-900 dark:text-blue-100">{inTransitCount}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <PackageCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Delivered / Enrolled</p>
+                  <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">{deliveredOrEnrolledCount}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-filters Bar: IT Hardware Queue Specific */}
+          {activeTab === 'it_ops' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  id="hw-search-input"
+                  type="text"
+                  placeholder="Search assets, serial, courier..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <select
+                id="hw-device-type-filter"
+                data-testid="hw-device-type-filter"
+                value={hwDeviceTypeFilter}
+                onChange={(e) => setHwDeviceTypeFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+              >
+                <option value="all">All Equipment Types</option>
+                <option value="laptop">Laptops</option>
+                <option value="desktop">Desktop PCs</option>
+                <option value="monitor">Monitors & Displays</option>
+                <option value="mobile">Mobile Devices</option>
+                <option value="security_key">Security Keys / Fobs</option>
+                <option value="peripherals">Peripherals</option>
+                <option value="notebook">Notebooks / Stationery</option>
+                <option value="safety_kit">Safety Kits / PPE</option>
+                <option value="uniform">Uniforms / Workwear</option>
+                <option value="tools">Field Tools</option>
+                <option value="badge_access">Access Badges</option>
+                <option value="other">Other Assets</option>
+              </select>
+
+              <select
+                id="hw-status-filter"
+                data-testid="hw-status-filter"
+                value={hwStatusFilter}
+                onChange={(e) => setHwStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+              >
+                <option value="all">All Delivery & MDM Statuses</option>
+                <option value="pending_dispatch">Pending Prep & Dispatch</option>
+                <option value="dispatched">Dispatched / In Transit</option>
+                <option value="enrolled">MDM Enrolled</option>
+                <option value="delivered">Delivered & Confirmed</option>
+                <option value="failed">Delivery / MDM Failed</option>
+              </select>
+
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+              >
+                <option value="all">All Priorities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          )}
+
+          {/* Sub-filters Bar: General Tasks */}
+          {activeTab !== 'it_ops' && activeTab !== 'templates' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               {/* Search Input */}
               <div className="relative">
@@ -511,9 +934,29 @@ export function Tasks() {
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700">
-            <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold">No Tasks Found</h3>
-            <p className="text-slate-500 text-sm mt-1">There are no operational tasks matching your filter criteria.</p>
+            {activeTab === 'it_ops' ? (
+              <>
+                <Laptop className="w-12 h-12 text-cyan-500 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold">No Hardware Queue Items Found</h3>
+                <p className="text-slate-500 text-sm mt-1 max-w-md mx-auto">
+                  There are no hardware provisioning or IT equipment tasks matching your filter criteria.
+                </p>
+                {canManageTasks && (
+                  <button
+                    onClick={handleOpenCreateHardwareTask}
+                    className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" /> Provision New Hardware Asset
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold">No Tasks Found</h3>
+                <p className="text-slate-500 text-sm mt-1">There are no operational tasks matching your filter criteria.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -624,24 +1067,28 @@ export function Tasks() {
                         </div>
 
                         {task.hardwareMetadata && (
-                          <div className="flex flex-wrap items-center gap-3 text-xs pt-1.5 border-t border-slate-100 dark:border-slate-700/60 mt-1">
-                            <span className="flex items-center gap-1 font-medium text-cyan-700 dark:text-cyan-300">
-                              <Laptop className="w-3.5 h-3.5" />
-                              {task.hardwareMetadata.deviceType?.toUpperCase() || 'HARDWARE'}
+                          <div className="flex flex-wrap items-center gap-2.5 text-xs pt-2 border-t border-slate-100 dark:border-slate-700/60 mt-1.5">
+                            <span className="inline-flex items-center gap-1.5 font-medium px-2.5 py-0.5 rounded-md bg-cyan-50 dark:bg-cyan-950/60 text-cyan-800 dark:text-cyan-200 border border-cyan-200/60 dark:border-cyan-800/60">
+                              {getDeviceIcon(task.hardwareMetadata.deviceType)}
+                              {getDeviceLabel(task.hardwareMetadata.deviceType)}
                             </span>
                             {task.hardwareMetadata.serialNumber && (
-                              <span className="text-slate-600 dark:text-slate-300">
-                                SN: <span className="font-mono">{task.hardwareMetadata.serialNumber}</span>
+                              <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-[11px]">
+                                <span className="text-slate-400 font-sans">SN:</span>
+                                <span className="font-mono font-semibold">{task.hardwareMetadata.serialNumber}</span>
                               </span>
                             )}
                             {task.hardwareMetadata.assetTag && (
-                              <span className="text-slate-600 dark:text-slate-300">
-                                Tag: <span className="font-mono">{task.hardwareMetadata.assetTag}</span>
+                              <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-[11px]">
+                                <span className="text-slate-400 font-sans">Tag:</span>
+                                <span className="font-mono font-semibold">{task.hardwareMetadata.assetTag}</span>
                               </span>
                             )}
-                            {task.hardwareMetadata.mdmStatus && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">
-                                MDM: {task.hardwareMetadata.mdmStatus}
+                            {getMdmBadge(task.hardwareMetadata.mdmStatus)}
+                            {task.hardwareMetadata.courierProvider && (
+                              <span className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1">
+                                <Truck className="w-3 h-3 text-slate-400" />
+                                {task.hardwareMetadata.courierProvider}
                               </span>
                             )}
                             {task.hardwareMetadata.courierTrackingUrl && (
@@ -649,9 +1096,9 @@ export function Tasks() {
                                 href={task.hardwareMetadata.courierTrackingUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                                className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:underline font-medium text-[11px]"
                               >
-                                <ExternalLink className="w-3 h-3" /> Tracking
+                                <ExternalLink className="w-3 h-3" /> Track Shipment
                               </a>
                             )}
                           </div>
@@ -669,7 +1116,7 @@ export function Tasks() {
                           title="Hardware & Equipment Tracking"
                         >
                           <Cpu className="w-3.5 h-3.5" />
-                          Equipment
+                          {activeTab === 'it_ops' ? 'Update Hardware' : 'Equipment'}
                         </button>
                       )}
 
@@ -957,7 +1404,7 @@ export function Tasks() {
 
       {/* Create Task Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent id="create-task-modal" className="max-w-lg p-0 overflow-hidden">
+        <DialogContent id="create-task-modal" className="max-w-xl p-0 overflow-hidden">
           <DialogHeader className="p-5 pb-4">
             <DialogTitle className="text-lg font-bold">Create Operational Task</DialogTitle>
             <DialogDescription>
@@ -966,18 +1413,32 @@ export function Tasks() {
           </DialogHeader>
 
           <form onSubmit={handleCreateTask} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+            <DialogBody className="space-y-4 text-sm">
               <div>
                 <label className="block font-medium mb-1 text-xs text-foreground">Task Title *</label>
                 <input
                   id="task-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Set up laptop and IT permissions"
+                  placeholder="e.g. Issue Laptop & Configure IT Access"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs"
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (formErrors.title) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.title;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`w-full px-3 py-2 bg-background border rounded-xl focus:outline-none focus:ring-2 text-xs ${
+                    formErrors.title ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-primary/20 focus:border-primary'
+                  }`}
                 />
+                {formErrors.title && (
+                  <p className="text-[11px] text-red-500 mt-1 font-medium">{formErrors.title}</p>
+                )}
               </div>
 
               <div>
@@ -999,7 +1460,16 @@ export function Tasks() {
                     id="task-assignee-select"
                     required
                     value={assignedToUserId}
-                    onChange={(val) => setAssignedToUserId(val)}
+                    onChange={(val) => {
+                      setAssignedToUserId(val);
+                      if (formErrors.assignedToUserId) {
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.assignedToUserId;
+                          return copy;
+                        });
+                      }
+                    }}
                     placeholder="Search & select assignee..."
                     searchPlaceholder="Search by name, role, email..."
                     options={employees.map((emp: any) => ({
@@ -1009,6 +1479,9 @@ export function Tasks() {
                       badge: emp?.role || 'User',
                     }))}
                   />
+                  {formErrors.assignedToUserId && (
+                    <p className="text-[11px] text-red-500 mt-1 font-medium">{formErrors.assignedToUserId}</p>
+                  )}
                 </div>
 
                 <div>
@@ -1029,18 +1502,18 @@ export function Tasks() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-medium mb-1 text-xs text-foreground">Category</label>
                   <select
                     id="task-category-select"
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
+                    onChange={(e) => handleCategoryChange(e.target.value as any)}
                     className="w-full px-2.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs cursor-pointer"
                   >
+                    <option value="equipment">Equipment</option>
                     <option value="it_setup">IT Setup</option>
                     <option value="hr_paperwork">HR Paperwork</option>
-                    <option value="equipment">Equipment</option>
                     <option value="training">Training</option>
                     <option value="general">General</option>
                   </select>
@@ -1088,7 +1561,211 @@ export function Tasks() {
                   className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs"
                 />
               </div>
-            </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  id="task-verification-checkbox"
+                  type="checkbox"
+                  checked={requiresVerification}
+                  onChange={(e) => setRequiresVerification(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="task-verification-checkbox" className="text-xs font-medium cursor-pointer text-foreground">
+                  Requires Admin / Manager Sign-off to complete
+                </label>
+              </div>
+
+              {/* Hardware / MDM Provisioning Inline Toggle */}
+              <div className="pt-3 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Laptop className="h-4 w-4 text-cyan-500" />
+                    <div>
+                      <span className="text-xs font-semibold text-foreground block">Provision Hardware Asset</span>
+                      <span className="text-[11px] text-muted-foreground">Attach asset tag, serial number & courier tracking</span>
+                    </div>
+                  </div>
+                  <input
+                    id="task-hardware-checkbox"
+                    data-testid="task-hardware-checkbox"
+                    type="checkbox"
+                    checked={createWithHardware}
+                    onChange={(e) => setCreateWithHardware(e.target.checked)}
+                    className="rounded border-border text-cyan-600 focus:ring-cyan-500 h-4 w-4 cursor-pointer"
+                  />
+                </div>
+
+                {createWithHardware && (
+                  <div className="mt-3 p-3 bg-muted/40 border border-border/60 rounded-xl space-y-3 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-medium mb-1 text-xs text-foreground">Hardware Equipment Type *</label>
+                        <select
+                          id="new-hw-device-type-select"
+                          data-testid="new-hw-device-type-select"
+                          value={newHwDeviceType}
+                          onChange={(e) => setNewHwDeviceType(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
+                        >
+                          <option value="laptop">Laptop</option>
+                          <option value="desktop">Desktop PC</option>
+                          <option value="monitor">Monitor / Display</option>
+                          <option value="mobile">Mobile Phone / Tablet</option>
+                          <option value="security_key">Hardware Security Key / Fob</option>
+                          <option value="peripherals">Peripherals (Keyboard, Mouse, Headset)</option>
+                          <option value="notebook">Notebook / Stationery</option>
+                          <option value="safety_kit">Safety Kit / PPE</option>
+                          <option value="uniform">Uniform / Workwear</option>
+                          <option value="tools">Field Equipment / Tools</option>
+                          <option value="badge_access">Access Badge / Keycard</option>
+                          <option value="other">Other Equipment</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-medium mb-1 text-xs text-foreground">Courier / Provisioning Status</label>
+                        <select
+                          id="new-hw-status-select"
+                          data-testid="new-hw-status-select"
+                          value={newHwMdmStatus}
+                          onChange={(e) => setNewHwMdmStatus(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
+                        >
+                          <option value="pending_dispatch">Pending Dispatch / Preparing</option>
+                          <option value="dispatched">Dispatched / In Transit</option>
+                          <option value="enrolled">MDM Enrolled</option>
+                          <option value="delivered">Delivered / In Possession</option>
+                          <option value="failed">Delivery / Enrollment Failed</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-medium mb-1 text-xs text-foreground">Serial Number</label>
+                        <input
+                          id="new-hw-serial-input"
+                          data-testid="new-hw-serial-input"
+                          type="text"
+                          placeholder="e.g. C02G41KSMD6T"
+                          value={newHwSerialNumber}
+                          onChange={(e) => {
+                            setNewHwSerialNumber(e.target.value);
+                            if (formErrors.serialNumber) {
+                              setFormErrors((prev) => {
+                                const copy = { ...prev };
+                                delete copy.serialNumber;
+                                return copy;
+                              });
+                            }
+                          }}
+                          className={`w-full px-2.5 py-1.5 bg-background border rounded-xl focus:outline-none focus:ring-2 font-mono text-xs ${
+                            formErrors.serialNumber ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-cyan-500'
+                          }`}
+                        />
+                        {formErrors.serialNumber && (
+                          <p className="text-[11px] text-red-500 mt-1 font-medium">{formErrors.serialNumber}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block font-medium mb-1 text-xs text-foreground">Asset Tag</label>
+                        <input
+                          id="new-hw-asset-tag-input"
+                          data-testid="new-hw-asset-tag-input"
+                          type="text"
+                          placeholder="e.g. TAL-AST-9021"
+                          value={newHwAssetTag}
+                          onChange={(e) => {
+                            setNewHwAssetTag(e.target.value);
+                            if (formErrors.assetTag) {
+                              setFormErrors((prev) => {
+                                const copy = { ...prev };
+                                delete copy.assetTag;
+                                return copy;
+                              });
+                            }
+                          }}
+                          className={`w-full px-2.5 py-1.5 bg-background border rounded-xl focus:outline-none focus:ring-2 font-mono text-xs ${
+                            formErrors.assetTag ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-cyan-500'
+                          }`}
+                        />
+                        {formErrors.assetTag && (
+                          <p className="text-[11px] text-red-500 mt-1 font-medium">{formErrors.assetTag}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-medium mb-1 text-xs text-foreground">Courier Provider</label>
+                        <input
+                          id="new-hw-courier-provider-input"
+                          data-testid="new-hw-courier-provider-input"
+                          type="text"
+                          placeholder="e.g. FedEx / DHL / UPS"
+                          value={newHwCourierProvider}
+                          onChange={(e) => {
+                            setNewHwCourierProvider(e.target.value);
+                            if (formErrors.courierProvider) {
+                              setFormErrors((prev) => {
+                                const copy = { ...prev };
+                                delete copy.courierProvider;
+                                return copy;
+                              });
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs"
+                        />
+                        {formErrors.courierProvider && (
+                          <p className="text-[11px] text-amber-500 mt-1 font-medium">{formErrors.courierProvider}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block font-medium mb-1 text-xs text-foreground">Courier Tracking URL</label>
+                        <input
+                          id="new-hw-courier-url-input"
+                          data-testid="new-hw-courier-url-input"
+                          type="url"
+                          placeholder="https://track.fedex.com/..."
+                          value={newHwCourierUrl}
+                          onChange={(e) => {
+                            setNewHwCourierUrl(e.target.value);
+                            if (formErrors.courierUrl) {
+                              setFormErrors((prev) => {
+                                const copy = { ...prev };
+                                delete copy.courierUrl;
+                                return copy;
+                              });
+                            }
+                          }}
+                          className={`w-full px-2.5 py-1.5 bg-background border rounded-xl focus:outline-none focus:ring-2 text-xs ${
+                            formErrors.courierUrl ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-cyan-500'
+                          }`}
+                        />
+                        {formErrors.courierUrl && (
+                          <p className="text-[11px] text-red-500 mt-1 font-medium">{formErrors.courierUrl}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-1 border-t border-border/40">
+                      <label className="block text-[11px] text-muted-foreground mb-1 font-medium">Receipt / Storage Link (Optional)</label>
+                      <input
+                        id="new-hw-receipt-url-input"
+                        data-testid="new-hw-receipt-url-input"
+                        type="url"
+                        placeholder="https://storage.example.com/receipts/..."
+                        value={newHwReceiptFileUrl}
+                        onChange={(e) => setNewHwReceiptFileUrl(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogBody>
 
             <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
               <button
@@ -1101,11 +1778,12 @@ export function Tasks() {
               </button>
               <button
                 id="submit-create-task-btn"
+                data-testid="submit-create-task-btn"
                 type="submit"
                 disabled={createTaskMutation.isPending}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
               >
-                {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
+                {createTaskMutation.isPending ? 'Creating...' : createWithHardware ? 'Create & Register Asset' : 'Create Task'}
               </button>
             </DialogFooter>
           </form>
@@ -1131,13 +1809,13 @@ export function Tasks() {
 
           {hardwareTask && (
             <form onSubmit={handleSaveHardware} className="flex flex-col flex-1 overflow-hidden">
-              <div className="overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(85vh-140px)] text-sm">
+              <DialogBody className="space-y-4 text-sm">
                 <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border/60 space-y-1">
                   <span className="font-semibold block text-foreground">Task: {hardwareTask.title}</span>
                   <span>Assignee: {hardwareTask.assignedToUserId?.profile?.firstName || 'IT Admin'} | Target: {hardwareTask.employeeId?.profile?.firstName || 'New Hire'}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-medium mb-1 text-xs text-foreground">Equipment / Device Type</label>
                     <select
@@ -1178,7 +1856,7 @@ export function Tasks() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-medium mb-1 text-xs text-foreground">Serial Number</label>
                     <input
@@ -1186,9 +1864,23 @@ export function Tasks() {
                       type="text"
                       placeholder="e.g. C02G41KSMD6T"
                       value={hwSerialNumber}
-                      onChange={(e) => setHwSerialNumber(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
+                      onChange={(e) => {
+                        setHwSerialNumber(e.target.value);
+                        if (hwModalErrors.serialNumber) {
+                          setHwModalErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.serialNumber;
+                            return copy;
+                          });
+                        }
+                      }}
+                      className={`w-full px-3 py-2 bg-background border rounded-xl focus:outline-none focus:ring-2 font-mono text-xs ${
+                        hwModalErrors.serialNumber ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-cyan-500'
+                      }`}
                     />
+                    {hwModalErrors.serialNumber && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">{hwModalErrors.serialNumber}</p>
+                    )}
                   </div>
 
                   <div>
@@ -1198,13 +1890,27 @@ export function Tasks() {
                       type="text"
                       placeholder="e.g. TAL-AST-9021"
                       value={hwAssetTag}
-                      onChange={(e) => setHwAssetTag(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
+                      onChange={(e) => {
+                        setHwAssetTag(e.target.value);
+                        if (hwModalErrors.assetTag) {
+                          setHwModalErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.assetTag;
+                            return copy;
+                          });
+                        }
+                      }}
+                      className={`w-full px-3 py-2 bg-background border rounded-xl focus:outline-none focus:ring-2 font-mono text-xs ${
+                        hwModalErrors.assetTag ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-cyan-500'
+                      }`}
                     />
+                    {hwModalErrors.assetTag && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">{hwModalErrors.assetTag}</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-medium mb-1 text-xs text-foreground">Courier Provider</label>
                     <input
@@ -1212,9 +1918,21 @@ export function Tasks() {
                       type="text"
                       placeholder="e.g. FedEx / DHL / UPS"
                       value={hwCourierProvider}
-                      onChange={(e) => setHwCourierProvider(e.target.value)}
+                      onChange={(e) => {
+                        setHwCourierProvider(e.target.value);
+                        if (hwModalErrors.courierProvider) {
+                          setHwModalErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.courierProvider;
+                            return copy;
+                          });
+                        }
+                      }}
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs"
                     />
+                    {hwModalErrors.courierProvider && (
+                      <p className="text-[11px] text-amber-500 mt-1 font-medium">{hwModalErrors.courierProvider}</p>
+                    )}
                   </div>
 
                   <div>
@@ -1224,9 +1942,23 @@ export function Tasks() {
                       type="url"
                       placeholder="https://track.fedex.com/..."
                       value={hwCourierUrl}
-                      onChange={(e) => setHwCourierUrl(e.target.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs"
+                      onChange={(e) => {
+                        setHwCourierUrl(e.target.value);
+                        if (hwModalErrors.courierUrl) {
+                          setHwModalErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.courierUrl;
+                            return copy;
+                          });
+                        }
+                      }}
+                      className={`w-full px-3 py-2 bg-background border rounded-xl focus:outline-none focus:ring-2 text-xs ${
+                        hwModalErrors.courierUrl ? 'border-red-500 focus:ring-red-500/20' : 'border-border focus:ring-cyan-500'
+                      }`}
                     />
+                    {hwModalErrors.courierUrl && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">{hwModalErrors.courierUrl}</p>
+                    )}
                   </div>
                 </div>
 
@@ -1234,7 +1966,7 @@ export function Tasks() {
                   <span className="block font-medium text-xs text-foreground">
                     Hardware Receipt / Purchase Invoice Attachment
                   </span>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">File Name</label>
                       <input
@@ -1259,7 +1991,7 @@ export function Tasks() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </DialogBody>
 
               <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
                 <button

@@ -206,7 +206,7 @@ export function AdminDashboard() {
 
         {hasFeature('kiosk_mode') && (
           <Link
-            to="/kiosk"
+            to="/kiosks"
             data-testid="widget-kiosk-devices"
             className="group flex items-center gap-3 p-3.5 rounded-xl border bg-card hover:bg-muted/50 hover:border-cyan-500/40 transition-all shadow-xs"
           >

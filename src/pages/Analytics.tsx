@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter
 } from '../components/Dialog';
 import {
@@ -575,7 +576,8 @@ export function Analytics() {
             <DialogTitle>Scheduled Compliance Reports</DialogTitle>
             <DialogDescription>Automate recurring CSV analytics reports delivered via email.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <DialogBody className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Report Schedule Title</label>
               <Input
@@ -585,7 +587,7 @@ export function Analytics() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Frequency</label>
                 <select
@@ -650,7 +652,8 @@ export function Analytics() {
                 </div>
               )}
             </div>
-          </div>
+          </DialogBody>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
               Close

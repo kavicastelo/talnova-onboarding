@@ -100,6 +100,7 @@ vi.mock('../hooks/useTasks', () => ({
     isLoading: false,
   }),
   useUpdateTaskStatus: () => ({ mutate: vi.fn() }),
+  useConfirmHardwareReceipt: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 // Mock document inbox hook
@@ -126,6 +127,10 @@ vi.mock('../hooks/useMilestones', () => ({
     data: [
       { _id: 'm-1', title: 'Day 30 Check-in', dayInterval: 30, status: 'in_progress' },
     ],
+    isLoading: false,
+  }),
+  useTeamMilestones: () => ({
+    data: [],
     isLoading: false,
   }),
 }));
