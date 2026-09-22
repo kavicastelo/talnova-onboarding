@@ -392,11 +392,16 @@ export class TaskService {
     });
     await updatedTask.save();
 
-    // Publish TASK_COMPLETED or TASK_VERIFIED event
-    if (newStatus === "completed" || newStatus === "verified") {
+    // Publish TASK_COMPLETED, TASK_VERIFIED, TASK_REVISION_REQUESTED or TASK_NEEDS_REVIEW event
+    if (newStatus === "completed" || newStatus === "verified" || newStatus === "revision_requested" || newStatus === "needs_review") {
       try {
+        let eventName = "TASK_COMPLETED";
+        if (newStatus === "verified") eventName = "TASK_VERIFIED";
+        else if (newStatus === "revision_requested") eventName = "TASK_REVISION_REQUESTED";
+        else if (newStatus === "needs_review") eventName = "TASK_NEEDS_REVIEW";
+
         await eventBus.publish({
-          eventName: newStatus === "verified" ? ("TASK_VERIFIED" as any) : "TASK_COMPLETED",
+          eventName: eventName as any,
           organizationId: orgId,
           actorId: isSentinel
             ? undefined
@@ -408,6 +413,7 @@ export class TaskService {
             taskId: updatedTask._id.toString(),
             title: updatedTask.title,
             status: newStatus,
+            note,
             assignedToUserId:
               (updatedTask.assignedToUserId as any)?._id?.toString() ||
               updatedTask.assignedToUserId?.toString(),

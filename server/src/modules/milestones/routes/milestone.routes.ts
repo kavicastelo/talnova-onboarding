@@ -106,6 +106,24 @@ export async function milestoneRoutes(app: FastifyInstance) {
     },
     controller.submitManagerReview as any
   );
+
+  // Single Milestone Details & Direct Status / Goals Operations
+  app.get("/:id", controller.getMilestone as any);
+
+  app.patch(
+    "/:id/status",
+    controller.updateStatus as any
+  );
+
+  app.put(
+    "/:id/status",
+    controller.updateStatus as any
+  );
+
+  app.patch(
+    "/:id/goals",
+    controller.updateGoals as any
+  );
 }
 
 export default milestoneRoutes;

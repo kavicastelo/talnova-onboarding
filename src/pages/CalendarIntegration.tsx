@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Calendar as CalendarIcon,
@@ -12,14 +12,23 @@ import {
   FileText,
   Download,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Users,
+  X,
+  Sparkles,
+  LayoutGrid,
+  CalendarRange,
+  List as ListIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import {
   useCalendarConnection,
   useMeetingEvents,
   useCreateMeetingEvent,
   usePatchMeetingEvent,
-  useCancelMeetingEvent
+  useCancelMeetingEvent,
+  useCalendarAvailability
 } from '../hooks/useCalendar';
 import calendarService, { MeetingEvent } from '../services/calendar.service';
 import { useRole } from '../context/RoleContext';
@@ -41,11 +50,20 @@ import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
+import { CalendarMonthGrid } from '../components/calendar/CalendarMonthGrid';
+import { CalendarWeekView } from '../components/calendar/CalendarWeekView';
+import { DayAgendaModal } from '../components/calendar/DayAgendaModal';
 
 export const CalendarIntegration: React.FC = () => {
   const { t } = useTranslation(['integrations', 'common']);
   const { role } = useRole();
   const isManager = role === 'manager' || role === 'admin' || role === 'owner' || role === 'hr_admin' || role === 'super_admin';
+
+  // Calendar View State (Phase 2)
+  const [viewMode, setViewMode] = useState<'grid' | 'week' | 'list'>('grid');
+  const [currentViewDate, setCurrentViewDate] = useState<Date>(new Date());
+  const [selectedAgendaDate, setSelectedAgendaDate] = useState<Date | null>(null);
+  const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false);
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -61,6 +79,7 @@ export const CalendarIntegration: React.FC = () => {
   const [startTime, setStartTime] = useState('10:00');
   const [endTime, setEndTime] = useState('10:30');
   const [locationUrl, setLocationUrl] = useState('https://meet.google.com/talnova-onboarding');
+  const [selectedAttendeeIds, setSelectedAttendeeIds] = useState<string[]>([]);
   const [selectedAttendeeId, setSelectedAttendeeId] = useState('');
   const [agenda, setAgenda] = useState('');
   const [validationError, setValidationError] = useState('');
@@ -68,6 +87,39 @@ export const CalendarIntegration: React.FC = () => {
   const { data: connection } = useCalendarConnection();
   const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useMeetingEvents();
   const { data: employeesData } = useEmployees({ page: 1, limit: 1000 });
+
+  const { data: availabilityData, isLoading: availabilityLoading } = useCalendarAvailability({
+    userIds: selectedAttendeeIds,
+    date: startDate,
+    durationMinutes: 30,
+  });
+
+  const activeConflict = useMemo(() => {
+    if (!availabilityData?.allSlots || !startDate || !startTime || !endTime) return null;
+    const startISO = new Date(`${startDate}T${startTime}:00`).toISOString();
+    const endISO = new Date(`${startDate}T${endTime}:00`).toISOString();
+
+    for (const slot of availabilityData.allSlots) {
+      if (slot.conflicts && slot.conflicts.length > 0) {
+        if (startISO < slot.endTime && endISO > slot.startTime) {
+          return slot.conflicts[0];
+        }
+      }
+    }
+    return null;
+  }, [availabilityData, startDate, startTime, endTime]);
+
+  const handleAddAttendee = (empId: string) => {
+    if (!empId) return;
+    if (!selectedAttendeeIds.includes(empId)) {
+      setSelectedAttendeeIds((prev) => [...prev, empId]);
+    }
+    setSelectedAttendeeId('');
+  };
+
+  const handleRemoveAttendee = (empId: string) => {
+    setSelectedAttendeeIds((prev) => prev.filter((id) => id !== empId));
+  };
 
   const eventsPagination = usePagination({ data: events || [], initialPageSize: 10 });
 
@@ -89,10 +141,73 @@ export const CalendarIntegration: React.FC = () => {
     return map[cat] || cat.replace('_', ' ').toUpperCase();
   };
 
+  const handlePrev = () => {
+    setCurrentViewDate((prev) => {
+      if (viewMode === 'grid') {
+        return new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+      }
+      return new Date(prev.getTime() - 7 * 24 * 60 * 60 * 1000);
+    });
+  };
+
+  const handleNext = () => {
+    setCurrentViewDate((prev) => {
+      if (viewMode === 'grid') {
+        return new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      }
+      return new Date(prev.getTime() + 7 * 24 * 60 * 60 * 1000);
+    });
+  };
+
+  const handleToday = () => {
+    setCurrentViewDate(new Date());
+  };
+
+  const handleSelectDateForAgenda = (date: Date) => {
+    setSelectedAgendaDate(date);
+    setIsAgendaModalOpen(true);
+  };
+
+  const handleQuickScheduleForDate = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    setStartDate(`${y}-${m}-${d}`);
+    setValidationError('');
+    setIsScheduleModalOpen(true);
+    setIsAgendaModalOpen(false);
+  };
+
+  const viewTitle = useMemo(() => {
+    if (viewMode === 'grid') {
+      return currentViewDate.toLocaleDateString(undefined, {
+        month: 'long',
+        year: 'numeric',
+      });
+    }
+    if (viewMode === 'week') {
+      const current = new Date(currentViewDate);
+      const dayOfWeek = current.getDay();
+      const startOfWeek = new Date(current);
+      startOfWeek.setDate(current.getDate() - dayOfWeek);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+      const startMonth = startOfWeek.toLocaleDateString(undefined, { month: 'short' });
+      const endMonth = endOfWeek.toLocaleDateString(undefined, { month: 'short' });
+
+      if (startMonth === endMonth) {
+        return `${startMonth} ${startOfWeek.getDate()} – ${endOfWeek.getDate()}, ${endOfWeek.getFullYear()}`;
+      }
+      return `${startMonth} ${startOfWeek.getDate()} – ${endMonth} ${endOfWeek.getDate()}, ${endOfWeek.getFullYear()}`;
+    }
+    return t('calendar.roster.title', 'Scheduled Onboarding Meetings');
+  }, [viewMode, currentViewDate, t]);
+
   const handleScheduleMeeting = () => {
     setValidationError('');
 
-    if (!title.trim() || !startDate || !selectedAttendeeId) {
+    if (!title.trim() || !startDate || selectedAttendeeIds.length === 0) {
       const err = t('calendar.validation.requiredFields', 'Please complete all required fields.');
       setValidationError(err);
       toast.error(err);
@@ -114,7 +229,7 @@ export const CalendarIntegration: React.FC = () => {
         title: title.trim(),
         description: agenda.trim() || undefined,
         category,
-        attendeeUserIds: [selectedAttendeeId],
+        attendeeUserIds: selectedAttendeeIds,
         startTime: startISO,
         endTime: endISO,
         locationUrl: locationUrl.trim() || undefined,
@@ -125,6 +240,7 @@ export const CalendarIntegration: React.FC = () => {
           setIsScheduleModalOpen(false);
           setTitle('');
           setAgenda('');
+          setSelectedAttendeeIds([]);
           setSelectedAttendeeId('');
           setValidationError('');
           refetchEvents();
@@ -222,6 +338,42 @@ export const CalendarIntegration: React.FC = () => {
     });
   };
 
+  const handleDownloadSchedulePack = async () => {
+    try {
+      const icsData = await calendarService.exportOnboardingPack();
+      const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'talnova-90day-onboarding-schedule-pack.ics');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success(t('calendar.toasts.packDownloaded', 'Downloaded 90-Day Onboarding Schedule Pack (.ics)'));
+    } catch {
+      toast.error(t('calendar.toasts.packFailed', 'Failed to export onboarding schedule pack'));
+    }
+  };
+
+  const handleAutoSuggestNextSlot = () => {
+    if (!availabilityData?.availableSlots || availabilityData.availableSlots.length === 0) {
+      toast.warning(t('calendar.scheduleModal.noSlotsAvailable', 'No open slots available on this date'));
+      return;
+    }
+    const firstFree = availabilityData.availableSlots[0];
+    const startHour = firstFree.startTime.substring(11, 16);
+    const endHour = firstFree.endTime.substring(11, 16);
+    setStartTime(startHour);
+    setEndTime(endHour);
+    toast.success(
+      t('calendar.scheduleModal.autoSuggestSuccess', {
+        time: firstFree.startFormatted,
+        defaultValue: `Updated meeting time to next available mutual slot (${firstFree.startFormatted})`,
+      })
+    );
+  };
+
   const handleCopyICalUrl = () => {
     navigator.clipboard.writeText(icalFeedUrl);
     setCopied(true);
@@ -284,33 +436,148 @@ export const CalendarIntegration: React.FC = () => {
               {t('calendar.banner.desc', 'Subscribe to your personal .ics feed on Google Calendar, Apple Calendar, or Outlook.')}
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs shrink-0"
-            onClick={() => setIsSyncModalOpen(true)}
-          >
-            {t('calendar.banner.copyFeedBtn', 'Copy .ICS Feed Link')}
-          </Button>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <Button
+              variant="outline"
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs shrink-0"
+              onClick={() => setIsSyncModalOpen(true)}
+            >
+              {t('calendar.banner.copyFeedBtn', 'Copy .ICS Feed Link')}
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs shrink-0 shadow-sm"
+              onClick={handleDownloadSchedulePack}
+              data-testid="download-pack-btn"
+            >
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              {t('calendar.banner.downloadPackBtn', 'Download 90-Day Schedule Pack (.ics)')}
+            </Button>
+          </div>
         </div>
       </Card>
 
-      {/* Scheduled Onboarding Meetings Roster */}
-      <Card>
-        <CardHeader className="pb-3 border-b">
-          <CardTitle className="text-base font-semibold">
-            {t('calendar.roster.title', 'Scheduled Onboarding Meetings')}
-          </CardTitle>
-          <CardDescription>
-            {t('calendar.roster.desc', 'Upcoming 1-on-1 syncs, buddy welcome coffees, and orientation sessions.')}
-          </CardDescription>
+      {/* Calendar View Container */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-3 border-b flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-indigo-600" />
+                <span>{viewTitle}</span>
+              </CardTitle>
+              <CardDescription>
+                {t('calendar.roster.desc', 'Upcoming 1-on-1 syncs, buddy welcome coffees, and orientation sessions.')}
+              </CardDescription>
+            </div>
+
+            {viewMode !== 'list' && (
+              <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handlePrev}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                  title={t('calendar.nav.prev', 'Previous')}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToday}
+                  className="h-7 px-2 text-xs font-semibold text-foreground hover:bg-background shadow-xs"
+                >
+                  {t('calendar.nav.today', 'Today')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNext}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                  title={t('calendar.nav.next', 'Next')}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Segmented View Switcher */}
+          <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border/60 self-start md:self-auto">
+            <button
+              type="button"
+              data-testid="view-month-btn"
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>{t('calendar.views.month', 'Month Grid')}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="view-week-btn"
+              onClick={() => setViewMode('week')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                viewMode === 'week'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <CalendarRange className="h-3.5 w-3.5" />
+              <span>{t('calendar.views.week', 'Week View')}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="view-list-btn"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                viewMode === 'list'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ListIcon className="h-3.5 w-3.5" />
+              <span>{t('calendar.views.list', 'Roster List')}</span>
+            </button>
+          </div>
         </CardHeader>
+
         <CardContent className="p-0">
           {eventsLoading ? (
-            <div className="p-8 text-center text-muted-foreground">
+            <div className="p-12 text-center text-muted-foreground">
               {t('calendar.roster.loading', 'Loading calendar schedule...')}
             </div>
+          ) : viewMode === 'grid' ? (
+            <CalendarMonthGrid
+              currentDate={currentViewDate}
+              events={events || []}
+              onSelectDate={handleSelectDateForAgenda}
+              onSelectEvent={(ev) => {
+                setSelectedAgendaDate(new Date(ev.startTime));
+                setIsAgendaModalOpen(true);
+              }}
+              getCategoryLabel={getCategoryLabel}
+            />
+          ) : viewMode === 'week' ? (
+            <CalendarWeekView
+              currentDate={currentViewDate}
+              events={events || []}
+              onSelectDate={handleSelectDateForAgenda}
+              onSelectEvent={(ev) => {
+                setSelectedAgendaDate(new Date(ev.startTime));
+                setIsAgendaModalOpen(true);
+              }}
+              getCategoryLabel={getCategoryLabel}
+              isManager={isManager}
+              onQuickSchedule={handleQuickScheduleForDate}
+              onOpenNotes={handleOpenNotes}
+            />
           ) : (events || []).length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
+            <div className="p-12 text-center text-muted-foreground">
               {t('calendar.roster.empty', 'No onboarding meetings scheduled.')}
             </div>
           ) : (
@@ -491,21 +758,54 @@ export const CalendarIntegration: React.FC = () => {
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                  {t('calendar.scheduleModal.attendeeLabel', 'Target Direct Report *')}
+                  {t('calendar.scheduleModal.attendeesLabel', { defaultValue: 'Meeting Participants * (Min. 1 Invitee)' })}
                 </label>
                 <SearchableSelect
                   data-testid="attendee-select"
                   value={selectedAttendeeId}
-                  onChange={(val) => setSelectedAttendeeId(val)}
-                  placeholder={t('calendar.scheduleModal.attendeePlaceholder', 'Search & select direct report...')}
-                  searchPlaceholder={t('calendar.scheduleModal.attendeeSearchPlaceholder', 'Search attendee by name, email...')}
-                  options={employees.map((emp: any) => ({
-                    value: emp.id,
-                    label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || t('calendar.scheduleModal.unnamedAttendee', 'Unnamed'),
-                    sublabel: emp.email,
-                    badge: emp.department || t('calendar.scheduleModal.directReportFallback', 'Direct Report'),
-                  }))}
+                  onChange={(val) => handleAddAttendee(val)}
+                  placeholder={t('calendar.scheduleModal.attendeePlaceholder', { defaultValue: 'Search & add invitees...' })}
+                  searchPlaceholder={t('calendar.scheduleModal.attendeeSearchPlaceholder', { defaultValue: 'Search by name, email, department...' })}
+                  options={employees
+                    .filter((emp: any) => !selectedAttendeeIds.includes(emp.id))
+                    .map((emp: any) => ({
+                      value: emp.id,
+                      label: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || t('calendar.scheduleModal.unnamedAttendee', { defaultValue: 'Unnamed' }),
+                      sublabel: emp.email,
+                      badge: emp.department || t('calendar.scheduleModal.directReportFallback', { defaultValue: 'Team Member' }),
+                    }))}
                 />
+
+                {/* Selected Participant Badges */}
+                {selectedAttendeeIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {selectedAttendeeIds.map((id) => {
+                      const emp = employees.find((e: any) => e.id === id);
+                      const name = emp?.name || `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || 'Attendee';
+                      return (
+                        <Badge
+                          key={id}
+                          variant="secondary"
+                          className="text-xs px-2.5 py-1 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        >
+                          <Users className="h-3 w-3" />
+                          <span>{name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttendee(id)}
+                            className="hover:text-red-500 rounded-full"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground italic mt-1 block">
+                    {t('calendar.scheduleModal.selectAtLeastOne', { defaultValue: 'Add at least one team member to schedule.' })}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -544,6 +844,79 @@ export const CalendarIntegration: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Mutual Availability & Recommended Slots */}
+            {startDate && selectedAttendeeIds.length > 0 && (
+              <div className="p-3 border rounded-xl bg-card space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    {t('calendar.scheduleModal.availableSlotsLabel', { defaultValue: 'Recommended Mutual Free Slots' })}
+                  </span>
+                  {availabilityLoading ? (
+                    <span className="text-[11px] text-muted-foreground">{t('common.loading', { defaultValue: 'Checking availability...' })}</span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                      {availabilityData?.availableSlotsCount || 0} {t('calendar.scheduleModal.slotsOpen', { defaultValue: 'slots open' })}
+                    </span>
+                  )}
+                </div>
+
+                {availabilityData?.availableSlots && availabilityData.availableSlots.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pt-1">
+                    {availabilityData.availableSlots.slice(0, 12).map((slot, sIdx) => {
+                      const slotStartHour = slot.startTime.substring(11, 16);
+                      const slotEndHour = slot.endTime.substring(11, 16);
+                      const isSelected = startTime === slotStartHour && endTime === slotEndHour;
+                      return (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          onClick={() => {
+                            setStartTime(slotStartHour);
+                            setEndTime(slotEndHour);
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-lg border font-mono transition-all ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 font-semibold shadow-sm'
+                              : 'bg-background hover:bg-indigo-50 dark:hover:bg-indigo-950/30 border-border text-foreground'
+                          }`}
+                        >
+                          {slot.startFormatted}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  !availabilityLoading && (
+                    <p className="text-xs text-muted-foreground italic">
+                      {t('calendar.scheduleModal.noSlotsFound', { defaultValue: 'No mutual free slots found on this date during working hours.' })}
+                    </p>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* Conflict Warning Banner */}
+            {activeConflict && (
+              <div className="p-3 text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 rounded-lg border border-amber-300 dark:border-amber-800 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                <div className="flex-1">
+                  <span className="font-semibold">{t('calendar.scheduleModal.conflictDetected', { defaultValue: 'Scheduling Conflict Warning:' })}</span>
+                  <p className="mt-0.5">
+                    {activeConflict.busyUserNames.join(', ')} {t('calendar.scheduleModal.alreadyBookedFor', { defaultValue: 'already has a commitment:' })} "{activeConflict.title}".
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAutoSuggestNextSlot}
+                    className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-md shadow-xs transition-colors"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{t('calendar.scheduleModal.autoSuggestNextSlot', { defaultValue: '⚡ Pick Earliest Mutual Free Slot' })}</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
@@ -662,6 +1035,21 @@ export const CalendarIntegration: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal / Drawer: Day Agenda (Phase 2) */}
+      <DayAgendaModal
+        isOpen={isAgendaModalOpen}
+        onClose={() => setIsAgendaModalOpen(false)}
+        date={selectedAgendaDate}
+        events={events || []}
+        employees={employees}
+        isManager={isManager}
+        getCategoryLabel={getCategoryLabel}
+        onScheduleForDay={handleQuickScheduleForDate}
+        onOpenNotes={handleOpenNotes}
+        onDownloadIcs={handleDownloadEventICal}
+        onCancelMeeting={handleCancelMeeting}
+      />
     </div>
   );
 };

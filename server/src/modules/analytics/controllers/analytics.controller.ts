@@ -31,7 +31,8 @@ export class AnalyticsController {
 
   getTimeToCompletion = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
-    const metrics = await this.service.getTimeToCompletionMetrics(user.organizationId);
+    const query = (request.query || {}) as any;
+    const metrics = await this.service.getTimeToCompletionMetrics(user.organizationId, query.department);
 
     return reply.status(200).send({
       success: true,
@@ -42,12 +43,38 @@ export class AnalyticsController {
 
   getBottlenecks = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
-    const bottlenecks = await this.service.getQuizAndModuleBottlenecks(user.organizationId);
+    const query = (request.query || {}) as any;
+    const bottlenecks = await this.service.getQuizAndModuleBottlenecks(user.organizationId, query.department);
 
     return reply.status(200).send({
       success: true,
       message: "Quiz and module failure bottlenecks retrieved successfully",
       data: bottlenecks,
+    });
+  };
+
+  getCohortHealth = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const health = await this.service.getCohortHealth(user.organizationId, query.department);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Cohort health and at-risk telemetry retrieved successfully",
+      data: health,
+    });
+  };
+
+  nudgeEmployee = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const result = await this.service.nudgeEmployee(user.organizationId, params.employeeId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Intervention nudge dispatched successfully",
+      data: result,
     });
   };
 
@@ -96,4 +123,19 @@ export class AnalyticsController {
       message: "Scheduled report deleted successfully",
     });
   };
+
+  runScheduledReport = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const result = await this.service.executeScheduledReport(user.organizationId, params.id);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Scheduled report executed and dispatched successfully",
+      data: result,
+    });
+  };
 }
+
+export default AnalyticsController;

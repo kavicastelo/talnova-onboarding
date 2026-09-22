@@ -1,28 +1,66 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export type NotificationType =
+  | "journey_assigned"
+  | "journey_due_soon"
+  | "journey_overdue"
+  | "journey_completed"
+  | "task_assigned"
+  | "task_completed"
+  | "task_due_soon"
+  | "task_overdue"
+  | "task_verified"
+  | "task_revision_requested"
+  | "task_needs_review"
+  | "checklist_assigned"
+  | "checklist_completed"
+  | "document_assigned"
+  | "document_signed"
+  | "document_overdue"
+  | "milestone_assigned"
+  | "milestone_submitted"
+  | "milestone_approved"
+  | "milestone_revision_requested"
+  | "buddy_assigned"
+  | "buddy_checklist_updated"
+  | "buddy_nudge"
+  | "hardware_provisioned"
+  | "hardware_dispatched"
+  | "hardware_received"
+  | "onboarding_signed_off"
+  | "employee_invited"
+  | "announcement"
+  | "knowledge_update"
+  | "manager_alert"
+  | "meeting_scheduled"
+  | "meeting_cancelled"
+  | "meeting_reminder"
+  | "system";
+
 export interface INotification extends Document {
   organizationId: mongoose.Types.ObjectId;
   recipientUserId: mongoose.Types.ObjectId;
-  type:
-    | "journey_assigned"
-    | "journey_due_soon"
-    | "journey_overdue"
-    | "journey_completed"
-    | "employee_invited"
-    | "announcement"
-    | "knowledge_update"
-    | "manager_alert"
-    | "system";
+  type: NotificationType;
   channel: "in_app" | "email" | "push" | "webhook";
   title: string;
   message: string;
   priority: "low" | "medium" | "high" | "critical";
   data?: {
-    journeyId?: mongoose.Types.ObjectId;
-    assignmentId?: mongoose.Types.ObjectId;
-    articleId?: mongoose.Types.ObjectId;
-    actorUserId?: mongoose.Types.ObjectId;
+    journeyId?: mongoose.Types.ObjectId | string;
+    assignmentId?: mongoose.Types.ObjectId | string;
+    taskId?: mongoose.Types.ObjectId | string;
+    checklistId?: mongoose.Types.ObjectId | string;
+    documentId?: mongoose.Types.ObjectId | string;
+    milestoneId?: mongoose.Types.ObjectId | string;
+    employeeId?: mongoose.Types.ObjectId | string;
+    buddyId?: mongoose.Types.ObjectId | string;
+    managerUserId?: mongoose.Types.ObjectId | string;
+    articleId?: mongoose.Types.ObjectId | string;
+    actorUserId?: mongoose.Types.ObjectId | string;
+    eventId?: mongoose.Types.ObjectId | string;
+    locationUrl?: string;
     deepLink?: string;
+    [key: string]: any;
   };
   status: "pending" | "queued" | "sent" | "failed" | "cancelled";
   isRead: boolean;
@@ -47,10 +85,36 @@ const NotificationSchema = new Schema<INotification>(
         "journey_due_soon",
         "journey_overdue",
         "journey_completed",
+        "task_assigned",
+        "task_completed",
+        "task_due_soon",
+        "task_overdue",
+        "task_verified",
+        "task_revision_requested",
+        "task_needs_review",
+        "checklist_assigned",
+        "checklist_completed",
+        "document_assigned",
+        "document_signed",
+        "document_overdue",
+        "milestone_assigned",
+        "milestone_submitted",
+        "milestone_approved",
+        "milestone_revision_requested",
+        "buddy_assigned",
+        "buddy_checklist_updated",
+        "buddy_nudge",
+        "hardware_provisioned",
+        "hardware_dispatched",
+        "hardware_received",
+        "onboarding_signed_off",
         "employee_invited",
         "announcement",
         "knowledge_update",
         "manager_alert",
+        "meeting_scheduled",
+        "meeting_cancelled",
+        "meeting_reminder",
         "system",
       ],
       required: true,
@@ -68,10 +132,19 @@ const NotificationSchema = new Schema<INotification>(
       default: "medium",
     },
     data: {
-      journeyId: { type: Schema.Types.ObjectId },
-      assignmentId: { type: Schema.Types.ObjectId },
-      articleId: { type: Schema.Types.ObjectId },
-      actorUserId: { type: Schema.Types.ObjectId },
+      journeyId: { type: Schema.Types.Mixed },
+      assignmentId: { type: Schema.Types.Mixed },
+      taskId: { type: Schema.Types.Mixed },
+      checklistId: { type: Schema.Types.Mixed },
+      documentId: { type: Schema.Types.Mixed },
+      milestoneId: { type: Schema.Types.Mixed },
+      employeeId: { type: Schema.Types.Mixed },
+      buddyId: { type: Schema.Types.Mixed },
+      managerUserId: { type: Schema.Types.Mixed },
+      articleId: { type: Schema.Types.Mixed },
+      actorUserId: { type: Schema.Types.Mixed },
+      eventId: { type: Schema.Types.Mixed },
+      locationUrl: { type: String },
       deepLink: { type: String },
     },
     status: {

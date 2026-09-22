@@ -379,15 +379,29 @@ export class ManagerService {
       }
     );
 
+    // 1. Notify employee (responsible)
     await notificationService.createNotification({
       organizationId: orgId,
       recipientUserId: employeeId,
-      type: "journey_completed",
-      title: "Onboarding Sign-Off Approved!",
-      message: `Congratulations! Your manager has formally signed off on your onboarding program. ${notes ? `Notes: ${notes}` : ""}`,
+      type: "onboarding_signed_off",
+      title: "Onboarding Sign-Off Approved! 🎓",
+      message: `Congratulations! Your manager has formally signed off on your onboarding program. You are officially active! ${notes ? `Notes: ${notes}` : ""}`,
       priority: "high",
-      data: { managerUserId, signedOffAt: new Date() },
+      data: { managerUserId, signedOffAt: new Date(), deepLink: "/employee" },
     });
+
+    // 2. Notify manager (confirmation)
+    if (managerUserId.toString() !== employeeId.toString()) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: managerUserId,
+        type: "onboarding_signed_off",
+        title: `Onboarding Sign-Off Completed: ${details.employee.fullName}`,
+        message: `You successfully signed off on ${details.employee.fullName}'s onboarding program. Status updated to Active.`,
+        priority: "medium",
+        data: { employeeId: employeeId.toString(), signedOffAt: new Date() },
+      }).catch((err) => console.warn("[ManagerService] Manager sign-off notification error:", err));
+    }
 
     return {
       success: true,

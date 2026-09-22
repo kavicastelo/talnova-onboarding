@@ -18,16 +18,46 @@
     "disabled": "Pois käytöstä"
   },
   "calendar": {
-    "title": "Kalenterin ja kokousten integrointi",
+    "title": "Kalenteri- ja kokousintegraatio",
     "subtitle": "Yhdistä perehdytystoiminnot Google Kalenteriin, Outlookiin ja iCal-syötteisiin automaattisilla 1-on-1-kokouslinkeillä.",
-    "syncBtn": "iCal-tilauksen synkronointi",
+    "syncBtn": "iCal-tilaussynkronointi",
     "scheduleBtn": "Ajoita katsaus",
+    "views": {
+      "month": "Kuukausinäkymä",
+      "week": "Viikkonäkymä",
+      "list": "Luettelonäkymä"
+    },
+    "nav": {
+      "today": "Tänään",
+      "prev": "Edellinen",
+      "next": "Seuraava",
+      "monthYear": "{{month}} {{year}}",
+      "weekRange": "{{start}} – {{end}}, {{year}}"
+    },
+    "weekdays": {
+      "sun": "Su",
+      "mon": "Ma",
+      "tue": "Ti",
+      "wed": "Ke",
+      "thu": "To",
+      "fri": "Pe",
+      "sat": "La"
+    },
+    "agendaDrawer": {
+      "title": "Päivän esityslista — {{date}}",
+      "desc": "Tälle päivälle ajoitetut perehdytystapaamiset ja istunnot.",
+      "noMeetings": "Ei perehdytyskokouksia tälle päivälle.",
+      "scheduleForDay": "Ajoita kokous tälle päivälle",
+      "close": "Sulje",
+      "moreEvents": "+{{count}} lisää"
+    },
     "banner": {
       "feedActive": "Kalenterisyöte aktiivinen",
       "timezone": "Aikavyöhyke: {{timezone}}",
       "title": "Synkronoi perehdytysaikataulu ulkoisen kalenterin kanssa",
       "desc": "Tilaa henkilökohtainen .ics-syötteesi Google Kalenterissa, Apple Kalenterissa tai Outlookissa.",
-      "copyFeedBtn": "Kopioi .ICS-syötelinkki"
+      "copyFeedBtn": "Kopioi .ICS-syötelinkki",
+      "downloadPackBtn": "Lataa 90 päivän aikataulupaketti (.ics)"
     },
     "roster": {
       "title": "Ajoitetut perehdytyskokoukset",
@@ -70,6 +100,16 @@
       "agendaPlaceholder": "Käy läpi kehitysympäristön asennus, tiimikanavat ja kysymykset.",
       "locationLabel": "Videopuhelun linkki",
       "locationPlaceholder": "https://meet.google.com/abc-defg-hij",
+      "attendeesLabel": "Kokouksen osallistujat * (Vähintään 1 kutsuttu)",
+      "selectAtLeastOne": "Lisää vähintään yksi tiimin jäsen aikatauluttaaksesi.",
+      "availableSlotsLabel": "Suositellut yhteiset vapaat ajat",
+      "slotsOpen": "vapaata aikaa",
+      "noSlotsFound": "Yhteisiä vapaita aikoja ei löytynyt tänä päivänä työaikana.",
+      "conflictDetected": "Aikatauluristiriidan varoitus:",
+      "alreadyBookedFor": "on jo varattu tapahtumalle:",
+      "autoSuggestNextSlot": "⚡ Valitse aikaisin yhteinen vapaa aika",
+      "autoSuggestSuccess": "Kokousaika päivitetty seuraavaan vapaaseen aikaan ({{time}})",
+      "noSlotsAvailable": "Tälle päivälle ei ole vapaita aikoja",
       "cancelBtn": "Peruuta",
       "confirmBtn": "Vahvista ja ajoita"
     },
@@ -99,6 +139,10 @@
       "notesFailed": "Muistiinpanojen tallennus epäonnistui",
       "downloadedIcs": "Kalenterikutsu (.ics) ladattu",
       "downloadFailed": "Kalenterikutsun vienti epäonnistui",
+      "packDownloaded": "Ladattu 90 päivän perehdytysaikataulupaketti (.ics)",
+      "packFailed": "Aikataulupaketin vienti epäonnistui",
+      "reviewScheduled": "Välitavoitteen 1-on-1-katsaus ajoitettu kalenteriin!",
+      "reviewFailed": "Katsauksen ajoitus epäonnistui",
       "cancelledSuccess": "Kokoustapahtuma peruutettu.",
       "cancelFailed": "Kokouksen peruutus epäonnistui",
       "copiedIcs": "iCal-syötteen URL kopioitu leikepöydälle!"

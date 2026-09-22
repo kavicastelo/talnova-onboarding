@@ -147,6 +147,32 @@ export const milestoneService = {
     const response = await apiClient.post<ApiResponse<EmployeeMilestone>>(`/milestones/${id}/manager-review`, payload);
     return response.data.data;
   },
+
+  getMilestone: async (id: string): Promise<EmployeeMilestone> => {
+    const response = await apiClient.get<ApiResponse<EmployeeMilestone>>(`/milestones/${id}`);
+    return response.data.data;
+  },
+
+  updateMilestoneStatus: async (
+    id: string,
+    payload: {
+      status: 'pending' | 'in_review' | 'pending_manager_review' | 'completed' | 'approved' | 'revision_requested' | 'overdue';
+      managerRating?: number;
+      managerFeedback?: string;
+      notes?: string;
+    }
+  ): Promise<EmployeeMilestone> => {
+    const response = await apiClient.patch<ApiResponse<EmployeeMilestone>>(`/milestones/${id}/status`, payload);
+    return response.data.data;
+  },
+
+  updateMilestoneGoals: async (
+    id: string,
+    goalsProgress: Array<{ goalTitle: string; completed: boolean }>
+  ): Promise<EmployeeMilestone> => {
+    const response = await apiClient.patch<ApiResponse<EmployeeMilestone>>(`/milestones/${id}/goals`, { goalsProgress });
+    return response.data.data;
+  },
 };
 
 export default milestoneService;

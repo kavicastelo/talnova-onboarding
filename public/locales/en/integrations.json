@@ -22,12 +22,42 @@
     "subtitle": "Connect onboarding activities to Google Calendar, Outlook, and iCal feeds with automated 1-on-1 meeting links.",
     "syncBtn": "iCal Subscription Sync",
     "scheduleBtn": "Schedule Check-in",
+    "views": {
+      "month": "Month Grid",
+      "week": "Week View",
+      "list": "Roster List"
+    },
+    "nav": {
+      "today": "Today",
+      "prev": "Previous",
+      "next": "Next",
+      "monthYear": "{{month}} {{year}}",
+      "weekRange": "{{start}} – {{end}}, {{year}}"
+    },
+    "weekdays": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "agendaDrawer": {
+      "title": "Daily Agenda — {{date}}",
+      "desc": "Onboarding check-ins and sessions scheduled for this day.",
+      "noMeetings": "No onboarding meetings scheduled for this day.",
+      "scheduleForDay": "Schedule Meeting on This Day",
+      "close": "Close",
+      "moreEvents": "+{{count}} more"
+    },
     "banner": {
       "feedActive": "Calendar Feed Active",
       "timezone": "Timezone: {{timezone}}",
       "title": "Synchronize Onboarding Schedule with External Calendar",
       "desc": "Subscribe to your personal .ics feed on Google Calendar, Apple Calendar, or Outlook.",
-      "copyFeedBtn": "Copy .ICS Feed Link"
+      "copyFeedBtn": "Copy .ICS Feed Link",
+      "downloadPackBtn": "Download 90-Day Schedule Pack (.ics)"
     },
     "roster": {
       "title": "Scheduled Onboarding Meetings",
@@ -69,7 +99,16 @@
       "agendaLabel": "Discussion Agenda",
       "agendaPlaceholder": "Review dev environment setup, team channels, and questions.",
       "locationLabel": "Video Call Location Link",
-      "locationPlaceholder": "https://meet.google.com/abc-defg-hij",
+      "attendeesLabel": "Meeting Participants * (Min. 1 Invitee)",
+      "selectAtLeastOne": "Add at least one team member to schedule.",
+      "availableSlotsLabel": "Recommended Mutual Free Slots",
+      "slotsOpen": "slots open",
+      "noSlotsFound": "No mutual free slots found on this date during working hours.",
+      "conflictDetected": "Scheduling Conflict Warning:",
+      "alreadyBookedFor": "already has a commitment:",
+      "autoSuggestNextSlot": "⚡ Pick Earliest Mutual Free Slot",
+      "autoSuggestSuccess": "Updated meeting time to next available mutual slot ({{time}})",
+      "noSlotsAvailable": "No open slots available on this date",
       "cancelBtn": "Cancel",
       "confirmBtn": "Confirm & Schedule"
     },
@@ -99,6 +138,10 @@
       "notesFailed": "Failed to save notes",
       "downloadedIcs": "Downloaded calendar invitation (.ics)",
       "downloadFailed": "Failed to export calendar invitation",
+      "packDownloaded": "Downloaded 90-Day Onboarding Schedule Pack (.ics)",
+      "packFailed": "Failed to export onboarding schedule pack",
+      "reviewScheduled": "Milestone review 1-on-1 scheduled on calendar!",
+      "reviewFailed": "Failed to schedule review sync",
       "cancelledSuccess": "Meeting event cancelled.",
       "cancelFailed": "Failed to cancel meeting",
       "copiedIcs": "iCal Feed URL copied to clipboard!"

@@ -103,11 +103,11 @@ export class ItHardwareService {
       ],
     });
 
-    // Notify IT Admin
+    // 1. Notify IT Admin (Responsible)
     await notificationService.createNotification({
       organizationId: orgId,
       recipientUserId: itAssignee._id,
-      type: "manager_alert",
+      type: "hardware_provisioned",
       title: "New IT Hardware Provisioning Task",
       message: `Hardware setup required for ${employeeName} (Start Date: ${parsedHireDate.toLocaleDateString()}). Due by ${dueDate.toLocaleDateString()}.`,
       priority: "high",
@@ -117,6 +117,38 @@ export class ItHardwareService {
         deepLink: `/tasks/it-ops`,
       },
     });
+
+    // 2. Notify New Hire (Relevant)
+    await notificationService.createNotification({
+      organizationId: orgId,
+      recipientUserId: employeeObjectId,
+      type: "hardware_provisioned",
+      title: "Workstation Preparation Started",
+      message: `IT Operations has begun preparing your workstation (${deviceType.toUpperCase()}) for your Day 1 start on ${parsedHireDate.toLocaleDateString()}.`,
+      priority: "medium",
+      data: {
+        taskId: task._id.toString(),
+        deepLink: `/tasks`,
+      },
+    }).catch((err) => console.warn("[ItHardwareService] Employee preboarding hardware notification error:", err));
+
+    // 3. Notify Manager (Relevant)
+    const managerId = employee.employment?.managerId || (employee.employment as any)?.managerUserId;
+    if (managerId && managerId.toString() !== itAssignee._id.toString()) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: managerId,
+        type: "hardware_provisioned",
+        title: `Hardware Provisioning Scheduled: ${employeeName}`,
+        message: `IT equipment task created for ${employeeName} (${deviceType.toUpperCase()}). Due by ${dueDate.toLocaleDateString()}.`,
+        priority: "medium",
+        data: {
+          taskId: task._id.toString(),
+          employeeId: employeeObjectId.toString(),
+          deepLink: `/tasks`,
+        },
+      }).catch((err) => console.warn("[ItHardwareService] Manager hardware notification error:", err));
+    }
 
     // Emit TASK_CREATED event
     try {
@@ -432,14 +464,29 @@ export class ItHardwareService {
 
     await task.save();
 
-    // Notify task assignee / IT Admin of receipt confirmation
+    // 1. Notify employee (confirmation)
+    const employee = await User.findById(userObjectId);
+    const employeeName = `${employee?.profile?.firstName || ""} ${employee?.profile?.lastName || ""}`.trim() || "Employee";
+
+    notificationService.createNotification({
+      organizationId: orgId,
+      recipientUserId: userObjectId,
+      type: "hardware_received",
+      title: "Equipment Delivery Confirmed",
+      message: `You have confirmed receipt of ${task.title}. Equipment setup is complete.`,
+      priority: "low",
+      data: {
+        taskId: task._id.toString(),
+        deepLink: "/tasks",
+      },
+    }).catch((err) => console.warn("[ItHardwareService] Employee receipt notification error:", err));
+
+    // 2. Notify IT Admin (Responsible)
     if (task.assignedToUserId && task.assignedToUserId.toString() !== userObjectId.toString()) {
-      const employee = await User.findById(userObjectId);
-      const employeeName = `${employee?.profile?.firstName || ""} ${employee?.profile?.lastName || ""}`.trim() || "Employee";
       notificationService.createNotification({
         organizationId: orgId,
         recipientUserId: task.assignedToUserId,
-        type: "manager_alert",
+        type: "hardware_received",
         title: `Hardware Receipt Confirmed by ${employeeName}`,
         message: `${employeeName} has confirmed physical receipt of: ${task.title}. Equipment status marked as delivered.`,
         priority: "medium",
@@ -449,6 +496,23 @@ export class ItHardwareService {
           deepLink: "/tasks",
         },
       }).catch((err) => console.warn("[ItHardwareService] Receipt notification error:", err));
+    }
+
+    // 3. Notify Manager (Relevant)
+    const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
+    if (managerId && managerId.toString() !== userObjectId.toString() && managerId.toString() !== task.assignedToUserId?.toString()) {
+      notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: managerId,
+        type: "hardware_received",
+        title: `Workstation Delivered: ${employeeName}`,
+        message: `${employeeName} has received and confirmed their IT equipment (${task.title}).`,
+        priority: "medium",
+        data: {
+          taskId: task._id.toString(),
+          employeeId: userObjectId.toString(),
+        },
+      }).catch((err) => console.warn("[ItHardwareService] Manager receipt notification error:", err));
     }
 
     return task;

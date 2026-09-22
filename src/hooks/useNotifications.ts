@@ -5,6 +5,7 @@ export function useNotifications() {
   return useQuery({
     queryKey: ['notifications'],
     queryFn: notificationService.getNotifications,
+    refetchInterval: 30000, // Poll notifications every 30s
   });
 }
 

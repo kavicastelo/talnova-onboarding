@@ -162,15 +162,40 @@ export class DocumentService {
       ],
     });
 
-    // Send notification to employee
+    const employeeName = `${user.profile?.firstName || ""} ${user.profile?.lastName || ""}`.trim() || "Employee";
+    const managerId = user.employment?.managerId || (user.employment as any)?.managerUserId;
+
+    // Send notification to employee (responsible)
     await notificationService.createNotification({
       organizationId: orgId,
       recipientUserId: employeeId,
-      type: "journey_assigned",
+      type: "document_assigned",
       title: "New Document Requires E-Signature",
       message: `You have been assigned "${template.title}" for electronic signature. Please review and sign by ${assignment.dueDate?.toLocaleDateString() || "due date"}.`,
       priority: "high",
+      data: {
+        documentId: assignment._id.toString(),
+        templateId: template._id.toString(),
+        deepLink: `/documents`,
+      },
     });
+
+    // Send notification to manager (relevant)
+    if (managerId && managerId.toString() !== employeeId.toString() && managerId.toString() !== assignedByUserId.toString()) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: managerId,
+        type: "document_assigned",
+        title: `Compliance Document Assigned: ${employeeName}`,
+        message: `"${template.title}" has been assigned to ${employeeName} for signature (Due: ${assignment.dueDate?.toLocaleDateString() || "due date"}).`,
+        priority: "medium",
+        data: {
+          documentId: assignment._id.toString(),
+          employeeId: employeeId.toString(),
+          deepLink: `/compliance`,
+        },
+      }).catch((err) => console.warn("[DocumentService] Manager notification error:", err));
+    }
 
     return assignment;
   }
@@ -350,15 +375,56 @@ export class DocumentService {
       console.error("Failed to publish DOCUMENT_SIGNED event:", e);
     }
 
-    // Send confirmation notification
+    // 1. Send confirmation notification to employee (responsible)
     await notificationService.createNotification({
       organizationId: orgId,
       recipientUserId: employeeId,
-      type: "journey_completed",
+      type: "document_signed",
       title: "Document E-Signature Completed",
       message: `Your signature on "${assignment.templateTitle}" has been successfully verified and saved with cryptographic audit log.`,
       priority: "medium",
+      data: {
+        documentId: assignment._id.toString(),
+        templateId: assignment.templateId.toString(),
+        deepLink: `/documents`,
+      },
     });
+
+    // 2. Notify manager and assigner (relevant users)
+    const empUser = await User.findById(employeeId).select("employment.managerId profile.firstName profile.lastName");
+    const empName = `${empUser?.profile?.firstName || ""} ${empUser?.profile?.lastName || ""}`.trim() || payload.signerName || "Employee";
+    const mgrId = empUser?.employment?.managerId || (empUser?.employment as any)?.managerUserId;
+
+    if (mgrId && mgrId.toString() !== employeeId.toString()) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: mgrId,
+        type: "document_signed",
+        title: `Document Signed: ${empName}`,
+        message: `${empName} has completed electronic signature for "${assignment.templateTitle}". Cryptographic SHA-256 verified.`,
+        priority: "medium",
+        data: {
+          documentId: assignment._id.toString(),
+          employeeId: employeeId.toString(),
+          deepLink: `/compliance`,
+        },
+      }).catch((err) => console.warn("[DocumentService] Manager signed notification error:", err));
+    }
+
+    if (assignment.assignedBy && assignment.assignedBy.toString() !== employeeId.toString() && assignment.assignedBy.toString() !== mgrId?.toString()) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: assignment.assignedBy,
+        type: "document_signed",
+        title: `Document Signed: ${empName}`,
+        message: `${empName} has completed electronic signature for "${assignment.templateTitle}".`,
+        priority: "medium",
+        data: {
+          documentId: assignment._id.toString(),
+          employeeId: employeeId.toString(),
+        },
+      }).catch((err) => console.warn("[DocumentService] Assigner signed notification error:", err));
+    }
 
     return assignment;
   }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   CalendarCheck,
+  Calendar,
   CheckCircle2,
   Clock,
   Award,
@@ -15,7 +16,11 @@ import {
   Sparkles,
   Search,
   UserPlus,
-  HelpCircle
+  HelpCircle,
+  Eye,
+  SlidersHorizontal,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import {
   useMyMilestones,
@@ -26,8 +31,11 @@ import {
   useDeleteMilestoneTemplate,
   useAssignMilestone,
   useSubmitSelfCheckin,
-  useSubmitManagerReview
+  useSubmitManagerReview,
+  useUpdateMilestoneStatus,
+  useUpdateMilestoneGoals
 } from '../hooks/useMilestones';
+import { useScheduleMilestoneReview } from '../hooks/useCalendar';
 import { useEmployees } from '../hooks/useEmployees';
 import { MilestoneTemplate } from '../services/milestone.service';
 import { useRole } from '../context/RoleContext';
@@ -53,7 +61,7 @@ import { AIReflectionSummaryCard } from '../components/milestones/AIReflectionSu
 import { useTranslation } from 'react-i18next';
 
 export const Milestones: React.FC = () => {
-  const { t } = useTranslation(['milestones', 'common']);
+  const { t } = useTranslation(['milestones', 'common', 'integrations']);
   const { role, can } = useRole();
   const isAdmin = role === 'admin' || role === 'owner' || role === 'super_admin' || role === 'hr_admin';
   const isManager = can('create_milestone') || can('assign_milestone');
@@ -65,6 +73,11 @@ export const Milestones: React.FC = () => {
   const [selectedMilestone, setSelectedMilestone] = useState<any>(null);
   const [isSelfCheckinOpen, setIsSelfCheckinOpen] = useState(false);
   const [isManagerReviewOpen, setIsManagerReviewOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [statusToSet, setStatusToSet] = useState<'pending' | 'in_review' | 'pending_manager_review' | 'completed' | 'approved' | 'revision_requested' | 'overdue'>('pending');
+  const [statusFeedback, setStatusFeedback] = useState('');
+  const [statusRating, setStatusRating] = useState<number>(5);
 
   // Milestone Template Create / Edit Modal State
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -109,6 +122,25 @@ export const Milestones: React.FC = () => {
   const updateTemplateMutation = useUpdateMilestoneTemplate();
   const deleteTemplateMutation = useDeleteMilestoneTemplate();
   const assignMilestoneMutation = useAssignMilestone();
+  const updateStatusMutation = useUpdateMilestoneStatus();
+  const updateGoalsMutation = useUpdateMilestoneGoals();
+  const scheduleReviewMutation = useScheduleMilestoneReview();
+
+  const handleScheduleReview = (milestone: any) => {
+    scheduleReviewMutation.mutate(
+      { milestoneId: milestone._id },
+      {
+        onSuccess: () => {
+          toast.success(t('integrations.reviewScheduled', { defaultValue: 'Milestone 1-on-1 review meeting scheduled successfully!' }));
+          refetchTeam();
+          refetchMy();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || t('integrations.reviewFailed', { defaultValue: 'Failed to schedule milestone review meeting' }));
+        }
+      }
+    );
+  };
 
   const handleOpenAssignModal = (preselectedTemplateId?: string, preselectedEmployeeId?: string) => {
     const tmplId = preselectedTemplateId || (templates && templates.length > 0 ? templates[0]._id : '');
@@ -223,6 +255,64 @@ export const Milestones: React.FC = () => {
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || err?.message || t('toasts.failedManagerReview', { defaultValue: 'Failed to submit review' }));
         }
+      }
+    );
+  };
+
+  const handleStatusChangeSubmit = () => {
+    if (!selectedMilestone) return;
+
+    updateStatusMutation.mutate(
+      {
+        id: selectedMilestone._id,
+        payload: {
+          status: statusToSet,
+          managerRating: statusRating,
+          managerFeedback: statusFeedback,
+          notes: statusFeedback,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success(t('toasts.statusUpdated', { status: statusToSet.replace(/_/g, ' '), defaultValue: `Milestone status updated to ${statusToSet.replace(/_/g, ' ')}!` }));
+          setIsStatusModalOpen(false);
+          setIsDetailsModalOpen(false);
+          setSelectedMilestone(null);
+          refetchTeam();
+          refetchMy();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedUpdateStatus', { defaultValue: 'Failed to update milestone status' }));
+        }
+      }
+    );
+  };
+
+  const handleToggleGoal = (milestone: any, goalTitle: string, currentCompleted: boolean) => {
+    const updatedGoals = (milestone.goalsProgress || []).map((g: any) =>
+      g.goalTitle === goalTitle ? { ...g, completed: !currentCompleted } : g
+    );
+
+    updateGoalsMutation.mutate(
+      {
+        id: milestone._id,
+        goalsProgress: updatedGoals,
+      },
+      {
+        onSuccess: () => {
+          toast.success(currentCompleted ? t('toasts.goalIncomplete', { defaultValue: 'Goal marked incomplete' }) : t('toasts.goalCompleted', { defaultValue: 'Goal completed!' }));
+          if (selectedMilestone && selectedMilestone._id === milestone._id) {
+            setSelectedMilestone({
+              ...selectedMilestone,
+              goalsProgress: updatedGoals,
+            });
+          }
+          refetchMy();
+          refetchTeam();
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || err?.message || t('toasts.failedUpdateGoal', { defaultValue: 'Failed to update goal' }));
+        },
       }
     );
   };
@@ -501,17 +591,29 @@ export const Milestones: React.FC = () => {
 
                         {/* Goals List */}
                         <div className="space-y-2">
-                          <h4 className="text-xs font-semibold text-muted-foreground uppercase">{t('myMilestones.keyObjectives', { defaultValue: 'Key Objectives & Goals' })}</h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase">{t('myMilestones.keyObjectives', { defaultValue: 'Key Objectives & Goals' })}</h4>
+                            <span className="text-[11px] text-muted-foreground italic">{t('myMilestones.clickCheckboxHint', { defaultValue: 'Click checkbox to check-off completed items' })}</span>
+                          </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {m.goalsProgress?.map((g, idx) => (
-                              <div key={idx} className="p-2.5 border rounded-md text-xs flex items-center justify-between bg-card">
-                                <span>{g.goalTitle}</span>
+                            {m.goalsProgress?.map((g: any, idx: number) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleToggleGoal(m, g.goalTitle, g.completed)}
+                                className={`p-2.5 border rounded-md text-xs flex items-center justify-between text-left transition-all ${
+                                  g.completed
+                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-300 font-medium'
+                                    : 'bg-card hover:bg-muted/40 border-border text-foreground'
+                                }`}
+                              >
+                                <span className={g.completed ? 'line-through opacity-80' : ''}>{g.goalTitle}</span>
                                 {g.completed ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                                  <CheckSquare className="h-4 w-4 text-emerald-600 shrink-0 ml-2" />
                                 ) : (
-                                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <Square className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
                                 )}
-                              </div>
+                              </button>
                             ))}
                           </div>
                         </div>
@@ -522,26 +624,57 @@ export const Milestones: React.FC = () => {
                             <span className="font-semibold text-indigo-700 flex items-center gap-1">
                               <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> {t('myMilestones.managerFeedbackRating', { rating: m.managerRating || m.managerReview?.performanceRating || 5, defaultValue: `Manager Feedback (Rating: ${m.managerRating || m.managerReview?.performanceRating || 5}/5):` })}
                             </span>
-                            <p className="text-slate-700 italic">"{m.managerFeedback || m.managerReview?.feedback}"</p>
+                            <p className="text-slate-700 dark:text-slate-300 italic">"{m.managerFeedback || m.managerReview?.feedback}"</p>
                           </div>
                         )}
 
-                        {/* Action Button */}
-                        {m.status === 'pending' && (
-                          <div className="pt-2 flex justify-end">
+                        {/* Action Buttons */}
+                        <div className="pt-2 flex flex-wrap items-center justify-end gap-2 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              setSelectedMilestone(m);
+                              setIsDetailsModalOpen(true);
+                            }}
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1.5" /> {t('common.viewDetails', { defaultValue: 'View Details' })}
+                          </Button>
+
+                          {(m.status === 'pending' || m.status === 'revision_requested') && (
                             <Button
                               id="open-self-evaluation-btn"
                               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
                               onClick={() => {
                                 setSelectedMilestone(m);
-                                setCompletedGoals(m.goalsProgress?.filter((g) => g.completed).map((g) => g.goalTitle) || []);
+                                setCompletedGoals(m.goalsProgress?.filter((g: any) => g.completed).map((g: any) => g.goalTitle) || []);
                                 setIsSelfCheckinOpen(true);
                               }}
                             >
-                              {t('myMilestones.submitSelfEvaluation', { defaultValue: 'Submit Self-Evaluation' })}
+                              {m.status === 'revision_requested'
+                                ? t('myMilestones.resubmitSelfEvaluation', { defaultValue: 'Re-Submit Self-Evaluation' })
+                                : t('myMilestones.submitSelfEvaluation', { defaultValue: 'Submit Self-Evaluation' })}
                             </Button>
-                          </div>
-                        )}
+                          )}
+
+                          {(m.status === 'in_review' || m.status === 'pending_manager_review') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-amber-300 text-amber-700 hover:bg-amber-50 text-xs"
+                              onClick={() => {
+                                setSelectedMilestone(m);
+                                setSelfComments(m.comments || m.employeeSelfCheck?.comments || '');
+                                setConfidenceRating(m.employeeRating || m.employeeSelfCheck?.confidenceRating || 5);
+                                setCompletedGoals(m.goalsProgress?.filter((g: any) => g.completed).map((g: any) => g.goalTitle) || []);
+                                setIsSelfCheckinOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-1" /> {t('myMilestones.updateReflection', { defaultValue: 'Update Reflection' })}
+                            </Button>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   );
@@ -669,7 +802,7 @@ export const Milestones: React.FC = () => {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
                             {m.status === 'completed' || m.status === 'approved' ? (
                               <Badge
                                 id={`badge-approved-${mid}`}
@@ -683,28 +816,79 @@ export const Milestones: React.FC = () => {
                                 {t('teamMilestones.revisionRequested', { defaultValue: 'Revision Requested' })}
                               </Badge>
                             ) : m.status === 'in_review' || m.status === 'pending_manager_review' ? (
-                              <Button
-                                id={`review-milestone-btn-${mid}`}
-                                size="sm"
-                                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center gap-1.5"
-                                onClick={() => {
-                                  setSelectedMilestone(m);
-                                  setManagerRating(5);
-                                  setApprovalStatus('approved');
-                                  const feedbackText = typeof m.aiSummary === 'string'
-                                    ? m.aiSummary
-                                    : m.aiSummary?.summary || 'Exceeded expectations on ramp-up. Completed initial project ahead of schedule.';
-                                  setManagerFeedback(feedbackText);
-                                  setIsManagerReviewOpen(true);
-                                }}
-                              >
-                                <UserCheck className="h-3.5 w-3.5" /> {t('teamMilestones.reviewMilestoneBtn', { defaultValue: 'Review Milestone' })}
-                              </Button>
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                <Clock className="h-3.5 w-3.5 mr-1" /> {t('teamMilestones.awaitingSignoff', { defaultValue: 'Awaiting Sign-off' })}
+                              </Badge>
                             ) : (
                               <Badge variant="outline" className="text-muted-foreground">
                                 {t('teamMilestones.selfCheckinPending', { defaultValue: 'Self Check-in Pending' })}
                               </Badge>
                             )}
+
+                            {/* View Details Button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => {
+                                setSelectedMilestone(m);
+                                setIsDetailsModalOpen(true);
+                              }}
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" /> {t('common.viewDetails', { defaultValue: 'View Details' })}
+                            </Button>
+
+                            {/* Review Milestone / Sign-Off Button */}
+                            <Button
+                              id={`review-milestone-btn-${mid}`}
+                              size="sm"
+                              className={`${
+                                m.status === 'in_review' || m.status === 'pending_manager_review'
+                                  ? 'bg-amber-600 hover:bg-amber-700 text-white font-semibold'
+                                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                              } text-xs flex items-center gap-1.5`}
+                              onClick={() => {
+                                setSelectedMilestone(m);
+                                setManagerRating(m.managerRating || 5);
+                                setApprovalStatus(m.status === 'revision_requested' ? 'needs_action' : 'approved');
+                                const feedbackText = typeof m.aiSummary === 'string'
+                                  ? m.aiSummary
+                                  : m.aiSummary?.summary || m.managerFeedback || 'Ramping up well on team workflows. Performance meets expectations.';
+                                setManagerFeedback(feedbackText);
+                                setIsManagerReviewOpen(true);
+                              }}
+                            >
+                              <UserCheck className="h-3.5 w-3.5" /> {m.status === 'in_review' || m.status === 'pending_manager_review' ? t('teamMilestones.reviewMilestoneBtn', { defaultValue: 'Review Milestone' }) : t('teamMilestones.reviewAndSignoff', { defaultValue: 'Review / Sign-Off' })}
+                            </Button>
+
+                            {/* Change Status Button */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-border text-foreground hover:bg-muted text-xs flex items-center gap-1"
+                              onClick={() => {
+                                setSelectedMilestone(m);
+                                setStatusToSet(m.status || 'pending');
+                                setStatusRating(m.managerRating || 5);
+                                setStatusFeedback(m.managerFeedback || '');
+                                setIsStatusModalOpen(true);
+                              }}
+                            >
+                              <SlidersHorizontal className="h-3 w-3" /> {t('teamMilestones.changeStatus', { defaultValue: 'Change Status' })}
+                            </Button>
+
+                            {/* Schedule 1-on-1 Review Sync */}
+                            <Button
+                              id={`schedule-milestone-review-btn-${mid}`}
+                              size="sm"
+                              variant="outline"
+                              disabled={scheduleReviewMutation.isPending}
+                              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950/40 text-xs flex items-center gap-1.5"
+                              onClick={() => handleScheduleReview(m)}
+                            >
+                              <Calendar className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                              {t('teamMilestones.scheduleReviewSync', { defaultValue: 'Schedule 1-on-1 Review' })}
+                            </Button>
                           </div>
                         </div>
 
@@ -1497,6 +1681,338 @@ export const Milestones: React.FC = () => {
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
             >
               {assignMilestoneMutation.isPending ? t('assignModal.assigning', { defaultValue: 'Assigning...' }) : t('assignModal.confirmAssign', { defaultValue: 'Confirm Assignment' })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Detailed Milestone Inspection */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedMilestone && (() => {
+            const m = selectedMilestone;
+            const empName = m.employeeId?.profile
+              ? `${m.employeeId.profile.firstName || ''} ${m.employeeId.profile.lastName || ''}`.trim()
+              : (m.employeeId?.name || 'Employee');
+            const empDept = m.employeeId?.employment?.department || 'General';
+            const empTitle = m.employeeId?.employment?.jobTitle || m.employeeId?.employment?.designation || '';
+            const completedCount = m.goalsProgress?.filter((g: any) => g.completed).length || 0;
+            const totalCount = m.goalsProgress?.length || 1;
+            const pct = Math.round((completedCount / totalCount) * 100);
+
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <Badge className="bg-indigo-600 text-white font-bold text-xs">
+                      {t('myMilestones.dayBadge', { day: m.targetDay, defaultValue: `Day ${m.targetDay}` })}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        m.status === 'completed' || m.status === 'approved'
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                          : m.status === 'in_review' || m.status === 'pending_manager_review'
+                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                          : m.status === 'revision_requested'
+                          ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                          : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
+                      }`}
+                    >
+                      {m.status ? m.status.replace(/_/g, ' ') : t('teamMilestones.selfCheckinPending', { defaultValue: 'Self Check-in Pending' })}
+                    </Badge>
+                    {m.sla?.autoApprovalEligible && (
+                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                        {t('teamMilestones.autoApprovalEligible', { defaultValue: 'Auto-Approval Eligible' })}
+                      </Badge>
+                    )}
+                  </div>
+                  <DialogTitle className="text-lg font-bold">{m.milestoneTitle}</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    {t('detailsModal.targetDueDate', { date: new Date(m.dueDate).toLocaleDateString(), defaultValue: `Target Due Date: ${new Date(m.dueDate).toLocaleDateString()}` })}
+                    {empName && ` • ${t('detailsModal.directReport', { defaultValue: 'Direct Report' })}: ${empName} (${empDept}${empTitle ? ` • ${empTitle}` : ''})`}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <DialogBody className="space-y-5">
+                  {/* Goals & Progress Section */}
+                  <div className="space-y-3 p-4 border rounded-xl bg-card">
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <span className="flex items-center gap-1.5 text-foreground">
+                        <ListChecks className="h-4 w-4 text-indigo-600" />
+                        {t('detailsModal.keyObjectives', { defaultValue: 'Milestone Key Objectives & Goals' })}
+                      </span>
+                      <span className="text-muted-foreground font-mono">
+                        {completedCount} / {totalCount} ({pct}%)
+                      </span>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+
+                    <div className="space-y-2 pt-1">
+                      {m.goalsProgress?.map((g: any, idx: number) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleToggleGoal(m, g.goalTitle, g.completed)}
+                          className={`w-full p-2.5 border rounded-lg text-xs flex items-center justify-between text-left transition-colors cursor-pointer ${
+                            g.completed
+                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-muted/20 hover:bg-muted/40 border-border'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {g.completed ? (
+                              <CheckSquare className="h-4 w-4 text-emerald-600 shrink-0" />
+                            ) : (
+                              <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <span className={g.completed ? 'line-through text-muted-foreground' : 'font-medium'}>
+                              {g.goalTitle}
+                            </span>
+                          </div>
+                          {g.completedAt && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(g.completedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Employee Self Check-In Reflections Section */}
+                  <div className="p-4 border rounded-xl bg-muted/20 space-y-3 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <UserCheck className="h-4 w-4 text-indigo-600" />
+                        {t('detailsModal.selfEvaluation', { defaultValue: 'Employee Self-Evaluation' })}
+                      </span>
+                      {m.employeeRating || m.employeeSelfCheck?.confidenceRating ? (
+                        <span className="inline-flex items-center gap-1 font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200">
+                          {t('detailsModal.starsRating', { rating: m.employeeRating || m.employeeSelfCheck?.confidenceRating, defaultValue: `★ ${m.employeeRating || m.employeeSelfCheck?.confidenceRating} / 5 Stars` })}
+                        </span>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">{t('detailsModal.notSubmitted', { defaultValue: 'Not submitted' })}</Badge>
+                      )}
+                    </div>
+
+                    {m.comments || m.employeeSelfCheck?.comments || m.employeeSelfCheck?.reflectionNotes ? (
+                      <div>
+                        <span className="text-muted-foreground text-[11px] font-medium block mb-1">{t('detailsModal.reflectionAccomplishments', { defaultValue: 'Reflection Notes & Accomplishments:' })}</span>
+                        <p className="italic text-foreground bg-card p-3 rounded-lg border leading-relaxed">
+                          "{m.comments || m.employeeSelfCheck?.comments || m.employeeSelfCheck?.reflectionNotes}"
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground italic">
+                        {t('detailsModal.reflectionNotSubmitted', { defaultValue: 'Self check-in reflection has not been submitted yet. The employee can submit once key objectives are complete.' })}
+                      </p>
+                    )}
+
+                    {m.employeeSelfCheck?.responses && m.employeeSelfCheck.responses.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-border/50">
+                        <span className="text-muted-foreground text-[11px] font-medium block">{t('detailsModal.checkinPrompts', { defaultValue: 'Responses to Check-In Prompts:' })}</span>
+                        {m.employeeSelfCheck.responses.map((resp: any, rIdx: number) => (
+                          <div key={rIdx} className="bg-card p-2.5 rounded border text-xs">
+                            <span className="font-semibold block text-foreground mb-1">{resp.question}</span>
+                            <span className="text-muted-foreground">{resp.answer}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manager Review & Evaluation Section */}
+                  <div className="p-4 border rounded-xl bg-indigo-50/20 dark:bg-indigo-950/20 space-y-2.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                        <Award className="h-4 w-4 text-indigo-600" />
+                        {t('detailsModal.managerSignoff', { defaultValue: 'Manager Sign-Off & Performance Feedback' })}
+                      </span>
+                      {m.managerRating || m.managerReview?.performanceRating ? (
+                        <span className="inline-flex items-center gap-1 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200">
+                          {t('detailsModal.managerRatingStars', { rating: m.managerRating || m.managerReview?.performanceRating, defaultValue: `★ ${m.managerRating || m.managerReview?.performanceRating} / 5 Rating` })}
+                        </span>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">{t('detailsModal.pendingReview', { defaultValue: 'Pending Review' })}</Badge>
+                      )}
+                    </div>
+
+                    {m.managerFeedback || m.managerReview?.feedback ? (
+                      <div className="space-y-1">
+                        <p className="text-slate-700 dark:text-slate-300 italic bg-card p-3 rounded-lg border">
+                          "{m.managerFeedback || m.managerReview?.feedback}"
+                        </p>
+                        {m.evaluatedAt && (
+                          <span className="text-[10px] text-muted-foreground block text-right">
+                            {t('detailsModal.evaluatedOn', { date: new Date(m.evaluatedAt).toLocaleDateString(), defaultValue: `Evaluated on ${new Date(m.evaluatedAt).toLocaleDateString()}` })}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground italic">
+                        {t('detailsModal.noManagerEvaluation', { defaultValue: 'No manager evaluation recorded yet.' })}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Escalation & SLA ladder preview */}
+                  {m.sla && (
+                    <MilestoneEscalationLadder sla={m.sla} status={m.status} submittedAt={m.submittedAt} />
+                  )}
+                </DialogBody>
+
+                <DialogFooter className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                  <div className="flex gap-2">
+                    {canManageTemplates && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => {
+                          setStatusToSet(m.status || 'pending');
+                          setStatusRating(m.managerRating || 5);
+                          setStatusFeedback(m.managerFeedback || '');
+                          setIsStatusModalOpen(true);
+                        }}
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
+                        {t('detailsModal.changeStatus', { defaultValue: 'Change Status' })}
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={scheduleReviewMutation.isPending}
+                      className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950/40 text-xs flex items-center gap-1.5"
+                      onClick={() => handleScheduleReview(m)}
+                    >
+                      <Calendar className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                      {t('teamMilestones.scheduleReviewSync', { defaultValue: 'Schedule 1-on-1 Review' })}
+                    </Button>
+
+                    {canManageTemplates && (
+                      <Button
+                        size="sm"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                        onClick={() => {
+                          setManagerRating(m.managerRating || 5);
+                          setApprovalStatus(m.status === 'revision_requested' ? 'needs_action' : 'approved');
+                          setManagerFeedback(m.managerFeedback || 'Performance meets ramp-up expectations.');
+                          setIsManagerReviewOpen(true);
+                        }}
+                      >
+                        <UserCheck className="h-3.5 w-3.5 mr-1" />
+                        {t('detailsModal.reviewSignoff', { defaultValue: 'Review / Sign-Off' })}
+                      </Button>
+                    )}
+
+                    {(!canManageTemplates || activeTab === 'my') && (m.status === 'pending' || m.status === 'revision_requested') && (
+                      <Button
+                        size="sm"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                        onClick={() => {
+                          setCompletedGoals(m.goalsProgress?.filter((g: any) => g.completed).map((g: any) => g.goalTitle) || []);
+                          setIsSelfCheckinOpen(true);
+                        }}
+                      >
+                        {t('detailsModal.submitSelfEvaluation', { defaultValue: 'Submit Self-Evaluation' })}
+                      </Button>
+                    )}
+
+                    <Button variant="outline" size="sm" onClick={() => setIsDetailsModalOpen(false)}>
+                      {t('detailsModal.close', { defaultValue: 'Close' })}
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Direct Status Change for Managers & Admins */}
+      <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
+              {t('statusModal.title', { defaultValue: 'Change Milestone Status' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('statusModal.desc', { defaultValue: 'Directly override or update milestone status, rating, and audit notes.' })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogBody className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                {t('statusModal.targetStatusLabel', { defaultValue: 'Target Status *' })}
+              </label>
+              <select
+                id="milestone-status-select"
+                value={statusToSet}
+                onChange={(e) => setStatusToSet(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="pending">{t('statusModal.options.pending', { defaultValue: 'Pending (Self Check-in Pending)' })}</option>
+                <option value="in_review">{t('statusModal.options.inReview', { defaultValue: 'In Review (Awaiting Manager Review)' })}</option>
+                <option value="approved">{t('statusModal.options.approved', { defaultValue: 'Approved (Sign-Off Complete)' })}</option>
+                <option value="completed">{t('statusModal.options.completed', { defaultValue: 'Completed & Verified' })}</option>
+                <option value="revision_requested">{t('statusModal.options.revisionRequested', { defaultValue: 'Revision Requested' })}</option>
+                <option value="overdue">{t('statusModal.options.overdue', { defaultValue: 'Overdue' })}</option>
+              </select>
+            </div>
+
+            {(statusToSet === 'approved' || statusToSet === 'completed') && (
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  {t('statusModal.ratingLabel', { defaultValue: 'Performance Rating (1 to 5 Stars):' })}
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setStatusRating(star)}
+                      className={`p-2 rounded border flex items-center justify-center transition-colors ${
+                        statusRating >= star ? 'bg-amber-100 border-amber-400 text-amber-600' : 'bg-background'
+                      }`}
+                    >
+                      <Star className="h-4 w-4 fill-current" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                {t('statusModal.notesLabel', { defaultValue: 'Status Note / Feedback:' })}
+              </label>
+              <textarea
+                className="w-full min-h-[85px] text-xs p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-background"
+                placeholder={t('statusModal.notesPlaceholder', { defaultValue: 'Enter audit note, sign-off approval feedback, or revision details...' })}
+                value={statusFeedback}
+                onChange={(e) => setStatusFeedback(e.target.value)}
+              />
+            </div>
+          </DialogBody>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStatusModalOpen(false)}>
+              {t('statusModal.cancel', { defaultValue: 'Cancel' })}
+            </Button>
+            <Button
+              id="submit-status-change-btn"
+              disabled={updateStatusMutation.isPending}
+              onClick={handleStatusChangeSubmit}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs"
+            >
+              {updateStatusMutation.isPending ? t('statusModal.saving', { defaultValue: 'Updating...' }) : t('statusModal.save', { defaultValue: 'Save Status Change' })}
             </Button>
           </DialogFooter>
         </DialogContent>

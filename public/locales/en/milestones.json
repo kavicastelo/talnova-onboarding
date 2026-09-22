@@ -42,6 +42,8 @@
     "managerFeedbackRating": "Manager Feedback (Rating: {{rating}}/5):",
     "selfCheckinBtn": "Complete Self-Evaluation",
     "submitSelfEvaluation": "Submit Self-Evaluation",
+    "resubmitSelfEvaluation": "Re-Submit Self-Evaluation",
+    "clickCheckboxHint": "Click checkbox to check-off completed items",
     "viewReviewBtn": "View Evaluation & Rating",
     "paginationLabel": "milestones",
     "status": {
@@ -70,9 +72,13 @@
     "revisionRequested": "Revision Requested",
     "reviewMilestoneBtn": "Review Milestone",
     "selfCheckinPending": "Self Check-in Pending",
+    "viewDetails": "View Details",
+    "reviewAndSignoff": "Review / Sign-Off",
+    "changeStatus": "Change Status",
     "paginationLabel": "milestones",
     "assignBtn": "Assign Milestone Program",
-    "reviewBtn": "Review & Rate"
+    "reviewBtn": "Review & Rate",
+    "scheduleReviewSync": "Schedule 1-on-1 Review"
   },
   "templatesTab": {
     "bannerTitle": "Company Milestone Programs & Check-in Templates",
@@ -228,6 +234,51 @@
     "confirmDelete": "Are you sure you want to delete the template \"{{title}}\"?",
     "templateDeleted": "Milestone template deleted successfully!",
     "failedDeleteTemplate": "Failed to delete template",
-    "quickApprovePopulated": "1-click feedback populated from AI synthesis"
+    "quickApprovePopulated": "1-click feedback populated from AI synthesis",
+    "statusUpdated": "Milestone status updated to {{status}}!",
+    "failedUpdateStatus": "Failed to update milestone status",
+    "goalIncomplete": "Goal marked incomplete",
+    "goalCompleted": "Goal completed!",
+    "failedUpdateGoal": "Failed to update goal"
+  },
+  "detailsModal": {
+    "title": "Milestone Details",
+    "targetDueDate": "Target Due Date: {{date}}",
+    "directReport": "Direct Report",
+    "keyObjectives": "Milestone Key Objectives & Goals",
+    "selfEvaluation": "Employee Self-Evaluation",
+    "starsRating": "★ {{rating}} / 5 Stars",
+    "notSubmitted": "Not submitted",
+    "reflectionAccomplishments": "Reflection Notes & Accomplishments:",
+    "reflectionNotSubmitted": "Self check-in reflection has not been submitted yet. The employee can submit once key objectives are complete.",
+    "checkinPrompts": "Responses to Check-In Prompts:",
+    "managerSignoff": "Manager Sign-Off & Performance Feedback",
+    "managerRatingStars": "★ {{rating}} / 5 Rating",
+    "pendingReview": "Pending Review",
+    "evaluatedOn": "Evaluated on {{date}}",
+    "noManagerEvaluation": "No manager evaluation recorded yet.",
+    "changeStatus": "Change Status",
+    "reviewSignoff": "Review / Sign-Off",
+    "submitSelfEvaluation": "Submit Self-Evaluation",
+    "close": "Close"
+  },
+  "statusModal": {
+    "title": "Change Milestone Status",
+    "desc": "Directly override or update milestone status, rating, and audit notes.",
+    "targetStatusLabel": "Target Status *",
+    "options": {
+      "pending": "Pending (Self Check-in Pending)",
+      "inReview": "In Review (Awaiting Manager Review)",
+      "approved": "Approved (Sign-Off Complete)",
+      "completed": "Completed & Verified",
+      "revisionRequested": "Revision Requested",
+      "overdue": "Overdue"
+    },
+    "ratingLabel": "Performance Rating (1 to 5 Stars):",
+    "notesLabel": "Status Note / Feedback:",
+    "notesPlaceholder": "Enter audit note, sign-off approval feedback, or revision details...",
+    "cancel": "Cancel",
+    "save": "Save Status Change",
+    "saving": "Updating..."
   }
 }

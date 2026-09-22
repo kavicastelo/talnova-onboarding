@@ -45,7 +45,10 @@ import {
   Filter,
   BarChart3,
   LineChart as LineChartIcon,
-  Flag
+  Flag,
+  Activity,
+  Send,
+  CheckCircle2
 } from 'lucide-react';
 import {
   useAnalyticsOverview,
@@ -53,7 +56,10 @@ import {
   useAnalyticsBottlenecks,
   useScheduledReports,
   useCreateScheduledReport,
-  useDeleteScheduledReport
+  useDeleteScheduledReport,
+  useCohortHealth,
+  useNudgeEmployee,
+  useRunScheduledReport
 } from '../hooks/useAnalytics';
 import { useTeamMilestones } from '../hooks/useMilestones';
 import { useDepartments } from '../hooks/useSettings';
@@ -75,11 +81,15 @@ export function Analytics() {
   const [recipientsInput, setRecipientsInput] = useState('');
 
   const { data: overview, isLoading } = useAnalyticsOverview({ department, range });
-  const { data: timeStats } = useTimeToCompletion();
-  const { data: bottlenecks } = useAnalyticsBottlenecks();
+  const { data: timeStats } = useTimeToCompletion({ department });
+  const { data: bottlenecks } = useAnalyticsBottlenecks({ department });
+  const { data: cohortHealth, refetch: refetchCohort } = useCohortHealth({ department });
   const { data: scheduledReports, refetch: refetchReports } = useScheduledReports();
   const { data: departments = [] } = useDepartments();
   const { data: teamMilestones = [] } = useTeamMilestones();
+
+  const nudgeMutation = useNudgeEmployee();
+  const runReportMutation = useRunScheduledReport();
 
   const totalMilestones = teamMilestones.length;
   const completedMilestones = teamMilestones.filter((m: any) => m.status === 'completed' || m.status === 'approved').length;
@@ -151,6 +161,30 @@ export function Analytics() {
         toast.success(t('toasts.reportDeleted', { defaultValue: 'Scheduled report deleted.' }));
         refetchReports();
       },
+    });
+  };
+
+  const handleNudge = (employeeId: string) => {
+    nudgeMutation.mutate(employeeId, {
+      onSuccess: (res) => {
+        toast.success(res?.message || t('cohortHealth.nudgeSuccess', { defaultValue: 'Intervention nudge dispatched successfully!' }));
+        refetchCohort();
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.message || err?.message || t('cohortHealth.nudgeFailed', { defaultValue: 'Failed to send nudge' }));
+      }
+    });
+  };
+
+  const handleRunReport = (id: string) => {
+    runReportMutation.mutate(id, {
+      onSuccess: (res) => {
+        toast.success(res?.message || t('scheduledReports.runSuccess', { defaultValue: 'Scheduled report triggered and dispatched!' }));
+        refetchReports();
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.message || err?.message || t('scheduledReports.runFailed', { defaultValue: 'Failed to execute report' }));
+      }
     });
   };
 
@@ -278,7 +312,11 @@ export function Analytics() {
             })}
           </div>
           <p className="text-[11px] text-muted-foreground mt-1">
-            {t('kpis.benchmarkNote', { defaultValue: 'Fastest: 6d • Industry benchmark: 21d' })}
+            {t('benchmarkDynamic', {
+              fastest: timeStats?.fastestCompletionDays ?? 6,
+              benchmark: 21,
+              defaultValue: `Fastest: ${timeStats?.fastestCompletionDays ?? 6}d • Industry benchmark: 21d`
+            })}
           </p>
         </Card>
 
@@ -291,8 +329,17 @@ export function Analytics() {
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold mt-2 text-foreground">{overview?.retentionRate ?? 96}%</div>
-          <p className="text-[11px] text-emerald-600 font-medium mt-1">
-            {t('kpis.retentionSub', { defaultValue: '+2.4% vs previous cohort' })}
+          <p
+            className={`text-[11px] font-medium mt-1 ${
+              parseFloat(overview?.retentionDelta || '0') >= 0 ? 'text-emerald-600' : 'text-rose-600'
+            }`}
+          >
+            {overview?.retentionDelta
+              ? overview.retentionDelta.startsWith('+') || overview.retentionDelta.startsWith('-')
+                ? `${overview.retentionDelta}%`
+                : `+${overview.retentionDelta}%`
+              : '+0.0%'}{' '}
+            {t('kpis.retentionSub', { defaultValue: 'vs previous period' })}
           </p>
         </Card>
 
@@ -387,6 +434,119 @@ export function Analytics() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* At-Risk Cohort & Velocity Radar Card */}
+      <Card data-testid="cohort-health-card" className="border-rose-500/30 bg-gradient-to-r from-rose-900/10 via-background to-background dark:from-rose-950/20 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  {t('cohortHealth.title', { defaultValue: 'At-Risk Cohort & Velocity Radar' })}
+                  {cohortHealth && (
+                    <div className="flex items-center gap-1.5 ml-2">
+                      {cohortHealth.criticalCount > 0 && (
+                        <Badge variant="outline" className="text-[10px] border-red-300 text-red-700 dark:text-red-400 bg-red-500/10">
+                          {cohortHealth.criticalCount} {t('cohortHealth.critical', { defaultValue: 'Critical' })}
+                        </Badge>
+                      )}
+                      {cohortHealth.atRiskCount > 0 && (
+                        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 dark:text-amber-400 bg-amber-500/10">
+                          {cohortHealth.atRiskCount} {t('cohortHealth.atRisk', { defaultValue: 'At Risk' })}
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
+                        {cohortHealth.onTrackCount} {t('cohortHealth.onTrack', { defaultValue: 'On Track' })}
+                      </Badge>
+                    </div>
+                  )}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {t('cohortHealth.desc', { defaultValue: 'Real-time velocity tracking, stall detection, and omnichannel intervention triggers.' })}
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div>
+                <span className="font-semibold text-foreground">{cohortHealth?.totalEvaluated ?? 0}</span> {t('cohortHealth.evaluatedCount', { defaultValue: 'evaluated' })}
+              </div>
+              <div>
+                <span className="font-semibold text-foreground">{cohortHealth?.avgVelocity ?? 0}%</span> {t('cohortHealth.avgVelocity', { defaultValue: 'avg velocity' })}
+              </div>
+              <div>
+                <span className="font-semibold text-foreground">{cohortHealth?.avgDropOffRisk ?? 0}%</span> {t('cohortHealth.avgRiskScore', { defaultValue: 'avg risk score' })}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {(!cohortHealth?.atRiskEmployees || cohortHealth.atRiskEmployees.length === 0) ? (
+            <div className="p-4 rounded-xl bg-card border border-emerald-500/20 flex items-center gap-3 text-xs text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+              <span>{t('cohortHealth.noAtRisk', { defaultValue: 'All cohort learners are progressing smoothly within expected velocity thresholds.' })}</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="text-[11px] text-muted-foreground uppercase border-b bg-muted/20">
+                  <tr>
+                    <th className="py-2.5 px-3 font-semibold">{t('cohortHealth.learner', { defaultValue: 'Learner' })}</th>
+                    <th className="py-2.5 px-3 font-semibold">{t('cohortHealth.status', { defaultValue: 'Risk Status' })}</th>
+                    <th className="py-2.5 px-3 font-semibold">{t('cohortHealth.daysInactive', { defaultValue: 'Inactivity' })}</th>
+                    <th className="py-2.5 px-3 font-semibold">{t('cohortHealth.overdueItems', { defaultValue: 'Overdue Items' })}</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">{t('cohortHealth.action', { defaultValue: 'Action' })}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {cohortHealth.atRiskEmployees.map((emp) => (
+                    <tr key={emp.employeeId} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-2.5 px-3 font-medium text-foreground">
+                        <div>{emp.name || emp.email}</div>
+                        <div className="text-[10px] text-muted-foreground">{emp.department || 'General'}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            emp.riskLevel === 'critical'
+                              ? 'bg-rose-500/10 text-rose-700 border-rose-300 dark:text-rose-400'
+                              : 'bg-amber-500/10 text-amber-700 border-amber-300 dark:text-amber-400'
+                          }
+                        >
+                          {emp.riskLevel.toUpperCase()} ({emp.dropOffRiskScore}% risk)
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground">
+                        {emp.daysInactive} {t('cohortHealth.daysInactive', { defaultValue: 'days inactive' })}
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground">
+                        {emp.itemsOverdue} {t('cohortHealth.overdueItems', { defaultValue: 'overdue items' })}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40"
+                          disabled={nudgeMutation.isPending && nudgeMutation.variables === emp.employeeId}
+                          onClick={() => handleNudge(emp.employeeId)}
+                        >
+                          <Send className="h-3 w-3 mr-1.5" />
+                          {nudgeMutation.isPending && nudgeMutation.variables === emp.employeeId
+                            ? t('cohortHealth.nudging', { defaultValue: 'Sending Nudge...' })
+                            : t('cohortHealth.sendNudge', { defaultValue: 'Send Nudge' })}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -728,14 +888,26 @@ export function Analytics() {
                           })}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDeleteReport(r._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title={t('scheduledReports.runNow', { defaultValue: 'Send Now' })}
+                          disabled={runReportMutation.isPending && runReportMutation.variables === r._id}
+                          className="text-indigo-600 hover:text-indigo-700"
+                          onClick={() => handleRunReport(r._id)}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteReport(r._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   <SimplePagination

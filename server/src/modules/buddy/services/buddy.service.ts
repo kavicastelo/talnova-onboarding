@@ -176,20 +176,46 @@ export class BuddyService {
     await notificationService.createNotification({
       organizationId: orgId,
       recipientUserId: newHireUserId,
-      type: "journey_assigned",
+      type: "buddy_assigned",
       title: "Your Onboarding Buddy is Assigned!",
       message: `Meet ${buddyName}, your designated onboarding buddy! Reach out for help and peer support.`,
       priority: "high",
+      data: {
+        buddyId: buddyObjectId.toString(),
+        deepLink: "/buddy",
+      },
     });
 
     await notificationService.createNotification({
       organizationId: orgId,
       recipientUserId: buddyUserId,
-      type: "journey_assigned",
+      type: "buddy_assigned",
       title: "New Onboarding Mentee Assigned",
       message: `You have been paired as the onboarding buddy for ${newHireName}. Review your buddy checklist!`,
       priority: "high",
+      data: {
+        employeeId: newHireObjectId.toString(),
+        deepLink: "/buddy",
+      },
     });
+
+    // Notify manager of new hire
+    const managerId = newHire.employment?.managerId || (newHire.employment as any)?.managerUserId;
+    if (managerId && managerId.toString() !== buddyUserId.toString() && managerId.toString() !== assignedByUserId.toString()) {
+      await notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: managerId,
+        type: "buddy_assigned",
+        title: `Onboarding Buddy Paired: ${newHireName}`,
+        message: `${buddyName} has been paired as the onboarding buddy for ${newHireName}.`,
+        priority: "medium",
+        data: {
+          buddyId: buddyObjectId.toString(),
+          employeeId: newHireObjectId.toString(),
+          deepLink: "/buddy",
+        },
+      }).catch((err) => console.warn("[BuddyService] Manager buddy notification error:", err));
+    }
 
     // Automatically provision initial 1-on-1 meeting invite via CalendarService (Prompt 07 Step 2)
     try {
@@ -305,6 +331,72 @@ export class BuddyService {
       item.completed = completed;
       item.completedAt = completed ? new Date() : undefined;
       await assignment.save();
+
+      // Check if all items completed
+      const allCompleted = assignment.checklist.length > 0 && assignment.checklist.every((c) => c.completed);
+
+      const isBuddyActing = actingUserId && assignment.buddyUserId.toString() === actingUserId.toString();
+      const otherUserId = isBuddyActing ? assignment.newHireUserId : assignment.buddyUserId;
+
+      if (completed) {
+        notificationService.createNotification({
+          organizationId: orgId,
+          recipientUserId: otherUserId,
+          type: "buddy_checklist_updated",
+          title: "Buddy Checklist Item Completed",
+          message: `Checklist task "${item.title}" was marked complete.`,
+          priority: "low",
+          data: {
+            assignmentId: assignment._id.toString(),
+            taskId,
+            deepLink: "/buddy",
+          },
+        }).catch((err) => console.warn("[BuddyService] Peer checklist notification error:", err));
+
+        if (allCompleted) {
+          // Notify both buddy and mentee
+          notificationService.createNotification({
+            organizationId: orgId,
+            recipientUserId: assignment.newHireUserId,
+            type: "buddy_checklist_updated",
+            title: "Buddy Onboarding Checklist Complete! 🎉",
+            message: "Congratulations! You and your buddy have completed all onboarding mentorship checklist items.",
+            priority: "medium",
+            data: { assignmentId: assignment._id.toString(), deepLink: "/buddy" },
+          }).catch((err) => console.warn("[BuddyService] Mentee checklist complete notification error:", err));
+
+          notificationService.createNotification({
+            organizationId: orgId,
+            recipientUserId: assignment.buddyUserId,
+            type: "buddy_checklist_updated",
+            title: "Mentee Checklist Fully Completed! 🌟",
+            message: "Great job! All onboarding buddy checklist milestones have been achieved.",
+            priority: "medium",
+            data: { assignmentId: assignment._id.toString(), deepLink: "/buddy" },
+          }).catch((err) => console.warn("[BuddyService] Buddy checklist complete notification error:", err));
+
+          // Notify manager of new hire
+          const menteeUser = await User.findById(assignment.newHireUserId).select("employment.managerId profile.firstName profile.lastName");
+          const menteeName = `${menteeUser?.profile?.firstName || ""} ${menteeUser?.profile?.lastName || ""}`.trim() || "Mentee";
+          const mgrId = menteeUser?.employment?.managerId || (menteeUser?.employment as any)?.managerUserId;
+
+          if (mgrId) {
+            notificationService.createNotification({
+              organizationId: orgId,
+              recipientUserId: mgrId,
+              type: "buddy_checklist_updated",
+              title: `Buddy Checklist Finished: ${menteeName}`,
+              message: `${menteeName} and their assigned onboarding buddy have completed all peer onboarding checklist items.`,
+              priority: "medium",
+              data: {
+                assignmentId: assignment._id.toString(),
+                employeeId: assignment.newHireUserId.toString(),
+                deepLink: "/buddy",
+              },
+            }).catch((err) => console.warn("[BuddyService] Manager buddy checklist complete notification error:", err));
+          }
+        }
+      }
     }
 
     return assignment;

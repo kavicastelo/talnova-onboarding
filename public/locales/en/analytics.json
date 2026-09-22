@@ -34,6 +34,7 @@
     "acrossAll": "Across all departments",
     "daysUnit": "{{count}} Days",
     "benchmarkNote": "Fastest: 6d • Industry benchmark: 21d",
+    "benchmarkDynamic": "Fastest: {{fastest}}d • Industry benchmark: 21d",
     "retentionSub": "+2.4% vs previous cohort",
     "productivitySub": "Day 90 Full Productivity"
   },
@@ -99,8 +100,33 @@
     "noSchedules": "No active scheduled reports.",
     "recipientsList": "{{frequency}} • Recipients: {{recipients}}",
     "reportsLabel": "reports",
+    "runNow": "Send Now",
+    "running": "Sending...",
+    "runSuccess": "Scheduled report compiled and dispatched to recipients!",
+    "runFailed": "Failed to execute and dispatch scheduled report",
     "cancel": "Cancel",
     "create": "Schedule Report",
     "close": "Close"
+  },
+  "cohortHealth": {
+    "title": "Onboarding Velocity & At-Risk Cohort Radar",
+    "desc": "Real-time risk scoring, drop-off detection, and live manager/HR interventions powered by Velocity Sentinel.",
+    "onTrack": "On Track",
+    "atRisk": "At Risk",
+    "critical": "Critical Risk",
+    "evaluatedCount": "{{count}} Evaluated",
+    "avgVelocity": "Avg Cohort Velocity",
+    "avgRiskScore": "Avg Drop-off Risk",
+    "noAtRisk": "All active learners are progressing on track! Zero stalled cohorts detected.",
+    "learner": "Learner / Role",
+    "status": "Risk Level",
+    "daysInactive": "Days Inactive",
+    "overdueItems": "Overdue Items",
+    "lastActive": "Last Active",
+    "action": "Intervention",
+    "sendNudge": "Send Nudge",
+    "nudging": "Nudging...",
+    "nudgeSuccess": "Intervention nudge dispatched successfully to {{name}}!",
+    "nudgeFailed": "Failed to dispatch nudge to learner"
   }
 }

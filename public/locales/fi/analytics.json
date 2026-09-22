@@ -34,6 +34,7 @@
     "acrossAll": "Kaikilta osastoilta",
     "daysUnit": "{{count}} päivää",
     "benchmarkNote": "Nopein: 6 pv • Alan vertailuarvo: 21 pv",
+    "benchmarkDynamic": "Nopein: {{fastest}} pv • Alan vertailuarvo: 21 pv",
     "retentionSub": "+2,4 % edelliseen kohorttiin verrattuna",
     "productivitySub": "Päivä 90 täysi tuottavuus"
   },
@@ -99,8 +100,33 @@
     "noSchedules": "Ei aktiivisia ajastettuja raportteja.",
     "recipientsList": "{{frequency}} • Vastaanottajat: {{recipients}}",
     "reportsLabel": "raporttia",
+    "runNow": "Lähetä nyt",
+    "running": "Lähetetään...",
+    "runSuccess": "Ajastettu raportti koottu ja lähetetty vastaanottajille!",
+    "runFailed": "Raportin suoritus ja lähetys epäonnistui",
     "cancel": "Peruuta",
     "create": "Ajasta raportti",
     "close": "Sulje"
+  },
+  "cohortHealth": {
+    "title": "Perehdytyksen nopeus ja riskiryhmätutka",
+    "desc": "Reaaliaikainen riskipisteytys, keskeyttämisriskin tunnistus ja esihenkilöiden toimenpiteet Velocity Sentinelin avulla.",
+    "onTrack": "Aikataulussa",
+    "atRisk": "Riskissä",
+    "critical": "Kriittinen riski",
+    "evaluatedCount": "{{count}} arvioitu",
+    "avgVelocity": "Kohortin keskimääräinen nopeus",
+    "avgRiskScore": "Keskimääräinen keskeyttämisriski",
+    "noAtRisk": "Kaikki oppijat etenevät aikataulussa! Ei pysähtyneitä kohortteja havaittu.",
+    "learner": "Oppija / Rooli",
+    "status": "Riskitaso",
+    "daysInactive": "Toimettomia päiviä",
+    "overdueItems": "Myöhässä olevat kohteet",
+    "lastActive": "Viimeksi aktiivinen",
+    "action": "Toimenpide",
+    "sendNudge": "Lähetä muistutus",
+    "nudging": "Lähetetään...",
+    "nudgeSuccess": "Muistutus lähetetty onnistuneesti oppijalle {{name}}!",
+    "nudgeFailed": "Muistutuksen lähetys epäonnistui"
   }
 }

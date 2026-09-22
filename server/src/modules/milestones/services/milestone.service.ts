@@ -148,6 +148,42 @@ export class MilestoneService {
       goalsProgress,
     });
 
+    const employeeName = `${employee.profile?.firstName || ""} ${employee.profile?.lastName || ""}`.trim() || "Employee";
+    const managerId = employee.employment?.managerId || (employee.employment as any)?.managerUserId;
+
+    // 1. Notify responsible user (Employee)
+    notificationService.createNotification({
+      organizationId: orgId,
+      recipientUserId: employeeId,
+      type: "milestone_assigned",
+      title: `New Onboarding Milestone: Day ${template.targetDay}`,
+      message: `You have been scheduled for Day ${template.targetDay} milestone: "${template.title}". Target due date: ${dueDate.toLocaleDateString()}.`,
+      priority: "medium",
+      data: {
+        milestoneId: milestone._id.toString(),
+        targetDay: template.targetDay,
+        deepLink: "/milestones",
+      },
+    }).catch((err) => console.warn("[MilestoneService] Employee milestone notification error:", err));
+
+    // 2. Notify relevant user (Manager)
+    if (managerId && managerId.toString() !== employeeId.toString()) {
+      notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: managerId,
+        type: "milestone_assigned",
+        title: `Milestone Scheduled for ${employeeName}`,
+        message: `Day ${template.targetDay} milestone "${template.title}" has been scheduled for ${employeeName} (Due: ${dueDate.toLocaleDateString()}).`,
+        priority: "medium",
+        data: {
+          milestoneId: milestone._id.toString(),
+          employeeId: employeeId.toString(),
+          targetDay: template.targetDay,
+          deepLink: "/milestones/team",
+        },
+      }).catch((err) => console.warn("[MilestoneService] Manager milestone notification error:", err));
+    }
+
     return milestone;
   }
 
@@ -312,12 +348,30 @@ export class MilestoneService {
     }
 
     await milestone.save();
+
+    // 1. Notify responsible user (Employee: confirmation)
+    await notificationService.createNotification({
+      organizationId: orgId,
+      recipientUserId: employeeId,
+      type: "milestone_submitted",
+      title: `Day ${milestone.targetDay} Self-Evaluation Submitted`,
+      message: `Your Day ${milestone.targetDay} self-evaluation has been submitted to your manager for review.`,
+      priority: "medium",
+      data: {
+        milestoneId: milestone._id.toString(),
+        targetDay: milestone.targetDay,
+        rating,
+        deepLink: "/milestones",
+      },
+    }).catch((err) => console.warn("[MilestoneService] Employee confirmation notification error:", err));
+
+    // 2. Notify relevant user (Manager: review request)
     const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
     if (managerId) {
       await notificationService.createNotification({
         organizationId: orgId,
         recipientUserId: managerId,
-        type: "journey_completed",
+        type: "milestone_submitted",
         title: `Day ${milestone.targetDay} Milestone Evaluation Submitted`,
         message: `${employee?.profile?.firstName || "Employee"} ${employee?.profile?.lastName || ""} has submitted their Day ${milestone.targetDay} self-evaluation (Rating: ${rating}/5). Please review and provide manager sign-off.`,
         priority: "high",
@@ -326,6 +380,7 @@ export class MilestoneService {
           employeeId: employeeId.toString(),
           targetDay: milestone.targetDay,
           rating,
+          deepLink: "/milestones/team",
         },
       });
     }
@@ -369,6 +424,7 @@ export class MilestoneService {
     }
 
     const employee = await User.findById(milestone.employeeId);
+    const employeeName = `${employee?.profile?.firstName || ""} ${employee?.profile?.lastName || ""}`.trim() || "Employee";
     const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
 
     // Security check: Manager can only review their direct reports
@@ -445,26 +501,45 @@ export class MilestoneService {
 
     await milestone.save();
 
-    // Notify employee
+    // Dual-recipient notification: notify employee and manager
     if (!isRevision) {
       await notificationService.createNotification({
         organizationId: orgId,
         recipientUserId: milestone.employeeId,
-        type: "journey_completed",
+        type: "milestone_approved",
         title: `Day ${milestone.targetDay} Milestone Approved!`,
-        message: `Your Day ${milestone.targetDay} milestone has been approved by your manager. Feedback: ${feedback || "Exceeded expectations on ramp-up. Completed initial project ahead of schedule."}`,
+        message: `Your Day ${milestone.targetDay} milestone has been approved by your manager. Feedback: ${feedback || "Exceeded expectations on ramp-up."}`,
         priority: "high",
         data: {
           milestoneId: milestone._id.toString(),
           targetDay: milestone.targetDay,
           status: "approved",
+          deepLink: "/milestones",
         },
       });
+
+      if (managerUserId.toString() !== milestone.employeeId.toString()) {
+        await notificationService.createNotification({
+          organizationId: orgId,
+          recipientUserId: managerUserId,
+          type: "milestone_approved",
+          title: `Milestone Approved: ${employeeName}`,
+          message: `You successfully signed off on Day ${milestone.targetDay} milestone for ${employeeName}.`,
+          priority: "medium",
+          data: {
+            milestoneId: milestone._id.toString(),
+            employeeId: milestone.employeeId.toString(),
+            targetDay: milestone.targetDay,
+            status: "approved",
+            deepLink: "/milestones/team",
+          },
+        }).catch((err) => console.warn("[MilestoneService] Manager evaluation notification error:", err));
+      }
     } else {
       await notificationService.createNotification({
         organizationId: orgId,
         recipientUserId: milestone.employeeId,
-        type: "journey_completed",
+        type: "milestone_revision_requested",
         title: `Revision Requested: Day ${milestone.targetDay} Milestone`,
         message: `Your manager requested revisions on your Day ${milestone.targetDay} milestone. Notes: ${feedback || "Please review and update your self-reflection."}`,
         priority: "high",
@@ -472,8 +547,27 @@ export class MilestoneService {
           milestoneId: milestone._id.toString(),
           targetDay: milestone.targetDay,
           status: "revision_requested",
+          deepLink: "/milestones",
         },
       });
+
+      if (managerUserId.toString() !== milestone.employeeId.toString()) {
+        await notificationService.createNotification({
+          organizationId: orgId,
+          recipientUserId: managerUserId,
+          type: "milestone_revision_requested",
+          title: `Revision Requested for ${employeeName}`,
+          message: `You requested revisions on Day ${milestone.targetDay} milestone for ${employeeName}.`,
+          priority: "medium",
+          data: {
+            milestoneId: milestone._id.toString(),
+            employeeId: milestone.employeeId.toString(),
+            targetDay: milestone.targetDay,
+            status: "revision_requested",
+            deepLink: "/milestones/team",
+          },
+        }).catch((err) => console.warn("[MilestoneService] Manager revision notification error:", err));
+      }
     }
 
     return milestone;
@@ -490,6 +584,263 @@ export class MilestoneService {
     payload: any
   ) {
     return this.evaluateMilestone(orgId, milestoneId, managerUserId, role, payload);
+  }
+
+  /**
+   * Get single milestone details with populated template and user info
+   */
+  async getMilestone(
+    orgId: string | mongoose.Types.ObjectId,
+    milestoneId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    role: string
+  ) {
+    let filter: any = {
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    };
+    if (typeof milestoneId === "string" && (!mongoose.Types.ObjectId.isValid(milestoneId) || milestoneId.length !== 24)) {
+      filter.$or = [{ milestoneCode: milestoneId }, { customId: milestoneId }];
+    } else {
+      filter._id = new mongoose.Types.ObjectId(milestoneId);
+    }
+
+    const milestone = await EmployeeMilestone.findOne(filter)
+      .populate("employeeId", "profile auth employment")
+      .populate("templateId", "title description targetDay goals checkinQuestions audience")
+      .populate("assignedBy", "profile auth");
+
+    if (!milestone) {
+      throw new AppError(404, "NOT_FOUND", "Milestone not found");
+    }
+
+    const targetEmpId = (milestone.employeeId as any)?._id?.toString() || milestone.employeeId?.toString();
+    const isOwnerOrAdmin = ["owner", "admin", "hr_admin", "super_admin"].includes(role);
+
+    if (role === "employee" && targetEmpId !== userId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "You can only view your own milestones");
+    }
+
+    if (role === "manager" && !isOwnerOrAdmin && targetEmpId !== userId.toString()) {
+      const targetUser = await User.findById(targetEmpId);
+      const mgrId = targetUser?.employment?.managerId || (targetUser?.employment as any)?.managerUserId;
+      if (mgrId?.toString() !== userId.toString()) {
+        throw new AppError(403, "FORBIDDEN", "You can only view milestones for your direct reports");
+      }
+    }
+
+    return milestone;
+  }
+
+  /**
+   * Update milestone status directly (by admin, manager, or employee)
+   */
+  async updateMilestoneStatus(
+    orgId: string | mongoose.Types.ObjectId,
+    milestoneId: string | mongoose.Types.ObjectId,
+    actorUserId: string | mongoose.Types.ObjectId,
+    role: string,
+    payload: {
+      status: "pending" | "in_review" | "pending_manager_review" | "completed" | "approved" | "revision_requested";
+      managerRating?: number;
+      managerFeedback?: string;
+      notes?: string;
+      goalsProgress?: Array<{ goalTitle: string; completed: boolean }>;
+    }
+  ) {
+    let filter: any = {
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    };
+    if (typeof milestoneId === "string" && (!mongoose.Types.ObjectId.isValid(milestoneId) || milestoneId.length !== 24)) {
+      filter.$or = [{ milestoneCode: milestoneId }, { customId: milestoneId }];
+    } else {
+      filter._id = new mongoose.Types.ObjectId(milestoneId);
+    }
+
+    const milestone = await EmployeeMilestone.findOne(filter);
+    if (!milestone) {
+      throw new AppError(404, "NOT_FOUND", "Milestone not found");
+    }
+
+    const targetEmpId = milestone.employeeId.toString();
+    const isOwnerOrAdmin = ["owner", "admin", "hr_admin", "super_admin"].includes(role);
+
+    const employee = await User.findById(milestone.employeeId);
+    const employeeName = `${employee?.profile?.firstName || ""} ${employee?.profile?.lastName || ""}`.trim() || "Employee";
+    const managerId = employee?.employment?.managerId || (employee?.employment as any)?.managerUserId;
+
+    if (role === "employee" && targetEmpId !== actorUserId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "You can only modify your own milestone");
+    }
+
+    if (role === "manager" && !isOwnerOrAdmin && managerId?.toString() !== actorUserId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "You can only modify milestones for your direct reports");
+    }
+
+    const newStatus = payload.status;
+    milestone.status = newStatus;
+
+    if (payload.goalsProgress && Array.isArray(payload.goalsProgress)) {
+      const updatedMap = new Map(payload.goalsProgress.map((g) => [g.goalTitle, g.completed]));
+      milestone.goalsProgress.forEach((g) => {
+        if (updatedMap.has(g.goalTitle)) {
+          g.completed = updatedMap.get(g.goalTitle)!;
+          if (g.completed && !g.completedAt) g.completedAt = new Date();
+        }
+      });
+    }
+
+    if (payload.managerRating !== undefined) {
+      milestone.managerRating = payload.managerRating;
+    }
+
+    const feedback = payload.managerFeedback || payload.notes;
+    if (feedback !== undefined) {
+      milestone.managerFeedback = feedback;
+    }
+
+    if (newStatus === "approved" || newStatus === "completed") {
+      milestone.evaluatedAt = new Date();
+      milestone.managerReview = {
+        reviewedBy: new mongoose.Types.ObjectId(actorUserId),
+        reviewedAt: new Date(),
+        approvalStatus: "approved",
+        performanceRating: payload.managerRating || milestone.managerRating || 5,
+        feedback: feedback || milestone.managerFeedback || "Approved by administration.",
+      };
+
+      try {
+        await eventBus.publish({
+          eventName: "MILESTONE_COMPLETED",
+          organizationId: orgId,
+          actorId: actorUserId,
+          entityId: milestone._id as any,
+          payload: {
+            milestoneId: milestone._id.toString(),
+            employeeId: targetEmpId,
+            targetDay: milestone.targetDay,
+            title: milestone.milestoneTitle,
+          },
+        });
+      } catch (err) {}
+    } else if (newStatus === "revision_requested") {
+      milestone.evaluatedAt = new Date();
+      milestone.managerReview = {
+        reviewedBy: new mongoose.Types.ObjectId(actorUserId),
+        reviewedAt: new Date(),
+        approvalStatus: "needs_action",
+        performanceRating: payload.managerRating || milestone.managerRating || 3,
+        feedback: feedback || milestone.managerFeedback || "Revision requested.",
+      };
+    }
+
+    await milestone.save();
+
+    // Dual notifications on status change
+    try {
+      if (newStatus === "approved" || newStatus === "completed") {
+        await notificationService.createNotification({
+          organizationId: orgId,
+          recipientUserId: milestone.employeeId,
+          type: "milestone_approved",
+          title: `Day ${milestone.targetDay} Milestone Approved!`,
+          message: `Congratulations! Your Day ${milestone.targetDay} milestone "${milestone.milestoneTitle}" has been signed off and approved.`,
+          priority: "high",
+          data: {
+            milestoneId: milestone._id.toString(),
+            targetDay: milestone.targetDay,
+            status: "approved",
+            deepLink: "/milestones",
+          },
+        });
+        if (managerId && managerId.toString() !== actorUserId.toString()) {
+          await notificationService.createNotification({
+            organizationId: orgId,
+            recipientUserId: managerId,
+            type: "milestone_approved",
+            title: `Milestone Sign-Off: ${employeeName}`,
+            message: `Day ${milestone.targetDay} milestone for ${employeeName} has been approved.`,
+            priority: "medium",
+            data: {
+              milestoneId: milestone._id.toString(),
+              employeeId: targetEmpId,
+              targetDay: milestone.targetDay,
+              status: "approved",
+              deepLink: "/milestones/team",
+            },
+          });
+        }
+      } else if (newStatus === "revision_requested") {
+        await notificationService.createNotification({
+          organizationId: orgId,
+          recipientUserId: milestone.employeeId,
+          type: "milestone_revision_requested",
+          title: `Revision Requested: Day ${milestone.targetDay} Milestone`,
+          message: `Your manager requested revisions on your Day ${milestone.targetDay} milestone: "${feedback || "Please review feedback and update goals."}"`,
+          priority: "high",
+          data: {
+            milestoneId: milestone._id.toString(),
+            targetDay: milestone.targetDay,
+            status: "revision_requested",
+            deepLink: "/milestones",
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn("[MilestoneService] Status update notification error:", notifErr);
+    }
+
+    return milestone;
+  }
+
+  /**
+   * Toggle or update milestone goal checklist items
+   */
+  async updateMilestoneGoals(
+    orgId: string | mongoose.Types.ObjectId,
+    milestoneId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    role: string,
+    goalsProgress: Array<{ goalTitle: string; completed: boolean }>
+  ) {
+    let filter: any = {
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false,
+    };
+    if (typeof milestoneId === "string" && (!mongoose.Types.ObjectId.isValid(milestoneId) || milestoneId.length !== 24)) {
+      filter.$or = [{ milestoneCode: milestoneId }, { customId: milestoneId }];
+    } else {
+      filter._id = new mongoose.Types.ObjectId(milestoneId);
+    }
+
+    const milestone = await EmployeeMilestone.findOne(filter);
+    if (!milestone) {
+      throw new AppError(404, "NOT_FOUND", "Milestone not found");
+    }
+
+    const targetEmpId = milestone.employeeId.toString();
+    const isOwnerOrAdmin = ["owner", "admin", "hr_admin", "super_admin"].includes(role);
+
+    if (role === "employee" && targetEmpId !== userId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "You can only update your own milestone goals");
+    }
+
+    const updateMap = new Map(goalsProgress.map((g) => [g.goalTitle, g.completed]));
+    milestone.goalsProgress.forEach((g) => {
+      if (updateMap.has(g.goalTitle)) {
+        const nextCompleted = updateMap.get(g.goalTitle)!;
+        g.completed = nextCompleted;
+        if (nextCompleted && !g.completedAt) {
+          g.completedAt = new Date();
+        } else if (!nextCompleted) {
+          g.completedAt = undefined;
+        }
+      }
+    });
+
+    await milestone.save();
+    return milestone;
   }
 
   /**

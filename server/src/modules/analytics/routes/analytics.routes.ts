@@ -23,6 +23,10 @@ export async function analyticsRoutes(app: FastifyInstance) {
   // GET /api/v1/analytics/bottlenecks
   app.get("/bottlenecks", controller.getBottlenecks as any);
 
+  // Cohort Health Radar & Interventions (Velocity Sentinel)
+  app.get("/cohort-health", controller.getCohortHealth as any);
+  app.post("/nudge/:employeeId", controller.nudgeEmployee as any);
+
   // GET /api/v1/analytics/export
   app.get("/export", controller.exportCSV as any);
 
@@ -30,6 +34,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
   app.post("/scheduled-reports", controller.createScheduledReport as any);
   app.get("/scheduled-reports", controller.listScheduledReports as any);
   app.delete("/scheduled-reports/:id", controller.deleteScheduledReport as any);
+  app.post("/scheduled-reports/:id/run", controller.runScheduledReport as any);
 }
 
 export default analyticsRoutes;
