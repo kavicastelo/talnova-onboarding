@@ -42,7 +42,8 @@ import {
   Trash2,
   Filter,
   BarChart3,
-  LineChart as LineChartIcon
+  LineChart as LineChartIcon,
+  Flag
 } from 'lucide-react';
 import {
   useAnalyticsOverview,
@@ -52,6 +53,7 @@ import {
   useCreateScheduledReport,
   useDeleteScheduledReport
 } from '../hooks/useAnalytics';
+import { useTeamMilestones } from '../hooks/useMilestones';
 import { useDepartments } from '../hooks/useSettings';
 import { analyticsService } from '../services/analytics.service';
 import { Skeleton } from '../components/Skeleton';
@@ -74,6 +76,14 @@ export function Analytics() {
   const { data: bottlenecks } = useAnalyticsBottlenecks();
   const { data: scheduledReports, refetch: refetchReports } = useScheduledReports();
   const { data: departments = [] } = useDepartments();
+  const { data: teamMilestones = [] } = useTeamMilestones();
+
+  const totalMilestones = teamMilestones.length;
+  const completedMilestones = teamMilestones.filter((m: any) => m.status === 'completed' || m.status === 'approved').length;
+  const pendingReviewMilestones = teamMilestones.filter((m: any) => m.status === 'in_review' || m.status === 'pending_manager_review').length;
+  const overdueMilestones = teamMilestones.filter((m: any) => (m.dueDate && new Date(m.dueDate).getTime() < Date.now() && m.status !== 'completed' && m.status !== 'approved') || m.sla?.status === 'breached').length;
+  const milestoneCompletionRate = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 100;
+  const onTimeSlaRate = totalMilestones > 0 ? Math.round(((totalMilestones - overdueMilestones) / totalMilestones) * 100) : 100;
 
   const bottlenecksPagination = usePagination({ data: bottlenecks?.moduleBottlenecks || [], initialPageSize: 5 });
   const questionsPagination = usePagination({ data: bottlenecks?.difficultQuestions || [], initialPageSize: 5 });
@@ -274,6 +284,68 @@ export function Analytics() {
           <p className="text-[11px] text-muted-foreground mt-1">Day 90 Full Productivity</p>
         </Card>
       </div>
+
+      {/* Milestone Check-ins & SLA Adherence Card */}
+      <Card className="border-indigo-500/30 bg-gradient-to-r from-indigo-900/10 via-background to-background dark:from-indigo-950/20 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                <Flag className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  Milestones & Probation SLA Performance (30/60/90/180D)
+                  <Badge variant="outline" className="text-[10px] border-indigo-300 text-indigo-700 dark:text-indigo-300">
+                    Live Operational SLA
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Evaluation completion rates, direct report review queues, and escalation health metrics.
+                </CardDescription>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" asChild className="text-xs h-8">
+              <a href="/milestones">Open Milestones Console &rarr;</a>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Total Milestones
+              </span>
+              <div className="text-xl font-bold text-foreground mt-1">{totalMilestones}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Assigned check-ins</p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Sign-off Rate
+              </span>
+              <div className="text-xl font-bold text-emerald-600 mt-1">{milestoneCompletionRate}%</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{completedMilestones} of {totalMilestones} approved</p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                On-Time SLA
+              </span>
+              <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{onTimeSlaRate}%</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{overdueMilestones} escalated/breached</p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Pending Reviews
+              </span>
+              <div className="text-xl font-bold text-amber-600 mt-1">{pendingReviewMilestones}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Awaiting manager sign-off</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Charts Row: Funnel & Productivity Curve */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

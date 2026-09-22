@@ -45,6 +45,9 @@ export async function taskRoutes(app: FastifyInstance) {
   // POST /api/v1/tasks/:id/hardware/receipt (Prompt 08 Step 1.2)
   app.post("/:id/hardware/receipt", { schema: { body: attachHardwareReceiptSchema } }, controller.attachHardwareReceipt as any);
 
+  // POST /api/v1/tasks/:id/hardware/confirm-receipt
+  app.post("/:id/hardware/confirm-receipt", controller.confirmHardwareReceipt as any);
+
   // POST /api/v1/tasks/mdm/dispatch/:taskId (Prompt 08 Step 2.2)
   app.post("/mdm/dispatch/:taskId", controller.dispatchMdmWebhook as any);
 

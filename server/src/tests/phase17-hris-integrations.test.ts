@@ -221,6 +221,66 @@ describe("Phase 17 — HRIS & Enterprise Integrations Test Suite", () => {
       expect(json.success).toBe(true);
       expect(json.data.length).toBeGreaterThanOrEqual(1);
     });
+
+    it("should rotate webhook HMAC secret via POST /api/v1/integrations/:id/rotate-secret", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/integrations/${integrationId}/rotate-secret`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.success).toBe(true);
+      expect(json.data.webhookSecret).toBeDefined();
+      expect(json.data.webhookSecret.length).toBeGreaterThan(10);
+    });
+
+    it("should retry DLQ record via POST /api/v1/integrations/:id/dlq/:eventId/retry", async () => {
+      // 1. Ingest malformed record to generate a DLQ event
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/integrations/${integrationId}/sync`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          records: [
+            {
+              first_name: "Malformed",
+              last_name: "Record",
+            },
+          ],
+        },
+      });
+
+      // 2. Fetch logs and extract DLQ eventId
+      const logsRes = await app.inject({
+        method: "GET",
+        url: `/api/v1/integrations/${integrationId}/logs`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+      const logs = logsRes.json().data;
+      const dlqEvent = logs.find((l: any) => l.dlqEvents?.length > 0)?.dlqEvents[0];
+      expect(dlqEvent).toBeDefined();
+
+      // 3. Retry DLQ event
+      const retryRes = await app.inject({
+        method: "POST",
+        url: `/api/v1/integrations/${integrationId}/dlq/${dlqEvent.eventId}/retry`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(retryRes.statusCode).toBe(200);
+      expect(retryRes.json().success).toBe(true);
+      expect(retryRes.json().data.status).toBe("resolved");
+    });
   });
 
   describe("5. Multi-Tenant Boundary Isolation", () => {

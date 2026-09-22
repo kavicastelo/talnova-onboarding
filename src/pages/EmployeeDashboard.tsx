@@ -8,14 +8,15 @@ import {
 } from
   '../components/Card';
 import { Button } from '../components/Button';
+import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
-import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2, Check, Bot, Trophy } from 'lucide-react';
+import { PlayCircle, Clock, Award, AlertCircle, RefreshCw, CheckSquare, FileText, Users, Flag, BookOpen, CheckCircle2, Check, Bot, Trophy, Package, Truck, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useEmployee } from '../hooks/useEmployees';
 import { useJourneys, useAssignJourney } from '../hooks/useJourneys';
-import { useTasks, useUpdateTaskStatus } from '../hooks/useTasks';
+import { useTasks, useUpdateTaskStatus, useConfirmHardwareReceipt } from '../hooks/useTasks';
 import { useEmployeeDocumentInbox } from '../hooks/useDocuments';
 import { useMyBuddy } from '../hooks/useBuddy';
 import { useMyMilestones } from '../hooks/useMilestones';
@@ -34,11 +35,13 @@ export function EmployeeDashboard() {
 
   const { data: publicJourneys = [] } = useJourneys();
   const { data: tasksData } = useTasks({ assignedToMe: true });
+  const { data: employeeHardwareTasksData } = useTasks(employee?.id ? { employeeId: employee.id } : undefined);
   const { data: docInbox = [] } = useEmployeeDocumentInbox();
   const { data: buddyAssignment } = useMyBuddy();
   const { data: milestones = [] } = useMyMilestones();
   const assignJourneyMut = useAssignJourney();
   const updateTaskMutation = useUpdateTaskStatus();
+  const confirmReceiptMut = useConfirmHardwareReceipt();
 
   const availablePublicJourneys = (publicJourneys || []).filter((pj: any) => {
     return !employee?.assignedJourneys?.some((aj: any) => aj.journeyId === pj.id);
@@ -561,6 +564,213 @@ export function EmployeeDashboard() {
         </CardContent>
       </Card>
 
+      {/* Active Milestone Check-in Progress Card */}
+      {(() => {
+        const activeMilestone = (milestones || []).find(
+          (m: any) => m.status !== 'completed' && m.status !== 'approved'
+        ) || (milestones || [])[0];
+
+        if (!activeMilestone) return null;
+
+        const goalsCompletedCount = (activeMilestone.goalsProgress || []).filter((g: any) => g.completed).length;
+        const totalGoalsCount = (activeMilestone.goalsProgress || []).length;
+        const goalsPercent = totalGoalsCount > 0 ? Math.round((goalsCompletedCount / totalGoalsCount) * 100) : 0;
+        const isSelfCheckinDone = activeMilestone.status === 'in_review' || activeMilestone.status === 'pending_manager_review' || activeMilestone.status === 'approved' || activeMilestone.status === 'completed';
+
+        return (
+          <Card className="border-purple-500/30 bg-gradient-to-r from-purple-900/10 via-background to-background dark:from-purple-950/30 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    <Flag className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      {activeMilestone.milestoneTitle || `Day ${activeMilestone.targetDay} Milestone Track`}
+                      <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 text-[10px]">
+                        Day {activeMilestone.targetDay}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Target Due Date: {new Date(activeMilestone.dueDate).toLocaleDateString()}
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <Badge
+                  variant={isSelfCheckinDone ? 'default' : 'outline'}
+                  className={`text-xs capitalize ${activeMilestone.status === 'approved' || activeMilestone.status === 'completed'
+                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                    : activeMilestone.status === 'in_review' || activeMilestone.status === 'pending_manager_review'
+                      ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                      : 'border-purple-500/30 text-purple-600'
+                    }`}
+                >
+                  {activeMilestone.status ? activeMilestone.status.replace(/_/g, ' ') : 'Self Check-in Pending'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-0">
+              {totalGoalsCount > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-foreground">
+                    <span className="text-muted-foreground">Milestone Goals Completed:</span>
+                    <span>{goalsCompletedCount} of {totalGoalsCount} ({goalsPercent}%)</span>
+                  </div>
+                  <Progress value={goalsPercent} className="h-2 bg-purple-500/10" />
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  {isSelfCheckinDone
+                    ? 'Self check-in submitted! Awaiting manager review and sign-off.'
+                    : 'Complete your goals and submit your self-reflection check-in before the target due date.'}
+                </p>
+                <Button size="sm" asChild className="bg-purple-600 hover:bg-purple-700 text-white shrink-0 text-xs">
+                  <Link to="/milestones">
+                    {isSelfCheckinDone ? 'View Milestone Status' : 'Complete Self Check-in'}
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Assigned Equipment & Hardware Tracking Card */}
+      {(() => {
+        const allRelevantTasks = [
+          ...(employeeHardwareTasksData?.tasks || []),
+          ...(tasksData?.tasks || []),
+        ];
+        // Deduplicate by _id
+        const seenIds = new Set<string>();
+        const hardwareList = allRelevantTasks.filter((t: any) => {
+          if (!t || seenIds.has(t._id)) return false;
+          seenIds.add(t._id);
+          return t.hardwareMetadata || t.category === 'it_setup' || t.category === 'equipment';
+        });
+
+        if (hardwareList.length === 0) return null;
+
+        return (
+          <Card data-testid="widget-equipment-tracking" className="border-cyan-500/30 bg-gradient-to-r from-cyan-500/5 via-background to-background">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      Assigned Equipment & Workstation Setup
+                      <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-600 border-cyan-500/20">
+                        {hardwareList.length} {hardwareList.length === 1 ? 'Item' : 'Items'}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Track shipment, delivery, and confirm physical receipt of your work equipment.
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {hardwareList.map((t: any) => {
+                  const meta = t.hardwareMetadata || {};
+                  const isDelivered = meta.mdmStatus === 'delivered' || !!meta.receivedConfirmedAt;
+                  const isDispatched = meta.mdmStatus === 'dispatched';
+                  const deviceLabel = meta.deviceType ? meta.deviceType.replace(/_/g, ' ') : t.title;
+
+                  return (
+                    <div
+                      key={t._id}
+                      className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
+                        isDelivered
+                          ? 'border-emerald-500/30 bg-emerald-500/5'
+                          : 'border-border/70 bg-card hover:border-cyan-500/40 shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5 min-w-0">
+                          <p className="text-xs font-bold text-foreground capitalize flex items-center gap-1.5 truncate">
+                            {deviceLabel}
+                            {meta.assetTag && (
+                              <span className="text-[10px] font-mono text-muted-foreground">({meta.assetTag})</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">{t.title}</p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] capitalize shrink-0 ${
+                            isDelivered
+                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                              : isDispatched
+                              ? 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30 animate-pulse'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {meta.mdmStatus ? meta.mdmStatus.replace(/_/g, ' ') : 'Preparing'}
+                        </Badge>
+                      </div>
+
+                      {meta.serialNumber && (
+                        <p className="text-[11px] text-muted-foreground font-mono">
+                          Serial: <span className="text-foreground">{meta.serialNumber}</span>
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50 text-xs">
+                        {meta.courierTrackingUrl ? (
+                          <a
+                            href={meta.courierTrackingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-600 hover:text-cyan-700 underline"
+                          >
+                            <Truck className="h-3.5 w-3.5" /> Track Package ({meta.courierProvider || 'Courier'}) <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Tracking available upon dispatch
+                          </span>
+                        )}
+
+                        {isDelivered ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Received
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              confirmReceiptMut.mutate(
+                                { id: t._id },
+                                {
+                                  onSuccess: () => toast.success('Equipment receipt confirmed! Status updated to Delivered.'),
+                                }
+                              );
+                            }}
+                            disabled={confirmReceiptMut.isPending}
+                            className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                          >
+                            <Check className="h-3 w-3" /> Confirm Receipt
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Points & Leaderboard Widget */}
       {hasFeature('gamified_milestones') && (
         <Card data-testid="widget-points-leaderboard" className="border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-background to-background">
@@ -671,20 +881,18 @@ export function EmployeeDashboard() {
                 return (
                   <div
                     key={t._id}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isDone
-                        ? 'border-emerald-500/30 bg-emerald-500/5 opacity-80'
-                        : 'border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:border-indigo-500/50'
-                    }`}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isDone
+                      ? 'border-emerald-500/30 bg-emerald-500/5 opacity-80'
+                      : 'border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:border-indigo-500/50'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => handleToggleTask(t)}
-                        className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                          isDone
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
-                        }`}
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${isDone
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
+                          }`}
                       >
                         {isDone && <Check className="w-4 h-4 stroke-[3]" />}
                       </button>
@@ -783,8 +991,8 @@ export function EmployeeDashboard() {
                     <span>•</span>
                     <span>{j.modules?.length || 0} modules</span>
                   </div>
-                  <Button 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" 
+                  <Button
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
                     onClick={() => handleEnroll(j.id)}
                     disabled={assignJourneyMut.isPending}
                   >
@@ -810,4 +1018,4 @@ export function EmployeeDashboard() {
       )}
     </div>
   );
-}
+}

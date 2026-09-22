@@ -240,6 +240,25 @@ export class TaskController {
       data: task,
     });
   };
+
+  confirmHardwareReceipt = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const task = await itHardwareService.confirmHardwareReceipt(
+      user.organizationId,
+      params.id,
+      user.userId,
+      body.note
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Hardware receipt confirmed successfully",
+      data: task,
+    });
+  };
 }
 
 export default TaskController;

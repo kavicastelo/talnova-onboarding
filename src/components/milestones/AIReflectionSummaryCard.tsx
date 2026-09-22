@@ -14,6 +14,7 @@ export interface IAIReflectionSummary {
   sentiment?: 'positive' | 'neutral' | 'concerned';
   flaggedBlockers?: string[];
   recommendedRating?: number;
+  modelName?: string;
 }
 
 interface AIReflectionSummaryCardProps {
@@ -33,13 +34,16 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
     return null;
   }
 
-  const achievements = aiSummary.keyAchievements || [
-    'Completed core technical onboarding and environment setups ahead of schedule',
-    'Demonstrated high self-efficacy with strong team communication in initial sprint',
-  ];
+  const achievements = aiSummary.keyAchievements && aiSummary.keyAchievements.length > 0
+    ? aiSummary.keyAchievements
+    : [
+      'Completed core onboarding checkpoints on schedule',
+      'Demonstrated strong team engagement and positive collaboration'
+    ];
 
   const blockers = aiSummary.flaggedBlockers || [];
   const sentiment = aiSummary.sentiment || (employeeRating >= 4 ? 'positive' : 'neutral');
+  const modelBadge = aiSummary.modelName || 'AI Assistant';
 
   return (
     <div className="p-4 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-primary/[0.02] to-transparent space-y-3">
@@ -51,8 +55,8 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
           <div>
             <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5">
               AI Reflection Briefing
-              <Badge variant="outline" className="text-[9px] py-0 border-primary/30 text-primary font-mono">
-                GPT-4o / Claude
+              <Badge variant="outline" className="text-[9px] py-0 border-primary/30 text-primary font-mono capitalize">
+                {modelBadge}
               </Badge>
             </h5>
             <p className="text-[11px] text-muted-foreground">
@@ -62,13 +66,12 @@ export const AIReflectionSummaryCard: React.FC<AIReflectionSummaryCardProps> = (
         </div>
 
         <Badge
-          className={`text-[10px] capitalize ${
-            sentiment === 'positive'
+          className={`text-[10px] capitalize ${sentiment === 'positive'
               ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
               : sentiment === 'concerned'
-              ? 'bg-destructive/20 text-destructive border-destructive/30'
-              : 'bg-muted text-muted-foreground'
-          }`}
+                ? 'bg-destructive/20 text-destructive border-destructive/30'
+                : 'bg-muted text-muted-foreground'
+            }`}
         >
           {sentiment} Sentiment
         </Badge>

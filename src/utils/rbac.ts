@@ -106,8 +106,11 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   employee: [],
 };
 
-export function hasCapability(role: Role, capability: Capability): boolean {
-  if (!role) return false;
-  const capabilities = ROLE_CAPABILITIES[role] || [];
-  return capabilities.includes(capability);
+export function hasCapability(roleOrRoles: Role | Role[] | string | string[], capability: Capability): boolean {
+  if (!roleOrRoles) return false;
+  const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles];
+  return roles.some((r) => {
+    const capabilities = ROLE_CAPABILITIES[r as Role] || [];
+    return capabilities.includes(capability);
+  });
 }

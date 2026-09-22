@@ -13,7 +13,7 @@ import { getErrorMessage } from '../api/client';
 
 export function Login() {
   const navigate = useNavigate();
-  const { setRole } = useRole();
+  const { setRole, setRoles } = useRole();
   const { t } = useTranslation('auth');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -87,10 +87,11 @@ export function Login() {
       await authService.logout().catch(() => undefined);
       const loginData = await authService.login(email, password);
       const backendRole = loginData.user?.role;
+      const backendRoles = loginData.user?.roles || (backendRole ? [backendRole] : []);
 
       applyProfileLanguage(loginData.user?.preferences?.language);
 
-      let userRole: 'admin' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' = 'employee';
+      let userRole: 'admin' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin' = 'employee';
       if (backendRole === 'super_admin') {
         userRole = 'super_admin';
       } else if (backendRole === 'owner' || backendRole === 'admin') {
@@ -99,15 +100,20 @@ export function Login() {
         userRole = 'manager';
       } else if (backendRole === 'hr_admin') {
         userRole = 'hr_admin';
+      } else if (backendRole === 'it_admin') {
+        userRole = 'it_admin';
       }
 
       setRole(userRole as any);
+      setRoles(backendRoles as any);
       toast.success(t('login.success'));
 
       if (userRole === 'super_admin') {
         navigate('/super-admin');
-      } else if (userRole === 'admin') {
+      } else if (userRole === 'admin' || userRole === 'hr_admin') {
         navigate('/');
+      } else if (userRole === 'it_admin') {
+        navigate('/tasks/it-ops');
       } else if (userRole === 'manager') {
         navigate('/manager');
       } else {

@@ -304,6 +304,7 @@ export class MilestoneService {
         employeeName: employee?.profile?.firstName,
         rating,
         targetDay: milestone.targetDay,
+        organizationId: orgId,
       });
       milestone.aiSummary = aiSummary;
     } catch (aiErr) {

@@ -31,14 +31,14 @@ export async function employeeRoutes(app: FastifyInstance) {
   // Directory & Administration Routes
   app.get(
     "/",
-    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager"])] },
     controller.listEmployees as any
   );
 
   app.post(
     "/invite",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: inviteEmployeeSchema },
     },
     controller.inviteEmployee as any
@@ -47,7 +47,7 @@ export async function employeeRoutes(app: FastifyInstance) {
   app.post(
     "/bulk/validate",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: validateBulkImportSchema },
     },
     controller.validateBulkImport as any
@@ -56,7 +56,7 @@ export async function employeeRoutes(app: FastifyInstance) {
   app.post(
     "/import",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: importEmployeesSchema },
     },
     controller.importEmployees as any
@@ -64,14 +64,14 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   app.get(
     "/:id",
-    { preHandler: [requireRole(["owner", "admin", "manager"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager"])] },
     controller.getEmployee as any
   );
 
   app.patch(
     "/:id",
     {
-      preHandler: [requireRole(["owner", "admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
       schema: { body: updateEmployeeSchema },
     },
     controller.updateEmployee as any

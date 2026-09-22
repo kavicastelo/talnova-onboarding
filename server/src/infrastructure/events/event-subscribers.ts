@@ -216,6 +216,17 @@ export function registerEventSubscribers(): void {
       } catch (err) {
         console.warn("[EventSubscribers] Could not award gamification points for MILESTONE_COMPLETED:", err);
       }
+
+      try {
+        await workflowEngine.processEvent(
+          event.organizationId,
+          "milestone_completed",
+          recipientId,
+          event.payload
+        );
+      } catch (wfErr) {
+        console.warn("[EventSubscribers] WorkflowEngine failed for MILESTONE_COMPLETED:", wfErr);
+      }
     }
   });
 

@@ -8,6 +8,7 @@ export interface IRoleChecklistItem {
   stage: "preboarding" | "day_1" | "week_1" | "month_1" | "custom";
   priority: "low" | "normal" | "high" | "critical";
   relativeOffsetDays: number; // e.g. 0 = Day 1, 3 = Day 3, 7 = Day 7, 30 = Month 1
+  responsibleRole?: "employee" | "manager" | "it_admin" | "hr_admin" | "buddy"; // Default: employee
   requiresVerification: boolean;
   autoVerification?: {
     enabled: boolean;
@@ -60,6 +61,11 @@ const RoleChecklistItemSchema = new Schema({
     default: "normal",
   },
   relativeOffsetDays: { type: Number, default: 0 },
+  responsibleRole: {
+    type: String,
+    enum: ["employee", "manager", "it_admin", "hr_admin", "buddy"],
+    default: "employee",
+  },
   requiresVerification: { type: Boolean, default: false },
   autoVerification: {
     enabled: { type: Boolean, default: false },

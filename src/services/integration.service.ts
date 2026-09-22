@@ -65,7 +65,17 @@ export const integrationService = {
     return response.data.data;
   },
 
-  connectProvider: async (provider: string, data: { subdomain?: string; apiKey?: string; name?: string }): Promise<HRISIntegrationData> => {
+  connectProvider: async (
+    provider: string,
+    data: {
+      subdomain?: string;
+      apiKey?: string;
+      name?: string;
+      fieldMappings?: FieldMapping[];
+      conflictPolicy?: 'hris_wins' | 'local_wins';
+      autoProvisionJourneys?: boolean;
+    }
+  ): Promise<HRISIntegrationData> => {
     const response = await apiClient.post<ApiResponse<HRISIntegrationData>>(`/integrations/${provider}/connect`, data);
     return response.data.data;
   },
@@ -82,6 +92,16 @@ export const integrationService = {
   getSyncLogs: async (id: string): Promise<SyncLogData[]> => {
     const response = await apiClient.get<ApiResponse<SyncLogData[]>>(`/integrations/${id}/logs`);
     return response.data.data || [];
+  },
+
+  rotateWebhookSecret: async (id: string): Promise<{ webhookSecret: string }> => {
+    const response = await apiClient.post<ApiResponse<{ webhookSecret: string }>>(`/integrations/${id}/rotate-secret`);
+    return response.data.data;
+  },
+
+  retryDLQEvent: async (id: string, eventId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/integrations/${id}/dlq/${eventId}/retry`);
+    return response.data.data;
   },
 };
 

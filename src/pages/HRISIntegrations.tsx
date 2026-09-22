@@ -4,7 +4,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
 } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -27,7 +27,15 @@ import {
   List,
   AlertCircle,
   Building2,
-  PowerOff
+  PowerOff,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  Key,
+  Settings2,
+  RotateCcw,
+  ArrowRight,
 } from 'lucide-react';
 import {
   useIntegrations,
@@ -35,8 +43,11 @@ import {
   useIntegrationLogs,
   useConnectProvider,
   useSyncProvider,
-  useDisconnectProvider
+  useDisconnectProvider,
+  useRotateWebhookSecret,
+  useRetryDLQEvent,
 } from '../hooks/useIntegrations';
+import { HRISIntegrationData, FieldMapping } from '../services/integration.service';
 import { toast } from 'sonner';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
@@ -57,7 +68,8 @@ const MARKETPLACE_CONNECTORS: MarketplaceConnector[] = [
     name: 'BambooHR',
     provider: 'bamboohr',
     category: 'HRIS & People Data',
-    description: 'Bi-directional employee synchronization, title mapping, department taxonomy, and automated onboarding triggering.',
+    description:
+      'Bi-directional employee synchronization, title mapping, department taxonomy, and automated onboarding triggering.',
     badge: 'Popular',
     logoBg: 'bg-emerald-500/10 text-emerald-600',
   },
@@ -66,7 +78,8 @@ const MARKETPLACE_CONNECTORS: MarketplaceConnector[] = [
     name: 'Workday',
     provider: 'workday',
     category: 'Enterprise HCM',
-    description: 'Enterprise HCM workforce ingestion, organization hierarchies, and role-based provisioning via REST/SOAP APIs.',
+    description:
+      'Enterprise HCM workforce ingestion, organization hierarchies, and role-based provisioning via REST/SOAP APIs.',
     badge: 'Enterprise',
     logoBg: 'bg-blue-500/10 text-blue-600',
   },
@@ -75,7 +88,8 @@ const MARKETPLACE_CONNECTORS: MarketplaceConnector[] = [
     name: 'Rippling',
     provider: 'rippling',
     category: 'HR & IT Provisioning',
-    description: 'Unified employee record syncing, department assignment, and instant role mapping for hardware & software onboarding.',
+    description:
+      'Unified employee record syncing, department assignment, and instant role mapping for hardware & software onboarding.',
     badge: 'Fast Setup',
     logoBg: 'bg-amber-500/10 text-amber-600',
   },
@@ -84,10 +98,19 @@ const MARKETPLACE_CONNECTORS: MarketplaceConnector[] = [
     name: 'Personio',
     provider: 'personio',
     category: 'European All-in-One HR',
-    description: 'Seamless European employee onboarding, department sync, and automated absence & employment updates.',
+    description:
+      'Seamless European employee onboarding, department sync, and automated absence & employment updates.',
     badge: 'Standard',
     logoBg: 'bg-purple-500/10 text-purple-600',
   },
+];
+
+const DEFAULT_FIELD_MAPPINGS: FieldMapping[] = [
+  { externalField: 'work_email', internalField: 'email' },
+  { externalField: 'first_name', internalField: 'firstName' },
+  { externalField: 'last_name', internalField: 'lastName' },
+  { externalField: 'department', internalField: 'department' },
+  { externalField: 'job_title', internalField: 'jobTitle' },
 ];
 
 export function HRISIntegrations() {
@@ -96,30 +119,80 @@ export function HRISIntegrations() {
   const syncProviderMut = useSyncProvider();
   const disconnectProviderMut = useDisconnectProvider();
   const testMutation = useTestIntegration();
+  const rotateSecretMut = useRotateWebhookSecret();
+  const retryDLQMut = useRetryDLQEvent();
 
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string | null>(null);
   const { data: syncLogs = [] } = useIntegrationLogs(selectedIntegrationId || undefined);
 
-  // Modal State
+  // Configuration Modal State
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<'bamboohr' | 'workday' | 'rippling' | 'personio' | 'custom_webhook'>('bamboohr');
+  const [activeProvider, setActiveProvider] = useState<
+    'bamboohr' | 'workday' | 'rippling' | 'personio' | 'custom_webhook'
+  >('bamboohr');
   const [subdomain, setSubdomain] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [apiKeyError, setApiKeyError] = useState('');
+  const [configTab, setConfigTab] = useState<'credentials' | 'mappings' | 'rules'>('credentials');
+  const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>(DEFAULT_FIELD_MAPPINGS);
+  const [conflictPolicy, setConflictPolicy] = useState<'hris_wins' | 'local_wins'>('hris_wins');
+  const [autoProvisionJourneys, setAutoProvisionJourneys] = useState(true);
+
+  // Webhook Configuration Modal State
+  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
+  const [webhookIntegration, setWebhookIntegration] = useState<HRISIntegrationData | null>(null);
+  const [isSecretRevealed, setIsSecretRevealed] = useState(false);
+  const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
+  const [hasCopiedSecret, setHasCopiedSecret] = useState(false);
 
   const logsPagination = usePagination({ data: syncLogs, initialPageSize: 5 });
 
-  const handleOpenConnect = (provider: 'bamboohr' | 'workday' | 'rippling' | 'personio' | 'custom_webhook') => {
+  const handleOpenConnect = (
+    provider: 'bamboohr' | 'workday' | 'rippling' | 'personio' | 'custom_webhook',
+    existingIntegration?: HRISIntegrationData
+  ) => {
     setActiveProvider(provider);
-    setSubdomain(provider === 'bamboohr' ? 'acmetest' : '');
-    setApiKey('');
+    setConfigTab('credentials');
+    if (existingIntegration) {
+      setSubdomain(existingIntegration.subdomain || '');
+      setApiKey(existingIntegration.apiKey || '');
+      setFieldMappings(
+        existingIntegration.fieldMappings?.length
+          ? existingIntegration.fieldMappings
+          : DEFAULT_FIELD_MAPPINGS
+      );
+      setConflictPolicy(existingIntegration.conflictPolicy || 'hris_wins');
+      setAutoProvisionJourneys(
+        existingIntegration.autoProvisionJourneys !== undefined
+          ? existingIntegration.autoProvisionJourneys
+          : true
+      );
+    } else {
+      setSubdomain(provider === 'bamboohr' ? 'acmetest' : '');
+      setApiKey('');
+      setFieldMappings(DEFAULT_FIELD_MAPPINGS);
+      setConflictPolicy('hris_wins');
+      setAutoProvisionJourneys(true);
+    }
     setApiKeyError('');
     setIsConnectModalOpen(true);
   };
 
+  const handleOpenWebhookModal = (integration: HRISIntegrationData) => {
+    setWebhookIntegration(integration);
+    setIsSecretRevealed(false);
+    setHasCopiedUrl(false);
+    setHasCopiedSecret(false);
+    setIsWebhookModalOpen(true);
+  };
+
   const handleSaveAndConnect = () => {
     if (!apiKey.trim()) {
-      setApiKeyError(`API Key is required to connect to ${activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider}`);
+      setApiKeyError(
+        `API Key is required to connect to ${
+          activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider
+        }`
+      );
       toast.error('API Key is required to connect');
       return;
     }
@@ -133,6 +206,9 @@ export function HRISIntegrations() {
           subdomain: subdomain.trim(),
           apiKey: apiKey.trim(),
           name: `${activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1)} Production Sync`,
+          fieldMappings,
+          conflictPolicy,
+          autoProvisionJourneys,
         },
       },
       {
@@ -142,7 +218,9 @@ export function HRISIntegrations() {
           setApiKey('');
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || 'Failed to connect integration');
+          toast.error(
+            err?.response?.data?.message || err?.message || 'Failed to connect integration'
+          );
         },
       }
     );
@@ -171,6 +249,49 @@ export function HRISIntegrations() {
     });
   };
 
+  const handleRotateSecret = (integrationId: string) => {
+    rotateSecretMut.mutate(integrationId, {
+      onSuccess: (data) => {
+        toast.success('Webhook HMAC secret rotated successfully');
+        if (webhookIntegration) {
+          setWebhookIntegration({
+            ...webhookIntegration,
+            webhookSecret: data.webhookSecret,
+          });
+        }
+      },
+      onError: () => {
+        toast.error('Failed to rotate webhook secret');
+      },
+    });
+  };
+
+  const handleRetryDLQ = (integrationId: string, eventId: string) => {
+    retryDLQMut.mutate(
+      { id: integrationId, eventId },
+      {
+        onSuccess: () => {
+          toast.success('Record reprocessed successfully!');
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || 'Failed to reprocess record');
+        },
+      }
+    );
+  };
+
+  const copyToClipboard = (text: string, type: 'url' | 'secret') => {
+    navigator.clipboard.writeText(text);
+    if (type === 'url') {
+      setHasCopiedUrl(true);
+      setTimeout(() => setHasCopiedUrl(false), 2000);
+    } else {
+      setHasCopiedSecret(true);
+      setTimeout(() => setHasCopiedSecret(false), 2000);
+    }
+    toast.success('Copied to clipboard');
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -183,6 +304,11 @@ export function HRISIntegrations() {
     );
   }
 
+  const getWebhookUrl = (provider: string) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://talnova.app';
+    return `${origin}/api/v1/integrations/webhooks/${provider}`;
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
@@ -193,7 +319,8 @@ export function HRISIntegrations() {
             HRIS & Workforce Integrations
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect external HRIS systems, synchronize employee lifecycle events, and monitor sync telemetry & Dead-Letter Queues.
+            Connect external HRIS systems, configure inbound HMAC webhooks, customize field mappings,
+            and monitor sync telemetry & Dead-Letter Queues.
           </p>
         </div>
       </div>
@@ -209,7 +336,9 @@ export function HRISIntegrations() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {MARKETPLACE_CONNECTORS.map((connector) => {
-            const activeInt = integrations.find((i) => i.provider === connector.provider && i.status === 'active');
+            const activeInt = integrations.find(
+              (i) => i.provider === connector.provider && i.status === 'active'
+            );
             const isConnected = !!activeInt;
 
             return (
@@ -252,13 +381,20 @@ export function HRISIntegrations() {
                       <div className="flex items-center justify-between">
                         <span>Tenant Subdomain:</span>
                         <span className="font-semibold text-foreground">
-                          {activeInt.subdomain ? `${activeInt.subdomain}.${connector.provider}.com` : 'Default'}
+                          {activeInt.subdomain
+                            ? `${activeInt.subdomain}.${connector.provider}.com`
+                            : 'Default'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Last Synchronized:</span>
-                        <span data-testid={`${connector.id}-last-synced`} className="font-semibold text-foreground">
-                          {activeInt.lastSyncedAt ? new Date(activeInt.lastSyncedAt).toLocaleString() : 'Just now'}
+                        <span
+                          data-testid={`${connector.id}-last-synced`}
+                          className="font-semibold text-foreground"
+                        >
+                          {activeInt.lastSyncedAt
+                            ? new Date(activeInt.lastSyncedAt).toLocaleString()
+                            : 'Just now'}
                         </span>
                       </div>
 
@@ -270,7 +406,11 @@ export function HRISIntegrations() {
                           onClick={() => handleSyncProvider(connector.provider)}
                           disabled={syncProviderMut.isPending}
                         >
-                          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncProviderMut.isPending ? 'animate-spin' : ''}`} />
+                          <RefreshCw
+                            className={`h-3.5 w-3.5 mr-1.5 ${
+                              syncProviderMut.isPending ? 'animate-spin' : ''
+                            }`}
+                          />
                           Sync Now
                         </Button>
                         <Button
@@ -278,13 +418,38 @@ export function HRISIntegrations() {
                           variant="outline"
                           data-testid={`${connector.id}-test-btn`}
                           className="text-xs"
-                          onClick={() => activeInt && testMutation.mutate(activeInt._id, {
-                            onSuccess: (res) => toast.success(`Connection verified! Response latency: ${res.latencyMs}ms`),
-                            onError: () => toast.error('Connection test failed')
-                          })}
+                          onClick={() =>
+                            activeInt &&
+                            testMutation.mutate(activeInt._id, {
+                              onSuccess: (res) =>
+                                toast.success(
+                                  `Connection verified! Response latency: ${res.latencyMs}ms`
+                                ),
+                              onError: (err: any) =>
+                                toast.error(
+                                  err?.response?.data?.message || 'Connection test failed'
+                                ),
+                            })
+                          }
                           disabled={testMutation.isPending}
                         >
                           <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> Test API
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => handleOpenWebhookModal(activeInt)}
+                        >
+                          <Key className="h-3.5 w-3.5 mr-1 text-indigo-500" /> Webhook
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => handleOpenConnect(connector.provider, activeInt)}
+                        >
+                          <Settings2 className="h-3.5 w-3.5 mr-1 text-zinc-500" /> Mapping
                         </Button>
                         <Button
                           size="sm"
@@ -336,7 +501,9 @@ export function HRISIntegrations() {
                 <Activity className="h-5 w-5 text-indigo-600" />
                 Sync Telemetry & Dead-Letter Queue (DLQ) Logs
               </CardTitle>
-              <CardDescription>Review execution logs, created/updated employee counts, and failed DLQ events.</CardDescription>
+              <CardDescription>
+                Review execution logs, created/updated employee counts, and failed DLQ events with 1-click retry.
+              </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setSelectedIntegrationId(null)}>
               Close
@@ -344,7 +511,9 @@ export function HRISIntegrations() {
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             {syncLogs.length === 0 ? (
-              <div className="p-4 text-center text-xs text-muted-foreground">No sync history logs recorded yet.</div>
+              <div className="p-4 text-center text-xs text-muted-foreground">
+                No sync history logs recorded yet.
+              </div>
             ) : (
               <div className="space-y-3">
                 {logsPagination.paginatedData.map((log) => (
@@ -361,14 +530,64 @@ export function HRISIntegrations() {
                         >
                           {log.status.toUpperCase()}
                         </Badge>
-                        Processed {log.processedCount} records ({log.createdUsersCount} created, {log.updatedUsersCount} updated)
+                        Processed {log.processedCount} records ({log.createdUsersCount} created,{' '}
+                        {log.updatedUsersCount} updated)
                       </span>
-                      <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
+                      <span className="text-muted-foreground">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </span>
                     </div>
 
                     {log.errorCount > 0 && (
-                      <div className="pt-2 text-red-600 font-medium border-t mt-1">
-                        ⚠️ Encountered {log.errorCount} error(s) logged to DLQ queue.
+                      <div className="pt-2 text-red-600 font-medium border-t mt-1 space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Encountered {log.errorCount} error(s) logged to DLQ queue:</span>
+                        </div>
+
+                        {/* DLQ Event Details & Remediation */}
+                        {log.dlqEvents && log.dlqEvents.length > 0 && (
+                          <div className="space-y-2 mt-2">
+                            {log.dlqEvents.map((dlq: any) => (
+                              <div
+                                key={dlq.eventId}
+                                className="p-2.5 bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 rounded flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs"
+                              >
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-[11px] bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 rounded text-red-800 dark:text-red-200">
+                                      {dlq.eventId}
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        dlq.status === 'resolved'
+                                          ? 'bg-emerald-50 text-emerald-600 border-emerald-300'
+                                          : 'bg-amber-50 text-amber-600 border-amber-300'
+                                      }
+                                    >
+                                      {dlq.status || 'pending'}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-red-700 dark:text-red-300">
+                                    {dlq.errorReason || 'Record validation failed'}
+                                  </p>
+                                </div>
+                                {dlq.status !== 'resolved' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 bg-white hover:bg-zinc-50 border-red-300 text-red-700 shrink-0"
+                                    onClick={() => handleRetryDLQ(selectedIntegrationId, dlq.eventId)}
+                                    disabled={retryDLQMut.isPending}
+                                  >
+                                    <RotateCcw className="h-3 w-3 mr-1" /> Retry Record
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -391,57 +610,212 @@ export function HRISIntegrations() {
         </Card>
       )}
 
-      {/* Connect Integration Modal */}
+      {/* Connect & Configure Integration Modal */}
       <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
           <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
             <DialogTitle data-testid="connect-modal-title" className="text-lg font-bold text-foreground">
-              Connect {activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider.toUpperCase()}
+              Configure {activeProvider === 'bamboohr' ? 'BambooHR' : activeProvider.toUpperCase()}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Configure your API credentials to enable automated employee ingestion and workforce sync.
+              Configure connection credentials, sync behavior, and taxonomy field mappings.
             </DialogDescription>
+
+            {/* Navigation Tabs */}
+            <div className="flex border-b border-border/40 mt-4 -mb-4">
+              <button
+                type="button"
+                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
+                  configTab === 'credentials'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setConfigTab('credentials')}
+              >
+                Credentials
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
+                  configTab === 'rules'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setConfigTab('rules')}
+              >
+                Sync Rules
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
+                  configTab === 'mappings'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setConfigTab('mappings')}
+              >
+                Field Mappings
+              </button>
+            </div>
           </DialogHeader>
 
-          <div className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto max-h-[calc(85vh-140px)]">
-            <div>
-              <label className="font-semibold text-muted-foreground block mb-1">Company Subdomain</label>
-              <div className="flex items-center">
-                <Input
-                  data-testid="bamboohr-subdomain-input"
-                  placeholder="acmetest"
-                  value={subdomain}
-                  onChange={(e: any) => setSubdomain(e.target.value)}
-                  className="rounded-r-none"
-                />
-                <span className="bg-muted px-3 py-2 border border-l-0 rounded-r-md text-muted-foreground text-xs font-mono">
-                  .{activeProvider}.com
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label className="font-semibold text-muted-foreground block mb-1">
-                API Key / Secret Token <span className="text-red-500">*</span>
-              </label>
-              <Input
-                data-testid="bamboohr-apikey-input"
-                type="password"
-                placeholder="test_api_key_123"
-                value={apiKey}
-                onChange={(e: any) => {
-                  setApiKey(e.target.value);
-                  if (e.target.value.trim()) setApiKeyError('');
-                }}
-                className={apiKeyError ? 'border-red-500 focus-visible:ring-red-500 bg-red-50/20' : ''}
-              />
-              {apiKeyError && (
-                <div data-testid="bamboohr-apikey-error" className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5 font-medium">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>{apiKeyError}</span>
+          <div className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto max-h-[calc(85vh-160px)]">
+            {configTab === 'credentials' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="font-semibold text-muted-foreground block mb-1">Company Subdomain</label>
+                  <div className="flex items-center">
+                    <Input
+                      data-testid="bamboohr-subdomain-input"
+                      placeholder="acmetest"
+                      value={subdomain}
+                      onChange={(e: any) => setSubdomain(e.target.value)}
+                      className="rounded-r-none"
+                    />
+                    <span className="bg-muted px-3 py-2 border border-l-0 rounded-r-md text-muted-foreground text-xs font-mono">
+                      .{activeProvider}.com
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Enter "acmetest" to run in sandbox simulation mode.
+                  </p>
                 </div>
-              )}
-            </div>
+
+                <div>
+                  <label className="font-semibold text-muted-foreground block mb-1">
+                    API Key / Secret Token <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    data-testid="bamboohr-apikey-input"
+                    type="password"
+                    placeholder="test_api_key_123"
+                    value={apiKey}
+                    onChange={(e: any) => {
+                      setApiKey(e.target.value);
+                      if (e.target.value.trim()) setApiKeyError('');
+                    }}
+                    className={
+                      apiKeyError ? 'border-red-500 focus-visible:ring-red-500 bg-red-50/20' : ''
+                    }
+                  />
+                  {apiKeyError && (
+                    <div
+                      data-testid="bamboohr-apikey-error"
+                      className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5 font-medium"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{apiKeyError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {configTab === 'rules' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="font-semibold text-foreground block mb-1.5">Conflict Resolution Policy</label>
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-2 p-2.5 border rounded-md cursor-pointer hover:bg-muted/20">
+                      <input
+                        type="radio"
+                        name="conflictPolicy"
+                        value="hris_wins"
+                        checked={conflictPolicy === 'hris_wins'}
+                        onChange={() => setConflictPolicy('hris_wins')}
+                        className="mt-0.5 text-indigo-600"
+                      />
+                      <div>
+                        <div className="font-semibold text-foreground">HRIS Wins (Recommended)</div>
+                        <p className="text-muted-foreground text-[11px]">
+                          HRIS remains the authoritative source of truth. Changes in BambooHR overwrite local edits in Talnova.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-2 p-2.5 border rounded-md cursor-pointer hover:bg-muted/20">
+                      <input
+                        type="radio"
+                        name="conflictPolicy"
+                        value="local_wins"
+                        checked={conflictPolicy === 'local_wins'}
+                        onChange={() => setConflictPolicy('local_wins')}
+                        className="mt-0.5 text-indigo-600"
+                      />
+                      <div>
+                        <div className="font-semibold text-foreground">Talnova Wins</div>
+                        <p className="text-muted-foreground text-[11px]">
+                          Preserve manual administrator edits made directly inside Talnova onboarding profiles.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t">
+                  <label className="flex items-center justify-between p-2.5 border rounded-md cursor-pointer hover:bg-muted/20">
+                    <div>
+                      <div className="font-semibold text-foreground">Auto-provision Onboarding Journeys</div>
+                      <p className="text-muted-foreground text-[11px]">
+                        Automatically assign workflows and documents when a new employee is synced.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={autoProvisionJourneys}
+                      onChange={(e) => setAutoProvisionJourneys(e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 rounded"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {configTab === 'mappings' && (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-xs">
+                  Map external HRIS payload attributes to internal Talnova workforce fields:
+                </p>
+                <div className="space-y-2">
+                  {fieldMappings.map((mapping, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Input
+                        value={mapping.externalField}
+                        placeholder="External field"
+                        className="h-8 text-xs font-mono"
+                        onChange={(e: any) => {
+                          const updated = [...fieldMappings];
+                          updated[idx].externalField = e.target.value;
+                          setFieldMappings(updated);
+                        }}
+                      />
+                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Input
+                        value={mapping.internalField}
+                        placeholder="Internal field"
+                        className="h-8 text-xs font-mono"
+                        onChange={(e: any) => {
+                          const updated = [...fieldMappings];
+                          updated[idx].internalField = e.target.value;
+                          setFieldMappings(updated);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7 mt-2"
+                  onClick={() =>
+                    setFieldMappings([...fieldMappings, { externalField: '', internalField: '' }])
+                  }
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add Mapping
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
@@ -455,7 +829,114 @@ export function HRISIntegrations() {
               onClick={handleSaveAndConnect}
               disabled={connectProviderMut.isPending}
             >
-              {connectProviderMut.isPending ? 'Connecting...' : 'Save & Test Connection'}
+              {connectProviderMut.isPending ? 'Saving...' : 'Save & Test Connection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Webhook Setup Dialog */}
+      <Dialog open={isWebhookModalOpen} onOpenChange={setIsWebhookModalOpen}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-border/60 bg-card">
+            <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Key className="h-5 w-5 text-indigo-600" />
+              Webhook Setup: {webhookIntegration?.name || 'HRIS Provider'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Configure real-time employee events (hiring, profile updates, termination) from your HRIS.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-5 sm:p-6 space-y-4 text-xs">
+            {/* Target Webhook URL */}
+            <div>
+              <label className="font-semibold text-foreground block mb-1">Webhook Target URL</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={webhookIntegration ? getWebhookUrl(webhookIntegration.provider) : ''}
+                  className="font-mono text-xs bg-muted/30"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() =>
+                    webhookIntegration &&
+                    copyToClipboard(getWebhookUrl(webhookIntegration.provider), 'url')
+                  }
+                >
+                  {hasCopiedUrl ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* HMAC Secret */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-foreground">HMAC-SHA256 Webhook Secret</label>
+                <button
+                  type="button"
+                  className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
+                  onClick={() => setIsSecretRevealed(!isSecretRevealed)}
+                >
+                  {isSecretRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  {isSecretRevealed ? 'Hide' : 'Reveal'}
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  type={isSecretRevealed ? 'text' : 'password'}
+                  value={webhookIntegration?.webhookSecret || '••••••••••••••••'}
+                  className="font-mono text-xs bg-muted/30"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() =>
+                    webhookIntegration?.webhookSecret &&
+                    copyToClipboard(webhookIntegration.webhookSecret, 'secret')
+                  }
+                >
+                  {hasCopiedSecret ? (
+                    <Check className="h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 text-red-600 hover:bg-red-50 border-red-200"
+                  title="Rotate HMAC Secret"
+                  onClick={() => webhookIntegration && handleRotateSecret(webhookIntegration._id)}
+                  disabled={rotateSecretMut.isPending}
+                >
+                  <RotateCcw className={`h-3.5 w-3.5 ${rotateSecretMut.isPending ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Include this HMAC signature in the <code className="bg-muted px-1 rounded">x-signature</code> header when sending webhook requests.
+              </p>
+            </div>
+
+            {/* Quick Setup Instructions */}
+            <div className="p-3 bg-muted/20 border rounded-md space-y-1.5 text-[11px] text-muted-foreground">
+              <span className="font-semibold text-foreground block">Provider Setup Checklist:</span>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Register the Target URL in your BambooHR/Workday Webhook subscriptions.</li>
+                <li>Subscribe to <code className="bg-muted px-1 rounded">employee.created</code>, <code className="bg-muted px-1 rounded">employee.updated</code>, and <code className="bg-muted px-1 rounded">employee.terminated</code> events.</li>
+                <li>Ensure HMAC-SHA256 signature is enabled using the provided secret.</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 sm:px-6 border-t border-border/60 bg-muted/30">
+            <Button size="sm" onClick={() => setIsWebhookModalOpen(false)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -322,7 +322,7 @@ export class ItHardwareService {
     orgId: string | mongoose.Types.ObjectId,
     taskId: string | mongoose.Types.ObjectId,
     metadata: {
-      deviceType?: "laptop" | "monitor" | "mobile" | "security_key" | "peripherals";
+      deviceType?: string;
       serialNumber?: string;
       assetTag?: string;
       courierTrackingUrl?: string;
@@ -334,7 +334,7 @@ export class ItHardwareService {
         fileName?: string;
         uploadedAt?: Date | string;
       };
-      mdmStatus?: "pending_dispatch" | "dispatched" | "enrolled" | "failed";
+      mdmStatus?: string;
       mdmExternalId?: string;
     },
     actingUserId?: string
@@ -355,13 +355,13 @@ export class ItHardwareService {
       task.hardwareMetadata = {};
     }
 
-    if (metadata.deviceType) task.hardwareMetadata.deviceType = metadata.deviceType;
+    if (metadata.deviceType) task.hardwareMetadata.deviceType = metadata.deviceType as any;
     if (metadata.serialNumber !== undefined) task.hardwareMetadata.serialNumber = metadata.serialNumber.trim();
     if (metadata.assetTag !== undefined) task.hardwareMetadata.assetTag = metadata.assetTag.trim();
     if (metadata.courierTrackingUrl !== undefined) task.hardwareMetadata.courierTrackingUrl = metadata.courierTrackingUrl.trim();
     if (metadata.courierProvider !== undefined) task.hardwareMetadata.courierProvider = metadata.courierProvider.trim();
     if (metadata.shipDate) task.hardwareMetadata.shipDate = new Date(metadata.shipDate);
-    if (metadata.mdmStatus) task.hardwareMetadata.mdmStatus = metadata.mdmStatus;
+    if (metadata.mdmStatus) task.hardwareMetadata.mdmStatus = metadata.mdmStatus as any;
     if (metadata.mdmExternalId) task.hardwareMetadata.mdmExternalId = metadata.mdmExternalId;
 
     if (metadata.receiptAttachment) {
@@ -377,11 +377,80 @@ export class ItHardwareService {
       status: task.status,
       changedBy: actingUserId ? new mongoose.Types.ObjectId(actingUserId) : undefined,
       changedAt: new Date(),
-      note: "Hardware metadata updated by IT Admin",
+      note: "Hardware metadata updated",
       actingRole: "it_admin",
     });
 
     await task.save();
+    return task;
+  }
+
+  /**
+   * Employee confirms receipt of hardware / equipment (e.g. laptop, safety kit, notebook)
+   */
+  async confirmHardwareReceipt(
+    orgId: string | mongoose.Types.ObjectId,
+    taskId: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId,
+    note?: string
+  ): Promise<ITask> {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+    const taskObjectId = new mongoose.Types.ObjectId(taskId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const task = await Task.findOne({
+      _id: taskObjectId,
+      organizationId: orgObjectId,
+      isDeleted: false,
+    });
+    if (!task) {
+      throw new AppError(404, "NOT_FOUND", "Hardware task not found");
+    }
+
+    if (!task.hardwareMetadata) {
+      task.hardwareMetadata = {};
+    }
+
+    task.hardwareMetadata.mdmStatus = "delivered";
+    task.hardwareMetadata.receivedConfirmedAt = new Date();
+    task.hardwareMetadata.receivedConfirmedBy = userObjectId;
+
+    // Auto-complete task if in progress or pending
+    if (task.status === "pending" || task.status === "in_progress") {
+      task.status = "completed";
+      task.completedAt = new Date();
+      task.completedBy = userObjectId;
+    }
+
+    task.statusHistory.push({
+      status: task.status,
+      changedBy: userObjectId,
+      changedAt: new Date(),
+      note: note || "Employee confirmed physical receipt of equipment",
+      actingRole: "employee",
+    });
+
+    await task.save();
+
+    // Notify task assignee / IT Admin of receipt confirmation
+    if (task.assignedToUserId && task.assignedToUserId.toString() !== userObjectId.toString()) {
+      const employee = await User.findById(userObjectId);
+      const employeeName = `${employee?.profile?.firstName || ""} ${employee?.profile?.lastName || ""}`.trim() || "Employee";
+      notificationService.createNotification({
+        organizationId: orgId,
+        recipientUserId: task.assignedToUserId,
+        type: "manager_alert",
+        title: `Hardware Receipt Confirmed by ${employeeName}`,
+        message: `${employeeName} has confirmed physical receipt of: ${task.title}. Equipment status marked as delivered.`,
+        priority: "medium",
+        data: {
+          taskId: task._id.toString(),
+          employeeId: userObjectId.toString(),
+          deepLink: "/tasks",
+        },
+      }).catch((err) => console.warn("[ItHardwareService] Receipt notification error:", err));
+    }
+
     return task;
   }
 }

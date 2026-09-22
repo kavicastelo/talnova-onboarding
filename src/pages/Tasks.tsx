@@ -660,16 +660,16 @@ export function Tasks() {
                     </div>
 
                     <div className="flex items-center justify-between sm:justify-end gap-2 border-t sm:border-t-0 pt-3 sm:pt-0">
-                      {(task.category === 'it_setup' || task.hardwareMetadata) && (
+                      {(task.category === 'it_setup' || task.category === 'equipment' || task.hardwareMetadata) && (
                         <button
                           id={`hardware-details-btn-${taskKey}`}
                           data-testid={`hardware-details-btn-${taskKey}`}
                           onClick={() => handleOpenHardwareModal(task)}
                           className="px-3 py-1.5 text-xs font-medium bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:hover:bg-cyan-900 border border-cyan-200 dark:border-cyan-800 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
-                          title="Hardware Provisioning & MDM"
+                          title="Hardware & Equipment Tracking"
                         >
                           <Cpu className="w-3.5 h-3.5" />
-                          Hardware
+                          Equipment
                         </button>
                       )}
 
@@ -778,12 +778,12 @@ export function Tasks() {
               </div>
 
               {/* Hardware Provisioning Card */}
-              {(selectedTask.category === 'it_setup' || selectedTask.hardwareMetadata) && (
+              {(selectedTask.category === 'it_setup' || selectedTask.category === 'equipment' || selectedTask.hardwareMetadata) && (
                 <div id="drawer-hardware-details-card" className="bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
                       <Cpu className="w-4 h-4 text-cyan-600" />
-                      Hardware Provisioning & MDM
+                      Hardware & Equipment Tracking
                     </h4>
                     <button
                       id="drawer-edit-hardware-btn"
@@ -1139,7 +1139,7 @@ export function Tasks() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">Device Type</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Equipment / Device Type</label>
                     <select
                       id="hw-device-type-select"
                       value={hwDeviceType}
@@ -1147,27 +1147,33 @@ export function Tasks() {
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
                     >
                       <option value="laptop">Laptop</option>
-                      <option value="desktop">Desktop</option>
-                      <option value="mobile">Mobile</option>
-                      <option value="monitor">Monitor</option>
-                      <option value="peripherals">Peripherals</option>
-                      <option value="other">Other</option>
+                      <option value="desktop">Desktop PC</option>
+                      <option value="monitor">Monitor / Display</option>
+                      <option value="mobile">Mobile Phone / Tablet</option>
+                      <option value="security_key">Hardware Security Key / Fob</option>
+                      <option value="peripherals">Peripherals (Keyboard, Mouse, Headset)</option>
+                      <option value="notebook">Notebook / Stationery</option>
+                      <option value="safety_kit">Safety Kit / PPE</option>
+                      <option value="uniform">Uniform / Workwear</option>
+                      <option value="tools">Field Equipment / Tools</option>
+                      <option value="badge_access">Access Badge / Keycard</option>
+                      <option value="other">Other Equipment</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-medium mb-1 text-xs text-foreground">MDM Enrollment Status</label>
+                    <label className="block font-medium mb-1 text-xs text-foreground">Delivery / MDM Status</label>
                     <select
                       id="hw-mdm-status-select"
                       value={hwMdmStatus}
                       onChange={(e) => setHwMdmStatus(e.target.value)}
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-xs cursor-pointer"
                     >
-                      <option value="pending_dispatch">Pending Dispatch</option>
-                      <option value="dispatched">Dispatched</option>
-                      <option value="enrolled">Enrolled</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="failed">Failed</option>
+                      <option value="pending_dispatch">Pending Dispatch / Preparing</option>
+                      <option value="dispatched">Dispatched / In Transit</option>
+                      <option value="enrolled">MDM Enrolled</option>
+                      <option value="delivered">Delivered / In Possession</option>
+                      <option value="failed">Delivery / Enrollment Failed</option>
                     </select>
                   </div>
                 </div>

@@ -36,8 +36,29 @@ export interface ITaskStatusHistory {
   actingRole?: string;
 }
 
+export type HardwareDeviceType =
+  | "laptop"
+  | "desktop"
+  | "monitor"
+  | "mobile"
+  | "security_key"
+  | "peripherals"
+  | "notebook"
+  | "safety_kit"
+  | "uniform"
+  | "tools"
+  | "badge_access"
+  | "other";
+
+export type HardwareDeliveryStatus =
+  | "pending_dispatch"
+  | "dispatched"
+  | "enrolled"
+  | "delivered"
+  | "failed";
+
 export interface IHardwareMetadata {
-  deviceType?: "laptop" | "monitor" | "mobile" | "security_key" | "peripherals";
+  deviceType?: HardwareDeviceType | string;
   serialNumber?: string;
   assetTag?: string;
   courierTrackingUrl?: string;
@@ -49,8 +70,10 @@ export interface IHardwareMetadata {
     fileName?: string;
     uploadedAt?: Date;
   };
-  mdmStatus?: "pending_dispatch" | "dispatched" | "enrolled" | "failed";
+  mdmStatus?: HardwareDeliveryStatus | string;
   mdmExternalId?: string;
+  receivedConfirmedAt?: Date;
+  receivedConfirmedBy?: mongoose.Types.ObjectId;
 }
 
 export interface ITask extends Document {
@@ -176,7 +199,7 @@ const TaskSchema = new Schema<ITask>(
     hardwareMetadata: {
       deviceType: {
         type: String,
-        enum: ["laptop", "monitor", "mobile", "security_key", "peripherals"],
+        trim: true,
       },
       serialNumber: { type: String, trim: true },
       assetTag: { type: String, trim: true },
@@ -191,10 +214,11 @@ const TaskSchema = new Schema<ITask>(
       },
       mdmStatus: {
         type: String,
-        enum: ["pending_dispatch", "dispatched", "enrolled", "failed"],
         default: "pending_dispatch",
       },
       mdmExternalId: { type: String },
+      receivedConfirmedAt: { type: Date },
+      receivedConfirmedBy: { type: Schema.Types.ObjectId, ref: "User" },
     },
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date },

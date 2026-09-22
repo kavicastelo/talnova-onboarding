@@ -71,3 +71,15 @@ export function useDeleteTask() {
     },
   });
 }
+
+export function useConfirmHardwareReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) =>
+      frontendTaskService.confirmHardwareReceipt(id, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TASK_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ['employee'] });
+    },
+  });
+}

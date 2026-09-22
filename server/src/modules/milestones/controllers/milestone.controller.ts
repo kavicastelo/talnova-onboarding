@@ -124,10 +124,15 @@ export class MilestoneController {
       body
     );
 
+    const data = (milestone as any).toObject ? (milestone as any).toObject() : { ...milestone };
+    if (data.status === "pending_manager_review") {
+      data.status = "in_review";
+    }
+
     return reply.status(200).send({
       success: true,
       message: "Milestone self-evaluation submitted successfully",
-      data: milestone,
+      data,
     });
   };
 
@@ -161,6 +166,36 @@ export class MilestoneController {
   };
 
   submitManagerReview = async (request: FastifyRequest, reply: FastifyReply) => {
-    return this.evaluateMilestone(request, reply);
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body as any) || {};
+
+    const rating = body.managerRating ?? body.performanceRating ?? body.rating;
+    if (rating !== undefined && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+      return reply.status(400).send({
+        success: false,
+        message: "Rating must be between 1 and 5",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
+
+    const milestone = await this.milestoneService.evaluateMilestone(
+      user.organizationId,
+      params.id,
+      user.userId,
+      user.role,
+      body
+    );
+
+    const data = (milestone as any).toObject ? (milestone as any).toObject() : { ...milestone };
+    if (data.status === "approved" || body.approvalStatus === "approved") {
+      data.status = "completed";
+    }
+
+    return reply.status(200).send({
+      success: true,
+      message: "Milestone evaluation submitted successfully",
+      data,
+    });
   };
 }

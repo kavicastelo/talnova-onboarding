@@ -6,7 +6,8 @@ export interface User {
   _id?: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee' | 'super_admin';
+  role: 'admin' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin' | 'owner';
+  roles?: string[];
   avatar: string;
   company: string;
 }
@@ -73,6 +74,8 @@ export interface Employee {
   name: string;
   fullName?: string;
   role: string;
+  roles?: string[];
+  customRoles?: string[];
   department: string;
   status: EmployeeStatus;
   progress: number;
