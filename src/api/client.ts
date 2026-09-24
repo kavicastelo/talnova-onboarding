@@ -85,9 +85,26 @@ export const createCancelToken = () => {
 // Request Interceptor: Token injection and preparation
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('auth_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const isDemoMode = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+
+    if (isDemoMode) {
+      const demoToken = localStorage.getItem('talnova_demo_token');
+      if (demoToken && config.headers) {
+        config.headers.Authorization = `Bearer ${demoToken}`;
+      }
+      if (
+        config.url &&
+        !config.url.startsWith('/demo') &&
+        !config.url.startsWith('/super-admin') &&
+        !config.url.startsWith('/auth')
+      ) {
+        config.url = `/demo${config.url.startsWith('/') ? '' : '/'}${config.url}`;
+      }
+    } else {
+      const token = localStorage.getItem('auth_token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
     // Inject Accept-Language from persisted user preference

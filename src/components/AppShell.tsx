@@ -75,7 +75,8 @@ import {
   BarChart3,
   Clock,
   ToggleLeft,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sparkles
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -369,6 +370,20 @@ export function AppShell() {
           subItems: [
             { title: t('items.userDirectory') || 'User Directory', url: '/super-admin/users', icon: Users },
             { title: t('items.activeSessions') || 'Active Sessions', url: '/super-admin/users/sessions', icon: KeyRound },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Demo Environment',
+      items: [
+        {
+          title: 'Demo Management',
+          url: '/super-admin/demo',
+          icon: ShieldAlert,
+          subItems: [
+            { title: 'Overview & Controls', url: '/super-admin/demo', icon: LayoutDashboard },
+            { title: 'Interactive Sandbox', url: '/demo', icon: Sparkles },
           ],
         },
       ],

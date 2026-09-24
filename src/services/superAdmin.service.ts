@@ -536,6 +536,67 @@ export const superAdminService = {
     });
     return response.data.data;
   },
+
+  getDemoOverview: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/demo/overview');
+    return response.data.data;
+  },
+  getDemoCompanies: async (): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/super-admin/demo/companies');
+    return response.data.data;
+  },
+  getDemoUsers: async (): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/super-admin/demo/users');
+    return response.data.data;
+  },
+  getDemoSessions: async (): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/super-admin/demo/sessions');
+    return response.data.data;
+  },
+  getDemoActivity: async (limit = 50): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/super-admin/demo/activity', { params: { limit } });
+    return response.data.data;
+  },
+  getDemoRiskAlerts: async (): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/super-admin/demo/risk-alerts');
+    return response.data.data;
+  },
+  getDemoResetHistory: async (): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>('/super-admin/demo/reset/history');
+    return response.data.data;
+  },
+  createDemoCompany: async (payload: any): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/demo/companies', payload);
+    return response.data;
+  },
+  updateDemoCompany: async (id: string, payload: any): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/demo/companies/${id}`, payload);
+    return response.data;
+  },
+  createDemoUser: async (payload: any): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/demo/users', payload);
+    return response.data;
+  },
+  updateDemoUser: async (id: string, payload: any): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/demo/users/${id}`, payload);
+    return response.data;
+  },
+  terminateDemoSession: async (sessionId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/demo/sessions/${sessionId}/terminate`);
+    return response.data;
+  },
+  resolveDemoRiskAlert: async (alertId: string, notes?: string): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/demo/risk-alerts/${alertId}/resolve`, { notes });
+    return response.data;
+  },
+  resetDemoEnvironment: async (confirmText: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/demo/reset', { confirmText });
+    return response.data;
+  },
+  getDemoTelemetryAnalytics: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/demo/telemetry/analytics');
+    return response.data.data;
+  },
 };
 
 export interface PlatformSettingsItem {

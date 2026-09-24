@@ -48,6 +48,8 @@ import { gamificationRoutes } from "./modules/gamification/routes/gamification.r
 import { aiAssistantRoutes } from "./modules/ai/routes/ai-assistant.routes.js";
 import { certificateRoutes } from "./modules/certificates/routes/certificate.routes.js";
 import { onboardingRoutes } from "./modules/onboarding/routes/onboarding.routes.js";
+import { demoRoutes } from "./modules/demo/routes/demo.routes.js";
+import { demoSuperAdminRoutes } from "./modules/demo/routes/demo-super-admin.routes.js";
 import { registerAssignmentSubscribers } from "./modules/assignments/subscribers/assignment.subscriber.js";
 import { registerEventSubscribers } from "./infrastructure/events/event-subscribers.js";
 
@@ -114,6 +116,8 @@ export async function buildApp() {
   await app.register(aiAssistantRoutes, { prefix: "/api/v1/ai" });
   await app.register(certificateRoutes, { prefix: "/api/v1/certificates" });
   await app.register(onboardingRoutes, { prefix: "/api/v1/onboarding" });
+  await app.register(demoRoutes, { prefix: "/api/v1/demo" });
+  await app.register(demoSuperAdminRoutes, { prefix: "/api/v1/super-admin/demo" });
 
   // Health checks
   app.get("/live", async () => {

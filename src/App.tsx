@@ -60,6 +60,14 @@ import { LocalizationProvider } from './context/LocalizationProvider';
 import { SidebarProvider } from './components/Sidebar';
 import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
+import { DemoAuthProvider } from '../demo/src/context/DemoAuthContext';
+import { DemoAppShell } from '../demo/src/components/DemoAppShell';
+import { DemoProtectedRoute } from '../demo/src/components/DemoProtectedRoute';
+import { DemoLogin } from '../demo/src/pages/DemoLogin';
+import { DemoInbox } from '../demo/src/pages/DemoInbox';
+import { DemoDashboardRedirect } from '../demo/src/components/DemoDashboardRedirect';
+import { DemoRestrictedPage } from '../demo/src/components/DemoRestrictedPage';
+import { SuperAdminDemoManagement } from './pages/super-admin/demo/SuperAdminDemoManagement';
 // Initialize i18n — must be imported before any component renders
 import './i18n';
 
@@ -101,11 +109,43 @@ export function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
             <Route path="/public/certificate/:id" element={<PublicCertificateViewer />} />
+            <Route path="/demo/login" element={<DemoAuthProvider><DemoLogin /></DemoAuthProvider>} />
+            <Route path="/demo" element={<DemoAuthProvider><DemoProtectedRoute><DemoAppShell /></DemoProtectedRoute></DemoAuthProvider>}>
+              <Route index element={<DemoDashboardRedirect />} />
+              <Route path="admin" element={<AdminDashboard />} />
+              <Route path="employee" element={<EmployeeDashboard />} />
+              <Route path="manager" element={<ManagerDashboard />} />
+              <Route path="journeys" element={<JourneysList />} />
+              <Route path="journeys/:id" element={<JourneyBuilder />} />
+              <Route path="course/:id" element={<CourseViewer />} />
+              <Route path="tasks" element={<Tasks />} />
+              <Route path="directory" element={<EmployeeDirectory />} />
+              <Route path="directory/:id" element={<EmployeeProfile />} />
+              <Route path="profile" element={<EmployeeProfile />} />
+              <Route path="kb" element={<KnowledgeBase />} />
+              <Route path="kb/:id" element={<KnowledgeBase />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="documents/:id/sign" element={<DocumentSigner />} />
+              <Route path="milestones" element={<Milestones />} />
+              <Route path="leaderboard" element={<Leaderboard />} />
+              <Route path="buddy" element={<BuddyProgram />} />
+              <Route path="calendar" element={<DemoRestrictedPage featureName="Calendar Integration" />} />
+              <Route path="hr-ops" element={<DemoRestrictedPage featureName="HR Operations & Sync" />} />
+              <Route path="hr-ops/*" element={<DemoRestrictedPage featureName="HR Operations & Sync" />} />
+              <Route path="ai-assistant" element={<AIAssistant />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="settings/integrations" element={<DemoRestrictedPage featureName="HRIS Integrations" />} />
+              <Route path="settings/sso" element={<DemoRestrictedPage featureName="SSO Enforcement" />} />
+              <Route path="inbox" element={<DemoInbox />} />
+            </Route>
 
             <Route path="/" element={<SidebarProvider><AppShell /></SidebarProvider>}>
               <Route index element={<DashboardRedirect />} />
               <Route path="admin" element={<ProtectedRoute capability="manage_organization"><AdminDashboard /></ProtectedRoute>} />
               <Route path="super-admin" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDashboard /></ProtectedRoute>} />
+              <Route path="super-admin/demo" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDemoManagement /></ProtectedRoute>} />
+              <Route path="super-admin/demo/*" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDemoManagement /></ProtectedRoute>} />
               <Route path="super-admin/alerts" element={<ProtectedRoute capability="view_super_admin"><SuperAdminAlerts /></ProtectedRoute>} />
               <Route path="super-admin/organizations" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganizations /></ProtectedRoute>} />
               <Route path="super-admin/organizations/:id" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganization360 /></ProtectedRoute>} />
