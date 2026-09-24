@@ -75,6 +75,10 @@ docs/
 │       ├── 13-reporting.md
 │       └── 14-integrations.md
 │
+├── marketing/                     <-- GROWTH & PRODUCT MARKETING ASSET LIBRARY
+│   ├── README.md                      Master Marketing Index, ICP Value Drivers & Competitor Matrix
+│   └── playbooks/                     High-Impact Feature Playbooks & Creative Asset Briefs (01 to 10)
+│
 └── audits/                        <-- ENGINEERING INVESTIGATIONS & HISTORICAL AUDITS
     ├── README.md                      Index of Historical Engineering Audits
     ├── current/                       Active Runtime Audit Traces
@@ -92,4 +96,5 @@ docs/
 | :--- | :--- | :--- | :--- |
 | [`docs/product/`](./product/README.md) | **Authoritative Ground Truth** | Product Managers, Engineers, AI Coding Agents | Product Vision, Master System Contract, Domain Architecture, Lifecycle, Business Rules. |
 | [`docs/product/requirements/`](./product/requirements/README.md) | **Normative System Specifications** | Software Engineers, QA Engineers, AI Agents | Atomic functional and system requirements written as IEEE 830 normative standards. |
+| [`docs/marketing/`](./marketing/README.md) | **Growth & Go-To-Market Assets** | Growth Marketers, PMMs, Copywriters, Sales | High-converting feature playbooks, value propositions, competitor displacement matrices. |
 | [`docs/audits/`](./audits/README.md) | **Historical Engineering Logs** | Systems Auditors, Technical Leads | Phase completion reports, test evidence, browser forensic traces, codebase ground-truth audits. |
