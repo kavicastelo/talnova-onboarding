@@ -60,6 +60,34 @@ export const emailConfig = {
   from: parsedEnv.SMTP_FROM,
 };
 
+function resolveDemoDatabaseUrl(env: any): string | undefined {
+  if (env.DEMO_DATABASE_URL) return env.DEMO_DATABASE_URL;
+  if (!env.MONGODB_URI) return undefined;
+  const uri = env.MONGODB_URI;
+  if (uri.includes("?")) {
+    const [base, query] = uri.split("?");
+    const lastSlash = base.lastIndexOf("/");
+    const dbName = base.substring(lastSlash + 1);
+    const demoDbName = `${dbName}-Demo`;
+    return `${base.substring(0, lastSlash + 1)}${demoDbName}?${query}`;
+  }
+  return `${uri}-Demo`;
+}
+
+export const demoConfig = {
+  appEnv: parsedEnv.APP_ENV,
+  isDemo: parsedEnv.APP_ENV === "demo",
+  databaseUrl: resolveDemoDatabaseUrl(parsedEnv),
+  jwtSecret: parsedEnv.DEMO_JWT_SECRET || parsedEnv.JWT_SECRET + "-demo",
+  sessionSecret: parsedEnv.DEMO_SESSION_SECRET || parsedEnv.COOKIE_SECRET + "-demo",
+  storageBucket: parsedEnv.DEMO_STORAGE_BUCKET,
+  maxConcurrentSessions: parsedEnv.DEMO_MAX_CONCURRENT_SESSIONS,
+  sessionDurationMinutes: parsedEnv.DEMO_SESSION_DURATION_MINUTES,
+  inactivityTimeoutMinutes: parsedEnv.DEMO_INACTIVITY_TIMEOUT_MINUTES,
+  watermarkEnabled: parsedEnv.DEMO_WATERMARK_ENABLED,
+  resetConfirmationKey: parsedEnv.DEMO_RESET_CONFIRMATION_KEY,
+};
+
 export const config = {
   app: appConfig,
   db: dbConfig,
@@ -67,6 +95,7 @@ export const config = {
   storage: storageConfig,
   cors: corsConfig,
   email: emailConfig,
+  demo: demoConfig,
 };
 
 export default config;

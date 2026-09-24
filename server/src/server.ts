@@ -4,6 +4,7 @@ import { connectDatabase, disconnectDatabase } from "./database/connection.js";
 import registerEventSubscribers from "./infrastructure/events/event-subscribers.js";
 import schedulerService from "./infrastructure/scheduler/scheduler.service.js";
 import { SuperAdminService } from "./modules/super-admin/services/super-admin.service.js";
+import { DemoResetService } from "./modules/demo/services/demo-reset.service.js";
 
 async function start() {
   const app = await buildApp();
@@ -15,6 +16,9 @@ async function start() {
     // 2. Seed Default Platform Feature Flags
     const superAdminService = new SuperAdminService();
     await superAdminService.syncDefaultFeatureFlags();
+
+    // 2.1 Seed Baseline Deterministic Demo Database
+    await DemoResetService.ensureSeeded();
 
     // 3. Register Event Subscribers
     registerEventSubscribers();
