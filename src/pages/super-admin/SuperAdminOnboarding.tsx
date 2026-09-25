@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -14,7 +14,7 @@ import { useSuperAdminOnboardingCases } from '../../hooks/useSuperAdmin';
 
 function SuperAdminOnboardingContent() {
   const navigate = useNavigate();
-  const { selectedOrgId } = useSuperAdminFilter();
+  const { selectedOrgId, refreshKey } = useSuperAdminFilter();
   const [stateFilter, setStateFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
@@ -25,6 +25,13 @@ function SuperAdminOnboardingContent() {
     page,
     limit
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   const cases = data?.cases || [];
   const summary = data?.summary || {

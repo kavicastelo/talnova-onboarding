@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { EmployeeController } from "../controllers/employee.controller.js";
 import { EmployeeService } from "../services/employee.service.js";
 import { EmployeeRepository } from "../repositories/employee.repository.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   updateProfileSchema,
   updatePreferencesSchema,
@@ -31,14 +31,14 @@ export async function employeeRoutes(app: FastifyInstance) {
   // Directory & Administration Routes
   app.get(
     "/",
-    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager", "it_admin"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager", "it_admin"]), requireFeatureFlag("employee_directory")] },
     controller.listEmployees as any
   );
 
   app.post(
     "/invite",
     {
-      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"]), requireFeatureFlag("employee_invite")],
       schema: { body: inviteEmployeeSchema },
     },
     controller.inviteEmployee as any
@@ -47,7 +47,7 @@ export async function employeeRoutes(app: FastifyInstance) {
   app.post(
     "/bulk/validate",
     {
-      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"]), requireFeatureFlag("bulk_csv_import")],
       schema: { body: validateBulkImportSchema },
     },
     controller.validateBulkImport as any
@@ -56,7 +56,7 @@ export async function employeeRoutes(app: FastifyInstance) {
   app.post(
     "/import",
     {
-      preHandler: [requireRole(["owner", "admin", "hr_admin"])],
+      preHandler: [requireRole(["owner", "admin", "hr_admin"]), requireFeatureFlag("bulk_csv_import")],
       schema: { body: importEmployeesSchema },
     },
     controller.importEmployees as any
@@ -64,7 +64,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   app.get(
     "/:id",
-    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager"])] },
+    { preHandler: [requireRole(["owner", "admin", "hr_admin", "manager"]), requireFeatureFlag("employee_directory")] },
     controller.getEmployee as any
   );
 

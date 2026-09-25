@@ -24,6 +24,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { SuperAdminShell } from '../../components/super-admin/SuperAdminShell';
+import { useSuperAdminFilter } from '../../context/SuperAdminFilterContext';
 import {
   useSuperAdminFeatureAdoption,
   useSuperAdminFeatureFlags,
@@ -71,10 +72,19 @@ function getFeatureIcon(category: string) {
 
 export function SuperAdminFeatures() {
   const navigate = useNavigate();
+  const { computedDays, refreshKey } = useSuperAdminFilter();
 
   // Queries
-  const { data: adoptionData } = useSuperAdminFeatureAdoption();
-  const { data: flagsData } = useSuperAdminFeatureFlags();
+  const { data: adoptionData, refetch: refetchAdoption } = useSuperAdminFeatureAdoption(computedDays);
+  const { data: flagsData, refetch: refetchFlags } = useSuperAdminFeatureFlags();
+
+  // Refetch when universal filter refreshKey triggers
+  React.useEffect(() => {
+    if (refreshKey > 0) {
+      refetchAdoption();
+      refetchFlags();
+    }
+  }, [refreshKey, refetchAdoption, refetchFlags]);
 
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('');

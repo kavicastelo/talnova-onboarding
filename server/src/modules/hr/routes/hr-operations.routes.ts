@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { HROperationsController } from "../controllers/hr-operations.controller.js";
 import { HROperationsService } from "../services/hr-operations.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import {
   updateLifecycleStateSchema,
   executeHRBulkActionSchema,
@@ -18,13 +18,13 @@ export async function hrOperationsRoutes(app: FastifyInstance) {
     const adminOnly = requireRole(["owner", "admin", "hr_admin"]);
 
     // Dashboard metrics & exception queue
-    authApp.get("/dashboard", { preHandler: [staffOnly] }, controller.getDashboardMetrics as any);
-    authApp.get("/dashboard-metrics", { preHandler: [staffOnly] }, controller.getDashboardMetrics as any);
-    authApp.get("/exceptions", { preHandler: [staffOnly] }, controller.getExceptionQueue as any);
+    authApp.get("/dashboard", { preHandler: [staffOnly, requireFeatureFlag("hr_ops_dashboard")] }, controller.getDashboardMetrics as any);
+    authApp.get("/dashboard-metrics", { preHandler: [staffOnly, requireFeatureFlag("hr_ops_dashboard")] }, controller.getDashboardMetrics as any);
+    authApp.get("/exceptions", { preHandler: [staffOnly, requireFeatureFlag("hr_exceptions")] }, controller.getExceptionQueue as any);
 
     // Handover operations - strictly Owner & Admin only
-    authApp.post("/handover/:userId", { preHandler: [adminOnly] }, controller.completeHandover as any);
-    authApp.post("/handover/:userId/complete", { preHandler: [adminOnly] }, controller.completeHandover as any);
+    authApp.post("/handover/:userId", { preHandler: [adminOnly, requireFeatureFlag("graduation_handover")] }, controller.completeHandover as any);
+    authApp.post("/handover/:userId/complete", { preHandler: [adminOnly, requireFeatureFlag("graduation_handover")] }, controller.completeHandover as any);
 
     authApp.put(
       "/lifecycle/:userId/state",

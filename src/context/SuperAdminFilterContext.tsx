@@ -5,6 +5,53 @@ export type DateRangePreset = '1h' | '24h' | '7d' | '30d' | '90d' | '1y' | 'cust
 export type Environment = 'production' | 'staging' | 'development';
 export type SeverityFilter = 'all' | 'critical' | 'warning' | 'info';
 
+export function getDateRangeBounds(preset: DateRangePreset, customStart?: string, customEnd?: string): {
+  startDate: string;
+  endDate: string;
+  days: number;
+} {
+  const now = new Date();
+  if (preset === 'custom' && customStart && customEnd) {
+    const s = new Date(customStart);
+    const e = new Date(customEnd);
+    const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / (24 * 60 * 60 * 1000)));
+    return { startDate: customStart, endDate: customEnd, days };
+  }
+  let ms = 30 * 24 * 60 * 60 * 1000;
+  let days = 30;
+  switch (preset) {
+    case '1h':
+      ms = 60 * 60 * 1000;
+      days = 1;
+      break;
+    case '24h':
+      ms = 24 * 60 * 60 * 1000;
+      days = 1;
+      break;
+    case '7d':
+      ms = 7 * 24 * 60 * 60 * 1000;
+      days = 7;
+      break;
+    case '30d':
+      ms = 30 * 24 * 60 * 60 * 1000;
+      days = 30;
+      break;
+    case '90d':
+      ms = 90 * 24 * 60 * 60 * 1000;
+      days = 90;
+      break;
+    case '1y':
+      ms = 365 * 24 * 60 * 60 * 1000;
+      days = 365;
+      break;
+  }
+  return {
+    startDate: new Date(now.getTime() - ms).toISOString(),
+    endDate: now.toISOString(),
+    days,
+  };
+}
+
 interface SuperAdminFilterContextValue {
   dateRange: DateRangePreset;
   setDateRange: (range: DateRangePreset) => void;
@@ -12,6 +59,9 @@ interface SuperAdminFilterContextValue {
   setStartDate: (date?: string) => void;
   endDate?: string;
   setEndDate: (date?: string) => void;
+  computedStartDate: string;
+  computedEndDate: string;
+  computedDays: number;
   selectedOrgId: string; // 'all' or organization ObjectId
   setSelectedOrgId: (orgId: string) => void;
   environment: Environment;
@@ -55,6 +105,9 @@ export function SuperAdminFilterProvider({ children }: { children: React.ReactNo
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  // Dynamic computed date bounds
+  const bounds = getDateRangeBounds(dateRange, startDate, endDate);
 
   // Sync to URL parameters cleanly
   const updateUrlParam = useCallback((key: string, val?: string) => {
@@ -113,6 +166,9 @@ export function SuperAdminFilterProvider({ children }: { children: React.ReactNo
         setStartDate,
         endDate,
         setEndDate,
+        computedStartDate: bounds.startDate,
+        computedEndDate: bounds.endDate,
+        computedDays: bounds.days,
         selectedOrgId,
         setSelectedOrgId,
         environment,
@@ -131,6 +187,8 @@ export function SuperAdminFilterProvider({ children }: { children: React.ReactNo
 
 const noop = () => undefined;
 
+const fallbackBounds = getDateRangeBounds('30d');
+
 const defaultFilterContext: SuperAdminFilterContextValue = {
   dateRange: '30d',
   setDateRange: noop,
@@ -145,11 +203,14 @@ const defaultFilterContext: SuperAdminFilterContextValue = {
   lastUpdated: new Date(),
   setStartDate: noop,
   setEndDate: noop,
+  computedStartDate: fallbackBounds.startDate,
+  computedEndDate: fallbackBounds.endDate,
+  computedDays: fallbackBounds.days,
 };
-
 
 export function useSuperAdminFilter() {
   const ctx = useContext(SuperAdminFilterContext);
   return ctx || defaultFilterContext;
 }
+
 

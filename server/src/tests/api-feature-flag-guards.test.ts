@@ -82,6 +82,42 @@ describe("PR-API-001: Backend Fastify Route Guard Hardening Across Target Module
       method: "GET",
       url: "/api/v1/tasks/templates",
     },
+    {
+      flagKey: "knowledge_base",
+      module: "Knowledge Base",
+      method: "GET",
+      url: "/api/v1/knowledge-base",
+    },
+    {
+      flagKey: "tenant_analytics",
+      module: "Analytics Overview",
+      method: "GET",
+      url: "/api/v1/analytics/overview",
+    },
+    {
+      flagKey: "certificates",
+      module: "Certificates",
+      method: "GET",
+      url: "/api/v1/certificates/me",
+    },
+    {
+      flagKey: "employee_directory",
+      module: "Employee Directory",
+      method: "GET",
+      url: "/api/v1/employees",
+    },
+    {
+      flagKey: "hr_ops_dashboard",
+      module: "HR Operations Dashboard",
+      method: "GET",
+      url: "/api/v1/hr/dashboard",
+    },
+    {
+      flagKey: "manager_dashboard",
+      module: "Manager Dashboard",
+      method: "GET",
+      url: "/api/v1/manager/dashboard",
+    },
   ];
 
   beforeAll(async () => {

@@ -16,6 +16,7 @@ import {
 import { SuperAdminShell } from '../../components/super-admin/SuperAdminShell';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { useSuperAdminFilter } from '../../context/SuperAdminFilterContext';
 import {
   useSuperAdminApiObservability,
   useSuperAdminInfrastructure,
@@ -29,6 +30,11 @@ type TabType = 'api' | 'logs' | 'infrastructure' | 'ai' | 'storage';
 export function SuperAdminObservability() {
   const location = useLocation();
   const navigate = useNavigate();
+  const {
+    selectedOrgId,
+    severity,
+    refreshKey,
+  } = useSuperAdminFilter();
 
   // Determine initial tab from pathname
   const getTabFromPath = (path: string): TabType => {
@@ -56,14 +62,25 @@ export function SuperAdminObservability() {
   const { data: aiData } = useSuperAdminAIObservability();
   const { data: storageData } = useSuperAdminStorage();
   const { data: logsData, isLoading: logsLoading, refetch: refetchLogs } = useSuperAdminActivityEvents({
+    organizationId: selectedOrgId !== 'all' ? selectedOrgId : undefined,
     category: 'system',
+    severity: severity !== 'all' ? severity : undefined,
     limit: 30
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetchApi();
+      refetchLogs();
+    }
+  }, [refreshKey, refetchApi, refetchLogs]);
 
   return (
     <SuperAdminShell
       title="Observability & Telemetry Suite"
       description="Real-time multi-dimensional cluster telemetry, API latencies, AI tokens, DB health, and storage quotas."
+      showSeverity={true}
     >
       <div className="space-y-6">
         {/* Tab Navigation */}

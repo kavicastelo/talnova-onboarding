@@ -978,6 +978,8 @@ export class SuperAdminService {
       activeOnboardings,
       completedOnboardings,
       storageAgg,
+      totalFlagsCount,
+      overriddenFlagsCount,
     ] = await Promise.all([
       User.countDocuments({ organizationId: orgId, isDeleted: false }),
       User.countDocuments({
@@ -1038,6 +1040,14 @@ export class SuperAdminService {
           },
         },
       ]),
+      FeatureFlag.countDocuments({ isDeleted: false }),
+      FeatureFlag.countDocuments({
+        isDeleted: false,
+        $or: [
+          { targetOrganizationIds: orgId },
+          { excludedOrganizationIds: orgId },
+        ],
+      }),
     ]);
 
     const totalStorageBytes = storageAgg[0]?.totalBytes || 0;
@@ -1125,6 +1135,10 @@ export class SuperAdminService {
         activeCount: activeOnboardings,
         completedCount: completedOnboardings,
         totalCases: activeOnboardings + completedOnboardings,
+      },
+      features: {
+        total: totalFlagsCount,
+        overridden: overriddenFlagsCount,
       },
     };
   }
@@ -3301,6 +3315,8 @@ export class SuperAdminService {
       category,
       severity,
       search,
+      startDate,
+      endDate,
       page = "1",
       limit = "25",
     } = query || {};
@@ -3322,6 +3338,15 @@ export class SuperAdminService {
     if (severity && severity !== "all") {
       filter.severity = severity;
     }
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        filter.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.createdAt.$lte = new Date(endDate);
+      }
+    }
     if (search && search.trim()) {
       const regex = new RegExp(search.trim(), "i");
       filter.$or = [
@@ -3342,9 +3367,10 @@ export class SuperAdminService {
       AuditLog.countDocuments(filter),
       AuditLog.aggregate([
         {
-          $match: filter.organizationId
-            ? { organizationId: filter.organizationId }
-            : {},
+          $match: {
+            ...(filter.organizationId ? { organizationId: filter.organizationId } : {}),
+            ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
+          },
         },
         { $group: { _id: "$severity", count: { $sum: 1 } } },
       ]),
@@ -3705,8 +3731,15 @@ export class SuperAdminService {
       updateOne: {
         filter: { key: flag.key },
         update: {
+          $set: {
+            name: flag.name,
+            description: flag.description,
+          },
           $setOnInsert: {
-            ...flag,
+            isEnabled: flag.isEnabled,
+            rolloutPercentage: flag.rolloutPercentage,
+            targetAudience: flag.targetAudience,
+            environment: flag.environment,
             targetOrganizationIds: [],
             excludedOrganizationIds: [],
             targetRoles: [],
@@ -3976,8 +4009,236 @@ export class SuperAdminService {
     return flag.toJSON();
   }
 
+  async getOrganizationFlags(orgId: string) {
+    if (!mongoose.Types.ObjectId.isValid(orgId)) {
+      throw new AppError(400, "VALIDATION_ERROR", `Invalid organization ID format: ${orgId}`);
+    }
+
+    const org = await Organization.findById(orgId);
+    if (!org || org.isDeleted) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", `Organization '${orgId}' not found`);
+    }
+
+    await this.syncDefaultFeatureFlags();
+
+    const flags = await FeatureFlag.find({ isDeleted: false }).sort({ key: 1 });
+    const orgObjectIdStr = org._id.toString();
+
+    const defaultFlagsMap = new Map<string, any>(
+      DEFAULT_PLATFORM_FLAGS.map((df) => [df.key.toLowerCase(), df])
+    );
+
+    const results = await Promise.all(
+      flags.map(async (flag) => {
+        const flagKey = flag.key.toLowerCase();
+        const defaultDef = defaultFlagsMap.get(flagKey);
+
+        const isTargeted = Boolean(
+          flag.targetOrganizationIds &&
+          flag.targetOrganizationIds.some(
+            (id: any) => (id._id || id).toString() === orgObjectIdStr
+          )
+        );
+
+        const isExcluded = Boolean(
+          flag.excludedOrganizationIds &&
+          flag.excludedOrganizationIds.some(
+            (id: any) => (id._id || id).toString() === orgObjectIdStr
+          )
+        );
+
+        let override: "whitelisted" | "blacklisted" | "default" = "default";
+        if (isExcluded) {
+          override = "blacklisted";
+        } else if (isTargeted) {
+          override = "whitelisted";
+        }
+
+        const effectiveEnabled = await FeatureFlagService.isEnabled(
+          flag.key,
+          orgObjectIdStr
+        );
+
+        return {
+          id: flag._id.toString(),
+          key: flag.key,
+          name: flag.name,
+          description: flag.description,
+          category: defaultDef?.category || (flag as any).category || "Core Platform",
+          environment: flag.environment || "all",
+          globalEnabled: Boolean(flag.isEnabled),
+          targetAudience: flag.targetAudience || "global",
+          rolloutPercentage: flag.rolloutPercentage ?? 100,
+          isTargeted,
+          isExcluded,
+          override,
+          effectiveEnabled,
+        };
+      })
+    );
+
+    return {
+      organization: {
+        id: org._id.toString(),
+        name: org.name,
+        slug: org.slug,
+        plan: org.plan,
+        status: org.status,
+      },
+      flags: results,
+      totalFlags: results.length,
+      overriddenCount: results.filter((r) => r.override !== "default").length,
+      enabledCount: results.filter((r) => r.effectiveEnabled).length,
+    };
+  }
+
+  async updateOrganizationFlagOverride(
+    orgId: string,
+    flagKey: string,
+    override: "whitelisted" | "blacklisted" | "default",
+    actorUserId: string,
+    reason?: string
+  ) {
+    if (!mongoose.Types.ObjectId.isValid(orgId)) {
+      throw new AppError(400, "VALIDATION_ERROR", `Invalid organization ID format: ${orgId}`);
+    }
+
+    if (!["whitelisted", "blacklisted", "default"].includes(override)) {
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        `Invalid override value '${override}'. Must be 'whitelisted', 'blacklisted', or 'default'.`
+      );
+    }
+
+    const org = await Organization.findById(orgId);
+    if (!org || org.isDeleted) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", `Organization '${orgId}' not found`);
+    }
+
+    const normalizedKey = (flagKey || "").trim().toLowerCase();
+    let flag = await FeatureFlag.findOne({ key: normalizedKey, isDeleted: false });
+
+    if (!flag) {
+      const defaultFlag = DEFAULT_PLATFORM_FLAGS.find((f) => f.key === normalizedKey);
+      if (defaultFlag) {
+        flag = await FeatureFlag.create({
+          ...defaultFlag,
+          targetOrganizationIds: [],
+          excludedOrganizationIds: [],
+          targetRoles: [],
+          isDeleted: false,
+        });
+      } else {
+        throw new AppError(404, "FLAG_NOT_FOUND", `Feature flag '${flagKey}' not found`);
+      }
+    }
+
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+    const orgStr = orgId.toString();
+
+    const previousTargeted = flag.targetOrganizationIds.some(
+      (id: any) => (id._id || id).toString() === orgStr
+    );
+    const previousExcluded = flag.excludedOrganizationIds.some(
+      (id: any) => (id._id || id).toString() === orgStr
+    );
+    const previousOverride = previousExcluded
+      ? "blacklisted"
+      : previousTargeted
+      ? "whitelisted"
+      : "default";
+
+    if (override === "whitelisted") {
+      if (!previousTargeted) {
+        flag.targetOrganizationIds.push(orgObjectId);
+      }
+      flag.excludedOrganizationIds = flag.excludedOrganizationIds.filter(
+        (id: any) => (id._id || id).toString() !== orgStr
+      );
+    } else if (override === "blacklisted") {
+      if (!previousExcluded) {
+        flag.excludedOrganizationIds.push(orgObjectId);
+      }
+      flag.targetOrganizationIds = flag.targetOrganizationIds.filter(
+        (id: any) => (id._id || id).toString() !== orgStr
+      );
+    } else if (override === "default") {
+      flag.targetOrganizationIds = flag.targetOrganizationIds.filter(
+        (id: any) => (id._id || id).toString() !== orgStr
+      );
+      flag.excludedOrganizationIds = flag.excludedOrganizationIds.filter(
+        (id: any) => (id._id || id).toString() !== orgStr
+      );
+    }
+
+    await flag.save();
+
+    FeatureFlagService.invalidateCache(normalizedKey);
+
+    await AuditLog.create({
+      actorUserId,
+      actorType: "user",
+      eventCategory: "feature_flag",
+      eventType: "FLAG_UPDATED",
+      resourceType: "FeatureFlag",
+      resourceId: flag._id,
+      action: "update",
+      description: `Feature flag '${flag.key}' override for organization '${org.name}' changed from '${previousOverride}' to '${override}'`,
+      severity: "warning",
+      metadata: {
+        organizationId: orgStr,
+        organizationName: org.name,
+        flagKey: flag.key,
+        previousOverride,
+        newOverride: override,
+        reason: reason || `Organization override set to ${override}`,
+      },
+    }).catch((err) => {
+      console.warn("[SuperAdminService] Failed to write AuditLog for flag override:", err.message);
+    });
+
+    const effectiveEnabled = await FeatureFlagService.isEnabled(flag.key, orgStr);
+
+    return {
+      key: flag.key,
+      name: flag.name,
+      override,
+      effectiveEnabled,
+      globalEnabled: Boolean(flag.isEnabled),
+      organizationId: orgStr,
+    };
+  }
+
+  async batchUpdateOrganizationFlags(
+    orgId: string,
+    updates: Array<{ key: string; override: "whitelisted" | "blacklisted" | "default" }>,
+    actorUserId: string,
+    reason?: string
+  ) {
+    if (!Array.isArray(updates) || updates.length === 0) {
+      throw new AppError(400, "VALIDATION_ERROR", "Updates array is required");
+    }
+
+    const results = [];
+    for (const item of updates) {
+      if (!item.key || !item.override) continue;
+      const res = await this.updateOrganizationFlagOverride(
+        orgId,
+        item.key,
+        item.override,
+        actorUserId,
+        reason || "Batch organization feature flags update"
+      );
+      results.push(res);
+    }
+
+    return results;
+  }
+
   async getAlerts(query: any) {
     const {
+      organizationId,
       status,
       severity,
       category,
@@ -3989,6 +4250,14 @@ export class SuperAdminService {
     await AlertService.syncSystemAlerts();
 
     const filter: any = {};
+
+    if (
+      organizationId &&
+      organizationId !== "all" &&
+      mongoose.Types.ObjectId.isValid(organizationId)
+    ) {
+      filter.organizationId = new mongoose.Types.ObjectId(organizationId);
+    }
 
     if (status && status !== "all") {
       if (status === "active") {
@@ -4035,7 +4304,12 @@ export class SuperAdminService {
         .lean(),
       Alert.countDocuments(filter),
       Alert.aggregate([
-        { $match: { status: { $ne: "resolved" } } },
+        {
+          $match: {
+            status: { $ne: "resolved" },
+            ...(filter.organizationId ? { organizationId: filter.organizationId } : {}),
+          },
+        },
         {
           $group: {
             _id: null,
@@ -4077,7 +4351,11 @@ export class SuperAdminService {
       total: 0,
     };
 
-    const resolvedCount = await Alert.countDocuments({ status: "resolved" });
+    const resolvedFilter: Record<string, any> = { status: "resolved" };
+    if (filter.organizationId) {
+      resolvedFilter.organizationId = filter.organizationId;
+    }
+    const resolvedCount = await Alert.countDocuments(resolvedFilter);
 
     const alerts = alertDocs.map((a: any) => ({
       id: a._id.toString(),

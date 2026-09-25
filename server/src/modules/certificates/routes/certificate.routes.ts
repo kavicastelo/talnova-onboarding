@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { CertificateController } from "../controllers/certificate.controller.js";
-import { authenticate } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 
 export async function certificateRoutes(app: FastifyInstance) {
   const controller = new CertificateController();
@@ -12,6 +12,7 @@ export async function certificateRoutes(app: FastifyInstance) {
   // Authenticated employee endpoints
   app.register(async (authApp) => {
     authApp.addHook("preHandler", authenticate);
+    authApp.addHook("preHandler", requireFeatureFlag("certificates"));
 
     authApp.get("/me", controller.getMyCertificates as any);
   });

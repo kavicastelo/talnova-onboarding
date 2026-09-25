@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { superAdminService } from '../services/superAdmin.service';
+import {
+  superAdminService,
+  type UpdateOrgFlagOverridePayload,
+  type BatchUpdateOrgFlagsPayload,
+} from '../services/superAdmin.service';
 import { apiClient } from '../api/client';
 
 export function useSuperAdminStats() {
@@ -323,7 +327,57 @@ export function useCreateFeatureFlag() {
   });
 }
 
+export function useSuperAdminOrganizationFlags(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['superAdminOrganizationFlags', orgId],
+    queryFn: () => (orgId ? superAdminService.getOrganizationFlags(orgId) : Promise.resolve([])),
+    enabled: Boolean(orgId),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdateOrganizationFlagOverride() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orgId,
+      flagKey,
+      payload,
+    }: {
+      orgId: string;
+      flagKey: string;
+      payload: UpdateOrgFlagOverridePayload;
+    }) => superAdminService.updateOrganizationFlagOverride(orgId, flagKey, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizationFlags', variables.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminFeatureFlags'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganization360', variables.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+    },
+  });
+}
+
+export function useBatchUpdateOrganizationFlags() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orgId,
+      payload,
+    }: {
+      orgId: string;
+      payload: BatchUpdateOrgFlagsPayload;
+    }) => superAdminService.batchUpdateOrganizationFlags(orgId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizationFlags', variables.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminFeatureFlags'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganization360', variables.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+    },
+  });
+}
+
 export function useSuperAdminAlerts(params?: {
+  organizationId?: string;
   status?: string;
   severity?: string;
   category?: string;

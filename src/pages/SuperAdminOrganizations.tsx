@@ -139,6 +139,7 @@ export function SuperAdminOrganizations() {
     <SuperAdminShell
       title="Organizations & Tenants"
       subtitle="Provision, configure quotas, and inspect cross-tenant customer workspaces"
+      hideFilterBar={true}
       actions={
         <Button
           onClick={() => setShowModal(true)}

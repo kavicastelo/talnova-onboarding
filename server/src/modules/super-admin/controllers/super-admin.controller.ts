@@ -526,6 +526,51 @@ export class SuperAdminController {
     });
   };
 
+  getOrganizationFlags = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const data = await this.superAdminService.getOrganizationFlags(id);
+    return reply.status(200).send({
+      success: true,
+      message: "Organization feature flags retrieved successfully",
+      data,
+    });
+  };
+
+  updateOrganizationFlag = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id, key } = request.params as { id: string; key: string };
+    const { override, reason } = (request.body as any) || {};
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.updateOrganizationFlagOverride(
+      id,
+      key,
+      override,
+      actorUserId,
+      reason
+    );
+    return reply.status(200).send({
+      success: true,
+      message: `Organization override for '${key}' set to '${override}'`,
+      data,
+    });
+  };
+
+  batchUpdateOrganizationFlags = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const { updates, reason } = (request.body as any) || {};
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.batchUpdateOrganizationFlags(
+      id,
+      updates,
+      actorUserId,
+      reason
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Organization feature flags batch updated successfully",
+      data,
+    });
+  };
+
   getAlerts = async (request: FastifyRequest, reply: FastifyReply) => {
     const data = await this.superAdminService.getAlerts(request.query);
     return reply.status(200).send({

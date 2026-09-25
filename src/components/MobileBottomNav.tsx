@@ -35,30 +35,30 @@ export function MobileBottomNav() {
 
   let navItems: MobileNavItem[] = [
     { title: 'Home', url: '/', icon: LayoutDashboard },
-    { title: 'HR Ops', url: '/hr-ops', icon: ShieldAlert, capability: 'view_hr_ops' },
-    { title: 'Directory', url: '/directory', icon: Users },
-    { title: 'Tasks', url: '/tasks', icon: CheckSquare },
+    { title: 'HR Ops', url: '/hr-ops', icon: ShieldAlert, capability: 'view_hr_ops', featureFlag: 'hr_ops_dashboard' },
+    { title: 'Directory', url: '/directory', icon: Users, featureFlag: 'employee_directory' },
+    { title: 'Tasks', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
   ];
 
   if (role === 'employee') {
     navItems = [
-      { title: 'Roadmap', url: '/employee', icon: LayoutDashboard },
+      { title: 'Roadmap', url: '/employee', icon: LayoutDashboard, featureFlag: 'onboarding_roadmap' },
       { title: 'Documents', url: '/documents', icon: FileText, featureFlag: 'digital_signatures' },
-      { title: 'Tasks', url: '/tasks', icon: CheckSquare },
-      { title: 'Journeys', url: '/journeys', icon: GraduationCap },
+      { title: 'Tasks', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
+      { title: 'Journeys', url: '/journeys', icon: GraduationCap, featureFlag: 'journey_templates' },
     ];
   } else if (role === 'manager') {
     navItems = [
-      { title: 'Team Ops', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
-      { title: 'Milestones', url: '/milestones', icon: CalendarCheck },
-      { title: 'Tasks', url: '/tasks', icon: CheckSquare },
-      { title: 'Directory', url: '/directory', icon: Users },
+      { title: 'Team Ops', url: '/manager', icon: UserCheck, capability: 'view_team_ops', featureFlag: 'manager_dashboard' },
+      { title: 'Milestones', url: '/milestones', icon: CalendarCheck, featureFlag: 'milestone_ratings' },
+      { title: 'Tasks', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
+      { title: 'Directory', url: '/directory', icon: Users, featureFlag: 'employee_directory' },
     ];
   } else if (role === 'it_admin') {
     navItems = [
-      { title: 'IT Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
-      { title: 'Tasks', url: '/tasks', icon: CheckSquare },
-      { title: 'Directory', url: '/directory', icon: Users },
+      { title: 'IT Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops', featureFlag: 'it_ops_queue' },
+      { title: 'Tasks', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
+      { title: 'Directory', url: '/directory', icon: Users, featureFlag: 'employee_directory' },
       { title: 'Integrations', url: '/settings/integrations', icon: Workflow, capability: 'manage_integrations', featureFlag: 'advanced_hris_sync' },
     ];
   } else if (role === 'super_admin') {

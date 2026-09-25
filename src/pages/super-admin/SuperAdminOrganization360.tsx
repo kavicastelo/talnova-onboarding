@@ -17,17 +17,26 @@ import {
   Mail,
   Globe,
   RefreshCw,
-  Sliders
+  Sliders,
+  ToggleLeft,
+  Search,
+  Filter,
+  RotateCcw,
+  XCircle,
 } from 'lucide-react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
+import { Input } from '../../components/Input';
 import { SuperAdminShell } from '../../components/super-admin/SuperAdminShell';
 import {
   useSuperAdminOrganization360,
   useUpdateOrganization,
   useToggleOrganizationStatus,
-  useQuarantineOrganization
+  useQuarantineOrganization,
+  useSuperAdminOrganizationFlags,
+  useUpdateOrganizationFlagOverride,
+  useBatchUpdateOrganizationFlags,
 } from '../../hooks/useSuperAdmin';
 import { toast } from 'sonner';
 
@@ -35,10 +44,18 @@ export function SuperAdminOrganization360() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'quotas' | 'users' | 'journeys' | 'billing' | 'audit' | 'danger'
+    'overview' | 'quotas' | 'features' | 'users' | 'journeys' | 'billing' | 'audit' | 'danger'
   >('overview');
 
   const { data, isLoading, isError, refetch } = useSuperAdminOrganization360(id);
+
+  const { data: orgFlags, isLoading: isFlagsLoading, refetch: refetchFlags } = useSuperAdminOrganizationFlags(id);
+  const updateFlagOverrideMutation = useUpdateOrganizationFlagOverride();
+  const batchUpdateFlagsMutation = useBatchUpdateOrganizationFlags();
+
+  const [featureSearch, setFeatureSearch] = useState('');
+  const [featureFilter, setFeatureFilter] = useState<'all' | 'enabled' | 'disabled' | 'overridden'>('all');
+  const [isResettingOverrides, setIsResettingOverrides] = useState(false);
 
   const updateMutation = useUpdateOrganization();
   const toggleStatusMutation = useToggleOrganizationStatus();
@@ -57,7 +74,7 @@ export function SuperAdminOrganization360() {
 
   if (isLoading) {
     return (
-      <SuperAdminShell title="Organization 360° Profile" subtitle="Loading organization metadata…">
+      <SuperAdminShell title="Organization 360° Profile" subtitle="Loading organization metadata…" hideFilterBar={true}>
         <div className="space-y-4 animate-pulse">
           <div className="h-10 w-48 rounded bg-slate-200" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -72,7 +89,7 @@ export function SuperAdminOrganization360() {
 
   if (isError || !data) {
     return (
-      <SuperAdminShell title="Organization 360° Profile" subtitle="Cross-tenant organization profile">
+      <SuperAdminShell title="Organization 360° Profile" subtitle="Cross-tenant organization profile" hideFilterBar={true}>
         <div className="p-8 text-center bg-white border border-slate-200 shadow-sm rounded-2xl space-y-4">
           <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto" />
           <h2 className="text-lg font-semibold text-slate-900">Tenant Profile Not Found</h2>
@@ -158,6 +175,7 @@ export function SuperAdminOrganization360() {
     <SuperAdminShell
       title={`${organization.name} — 360° Command Profile`}
       subtitle={`Tenant ID: ${organization.id} · Domain: ${organization.domain || `${organization.slug}.talnova.app`}`}
+      hideFilterBar={true}
       actions={
         <div className="flex items-center gap-2">
           <Button
@@ -263,6 +281,7 @@ export function SuperAdminOrganization360() {
           {[
             { id: 'overview', label: 'Overview & Profile', icon: Building2 },
             { id: 'quotas', label: 'Quotas & Limits', icon: Sliders },
+            { id: 'features', label: `Feature Entitlements (${orgFlags?.length || 0})`, icon: ToggleLeft },
             { id: 'users', label: `Users (${quotas.users.current})`, icon: Users },
             { id: 'journeys', label: `Journeys (${journeys.length})`, icon: GraduationCap },
             { id: 'billing', label: `Invoices (${invoices.length})`, icon: FileSpreadsheet },
@@ -474,6 +493,303 @@ export function SuperAdminOrganization360() {
           </div>
         </Card>
       )}
+
+      {/* TAB: FEATURE ENTITLEMENTS */}
+      {activeTab === 'features' && (() => {
+        const flagsList: any[] = Array.isArray(orgFlags) ? orgFlags : (orgFlags as any)?.flags || [];
+        const activeForTenantCount = flagsList.filter((f) => f.effectiveEnabled).length;
+        const whitelistedCount = flagsList.filter((f) => f.override === 'whitelisted').length;
+        const blacklistedCount = flagsList.filter((f) => f.override === 'blacklisted').length;
+        const overriddenCount = whitelistedCount + blacklistedCount;
+
+        const filteredOrgFlags = flagsList.filter((flag) => {
+          const q = featureSearch.toLowerCase().trim();
+          const matchesSearch =
+            !q ||
+            flag.name?.toLowerCase().includes(q) ||
+            flag.key?.toLowerCase().includes(q) ||
+            flag.description?.toLowerCase().includes(q);
+
+          if (!matchesSearch) return false;
+
+          if (featureFilter === 'enabled') return flag.effectiveEnabled;
+          if (featureFilter === 'disabled') return !flag.effectiveEnabled;
+          if (featureFilter === 'overridden') return flag.override !== 'default';
+
+          return true;
+        });
+
+        return (
+          <Card className="border border-slate-200 bg-white shadow-sm rounded-xl p-5 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold text-slate-900">Tenant Feature Entitlements & Overrides</h3>
+                  <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                    {flagsList.length} Capabilities
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Control beta access, early whitelists, or strict customer blacklists for {organization.name}.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchFlags()}
+                  disabled={isFlagsLoading}
+                  className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isFlagsLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                {overriddenCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isResettingOverrides || batchUpdateFlagsMutation.isPending}
+                    onClick={async () => {
+                      if (!window.confirm(`Reset all ${overriddenCount} feature overrides for ${organization.name} back to platform defaults?`)) return;
+                      setIsResettingOverrides(true);
+                      try {
+                        const overridesToReset = (orgFlags || [])
+                          .filter((f) => f.override !== 'default')
+                          .map((f) => ({ key: f.key, override: 'default' as const }));
+                        await batchUpdateFlagsMutation.mutateAsync({
+                          orgId: id!,
+                          payload: {
+                            updates: overridesToReset,
+                            reason: `Reset all ${overridesToReset.length} overrides to platform default`,
+                          },
+                        });
+                        toast.success(`Reset ${overridesToReset.length} overrides to global defaults for ${organization.name}`);
+                      } catch (err: any) {
+                        toast.error(err?.response?.data?.message || 'Failed to reset overrides');
+                      } finally {
+                        setIsResettingOverrides(false);
+                      }
+                    }}
+                    className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs gap-1.5 shadow-sm"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset All to Default
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Metric Stats Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[11px] font-medium text-slate-500 block">Total Capabilities</span>
+                <span className="text-xl font-bold font-mono text-slate-900 mt-1 block">
+                  {orgFlags?.length || 0}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
+                <span className="text-[11px] font-medium text-emerald-700 block">Active for Tenant</span>
+                <span className="text-xl font-bold font-mono text-emerald-800 mt-1 block">
+                  {activeForTenantCount}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200">
+                <span className="text-[11px] font-medium text-purple-700 block">Whitelisted (Early Access)</span>
+                <span className="text-xl font-bold font-mono text-purple-800 mt-1 block">
+                  {whitelistedCount}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-rose-50/60 border border-rose-200">
+                <span className="text-[11px] font-medium text-rose-700 block">Blacklisted (Denied)</span>
+                <span className="text-xl font-bold font-mono text-rose-800 mt-1 block">
+                  {blacklistedCount}
+                </span>
+              </div>
+            </div>
+
+            {/* Search & Filter Toolbar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex-1 relative">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <Input
+                  placeholder="Search capabilities by name, key, or purpose..."
+                  value={featureSearch}
+                  onChange={(e) => setFeatureSearch(e.target.value)}
+                  className="pl-9 text-xs h-9 bg-slate-50/50 border-slate-200 focus:bg-white focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={featureFilter}
+                  onChange={(e) => setFeatureFilter(e.target.value as any)}
+                  className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
+                >
+                  <option value="all">All Capabilities ({orgFlags?.length || 0})</option>
+                  <option value="enabled">Active for Tenant ({activeForTenantCount})</option>
+                  <option value="disabled">Inactive for Tenant ({(orgFlags?.length || 0) - activeForTenantCount})</option>
+                  <option value="overridden">Custom Overrides Only ({overriddenCount})</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Capabilities Table */}
+            {isFlagsLoading ? (
+              <div className="p-12 text-center text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                Loading organization feature flight configuration...
+              </div>
+            ) : filteredOrgFlags.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
+                <Sliders className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-700">No capabilities match your filter</p>
+                <p className="text-xs text-slate-400 mt-1">Try clearing your search query or status filter</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3">Feature Capability</th>
+                      <th className="px-4 py-3">Global Default</th>
+                      <th className="px-4 py-3">Tenant Entitlement</th>
+                      <th className="px-4 py-3">Evaluation Rule</th>
+                      <th className="px-4 py-3 text-right">Organization Override</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredOrgFlags.map((flag) => {
+                      const isOverridden = flag.override !== 'default';
+                      return (
+                        <tr
+                          key={flag.key}
+                          className={`transition-colors hover:bg-slate-50/80 ${
+                            isOverridden ? 'bg-indigo-50/20' : ''
+                          }`}
+                        >
+                          <td className="px-4 py-3.5 max-w-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900">{flag.name}</span>
+                              {flag.environment && flag.environment !== 'all' && (
+                                <Badge className="text-[10px] uppercase bg-blue-50 text-blue-700 border-blue-200">
+                                  {flag.environment}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="font-mono text-[11px] text-slate-500 mt-0.5">
+                              {flag.key}
+                            </div>
+                            {flag.description && (
+                              <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                                {flag.description}
+                              </p>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <Badge
+                              className={`text-[10px] uppercase ${
+                                flag.globalEnabled
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              {flag.globalEnabled ? 'Global On' : 'Global Off'}
+                            </Badge>
+                          </td>
+
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <Badge
+                              className={`text-xs font-medium flex items-center gap-1.5 py-0.5 px-2.5 w-fit ${
+                                flag.effectiveEnabled
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              {flag.effectiveEnabled ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  Active for Tenant
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                                  Inactive for Tenant
+                                </>
+                              )}
+                            </Badge>
+                          </td>
+
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            {flag.override === 'whitelisted' && (
+                              <Badge className="text-[11px] bg-purple-100 text-purple-800 border border-purple-200 font-medium">
+                                Whitelisted Override
+                              </Badge>
+                            )}
+                            {flag.override === 'blacklisted' && (
+                              <Badge className="text-[11px] bg-rose-100 text-rose-800 border border-rose-200 font-medium">
+                                Blacklisted Exclusion
+                              </Badge>
+                            )}
+                            {flag.override === 'default' && (
+                              <Badge className="text-[11px] bg-slate-100 text-slate-600 border border-slate-200 font-normal">
+                                {flag.globalEnabled
+                                  ? (flag.rolloutPercentage && flag.rolloutPercentage < 100
+                                      ? `Rollout (${flag.rolloutPercentage}%)`
+                                      : 'Inherited (Global On)')
+                                  : 'Inherited (Global Off)'}
+                              </Badge>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                            <select
+                              value={flag.override}
+                              disabled={updateFlagOverrideMutation.isPending}
+                              onChange={async (e) => {
+                                const newOverride = e.target.value as 'whitelisted' | 'blacklisted' | 'default';
+                                try {
+                                  await updateFlagOverrideMutation.mutateAsync({
+                                    orgId: id!,
+                                    flagKey: flag.key,
+                                    payload: {
+                                      override: newOverride,
+                                      reason: `Updated from Org 360 Entitlements console`,
+                                    },
+                                  });
+                                  toast.success(`Feature '${flag.name}' set to '${newOverride}' for ${organization.name}`);
+                                } catch (err: any) {
+                                  toast.error(err?.response?.data?.message || 'Failed to update feature override');
+                                }
+                              }}
+                              className={`border rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm ${
+                                flag.override === 'whitelisted'
+                                  ? 'bg-purple-50 border-purple-300 text-purple-900 font-semibold'
+                                  : flag.override === 'blacklisted'
+                                  ? 'bg-rose-50 border-rose-300 text-rose-900 font-semibold'
+                                  : 'bg-white border-slate-300 text-slate-700'
+                              }`}
+                            >
+                              <option value="default">Default (Inherit Global)</option>
+                              <option value="whitelisted">Whitelist (Force Active)</option>
+                              <option value="blacklisted">Blacklist (Force Block)</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* TAB 3: USERS */}
       {activeTab === 'users' && (

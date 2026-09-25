@@ -1,15 +1,16 @@
 import { FastifyInstance } from "fastify";
 import { AnalyticsController } from "../controllers/analytics.controller.js";
 import { AnalyticsService } from "../services/analytics.service.js";
-import { authenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 
 export async function analyticsRoutes(app: FastifyInstance) {
   const service = new AnalyticsService();
   const controller = new AnalyticsController(service);
 
-  // Authenticate all routes
+  // Authenticate all routes and enforce Feature Flag
   app.addHook("preHandler", authenticate);
   app.addHook("preHandler", requireRole(["owner", "admin", "hr_admin", "manager"]));
+  app.addHook("preHandler", requireFeatureFlag("tenant_analytics"));
 
   // GET /api/v1/analytics/overview (UJ-ADM-012)
   app.get("/overview", controller.getOverview as any);

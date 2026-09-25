@@ -29,6 +29,7 @@ import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { SimplePagination } from '../components/SimplePagination';
+import { useSuperAdminFilter } from '../context/SuperAdminFilterContext';
 import { toast } from 'sonner';
 import {
   useSuperAdminInvoices,
@@ -92,6 +93,8 @@ export function SuperAdminFinance() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
+  const { refreshKey } = useSuperAdminFilter();
+
   // React Query Hooks
   const {
     data: financeData,
@@ -118,6 +121,16 @@ export function SuperAdminFinance() {
   const createInvoiceMutation = useCreateInvoice();
   const recordPaymentMutation = useRecordPayment();
   const recordExpenseMutation = useRecordExpense();
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetchFinance();
+      refetchInvoices();
+      refetchPayments();
+      refetchExpenses();
+    }
+  }, [refreshKey, refetchFinance, refetchInvoices, refetchPayments, refetchExpenses]);
 
   // Invoice Modal & Itemized State
   const [showModal, setShowModal] = useState(false);

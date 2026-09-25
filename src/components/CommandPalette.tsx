@@ -89,6 +89,7 @@ const pages: PalettePage[] = [
     category: 'My Onboarding',
     url: '/employee',
     icon: LayoutDashboard,
+    featureFlag: 'onboarding_roadmap',
     keywords: ['roadmap', 'phases', 'progress', 'journey', 'welcome', 'home'],
   },
   {
@@ -104,6 +105,7 @@ const pages: PalettePage[] = [
     category: 'My Onboarding',
     url: '/tasks',
     icon: CheckSquare,
+    featureFlag: 'checklist_tasks',
     keywords: ['tasks', 'checklist', 'todo', 'action items'],
   },
   {
@@ -111,6 +113,7 @@ const pages: PalettePage[] = [
     category: 'My Onboarding',
     url: '/certificates',
     icon: Award,
+    featureFlag: 'certificates',
     keywords: ['certificates', 'credentials', 'diploma', 'graduation', 'badges'],
   },
 
@@ -121,6 +124,7 @@ const pages: PalettePage[] = [
     url: '/hr-ops',
     icon: ShieldAlert,
     capability: 'view_hr_ops',
+    featureFlag: 'hr_ops_dashboard',
     keywords: ['hr operations', 'handover', 'graduation', 'verification', 'batch'],
   },
   {
@@ -129,6 +133,7 @@ const pages: PalettePage[] = [
     url: '/hr-ops/exceptions',
     icon: AlertOctagon,
     capability: 'view_hr_ops',
+    featureFlag: 'hr_exceptions',
     keywords: ['exceptions', 'quarantine', 'velocity risk', 'stuck', 'sla', 'holds'],
   },
   {
@@ -137,6 +142,7 @@ const pages: PalettePage[] = [
     url: '/tasks/it-ops',
     icon: Laptop,
     capability: 'manage_it_ops',
+    featureFlag: 'it_ops_queue',
     keywords: ['it hardware', 'laptop', 'provisioning', 'serial', 'asset tag', 'courier'],
   },
 
@@ -147,6 +153,7 @@ const pages: PalettePage[] = [
     url: '/manager',
     icon: UserCheck,
     capability: 'view_team_ops',
+    featureFlag: 'manager_dashboard',
     keywords: ['manager', 'direct reports', 'nudge', 'team', 'sign-off', 'supervision'],
   },
   {
@@ -154,6 +161,7 @@ const pages: PalettePage[] = [
     category: 'People & Teams',
     url: '/directory',
     icon: Users,
+    featureFlag: 'employee_directory',
     keywords: ['directory', 'employees', 'staff', 'team', 'people', 'invite', 'csv'],
   },
   {
@@ -169,6 +177,7 @@ const pages: PalettePage[] = [
     category: 'People & Teams',
     url: '/milestones',
     icon: CalendarCheck,
+    featureFlag: 'milestone_ratings',
     keywords: ['milestones', 'evaluation', '30 day', '60 day', '90 day', 'self rating', 'review'],
   },
   {
@@ -176,6 +185,7 @@ const pages: PalettePage[] = [
     category: 'People & Teams',
     url: '/calendar',
     icon: Calendar,
+    featureFlag: 'calendar_integration',
     keywords: ['calendar', 'meetings', 'schedule', '1-on-1', 'check-in', 'meet'],
   },
 
@@ -185,6 +195,7 @@ const pages: PalettePage[] = [
     category: 'Learning & Content',
     url: '/journeys',
     icon: GraduationCap,
+    featureFlag: 'journey_templates',
     keywords: ['journeys', 'curriculum', 'lms', 'modules', 'steps', 'courses', 'templates'],
   },
   {
@@ -201,6 +212,7 @@ const pages: PalettePage[] = [
     category: 'Learning & Content',
     url: '/kb',
     icon: BookOpen,
+    featureFlag: 'knowledge_base',
     keywords: ['knowledge base', 'articles', 'handbook', 'policies', 'faq', 'docs', 'wiki'],
   },
   {
@@ -208,6 +220,7 @@ const pages: PalettePage[] = [
     category: 'Learning & Content',
     url: '/kb/slideshow',
     icon: Tv,
+    featureFlag: 'kb_slideshow',
     keywords: ['slideshow', 'tv', 'presentation', 'policies', 'kiosk'],
   },
 
@@ -217,6 +230,7 @@ const pages: PalettePage[] = [
     category: 'Workplace & Tools',
     url: '/ai-assistant',
     icon: Bot,
+    featureFlag: 'ai_assistant',
     keywords: ['ai assistant', 'chatbot', 'help', 'questions', 'bot', 'gpt'],
   },
   {
@@ -252,6 +266,7 @@ const pages: PalettePage[] = [
     url: '/analytics',
     icon: BarChart2,
     capability: 'view_analytics',
+    featureFlag: 'tenant_analytics',
     keywords: ['analytics', 'metrics', 'drop-off', 'velocity', 'cohorts', 'reports'],
   },
   {
@@ -260,6 +275,7 @@ const pages: PalettePage[] = [
     url: '/workflows',
     icon: Workflow,
     capability: 'manage_workflows',
+    featureFlag: 'workflow_rules',
     keywords: ['workflows', 'automation', 'rules', 'triggers', 'actions', 'events', 'logs'],
   },
   {

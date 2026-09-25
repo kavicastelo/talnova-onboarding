@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 
 function SuperAdminUsersContent() {
   const navigate = useNavigate();
-  const { selectedOrgId } = useSuperAdminFilter();
+  const { selectedOrgId, refreshKey } = useSuperAdminFilter();
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -38,6 +38,13 @@ function SuperAdminUsersContent() {
     page,
     limit
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   const forceLogoutMutation = useForceLogoutUser();
 

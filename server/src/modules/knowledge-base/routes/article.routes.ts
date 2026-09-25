@@ -5,7 +5,7 @@ import { KnowledgeBaseRepository } from "../repositories/article.repository.js";
 import { QuickLinkController } from "../controllers/quick-link.controller.js";
 import { QuickLinkService } from "../services/quick-link.service.js";
 import { QuickLinkRepository } from "../repositories/quick-link.repository.js";
-import { authenticate, optionalAuthenticate, requireRole } from "../../../middleware/auth.middleware.js";
+import { authenticate, optionalAuthenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
 import { extractLocale } from "../../../middleware/locale.middleware.js";
 import { createArticleSchema, updateArticleSchema } from "../schemas/article.schema.js";
 
@@ -17,6 +17,10 @@ export async function knowledgeBaseRoutes(app: FastifyInstance) {
   const qlRepository = new QuickLinkRepository();
   const qlService = new QuickLinkService(qlRepository);
   const qlController = new QuickLinkController(qlService);
+
+  // Feature Flag gate for knowledge base capability (authenticates token if present)
+  app.addHook("preHandler", optionalAuthenticate);
+  app.addHook("preHandler", requireFeatureFlag("knowledge_base"));
 
   // Quick Links routes
   app.get(
