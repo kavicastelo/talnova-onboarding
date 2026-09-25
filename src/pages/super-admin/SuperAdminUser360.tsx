@@ -46,7 +46,7 @@ export function SuperAdminUser360() {
 
   if (isLoading) {
     return (
-      <SuperAdminShell title="User 360° Profile" subtitle="Loading identity profile…">
+      <SuperAdminShell title="User 360° Profile" subtitle="Loading identity profile…" hideFilterBar={true}>
         <div className="space-y-4 animate-pulse">
           <div className="h-10 w-48 rounded bg-slate-200" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -61,7 +61,7 @@ export function SuperAdminUser360() {
 
   if (isError || !data) {
     return (
-      <SuperAdminShell title="User 360° Profile" subtitle="User identity profile">
+      <SuperAdminShell title="User 360° Profile" subtitle="User identity profile" hideFilterBar={true}>
         <div className="p-8 text-center bg-white border border-slate-200 shadow-sm rounded-2xl space-y-4">
           <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto" />
           <h2 className="text-lg font-semibold text-slate-900">User Profile Not Found</h2>
@@ -145,6 +145,7 @@ export function SuperAdminUser360() {
     <SuperAdminShell
       title={`${user.name} — User 360° Profile`}
       subtitle={`Identity ID: ${user.id} · Organization: ${user.organization?.name || 'Platform Root'}`}
+      hideFilterBar={true}
       actions={
         <div className="flex items-center gap-2">
           <Button

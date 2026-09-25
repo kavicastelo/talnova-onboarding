@@ -1,5 +1,5 @@
 import React from 'react';
-import { SuperAdminFilterBar } from './SuperAdminFilterBar';
+import { SuperAdminFilterBar, type SuperAdminFilterBarProps } from './SuperAdminFilterBar';
 
 interface SuperAdminShellProps {
   children: React.ReactNode;
@@ -8,6 +8,12 @@ interface SuperAdminShellProps {
   description?: string;
   actions?: React.ReactNode;
   hideFilterBar?: boolean;
+  filterBarProps?: SuperAdminFilterBarProps;
+  showSeverity?: boolean;
+  showTenant?: boolean;
+  showDateRange?: boolean;
+  showEnvironment?: boolean;
+  showRefresh?: boolean;
 }
 
 export function SuperAdminShell({
@@ -17,6 +23,12 @@ export function SuperAdminShell({
   description,
   actions,
   hideFilterBar = false,
+  filterBarProps,
+  showSeverity,
+  showTenant,
+  showDateRange,
+  showEnvironment,
+  showRefresh,
 }: SuperAdminShellProps) {
   const displaySubtitle = subtitle || description;
   return (
@@ -39,11 +51,21 @@ export function SuperAdminShell({
       )}
 
       {/* Universal Filter Bar */}
-      {!hideFilterBar && <SuperAdminFilterBar />}
+      {!hideFilterBar && (
+        <SuperAdminFilterBar
+          showSeverity={showSeverity ?? filterBarProps?.showSeverity ?? false}
+          showTenant={showTenant ?? filterBarProps?.showTenant ?? true}
+          showDateRange={showDateRange ?? filterBarProps?.showDateRange ?? true}
+          showEnvironment={showEnvironment ?? filterBarProps?.showEnvironment ?? true}
+          showRefresh={showRefresh ?? filterBarProps?.showRefresh ?? true}
+          {...filterBarProps}
+        />
+      )}
 
       {/* Content Area */}
       <div className="space-y-6">{children}</div>
     </div>
   );
 }
+
 

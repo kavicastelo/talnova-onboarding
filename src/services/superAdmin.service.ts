@@ -281,6 +281,29 @@ export interface FinanceOverview {
   };
 }
 
+export interface OrganizationFeatureFlagItem {
+  key: string;
+  name: string;
+  description?: string;
+  category?: string;
+  environment?: string;
+  globalEnabled: boolean;
+  override: 'whitelisted' | 'blacklisted' | 'default';
+  effectiveEnabled: boolean;
+  targetAudience?: string;
+  rolloutPercentage?: number;
+}
+
+export interface UpdateOrgFlagOverridePayload {
+  override: 'whitelisted' | 'blacklisted' | 'default';
+  reason?: string;
+}
+
+export interface BatchUpdateOrgFlagsPayload {
+  updates: Array<{ key: string; override: 'whitelisted' | 'blacklisted' | 'default' }>;
+  reason?: string;
+}
+
 export const superAdminService = {
   getStats: async (): Promise<any> => {
     const response = await apiClient.get<ApiResponse<any>>('/super-admin/stats');
@@ -487,7 +510,39 @@ export const superAdminService = {
     return response.data.data;
   },
 
+  getOrganizationFlags: async (orgId: string): Promise<OrganizationFeatureFlagItem[]> => {
+    const response = await apiClient.get<ApiResponse<any>>(`/super-admin/organizations/${orgId}/flags`);
+    const data = response.data.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.flags)) return data.flags;
+    return [];
+  },
+
+  updateOrganizationFlagOverride: async (
+    orgId: string,
+    flagKey: string,
+    payload: UpdateOrgFlagOverridePayload
+  ): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(
+      `/super-admin/organizations/${orgId}/flags/${flagKey}`,
+      payload
+    );
+    return response.data;
+  },
+
+  batchUpdateOrganizationFlags: async (
+    orgId: string,
+    payload: BatchUpdateOrgFlagsPayload
+  ): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(
+      `/super-admin/organizations/${orgId}/flags/batch`,
+      payload
+    );
+    return response.data;
+  },
+
   getAlerts: async (params?: {
+    organizationId?: string;
     status?: string;
     severity?: string;
     category?: string;

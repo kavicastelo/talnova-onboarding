@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ToggleLeft,
   ToggleRight,
@@ -14,6 +14,11 @@ import {
   Globe,
   Users,
   Percent,
+  Eye,
+  EyeOff,
+  Filter,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { SuperAdminShell } from '../../components/super-admin/SuperAdminShell';
 import { Card } from '../../components/Card';
@@ -35,6 +40,8 @@ import {
   useUpdateFeatureFlag,
   useCreateFeatureFlag,
   useSuperAdminOrganizations,
+  useSuperAdminOrganizationFlags,
+  useUpdateOrganizationFlagOverride,
 } from '../../hooks/useSuperAdmin';
 import { toast } from 'sonner';
 
@@ -43,6 +50,7 @@ interface OrganizationRef {
   id?: string;
   name: string;
   slug?: string;
+  plan?: string;
 }
 
 const formatRoleName = (role: string) => {
@@ -65,7 +73,26 @@ export function SuperAdminFeatureFlags() {
   const createMutation = useCreateFeatureFlag();
 
   const { data: orgsData } = useSuperAdminOrganizations({ limit: 100 });
-  const organizations: OrganizationRef[] = (orgsData as any)?.items || (Array.isArray(orgsData) ? orgsData : []);
+  const organizations: OrganizationRef[] = 
+    (orgsData as any)?.data || (orgsData as any)?.items || (Array.isArray(orgsData) ? orgsData : []);
+
+  // Filter & Tenant Preview Simulation State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'enabled' | 'disabled' | 'overridden'>('all');
+  const [previewOrgId, setPreviewOrgId] = useState<string>('');
+
+  const { data: orgFlags, isLoading: isOrgFlagsLoading } = useSuperAdminOrganizationFlags(previewOrgId || undefined);
+  const orgOverrideMutation = useUpdateOrganizationFlagOverride();
+
+  const orgFlagsMap = useMemo(() => {
+    const list: any[] = Array.isArray(orgFlags) ? orgFlags : (orgFlags as any)?.flags || [];
+    if (!list.length) return new Map<string, any>();
+    return new Map(list.map((item) => [item.key, item]));
+  }, [orgFlags]);
+
+  const selectedPreviewOrg = useMemo(() => {
+    return organizations.find((o) => (o._id || o.id)?.toString() === previewOrgId);
+  }, [organizations, previewOrgId]);
 
   // State for Organization Overrides Modal
   const [selectedFlag, setSelectedFlag] = useState<any | null>(null);
@@ -94,8 +121,12 @@ export function SuperAdminFeatureFlags() {
   const handleOpenOverrides = (flag: any) => {
     setSelectedFlag(flag);
     setTargetAudience(flag.targetAudience || 'global');
-    const targets = (flag.targetOrganizationIds || []).map((o: any) => (typeof o === 'object' ? o._id || o.id : o));
-    const excluded = (flag.excludedOrganizationIds || []).map((o: any) => (typeof o === 'object' ? o._id || o.id : o));
+    const targets = (flag.targetOrganizationIds || []).map((o: any) =>
+      typeof o === 'object' ? (o._id || o.id)?.toString() : o?.toString()
+    ).filter(Boolean);
+    const excluded = (flag.excludedOrganizationIds || []).map((o: any) =>
+      typeof o === 'object' ? (o._id || o.id)?.toString() : o?.toString()
+    ).filter(Boolean);
     setTargetOrgIds(targets);
     setExcludedOrgIds(excluded);
     setTargetRoles(flag.targetRoles || []);
@@ -188,35 +219,62 @@ export function SuperAdminFeatureFlags() {
 
   // Helper to get organization name by ID
   const getOrgName = (orgId: string): string => {
-    const org = organizations.find((o) => (o._id || o.id) === orgId);
+    const org = organizations.find((o) => (o._id || o.id)?.toString() === orgId?.toString());
     if (org) return org.name;
     // Check if selectedFlag already has it populated
     const populated = [
       ...(selectedFlag?.targetOrganizationIds || []),
       ...(selectedFlag?.excludedOrganizationIds || []),
-    ].find((o: any) => typeof o === 'object' && (o._id || o.id) === orgId);
+    ].find((o: any) => typeof o === 'object' && (o._id || o.id)?.toString() === orgId?.toString());
     return populated?.name || orgId;
   };
 
   // Filtered orgs for picker
   const filteredTargetOrgs = organizations.filter(
     (o) =>
-      !targetOrgIds.includes(o._id || o.id || '') &&
+      !targetOrgIds.includes((o._id || o.id || '').toString()) &&
       (o.name.toLowerCase().includes(targetOrgSearch.toLowerCase()) ||
         (o.slug && o.slug.toLowerCase().includes(targetOrgSearch.toLowerCase())))
   );
 
   const filteredExcludedOrgs = organizations.filter(
     (o) =>
-      !excludedOrgIds.includes(o._id || o.id || '') &&
+      !excludedOrgIds.includes((o._id || o.id || '').toString()) &&
       (o.name.toLowerCase().includes(excludedOrgSearch.toLowerCase()) ||
         (o.slug && o.slug.toLowerCase().includes(excludedOrgSearch.toLowerCase())))
   );
+
+  // Filtered flags list
+  const filteredFlags = useMemo(() => {
+    if (!flags || !Array.isArray(flags)) return [];
+    return flags.filter((flag: any) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        flag.name?.toLowerCase().includes(q) ||
+        flag.key?.toLowerCase().includes(q) ||
+        flag.description?.toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+
+      const isFlagEnabled = flag.isEnabled ?? flag.enabled ?? false;
+      const targetCount = flag.targetOrganizationIds?.length || 0;
+      const excludedCount = flag.excludedOrganizationIds?.length || 0;
+      const isOverridden = targetCount > 0 || excludedCount > 0;
+
+      if (statusFilter === 'enabled') return isFlagEnabled;
+      if (statusFilter === 'disabled') return !isFlagEnabled;
+      if (statusFilter === 'overridden') return isOverridden;
+
+      return true;
+    });
+  }, [flags, searchQuery, statusFilter]);
 
   return (
     <SuperAdminShell
       title="Platform Feature Flags & Flight Control"
       description="Global multi-tenant kill switches, progressive rollouts, and organization-level feature entitlements."
+      hideFilterBar={true}
     >
       <div className="space-y-6">
         {/* Top Control Header */}
@@ -238,6 +296,105 @@ export function SuperAdminFeatureFlags() {
           </Button>
         </div>
 
+        {/* Search, Status & Tenant Preview Toolbar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex-1 relative">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <Input
+              placeholder="Search feature flags by name, key, or capability..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs h-9 bg-slate-50/50 border-slate-200 focus:bg-white focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
+              >
+                <option value="all">All Statuses ({flags?.length || 0})</option>
+                <option value="enabled">Active Only</option>
+                <option value="disabled">Disabled Only</option>
+                <option value="overridden">With Tenant Overrides</option>
+              </select>
+            </div>
+
+            <div className="h-5 w-[1px] bg-slate-200 hidden sm:block" />
+
+            {/* Tenant Simulation Filter */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+              <select
+                value={previewOrgId}
+                onChange={(e) => setPreviewOrgId(e.target.value)}
+                className={`border rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm max-w-[240px] truncate ${
+                  previewOrgId
+                    ? 'bg-indigo-50/70 border-indigo-300 text-indigo-950 font-semibold'
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <option value="">Global Platform (All Tenants)</option>
+                {organizations.map((org) => {
+                  const oid = (org._id || org.id)?.toString();
+                  return (
+                    <option key={oid} value={oid}>
+                      Preview: {org.name} {org.slug ? `(${org.slug})` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Tenant Preview Simulation Active Banner */}
+        {previewOrgId && selectedPreviewOrg && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-sm">
+                <Eye className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-slate-900">
+                    Simulating Tenant Flight Control: {selectedPreviewOrg.name}
+                  </span>
+                  <span className="text-xs font-mono text-indigo-700 bg-white/80 px-2 py-0.5 rounded border border-indigo-200 font-medium">
+                    {selectedPreviewOrg.slug || 'tenant'}
+                  </span>
+                  {selectedPreviewOrg.plan && (
+                    <Badge className="text-[10px] uppercase bg-indigo-100/70 text-indigo-800 border-indigo-200">
+                      {selectedPreviewOrg.plan} Tier
+                    </Badge>
+                  )}
+                  {isOrgFlagsLoading && (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 ml-1" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Viewing effective runtime evaluation for this tenant. Overrides apply immediately to this organization.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewOrgId('')}
+                className="text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 shadow-sm"
+              >
+                <EyeOff className="w-3.5 h-3.5 mr-1" />
+                Exit Simulation
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Feature Flags Cards */}
         {isLoading ? (
           <div className="p-16 text-center text-slate-500 bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -248,18 +405,29 @@ export function SuperAdminFeatureFlags() {
           <div className="p-16 text-center text-rose-600 bg-white rounded-xl border border-rose-200 shadow-sm">
             Failed to load feature flags.
           </div>
+        ) : filteredFlags.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200 shadow-sm">
+            <Sliders className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-700">No feature flags match your filter criteria</p>
+            <p className="text-xs text-slate-400 mt-1">Try clearing your search query or status filter</p>
+          </div>
         ) : (
           <div className="space-y-4">
-            {flags?.map((flag: any) => {
+            {filteredFlags.map((flag: any) => {
               const isFlagEnabled = flag.isEnabled ?? flag.enabled ?? false;
               const rollout = flag.rolloutPercentage ?? flag.rolloutPct ?? 100;
               const targetCount = flag.targetOrganizationIds?.length || 0;
               const excludedCount = flag.excludedOrganizationIds?.length || 0;
+              const orgEvaluation = previewOrgId ? orgFlagsMap.get(flag.key) : null;
 
               return (
                 <Card
                   key={flag.key}
-                  className="p-5 bg-white border border-slate-200 hover:border-slate-300 shadow-sm rounded-xl transition-all"
+                  className={`p-5 bg-white border shadow-sm rounded-xl transition-all ${
+                    previewOrgId && orgEvaluation?.override !== 'default'
+                      ? 'border-indigo-300 ring-1 ring-indigo-200/50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
                 >
                   <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
@@ -285,7 +453,7 @@ export function SuperAdminFeatureFlags() {
                                 : 'bg-slate-100 text-slate-600 border border-slate-200'
                             }`}
                           >
-                            {isFlagEnabled ? 'Active' : 'Disabled'}
+                            {isFlagEnabled ? 'Global Active' : 'Global Disabled'}
                           </Badge>
 
                           {/* Environment Badge */}
@@ -299,7 +467,7 @@ export function SuperAdminFeatureFlags() {
                           {targetCount > 0 && (
                             <Badge className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1 font-medium">
                               <Building2 className="w-3 h-3" />
-                              {targetCount} {targetCount === 1 ? 'Tenant Overridden' : 'Tenants Overridden'}
+                              {targetCount} {targetCount === 1 ? 'Tenant Whitelisted' : 'Tenants Whitelisted'}
                             </Badge>
                           )}
 
@@ -331,7 +499,7 @@ export function SuperAdminFeatureFlags() {
                         className="flex items-center gap-1.5 text-xs text-slate-700 border-slate-300 hover:bg-slate-50 shadow-sm"
                       >
                         <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Organization Overrides</span>
+                        <span>Manage Overrides</span>
                         {targetCount > 0 && (
                           <span className="ml-1 px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">
                             {targetCount}
@@ -381,6 +549,91 @@ export function SuperAdminFeatureFlags() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Tenant Simulation Evaluation Strip */}
+                  {previewOrgId && selectedPreviewOrg && (
+                    <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/80 -mx-5 -mb-5 p-3.5 px-5 rounded-b-xl">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Tenant Access ({selectedPreviewOrg.name}):</span>
+                        </span>
+
+                        {orgEvaluation ? (
+                          <>
+                            <Badge
+                              className={`text-xs font-medium flex items-center gap-1.5 py-0.5 px-2.5 ${
+                                orgEvaluation.effectiveEnabled
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : 'bg-slate-200/80 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              {orgEvaluation.effectiveEnabled ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  Active for Tenant
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                                  Inactive for Tenant
+                                </>
+                              )}
+                            </Badge>
+
+                            {/* Evaluation Reason Badge */}
+                            {orgEvaluation.override === 'whitelisted' && (
+                              <Badge className="text-[11px] bg-purple-100 text-purple-800 border-purple-200 font-medium">
+                                Whitelisted (Early Access Override)
+                              </Badge>
+                            )}
+                            {orgEvaluation.override === 'blacklisted' && (
+                              <Badge className="text-[11px] bg-rose-100 text-rose-800 border-rose-200 font-medium">
+                                Blacklisted (Strict Exclusion)
+                              </Badge>
+                            )}
+                            {orgEvaluation.override === 'default' && (
+                              <Badge className="text-[11px] bg-slate-100 text-slate-600 border-slate-200 font-normal">
+                                {isFlagEnabled ? (rollout < 100 ? `Rollout Gated (${rollout}%)` : 'Global Master On') : 'Global Master Off'}
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Evaluating tenant entitlement...</span>
+                        )}
+                      </div>
+
+                      {/* Quick 3-Way Override Toggle for this Organization */}
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-slate-500 font-medium">Tenant Override:</span>
+                        <select
+                          value={orgEvaluation?.override || 'default'}
+                          disabled={orgOverrideMutation.isPending}
+                          onChange={async (e) => {
+                            const newOverride = e.target.value as 'whitelisted' | 'blacklisted' | 'default';
+                            try {
+                              await orgOverrideMutation.mutateAsync({
+                                orgId: previewOrgId,
+                                flagKey: flag.key,
+                                payload: {
+                                  override: newOverride,
+                                  reason: `Override set to '${newOverride}' via tenant preview console`,
+                                },
+                              });
+                              toast.success(`Override updated to '${newOverride}' for ${selectedPreviewOrg.name}`);
+                            } catch (err: any) {
+                              toast.error(err?.response?.data?.message || 'Failed to update organization override');
+                            }
+                          }}
+                          className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm"
+                        >
+                          <option value="default">Default (Inherit Global)</option>
+                          <option value="whitelisted">Whitelist (Force Active)</option>
+                          <option value="blacklisted">Blacklist (Force Block)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </Card>
               );
             })}

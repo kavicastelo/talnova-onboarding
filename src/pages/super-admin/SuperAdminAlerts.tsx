@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   ShieldAlert,
@@ -21,14 +21,23 @@ import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { useSuperAdminAlerts, useUpdateAlertStatus } from '../../hooks/useSuperAdmin';
+import { useSuperAdminFilter } from '../../context/SuperAdminFilterContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export function SuperAdminAlerts() {
   const navigate = useNavigate();
+  const {
+    severity,
+    setSeverity,
+    selectedOrgId,
+    refreshKey,
+  } = useSuperAdminFilter();
+
+  const severityFilter = severity;
+  const setSeverityFilter = (s: string) => setSeverity(s as any);
 
   const [statusFilter, setStatusFilter] = useState<string>('active');
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -37,11 +46,19 @@ export function SuperAdminAlerts() {
   const [resolutionNotes, setResolutionNotes] = useState<string>('');
 
   const { data, isLoading, isError, refetch } = useSuperAdminAlerts({
+    organizationId: selectedOrgId !== 'all' ? selectedOrgId : undefined,
     status: statusFilter === 'all' ? undefined : statusFilter,
-    severity: severityFilter === 'all' ? undefined : severityFilter,
+    severity: severity === 'all' ? undefined : severity,
     category: categoryFilter === 'all' ? undefined : categoryFilter,
     search: searchQuery || undefined,
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   const updateAlertStatusMutation = useUpdateAlertStatus();
 
@@ -193,6 +210,7 @@ export function SuperAdminAlerts() {
     <SuperAdminShell
       title="Platform Incident & Alert Center"
       description="Live multi-tenant incident monitoring, SLA breach alerts, and persistent incident triage lifecycle."
+      showSeverity={true}
     >
       <div className="space-y-6">
         {/* Metric Cards */}

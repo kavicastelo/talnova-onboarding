@@ -26,6 +26,9 @@ export async function superAdminRoutes(app: FastifyInstance) {
   app.get("/organizations/:id/360", controller.getOrganization360);
   app.post("/organizations/:id/quarantine", controller.quarantineOrganization);
   app.post("/organizations/:id/activate", controller.activateOrganization);
+  app.get("/organizations/:id/flags", controller.getOrganizationFlags);
+  app.patch("/organizations/:id/flags/:key", controller.updateOrganizationFlag);
+  app.post("/organizations/:id/flags/batch", controller.batchUpdateOrganizationFlags);
 
   // 3. Users & Sessions
   app.get("/users", controller.getUsers);

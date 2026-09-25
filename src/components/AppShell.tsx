@@ -199,34 +199,36 @@ export function AppShell() {
           url: '/hr-ops',
           icon: ShieldAlert,
           capability: 'view_hr_ops',
+          featureFlag: 'hr_ops_dashboard',
           subItems: [
             {
               title: t('items.exceptionsWorkbench') || 'Exceptions Workbench',
               url: '/hr-ops/exceptions',
               icon: AlertOctagon,
               capability: 'view_hr_ops',
+              featureFlag: 'hr_exceptions',
               badge: exceptionsCount > 0 ? exceptionsCount : null,
               badgeVariant: 'destructive',
             },
           ],
         },
-        { title: t('items.teamOps') || 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
+        { title: t('items.teamOps') || 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops', featureFlag: 'manager_dashboard' },
       ],
     },
     {
       label: t('groups.peopleTeams') || 'People & Teams',
       items: [
-        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
+        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory', featureFlag: 'employee_directory' },
         { title: t('items.buddy') || 'Buddy Program', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
-        { title: t('items.milestones') || '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
+        { title: t('items.milestones') || '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck, featureFlag: 'milestone_ratings' },
       ],
     },
     {
       label: t('groups.learningContent') || 'Learning & Content',
       items: [
-        { title: t('items.myLearning') || 'Journey Templates', url: '/journeys', icon: GraduationCap },
+        { title: t('items.myLearning') || 'Journey Templates', url: '/journeys', icon: GraduationCap, featureFlag: 'journey_templates' },
         { title: t('items.aiCourseBuilder') || 'AI Course Builder', url: '/ai-course-builder', icon: Wand2, featureFlag: 'ai_course_builder', capability: 'ai_course_builder' },
-        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen, featureFlag: 'knowledge_base' },
       ],
     },
     {
@@ -237,21 +239,22 @@ export function AppShell() {
           title: t('items.tasks') || 'Tasks & Checklists',
           url: '/tasks',
           icon: CheckSquare,
+          featureFlag: 'checklist_tasks',
           subItems: [
-            { title: t('items.itHardwareQueue') || 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
+            { title: t('items.itHardwareQueue') || 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops', featureFlag: 'it_ops_queue' },
           ],
         },
-        { title: t('items.calendar') || 'Calendar & Meetings', url: '/calendar', icon: Calendar },
+        { title: t('items.calendar') || 'Calendar & Meetings', url: '/calendar', icon: Calendar, featureFlag: 'calendar_integration' },
         { title: t('items.kiosks') || 'Kiosk Terminals', url: '/kiosks', icon: Tv, featureFlag: 'kiosk_mode', capability: 'manage_organization' },
       ],
     },
     {
       label: t('groups.systemInsights') || 'System & Insights',
       items: [
-        { title: t('items.analytics') || 'Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
-        { title: t('items.workflows') || 'Workflows & Rules', url: '/workflows', icon: Workflow, capability: 'manage_workflows' },
+        { title: t('items.analytics') || 'Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics', featureFlag: 'tenant_analytics' },
+        { title: t('items.workflows') || 'Workflows & Rules', url: '/workflows', icon: Workflow, capability: 'manage_workflows', featureFlag: 'workflow_rules' },
         { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
-        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot, featureFlag: 'ai_assistant' },
         { title: t('items.leaderboard') || 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
         {
           title: t('items.settings') || 'Settings',
@@ -271,26 +274,26 @@ export function AppShell() {
     {
       label: t('groups.teamSupervision') || 'Team Supervision',
       items: [
-        { title: t('items.teamOps') || 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops' },
-        { title: t('items.milestones') || '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck },
-        { title: t('items.tasksVerification') || 'Tasks & Verification', url: '/tasks', icon: CheckSquare },
+        { title: t('items.teamOps') || 'Team Operations', url: '/manager', icon: UserCheck, capability: 'view_team_ops', featureFlag: 'manager_dashboard' },
+        { title: t('items.milestones') || '30/60/90 Milestones', url: '/milestones', icon: CalendarCheck, featureFlag: 'milestone_ratings' },
+        { title: t('items.tasksVerification') || 'Tasks & Verification', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
       ],
     },
     {
       label: t('groups.peopleMentorship') || 'People & Mentorship',
       items: [
-        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
+        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory', featureFlag: 'employee_directory' },
         { title: t('items.buddySupport') || 'Buddy Support', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
-        { title: t('items.oneOnOneCalendar') || '1-on-1 Calendar', url: '/calendar', icon: Calendar },
+        { title: t('items.oneOnOneCalendar') || '1-on-1 Calendar', url: '/calendar', icon: Calendar, featureFlag: 'calendar_integration' },
       ],
     },
     {
       label: t('groups.insightsTools') || 'Insights & Tools',
       items: [
-        { title: t('items.teamAnalytics') || 'Team Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics' },
-        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: t('items.teamAnalytics') || 'Team Analytics', url: '/analytics', icon: BarChart2, capability: 'view_analytics', featureFlag: 'tenant_analytics' },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen, featureFlag: 'knowledge_base' },
         { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
-        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot },
+        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot, featureFlag: 'ai_assistant' },
       ],
     },
   ];
@@ -299,7 +302,7 @@ export function AppShell() {
     {
       label: t('groups.myOnboarding') || 'My Onboarding',
       items: [
-        { title: t('items.onboardingRoadmap') || 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard },
+        { title: t('items.onboardingRoadmap') || 'Onboarding Roadmap', url: '/employee', icon: LayoutDashboard, featureFlag: 'onboarding_roadmap' },
         {
           title: t('items.requiredDocuments') || 'Required Documents',
           url: '/documents',
@@ -308,24 +311,24 @@ export function AppShell() {
           badge: pendingDocsCount > 0 ? t('pendingDocsCount', { count: pendingDocsCount, defaultValue: `${pendingDocsCount} pending` }) : null,
           badgeVariant: 'destructive',
         },
-        { title: t('items.checklistTasks') || 'Checklist Tasks', url: '/tasks', icon: CheckSquare },
-        { title: t('items.learningJourneys') || 'Learning Journeys', url: '/journeys', icon: GraduationCap },
+        { title: t('items.checklistTasks') || 'Checklist Tasks', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
+        { title: t('items.learningJourneys') || 'Learning Journeys', url: '/journeys', icon: GraduationCap, featureFlag: 'journey_templates' },
       ],
     },
     {
       label: t('groups.supportMilestones') || 'Support & Milestones',
       items: [
         { title: t('items.myBuddy') || 'My Onboarding Buddy', url: '/buddy', icon: HeartHandshake, featureFlag: 'buddy_connection' },
-        { title: t('items.milestonesGoals') || '30/60/90 Goals', url: '/milestones', icon: CalendarCheck },
-        { title: t('items.scheduleMeetings') || 'Schedule & Meetings', url: '/calendar', icon: Calendar },
+        { title: t('items.milestonesGoals') || '30/60/90 Goals', url: '/milestones', icon: CalendarCheck, featureFlag: 'milestone_ratings' },
+        { title: t('items.scheduleMeetings') || 'Schedule & Meetings', url: '/calendar', icon: Calendar, featureFlag: 'calendar_integration' },
       ],
     },
     {
       label: t('groups.workplaceResources') || 'Workplace & Resources',
       items: [
-        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
-        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot },
-        { title: t('items.certificates') || 'Certificates', url: '/certificates', icon: Award },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen, featureFlag: 'knowledge_base' },
+        { title: t('items.aiAssistant') || 'AI Assistant', url: '/ai-assistant', icon: Bot, featureFlag: 'ai_assistant' },
+        { title: t('items.certificates') || 'Certificates', url: '/certificates', icon: Award, featureFlag: 'certificates' },
         { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
         { title: t('items.leaderboard') || 'Leaderboard', url: '/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
       ],
@@ -336,16 +339,16 @@ export function AppShell() {
     {
       label: t('groups.hardwareProvisioning') || 'Hardware & Provisioning',
       items: [
-        { title: t('items.itHardwareQueue') || 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops' },
-        { title: t('items.tasks') || 'Tasks & Checklists', url: '/tasks', icon: CheckSquare },
+        { title: t('items.itHardwareQueue') || 'IT Hardware Queue', url: '/tasks/it-ops', icon: Laptop, capability: 'manage_it_ops', featureFlag: 'it_ops_queue' },
+        { title: t('items.tasks') || 'Tasks & Checklists', url: '/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
       ],
     },
     {
       label: t('groups.systemsDirectory') || 'Systems & Directory',
       items: [
         { title: t('items.hris') || 'HRIS Integrations', url: '/settings/integrations', icon: Workflow, featureFlag: 'advanced_hris_sync', capability: 'manage_integrations' },
-        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory' },
-        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen },
+        { title: t('items.directory') || 'Employee Directory', url: '/directory', icon: Users, capability: 'view_directory', featureFlag: 'employee_directory' },
+        { title: t('items.knowledgeBase') || 'Knowledge Base', url: '/kb', icon: BookOpen, featureFlag: 'knowledge_base' },
         { title: t('items.officeMap') || 'Office Map', url: '/office-map', icon: MapPin, featureFlag: 'office_map' },
       ],
     },

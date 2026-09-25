@@ -54,6 +54,7 @@ export function SuperAdminPlatformSettings() {
     <SuperAdminShell
       title="Platform Settings & Policies"
       description="Global multi-tenant governance policies, maintenance windows, and root authentication timeouts."
+      hideFilterBar={true}
     >
       <form onSubmit={handleSave} className="space-y-6 max-w-4xl">
         {/* Maintenance Mode Card */}

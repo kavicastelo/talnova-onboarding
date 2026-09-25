@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Search,
@@ -22,20 +22,36 @@ import { useSuperAdminActivityEvents } from '../../hooks/useSuperAdmin';
 import { toast } from 'sonner';
 
 export function SuperAdminAudit() {
-  const { selectedOrgId } = useSuperAdminFilter();
+  const { selectedOrgId, severity: contextSeverity, refreshKey } = useSuperAdminFilter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [severity, setSeverity] = useState('all');
   const [selectedAudit, setSelectedAudit] = useState<any | null>(null);
 
+  // Sync with context severity if updated via FilterBar
+  useEffect(() => {
+    if (contextSeverity && contextSeverity !== severity) {
+      setSeverity(contextSeverity);
+    }
+  }, [contextSeverity]);
+
+  const effectiveSeverity = severity !== 'all' ? severity : (contextSeverity !== 'all' ? contextSeverity : undefined);
+
   const { data, isLoading, isError, refetch } = useSuperAdminActivityEvents({
-    organizationId: selectedOrgId || undefined,
+    organizationId: selectedOrgId !== 'all' ? selectedOrgId : undefined,
     category: 'security',
-    severity: severity !== 'all' ? severity : undefined,
+    severity: effectiveSeverity,
     search: search || undefined,
     page,
     limit: 25,
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   const events = data?.events || [];
   const summary = data?.summary || { total: 0, criticalCount: 0, highCount: 0, warningCount: 0, infoCount: 0 };
@@ -70,6 +86,7 @@ export function SuperAdminAudit() {
     <SuperAdminShell
       title="Audit & Security Governance"
       description="Zero-trust immutable compliance log, cryptographic integrity verification, and actor mutation stream."
+      showSeverity={true}
     >
       <div className="space-y-6">
         {/* Compliance Posture Cards */}

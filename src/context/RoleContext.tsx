@@ -1,6 +1,7 @@
-import React, { useCallback, useState, useEffect, createContext, useContext } from 'react';
+import { useCallback, useState, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { Capability, hasCapability } from '../utils/rbac';
 import { apiClient } from '../api/client';
+import { getFeatureMetadata } from '../config/platformFeatures';
 
 export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin';
 
@@ -14,12 +15,14 @@ interface RoleContextValue {
   features: Record<string, boolean>;
   hasFeature: (flagKey: string) => boolean;
   refreshFeatures: () => Promise<void>;
+  simulateFlagsMode: boolean;
+  setSimulateFlagsMode: (enabled: boolean) => void;
 }
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 
 interface RoleProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
   initialRole?: Role;
   initialRoles?: Role[];
   initialFeatures?: Record<string, boolean>;
@@ -50,6 +53,19 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
   });
 
   const [features, setFeatures] = useState<Record<string, boolean>>(initialFeatures || {});
+  const [simulateFlagsMode, setSimulateFlagsModeState] = useState<boolean>(() => {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('simulate_flags_mode') === 'true';
+    }
+    return false;
+  });
+
+  const setSimulateFlagsMode = useCallback((enabled: boolean) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('simulate_flags_mode', String(enabled));
+    }
+    setSimulateFlagsModeState(enabled);
+  }, []);
 
   const refreshFeatures = useCallback(async () => {
     try {
@@ -60,7 +76,7 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
       const resData = res.data?.data;
       if (!resData) return;
 
-      if (resData.features && (!initialFeatures || Object.keys(initialFeatures).length === 0)) {
+      if (resData.features) {
         setFeatures(resData.features);
       }
 
@@ -111,11 +127,11 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
     } catch {
       // Non-fatal if unauthenticated
     }
-  }, [initialFeatures]);
+  }, []);
 
   useEffect(() => {
     refreshFeatures();
-  }, [refreshFeatures]);
+  }, [refreshFeatures, role]);
 
   const setRole = useCallback((newRole: Role) => {
     const isSuperAdmin = roles.includes('super_admin');
@@ -180,16 +196,25 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
 
   const hasFeature = useCallback(
     (flagKey: string) => {
-      if (role === 'super_admin' || roles.includes('super_admin')) {
+      const normalizedKey = (flagKey || '').toLowerCase().trim();
+
+      // Only bypass if active role is super_admin AND not in strict simulation mode
+      if (role === 'super_admin' && !simulateFlagsMode) {
         return true;
+      }
+
+      if (features[normalizedKey] !== undefined) {
+        return Boolean(features[normalizedKey]);
       }
       if (features[flagKey] !== undefined) {
         return Boolean(features[flagKey]);
       }
-      // If feature is not explicitly mapped or loading, default to enabled
-      return true;
+
+      // Default from canonical 105 platform catalog
+      const meta = getFeatureMetadata(normalizedKey);
+      return meta.defaultEnabled;
     },
-    [features, role, roles]
+    [features, role, simulateFlagsMode]
   );
 
   return (
@@ -204,6 +229,8 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
         features,
         hasFeature,
         refreshFeatures,
+        simulateFlagsMode,
+        setSimulateFlagsMode,
       }}>
       {children}
     </RoleContext.Provider>

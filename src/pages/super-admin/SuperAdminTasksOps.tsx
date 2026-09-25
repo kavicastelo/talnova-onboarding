@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -15,7 +15,7 @@ import { useSuperAdminTasksOps } from '../../hooks/useSuperAdmin';
 
 function SuperAdminTasksOpsContent() {
   const navigate = useNavigate();
-  const { selectedOrgId } = useSuperAdminFilter();
+  const { selectedOrgId, refreshKey } = useSuperAdminFilter();
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [page, setPage] = useState(1);
@@ -28,6 +28,13 @@ function SuperAdminTasksOpsContent() {
     page,
     limit
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   const tasks = data?.tasks || [];
   const summary = data?.summary || { total: 0, overdueCount: 0, itHardwareCount: 0 };

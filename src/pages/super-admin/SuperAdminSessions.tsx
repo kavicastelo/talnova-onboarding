@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   KeyRound,
@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 
 function SuperAdminSessionsContent() {
   const navigate = useNavigate();
-  const { selectedOrgId } = useSuperAdminFilter();
+  const { selectedOrgId, refreshKey } = useSuperAdminFilter();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
@@ -30,6 +30,13 @@ function SuperAdminSessionsContent() {
     page,
     limit
   });
+
+  // Refetch when universal filter refreshKey triggers
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   const revokeMutation = useRevokeSession();
 

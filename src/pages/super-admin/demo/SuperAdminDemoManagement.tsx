@@ -242,6 +242,7 @@ export function SuperAdminDemoManagement() {
     <SuperAdminShell
       title="Demo Environment Management"
       subtitle="Centralized administration, session monitoring, feature gating, and deterministic reset controls for the isolated demo surface."
+      hideFilterBar={true}
       actions={
         <div className="flex items-center gap-2.5">
           <Button

@@ -44,14 +44,16 @@ import { toast } from 'sonner';
 
 function SuperAdminDashboardContent() {
   const navigate = useNavigate();
-  const { selectedOrgId, refreshKey } = useSuperAdminFilter();
+  const { selectedOrgId, refreshKey, computedStartDate, computedEndDate } = useSuperAdminFilter();
 
   // Telemetry with universal filter context
   const {
     data: telemetry,
     refetch: refetchTelemetry
   } = useSuperAdminTelemetry({
-    organizationId: selectedOrgId !== 'all' ? selectedOrgId : undefined
+    organizationId: selectedOrgId !== 'all' ? selectedOrgId : undefined,
+    startDate: computedStartDate,
+    endDate: computedEndDate,
   });
 
   const {
