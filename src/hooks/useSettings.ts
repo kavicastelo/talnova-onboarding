@@ -51,3 +51,11 @@ export function useDeleteDepartment() {
     },
   });
 }
+
+export function useOrganizationUsage() {
+  return useQuery({
+    queryKey: ['organizationUsage'],
+    queryFn: settingsService.getUsage,
+  });
+}
+

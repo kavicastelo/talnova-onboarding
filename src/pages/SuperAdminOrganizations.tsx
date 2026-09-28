@@ -1,23 +1,27 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, Edit, Eye } from 'lucide-react';
+import { Search, Plus, Building2, CheckCircle, Ban, RefreshCw, Edit, Eye, Trash2, RotateCcw, Archive, Package } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { SimplePagination } from '../components/SimplePagination';
 import { SuperAdminShell } from '../components/super-admin/SuperAdminShell';
+import { TenantProvisionModal } from '../components/super-admin/TenantProvisionModal';
+import { DeleteOrganizationModal } from '../components/super-admin/DeleteOrganizationModal';
+import { AssignPackageModal } from '../components/super-admin/AssignPackageModal';
 import { toast } from 'sonner';
 import {
   useSuperAdminOrganizations,
-  useCreateOrganization,
   useUpdateOrganization,
-  useToggleOrganizationStatus
+  useToggleOrganizationStatus,
+  useRestoreOrganization,
 } from '../hooks/useSuperAdmin';
 import { OrganizationItem } from '../services/superAdmin.service';
 
 export function SuperAdminOrganizations() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
@@ -26,23 +30,48 @@ export function SuperAdminOrganizations() {
     search: searchQuery || undefined,
     page,
     limit,
+    status: statusFilter,
   });
 
-  const createOrgMutation = useCreateOrganization();
   const updateOrgMutation = useUpdateOrganization();
   const toggleStatusMutation = useToggleOrganizationStatus();
+  const restoreOrgMutation = useRestoreOrganization();
 
   // Create Modal State
   const [showModal, setShowModal] = useState(false);
-  const [newOrgName, setNewOrgName] = useState('');
-  const [newOrgSlug, setNewOrgSlug] = useState('');
-  const [newOrgPlan, setNewOrgPlan] = useState<'Starter' | 'Growth' | 'Professional' | 'Enterprise'>('Starter');
-  const [newOrgEmail, setNewOrgEmail] = useState('');
+
+  // Delete / Purge Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDeleteOrg, setSelectedDeleteOrg] = useState<OrganizationItem | null>(null);
+
+  const handleOpenDeleteModal = (org: OrganizationItem) => {
+    setSelectedDeleteOrg(org);
+    setShowDeleteModal(true);
+  };
+
+  const handleRestoreOrg = async (org: OrganizationItem) => {
+    try {
+      await restoreOrgMutation.mutateAsync(org.id);
+      toast.success(`Organization "${org.name}" restored successfully.`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to restore organization.');
+    }
+  };
+
+  // Assign Package Modal State
+  const [showAssignPackageModal, setShowAssignPackageModal] = useState(false);
+  const [selectedPackageOrg, setSelectedPackageOrg] = useState<OrganizationItem | null>(null);
+
+  const handleOpenAssignPackage = (org: OrganizationItem) => {
+    setSelectedPackageOrg(org);
+    setShowAssignPackageModal(true);
+  };
 
   // Edit Tenant Modal State
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrganizationItem | null>(null);
-  const [editPlan, setEditPlan] = useState<'Starter' | 'Growth' | 'Professional' | 'Enterprise'>('Professional');
+  const [editPlan, setEditPlan] = useState<string>('Professional');
   const [editSeatQuota, setEditSeatQuota] = useState<number | string>(50);
   const [editStatus, setEditStatus] = useState<'Active' | 'Suspended'>('Active');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -67,8 +96,8 @@ export function SuperAdminOrganizations() {
 
     setIsUpdating(true);
     try {
-      // Dispatch PATCH using slug or id
-      const targetId = editingOrg.slug || editingOrg.id;
+      // Dispatch PATCH using id or slug
+      const targetId = editingOrg.id || (editingOrg as any)._id || editingOrg.slug;
       await updateOrgMutation.mutateAsync({
         id: targetId,
         data: {
@@ -98,39 +127,6 @@ export function SuperAdminOrganizations() {
     }
   };
 
-  const handleCreateOrg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newOrgName || !newOrgSlug || !newOrgEmail) {
-      toast.error('Please fill in all fields.');
-      return;
-    }
-
-    try {
-      await createOrgMutation.mutateAsync({
-        name: newOrgName,
-        slug: newOrgSlug,
-        plan: newOrgPlan,
-        supportEmail: newOrgEmail,
-      });
-
-      setShowModal(false);
-      toast.success(`Organization "${newOrgName}" provisioned successfully.`);
-      
-      // Reset form
-      setNewOrgName('');
-      setNewOrgSlug('');
-      setNewOrgEmail('');
-      setNewOrgPlan('Starter');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to provision organization.');
-    }
-  };
-
-  const autoGenerateSlug = (val: string) => {
-    setNewOrgName(val);
-    setNewOrgSlug(val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
-  };
-
   const orgs = data?.data || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
@@ -152,7 +148,7 @@ export function SuperAdminOrganizations() {
     >
 
       {/* Filter and search bar */}
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
         <div className="relative flex-1">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
             <Search className="h-4 w-4" />
@@ -167,6 +163,44 @@ export function SuperAdminOrganizations() {
             placeholder="Search organizations by name, slug, or email..."
             className="block w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
+        </div>
+
+        {/* Status filter tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 text-xs font-medium text-slate-600">
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('all'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-md transition-colors ${
+              statusFilter === 'all'
+                ? 'bg-white text-slate-900 shadow-sm font-semibold'
+                : 'hover:text-slate-900'
+            }`}
+          >
+            All Tenants
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('active'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-md transition-colors ${
+              statusFilter === 'active'
+                ? 'bg-white text-emerald-700 shadow-sm font-semibold'
+                : 'hover:text-slate-900'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('archived'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
+              statusFilter === 'archived'
+                ? 'bg-white text-amber-700 shadow-sm font-semibold'
+                : 'hover:text-slate-900'
+            }`}
+          >
+            <Archive className="h-3 w-3" />
+            Archived
+          </button>
         </div>
       </div>
 
@@ -216,11 +250,11 @@ export function SuperAdminOrganizations() {
                       key={org.id}
                       id={`tenant-row-${org.slug || org.id}`}
                       data-testid={`tenant-row-${org.slug || org.id}`}
-                      className="hover:bg-slate-50/70 transition-colors"
+                      className={`hover:bg-slate-50/70 transition-colors ${org.isDeleted ? 'bg-amber-50/20' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${org.isDeleted ? 'bg-amber-100 text-amber-700' : 'bg-indigo-50 text-indigo-600'}`}>
                             <Building2 className="h-5 w-5" />
                           </div>
                           <div>
@@ -233,21 +267,50 @@ export function SuperAdminOrganizations() {
                         {org.domain || `${org.slug}.talnova.app`}
                       </td>
                       <td className="px-6 py-4">
-                        <Badge className={
-                          org.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }>
-                          {org.status}
-                        </Badge>
+                        {org.isDeleted ? (
+                          <Badge className="bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
+                            <Archive className="h-3 w-3" />
+                            Archived
+                          </Badge>
+                        ) : (
+                          <Badge className={
+                            org.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }>
+                            {org.status}
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-6 py-4 font-medium">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          org.plan === 'Enterprise' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                          org.plan === 'Professional' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                          org.plan === 'Growth' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-                          'bg-slate-100 text-slate-700 border border-slate-200'
-                        }`}>
-                          {org.plan}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              org.plan === 'Enterprise' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                              org.plan === 'Growth' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                              org.plan === 'Professional' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              org.plan === 'Freemium' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                              'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}>
+                              {org.packageName || org.plan}
+                            </span>
+                            {org.subscription?.customPrice != null && (
+                              <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold border border-purple-200">
+                                Custom
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
+                            {org.subscription?.finalPrice != null ? (
+                              <span>${org.subscription.finalPrice}/{org.subscription?.billingInterval === 'annual' ? 'yr' : 'mo'}</span>
+                            ) : (
+                              <span>{org.subscription?.billingInterval || 'monthly'}</span>
+                            )}
+                            {org.subscription?.activeAddOns && org.subscription.activeAddOns.length > 0 && (
+                              <span className="text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 font-sans font-medium">
+                                +{org.subscription.activeAddOns.length} add-on{org.subscription.activeAddOns.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-indigo-600 font-semibold seat-limit-cell">
                         {org.seatLimit || org.limits?.maxUsers || 50} seats
@@ -255,7 +318,7 @@ export function SuperAdminOrganizations() {
                       <td className="px-6 py-4 text-slate-600">{org.usersCount}</td>
                       <td className="px-6 py-4 text-slate-500">{org.createdAt}</td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -265,27 +328,78 @@ export function SuperAdminOrganizations() {
                             <Eye className="h-3.5 w-3.5" />
                             360° View
                           </Button>
-                          <Button
-                            id={`edit-tenant-btn-${org.slug || org.id}`}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenEditModal(org)}
-                            className="gap-1.5 px-2.5 py-1 text-xs border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                          >
-                            <Edit className="h-3.5 w-3.5 text-slate-500" />
-                            Edit
-                          </Button>
-                          <Button
-                            id={`suspend-tenant-btn-${org.slug || org.id}`}
-                            variant="ghost"
-                            size="sm"
-                            disabled={toggleStatusMutation.isPending}
-                            onClick={() => toggleOrgStatus(org.id, org.status)}
-                            className={`gap-1 px-2.5 ${org.status === 'Active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-                          >
-                            {org.status === 'Active' ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
-                            {org.status === 'Active' ? 'Suspend' : 'Activate'}
-                          </Button>
+
+                          {org.isDeleted ? (
+                            <>
+                              <Button
+                                id={`restore-tenant-btn-${org.slug || org.id}`}
+                                variant="outline"
+                                size="sm"
+                                disabled={restoreOrgMutation.isPending}
+                                onClick={() => handleRestoreOrg(org)}
+                                className="gap-1 px-2.5 py-1 text-xs border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                Restore
+                              </Button>
+                              <Button
+                                id={`purge-tenant-btn-${org.slug || org.id}`}
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDeleteModal(org)}
+                                className="gap-1 px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                title="Permanently Purge Organization"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Hard Purge
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                id={`assign-package-btn-${org.slug || org.id}`}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenAssignPackage(org)}
+                                className="gap-1.5 px-2.5 py-1 text-xs border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-medium"
+                                title="Assign Package & Modular Add-ons"
+                              >
+                                <Package className="h-3.5 w-3.5 text-indigo-600" />
+                                Package
+                              </Button>
+                              <Button
+                                id={`edit-tenant-btn-${org.slug || org.id}`}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditModal(org)}
+                                className="gap-1.5 px-2.5 py-1 text-xs border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                              >
+                                <Edit className="h-3.5 w-3.5 text-slate-500" />
+                                Edit
+                              </Button>
+                              <Button
+                                id={`suspend-tenant-btn-${org.slug || org.id}`}
+                                variant="ghost"
+                                size="sm"
+                                disabled={toggleStatusMutation.isPending}
+                                onClick={() => toggleOrgStatus(org.id, org.status)}
+                                className={`gap-1 px-2.5 ${org.status === 'Active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                              >
+                                {org.status === 'Active' ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                                {org.status === 'Active' ? 'Suspend' : 'Activate'}
+                              </Button>
+                              <Button
+                                id={`delete-tenant-btn-${org.slug || org.id}`}
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDeleteModal(org)}
+                                className="gap-1 px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                title="Archive or Purge Tenant"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -322,82 +436,22 @@ export function SuperAdminOrganizations() {
         </>
       )}
 
-      {/* Create Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Provision Workspace</h3>
-            <form onSubmit={handleCreateOrg} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Organization Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newOrgName}
-                  onChange={(e) => autoGenerateSlug(e.target.value)}
-                  placeholder="Acme Corp"
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
+      {/* Tenant Provisioning Modal */}
+      <TenantProvisionModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onCreated={() => refetch()}
+      />
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Workspace URL Slug</label>
-                <input
-                  type="text"
-                  required
-                  value={newOrgSlug}
-                  onChange={(e) => setNewOrgSlug(e.target.value)}
-                  placeholder="acme-corp"
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Billing / Support Email</label>
-                <input
-                  type="email"
-                  required
-                  value={newOrgEmail}
-                  onChange={(e) => setNewOrgEmail(e.target.value)}
-                  placeholder="billing@acme.com"
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Subscription Tier</label>
-                <select
-                  value={newOrgPlan}
-                  onChange={(e) => setNewOrgPlan(e.target.value as any)}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  <option value="Starter">Starter Plan</option>
-                  <option value="Growth">Growth Plan</option>
-                  <option value="Enterprise">Enterprise Plan</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowModal(false)}
-                  className="rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createOrgMutation.isPending}
-                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                >
-                  {createOrgMutation.isPending ? 'Provisioning...' : 'Provision Org'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Delete / Purge Organization Modal */}
+      <DeleteOrganizationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        organization={selectedDeleteOrg}
+        onSuccess={() => {
+          refetch();
+        }}
+      />
 
       {/* Edit Tenant Modal */}
       {showEditModal && editingOrg && (
@@ -486,6 +540,17 @@ export function SuperAdminOrganizations() {
           </div>
         </div>
       )}
+
+      {/* Assign Package Modal */}
+      <AssignPackageModal
+        isOpen={showAssignPackageModal}
+        onClose={() => {
+          setShowAssignPackageModal(false);
+          setSelectedPackageOrg(null);
+        }}
+        organization={selectedPackageOrg}
+        onSuccess={() => refetch()}
+      />
     </SuperAdminShell>
   );
 }

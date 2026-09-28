@@ -50,6 +50,7 @@ import { SuperAdminAudit } from './pages/super-admin/SuperAdminAudit';
 import { SuperAdminReports } from './pages/super-admin/SuperAdminReports';
 import { SuperAdminFeatureFlags } from './pages/super-admin/SuperAdminFeatureFlags';
 import { SuperAdminPlatformSettings } from './pages/super-admin/SuperAdminPlatformSettings';
+import { SuperAdminPackages } from './pages/super-admin/SuperAdminPackages';
 import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
@@ -149,6 +150,7 @@ export function App() {
               <Route path="super-admin/alerts" element={<ProtectedRoute capability="view_super_admin"><SuperAdminAlerts /></ProtectedRoute>} />
               <Route path="super-admin/organizations" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganizations /></ProtectedRoute>} />
               <Route path="super-admin/organizations/:id" element={<ProtectedRoute capability="view_super_admin"><SuperAdminOrganization360 /></ProtectedRoute>} />
+              <Route path="super-admin/packages" element={<ProtectedRoute capability="view_super_admin"><SuperAdminPackages /></ProtectedRoute>} />
               <Route path="super-admin/users" element={<ProtectedRoute capability="view_super_admin"><SuperAdminUsers /></ProtectedRoute>} />
               <Route path="super-admin/users/sessions" element={<ProtectedRoute capability="view_super_admin"><SuperAdminSessions /></ProtectedRoute>} />
               <Route path="super-admin/users/:id" element={<ProtectedRoute capability="view_super_admin"><SuperAdminUser360 /></ProtectedRoute>} />

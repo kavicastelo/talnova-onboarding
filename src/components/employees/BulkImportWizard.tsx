@@ -26,6 +26,9 @@ import {
   Edit2,
   Layers,
   Sparkles,
+  Copy,
+  Lock,
+  Key,
 } from 'lucide-react';
 import { parseDelimitedText } from '../../utils/csv-parser';
 import { autoDetectColumnMapping, CANONICAL_EMPLOYEE_FIELDS } from '../../utils/column-mapper';
@@ -847,6 +850,36 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <div className="p-3 border rounded-xl bg-card">
                   <span className="text-xs text-muted-foreground block">{t('bulkImportWizard.completed.failedSkipped', { defaultValue: 'Failed / Skipped' })}</span>
                   <span className="text-lg font-bold text-muted-foreground">{importResults.failures.length}</span>
+                </div>
+              </div>
+
+              {/* Default Initial Credentials Callout */}
+              <div className="max-w-md mx-auto p-4 border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/20 rounded-xl text-left space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                    <Key className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                    Initial Employee Credentials
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("Welcome@2026!");
+                      toast.success("Default password copied to clipboard");
+                    }}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium flex items-center gap-1"
+                  >
+                    <Copy className="h-3 w-3" /> Copy Password
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Temporary Password:</span>
+                  <code className="bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-xs">
+                    Welcome@2026!
+                  </code>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                  <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>All imported users will be required to choose a new password upon first sign-in.</span>
                 </div>
               </div>
             </div>

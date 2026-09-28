@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { SSOService } from "../services/sso.service.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
 
 export class SSOController {
   constructor(private readonly ssoService: SSOService) {}
@@ -92,7 +93,7 @@ export class SSOController {
         ssoId: body.ssoId || `sso_${Date.now()}`,
         idpGroups: body.idpGroups || [],
       },
-      request.ip,
+      getClientIp(request),
       request.headers["user-agent"]
     );
 

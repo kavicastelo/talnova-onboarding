@@ -14,6 +14,7 @@ import {
   getDemoFeatureUsageModel,
 } from "../models/index.js";
 import AppError from "../../../common/errors/app-error.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
 
 // Knowledge Base Category ID Mapping matching client CATEGORY_MAP
 const KB_CATEGORY_ID_MAP: Record<string, string> = {
@@ -394,7 +395,7 @@ export class DemoAppController {
     }
 
     const userAgent = (request.headers["user-agent"] as string) || "unknown";
-    const ip = (request.headers["x-forwarded-for"] as string) || request.ip;
+    const ip = getClientIp(request);
 
     const result = await demoAuthService.login(
       email,

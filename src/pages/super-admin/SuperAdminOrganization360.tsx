@@ -23,21 +23,29 @@ import {
   Filter,
   RotateCcw,
   XCircle,
+  Archive,
+  Trash2,
+  Package,
 } from 'lucide-react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { Input } from '../../components/Input';
 import { SuperAdminShell } from '../../components/super-admin/SuperAdminShell';
+import { DeleteOrganizationModal } from '../../components/super-admin/DeleteOrganizationModal';
 import {
   useSuperAdminOrganization360,
   useUpdateOrganization,
   useToggleOrganizationStatus,
   useQuarantineOrganization,
+  useRestoreOrganization,
   useSuperAdminOrganizationFlags,
   useUpdateOrganizationFlagOverride,
   useBatchUpdateOrganizationFlags,
+  useSuperAdminPackages,
+  useAssignOrganizationPackage,
 } from '../../hooks/useSuperAdmin';
+import { PackageItem } from '../../services/superAdmin.service';
 import { toast } from 'sonner';
 
 export function SuperAdminOrganization360() {
@@ -71,6 +79,88 @@ export function SuperAdminOrganization360() {
   const [showQuarantineModal, setShowQuarantineModal] = useState(false);
   const [quarantineReason, setQuarantineReason] = useState('');
   const [isQuarantining, setIsQuarantining] = useState(false);
+
+  // Package Assignment Modal State
+  const { data: packagesData } = useSuperAdminPackages();
+  const packagesList: PackageItem[] = packagesData?.packages || [];
+  const assignPackageMutation = useAssignOrganizationPackage();
+
+  const [showAssignPackageModal, setShowAssignPackageModal] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [assignBillingInterval, setAssignBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+  const [assignAddOns, setAssignAddOns] = useState<string[]>([]);
+  const [assignCustomPrice, setAssignCustomPrice] = useState(false);
+  const [assignCustomPriceInput, setAssignCustomPriceInput] = useState('');
+  const [assignReason, setAssignReason] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Delete / Purge Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const restoreOrgMutation = useRestoreOrganization();
+
+  const handleRestoreOrg = async () => {
+    if (!data?.organization) return;
+    try {
+      await restoreOrgMutation.mutateAsync(data.organization.id);
+      toast.success(`Organization "${data.organization.name}" restored successfully.`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to restore organization.');
+    }
+  };
+
+  const handleOpenAssignPackageModal = () => {
+    if (!data?.organization) return;
+    const org = data.organization;
+    const currentPkgId = org.packageId ? String(org.packageId) : '';
+    const matchedPkg = packagesList.find(
+      (p) => p.id === currentPkgId || (p as any)._id === currentPkgId || p.slug === org.packageSlug
+    );
+    setSelectedPackageId(matchedPkg ? (matchedPkg.id || (matchedPkg as any)._id) : (packagesList[0]?.id || (packagesList[0] as any)?._id || ''));
+    setAssignBillingInterval(org.subscription?.billingInterval || 'monthly');
+    setAssignAddOns(org.subscription?.activeAddOns || []);
+    if (org.subscription?.customPrice != null) {
+      setAssignCustomPrice(true);
+      setAssignCustomPriceInput(String(org.subscription.customPrice));
+    } else {
+      setAssignCustomPrice(false);
+      setAssignCustomPriceInput('');
+    }
+    setAssignReason('');
+    setShowAssignPackageModal(true);
+  };
+
+  const handleAssignPackageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !selectedPackageId) return;
+    setIsAssigning(true);
+    try {
+      const customPriceVal =
+        assignCustomPrice && assignCustomPriceInput !== '' && !isNaN(parseFloat(assignCustomPriceInput))
+          ? parseFloat(assignCustomPriceInput)
+          : undefined;
+
+      await assignPackageMutation.mutateAsync({
+        orgId: id,
+        payload: {
+          packageId: selectedPackageId,
+          billingInterval: assignBillingInterval,
+          activeAddOns: assignAddOns,
+          customPrice: customPriceVal,
+          reason: assignReason.trim() || undefined,
+        },
+      });
+
+      toast.success(`Package updated successfully for ${data?.organization?.name}.`);
+      setShowAssignPackageModal(false);
+      refetch();
+      refetchFlags();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to assign package.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -201,9 +291,52 @@ export function SuperAdminOrganization360() {
           >
             <Sliders className="h-3.5 w-3.5" /> Adjust Quotas
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowDeleteModal(true)}
+            className="border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs gap-1.5"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete / Purge
+          </Button>
         </div>
       }
     >
+      {/* Archived Warning Banner */}
+      {organization.isDeleted && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm mb-4">
+          <div className="flex items-center gap-3">
+            <Archive className="h-5 w-5 text-amber-700 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">This organization is currently archived / suspended.</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Active user sessions have been terminated and workspace access is locked. Data is preserved and can be reinstated.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleRestoreOrg}
+              disabled={restoreOrgMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5 shadow-sm"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Restore Organization
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowDeleteModal(true)}
+              className="border-rose-300 bg-white hover:bg-rose-50 text-rose-700 text-xs gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hard Purge
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Top Tenant Profile Header Card */}
       <Card className="border border-slate-200 bg-white shadow-sm rounded-xl p-5 relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -214,18 +347,31 @@ export function SuperAdminOrganization360() {
             <div>
               <div className="flex items-center gap-2.5">
                 <h2 className="text-xl font-bold text-slate-900">{organization.name}</h2>
-                <Badge
-                  className={
-                    organization.status === 'Active'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                  }
-                >
-                  {organization.status}
+                {organization.isDeleted ? (
+                  <Badge className="bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
+                    <Archive className="h-3 w-3" />
+                    Archived
+                  </Badge>
+                ) : (
+                  <Badge
+                    className={
+                      organization.status === 'Active'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }
+                  >
+                    {organization.status}
+                  </Badge>
+                )}
+                <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1 font-semibold">
+                  <Package className="h-3 w-3" />
+                  {organization.packageSlug || organization.plan}
                 </Badge>
-                <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  {organization.plan} Tier
-                </Badge>
+                {organization.subscription?.finalPrice != null && (
+                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                    ${organization.subscription.finalPrice}/{organization.subscription.billingInterval === 'annual' ? 'yr' : 'mo'}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-4 text-xs text-slate-500 mt-1 flex-wrap font-mono">
                 <span className="flex items-center gap-1 text-slate-700">
@@ -413,85 +559,206 @@ export function SuperAdminOrganization360() {
 
       {/* TAB 2: QUOTAS & GOVERNANCE */}
       {activeTab === 'quotas' && (
-        <Card className="border border-slate-200 bg-white shadow-sm rounded-xl p-5 space-y-6">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900">Tenant Resource Quotas & Allocations</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Enforce organizational ceilings, prevent runaway storage, and control seat usage.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleOpenQuotaModal}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 shadow-sm"
-            >
-              <Edit className="h-3.5 w-3.5" /> Modify Limits
-            </Button>
-          </div>
+        <div className="space-y-6">
+          {/* Active Package & Contract Card */}
+          <Card className="border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-white shadow-sm rounded-xl p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100/80">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                  <Package className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">
+                      {organization.packageSlug || organization.plan} Package
+                    </h3>
+                    <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[11px] capitalize font-semibold">
+                      {organization.subscription?.billingInterval || 'monthly'} billing
+                    </Badge>
+                    {organization.subscription?.customPrice != null && (
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-[11px] font-semibold">
+                        Custom Contract Override
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Modular packaging entitlements and dynamic billing rules.
+                  </p>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">User Seats</span>
-                <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px]">
-                  {quotas.users.utilizationPct}% Used
-                </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleOpenAssignPackageModal}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 shadow-sm"
+                >
+                  <Package className="h-3.5 w-3.5" /> Change Package & Add-ons
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenQuotaModal}
+                  className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs gap-1.5"
+                >
+                  <Edit className="h-3.5 w-3.5" /> Modify Quotas
+                </Button>
               </div>
-              <div className="text-2xl font-bold font-mono text-slate-900">
-                {quotas.users.current} / {quotas.users.limit}
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full rounded-full"
-                  style={{ width: `${Math.min(100, quotas.users.utilizationPct)}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Enforced by user provisioning RBAC middleware.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">Storage Ceiling</span>
-                <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px]">
-                  {quotas.storage.utilizationPct}% Used
-                </Badge>
-              </div>
-              <div className="text-2xl font-bold font-mono text-slate-900">
-                {storageMB} MB / {storageLimitGB} GB
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-emerald-600 h-full rounded-full"
-                  style={{ width: `${Math.min(100, quotas.storage.utilizationPct)}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Aggregated from {quotas.storage.filesCount} files in cloud storage.
-              </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">AI Token Budget</span>
-                <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px]">
-                  0% Used
-                </Badge>
+            {/* Hybrid Pricing & Add-ons Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+              <div className="p-3 rounded-xl bg-white border border-indigo-100 shadow-xs">
+                <span className="text-slate-500 block text-[11px]">Effective Contract Rate</span>
+                <span className="font-mono text-lg font-bold text-slate-900 mt-0.5 block">
+                  {organization.subscription?.finalPrice != null
+                    ? `$${organization.subscription.finalPrice}`
+                    : 'N/A'}
+                  <span className="text-xs font-normal text-slate-500">
+                    /{organization.subscription?.billingInterval === 'annual' ? 'yr' : 'mo'}
+                  </span>
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  Base: ${organization.subscription?.basePrice ?? 0} + Add-ons: ${organization.subscription?.addOnsTotal ?? 0}
+                </span>
               </div>
-              <div className="text-2xl font-bold font-mono text-slate-900">
-                0 / 1,000,000
+
+              <div className="p-3 rounded-xl bg-white border border-indigo-100 shadow-xs md:col-span-3">
+                <span className="text-slate-500 block text-[11px] mb-1.5">
+                  Active Modular Add-ons ({organization.subscription?.activeAddOns?.length || 0})
+                </span>
+                {organization.subscription?.activeAddOns && organization.subscription.activeAddOns.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {organization.subscription.activeAddOns.map((addonKey: string) => (
+                      <Badge
+                        key={addonKey}
+                        className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs font-medium py-1 px-2.5 inline-flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        <span className="font-mono">{addonKey}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">
+                    No optional add-on modules currently enabled for this organization.
+                  </p>
+                )}
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                <div className="bg-purple-600 h-full rounded-full" style={{ width: '1%' }} />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Monthly allowance for AI course generator and assistant.
-              </p>
             </div>
-          </div>
-        </Card>
+          </Card>
+
+          {/* Quotas & Allocations Card */}
+          <Card className="border border-slate-200 bg-white shadow-sm rounded-xl p-5 space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Tenant Resource Quotas & Allocations</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Enforce organizational ceilings, prevent runaway storage, and control seat usage.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">User Seats</span>
+                  <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px]">
+                    {quotas.users.utilizationPct}%
+                  </Badge>
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900">
+                  {quotas.users.current} / {organization.limits?.maxUsers || quotas.users.limit}
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-full rounded-full"
+                    style={{ width: `${Math.min(100, quotas.users.utilizationPct)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500">Provisioned users limit</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">Storage Ceiling</span>
+                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px]">
+                    {quotas.storage.utilizationPct}%
+                  </Badge>
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900">
+                  {storageMB} MB / {organization.limits?.maxStorageGb || storageLimitGB} GB
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-emerald-600 h-full rounded-full"
+                    style={{ width: `${Math.min(100, quotas.storage.utilizationPct)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500">Aggregated files quota</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">Max Journeys</span>
+                  <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">
+                    {journeys.length} Active
+                  </Badge>
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900">
+                  {journeys.length} / {organization.limits?.maxJourneys || 20}
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-amber-600 h-full rounded-full"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round((journeys.length / (organization.limits?.maxJourneys || 20)) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500">Active journey templates</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">Dedicated Kiosks</span>
+                  <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px]">
+                    Hardware
+                  </Badge>
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900">
+                  {quotas.kiosks?.current ?? 0} / {organization.limits?.maxKiosks || quotas.kiosks?.limit || 5}
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-indigo-600 h-full rounded-full"
+                    style={{ width: `${Math.min(100, quotas.kiosks?.utilizationPct ?? 0)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500">Terminal mode stations</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700">AI Tokens / Mo</span>
+                  <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px]">
+                    Monthly
+                  </Badge>
+                </div>
+                <div className="text-xl font-bold font-mono text-slate-900">
+                  {quotas.aiTokens?.monthlyUsed ?? 0} / {(organization.limits?.aiTokenMonthlyLimit || quotas.aiTokens?.monthlyBudget || 500000).toLocaleString()}
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-purple-600 h-full rounded-full" style={{ width: '1%' }} />
+                </div>
+                <p className="text-[10px] text-slate-500">AI generator allowance</p>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* TAB: FEATURE ENTITLEMENTS */}
@@ -1081,6 +1348,58 @@ export function SuperAdminOrganization360() {
                 {organization.status === 'Active' ? 'Suspend Access' : 'Restore Access'}
               </Button>
             </div>
+
+            <div className="p-4 rounded-xl border border-amber-200 bg-white shadow-sm flex items-center justify-between gap-4">
+              <div>
+                <span className="font-semibold text-amber-900 block flex items-center gap-1.5">
+                  <Archive className="h-4 w-4 text-amber-600" />
+                  Archive / Soft Delete Organization
+                </span>
+                <span className="text-slate-600">
+                  Suspends the workspace, terminates all employee & admin sessions, and isolates tenant data while keeping it restorable.
+                </span>
+              </div>
+              {organization.isDeleted ? (
+                <Button
+                  size="sm"
+                  onClick={handleRestoreOrg}
+                  disabled={restoreOrgMutation.isPending}
+                  className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 text-xs shadow-sm gap-1"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restore Organization
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 shrink-0 text-xs"
+                >
+                  Archive Organization
+                </Button>
+              )}
+            </div>
+
+            <div className="p-4 rounded-xl border border-rose-300 bg-rose-50/50 shadow-sm flex items-center justify-between gap-4">
+              <div>
+                <span className="font-semibold text-rose-800 block flex items-center gap-1.5">
+                  <Trash2 className="h-4 w-4 text-rose-600" />
+                  GDPR Complete Erasure & Cascade Purge
+                </span>
+                <span className="text-slate-600">
+                  Permanently deletes the workspace, users, sessions, journeys, tasks, uploaded files, invoices, and audit logs. This cannot be undone.
+                </span>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setShowDeleteModal(true)}
+                className="bg-rose-600 hover:bg-rose-700 text-white shrink-0 text-xs shadow-sm gap-1"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Hard Purge Workspace
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -1147,6 +1466,256 @@ export function SuperAdminOrganization360() {
         </div>
       )}
 
+      {/* Change Package & Add-ons Modal Dialog */}
+      {showAssignPackageModal && (() => {
+        const activeModalPackage = packagesList.find(
+          (p) => p.id === selectedPackageId || (p as any)._id === selectedPackageId
+        );
+        const modalBase = activeModalPackage
+          ? assignBillingInterval === 'annual'
+            ? activeModalPackage.billing.basePriceAnnual
+            : activeModalPackage.billing.basePriceMonthly
+          : 0;
+        let modalAddOns = 0;
+        if (activeModalPackage) {
+          assignAddOns.forEach((featKey) => {
+            const feat = activeModalPackage.features.find((f) => f.featureKey === featKey);
+            if (feat) {
+              modalAddOns +=
+                assignBillingInterval === 'annual'
+                  ? feat.addOnPriceAnnual || (feat.addOnPriceMonthly || 0) * 10
+                  : feat.addOnPriceMonthly || 0;
+            }
+          });
+        }
+        const modalCalculated = modalBase + modalAddOns;
+        const modalFinal =
+          assignCustomPrice && assignCustomPriceInput !== '' && !isNaN(parseFloat(assignCustomPriceInput))
+            ? parseFloat(assignCustomPriceInput)
+            : modalCalculated;
+
+        const availableAddOns = activeModalPackage?.features.filter((f) => f.isAddOn) || [];
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+            <Card className="w-full max-w-xl border border-slate-200 bg-white rounded-2xl p-6 shadow-2xl relative text-slate-900 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Change Package & Add-ons
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Reconfigure subscription tier, feature entitlements, and pricing for {organization.name}.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAssignPackageModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleAssignPackageSubmit} className="space-y-4 mt-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Target Package Template *
+                    </label>
+                    <select
+                      value={selectedPackageId}
+                      onChange={(e) => {
+                        setSelectedPackageId(e.target.value);
+                        setAssignAddOns([]);
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    >
+                      {packagesList.map((pkg) => (
+                        <option key={pkg.id || (pkg as any)._id} value={pkg.id || (pkg as any)._id}>
+                          {pkg.name} ({pkg.billing.basePriceMonthly === 0 ? 'Free' : `$${pkg.billing.basePriceMonthly}/mo`})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Billing Frequency
+                    </label>
+                    <div className="flex items-center rounded-lg border border-slate-200 p-0.5 bg-slate-50 h-9">
+                      <button
+                        type="button"
+                        onClick={() => setAssignBillingInterval('monthly')}
+                        className={`flex-1 py-1 rounded-md text-xs font-medium transition-colors ${
+                          assignBillingInterval === 'monthly'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAssignBillingInterval('annual')}
+                        className={`flex-1 py-1 rounded-md text-xs font-medium transition-colors ${
+                          assignBillingInterval === 'annual'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Annual (-17%)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Available Add-ons for Package */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <span className="font-semibold text-slate-800 block text-xs">
+                    Modular Add-on Modules ({availableAddOns.length} available)
+                  </span>
+                  {availableAddOns.length === 0 ? (
+                    <p className="text-[11px] text-slate-500 italic">
+                      No optional add-ons configured for this package. Core features are bundled in the base tier.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {availableAddOns.map((addon) => {
+                        const isChecked = assignAddOns.includes(addon.featureKey);
+                        const addOnPrice =
+                          assignBillingInterval === 'annual'
+                            ? addon.addOnPriceAnnual || (addon.addOnPriceMonthly || 0) * 10
+                            : addon.addOnPriceMonthly || 0;
+                        return (
+                          <label
+                            key={addon.featureKey}
+                            className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                              isChecked
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
+                                : 'bg-white border-slate-200 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setAssignAddOns((prev) =>
+                                    prev.includes(addon.featureKey)
+                                      ? prev.filter((k) => k !== addon.featureKey)
+                                      : [...prev, addon.featureKey]
+                                  );
+                                }}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <div>
+                                <span className="font-semibold block">{addon.name}</span>
+                                <span className="text-[10px] text-slate-500 capitalize">{addon.module} module</span>
+                              </div>
+                            </div>
+                            <span className="font-mono font-bold text-indigo-600">
+                              +${addOnPrice}/{assignBillingInterval === 'annual' ? 'yr' : 'mo'}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Hybrid Pricing Summary */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Base Tier Price:</span>
+                    <span className="font-mono font-medium">${modalBase}/{assignBillingInterval === 'annual' ? 'yr' : 'mo'}</span>
+                  </div>
+                  {modalAddOns > 0 && (
+                    <div className="flex items-center justify-between text-indigo-600">
+                      <span>Add-ons ({assignAddOns.length}):</span>
+                      <span className="font-mono font-medium">+${modalAddOns}/{assignBillingInterval === 'annual' ? 'yr' : 'mo'}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between font-bold text-slate-900 pt-1.5 border-t border-slate-200">
+                    <span>Calculated Standard Rate:</span>
+                    <span className="font-mono text-indigo-600">
+                      ${modalCalculated}/{assignBillingInterval === 'annual' ? 'yr' : 'mo'}
+                    </span>
+                  </div>
+
+                  {/* Negotiated Override */}
+                  <div className="pt-2 border-t border-slate-200 space-y-2">
+                    <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={assignCustomPrice}
+                        onChange={(e) => setAssignCustomPrice(e.target.checked)}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="font-medium">Override with negotiated custom contract price</span>
+                    </label>
+                    {assignCustomPrice && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={assignCustomPriceInput}
+                          onChange={(e) => setAssignCustomPriceInput(e.target.value)}
+                          placeholder={`${modalCalculated}`}
+                          className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-indigo-500 outline-none"
+                        />
+                        <span className="text-slate-500">/{assignBillingInterval === 'annual' ? 'yr' : 'mo'}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Audit Justification */}
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">
+                    Audit Note / Contract Reason (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={assignReason}
+                    onChange={(e) => setAssignReason(e.target.value)}
+                    placeholder="e.g., Client signed enterprise kiosk add-on contract #2026-A"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAssignPackageModal(false)}
+                    className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isAssigning}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
+                  >
+                    {isAssigning ? 'Applying Entitlements…' : `Confirm & Apply (${modalFinal > 0 ? `$${modalFinal}` : 'Free'})`}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Quarantine Modal Dialog */}
       {showQuarantineModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -1198,6 +1767,27 @@ export function SuperAdminOrganization360() {
           </Card>
         </div>
       )}
+
+      {/* Delete / Purge Organization Modal */}
+      <DeleteOrganizationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        organization={organization ? {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          isDeleted: organization.isDeleted
+        } : null}
+        onSuccess={(_org, mode) => {
+          if (mode === 'hard') {
+            toast.success(`Organization ${organization.name} permanently purged.`);
+            navigate('/super-admin/organizations');
+          } else {
+            toast.success(`Organization ${organization.name} archived.`);
+            refetch();
+          }
+        }}
+      />
     </SuperAdminShell>
   );
 }

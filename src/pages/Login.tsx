@@ -25,6 +25,15 @@ export function Login() {
   const [discoveringSSO, setDiscoveringSSO] = useState(false);
   const [ssoInitiating, setSsoInitiating] = useState(false);
 
+  // First-Login Forced Password Reset State
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  const [pendingLoginData, setPendingLoginData] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   // Automatic Domain Discovery on email change
   useEffect(() => {
     const trimmed = email.trim();
@@ -75,6 +84,51 @@ export function Login() {
     }
   };
 
+  const completeLoginTransition = (loginData: any) => {
+    const backendRole = loginData.user?.role;
+    const backendRoles = loginData.user?.roles || (backendRole ? [backendRole] : []);
+
+    applyProfileLanguage(loginData.user?.preferences?.language);
+
+    let userRole: 'admin' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin' = 'employee';
+    if (backendRole === 'super_admin') {
+      userRole = 'super_admin';
+    } else if (backendRole === 'owner' || backendRole === 'admin') {
+      userRole = 'admin';
+    } else if (backendRole === 'manager') {
+      userRole = 'manager';
+    } else if (backendRole === 'hr_admin') {
+      userRole = 'hr_admin';
+    } else if (backendRole === 'it_admin') {
+      userRole = 'it_admin';
+    }
+
+    setRole(userRole as any);
+    setRoles(backendRoles as any);
+    toast.success(t('login.success'));
+
+    if (userRole === 'super_admin') {
+      navigate('/super-admin');
+    } else if (userRole === 'admin' || userRole === 'hr_admin') {
+      navigate('/');
+    } else if (userRole === 'it_admin') {
+      navigate('/tasks/it-ops');
+    } else if (userRole === 'manager') {
+      navigate('/manager');
+    } else {
+      navigate('/employee');
+    }
+  };
+
+  // Handle session timeout notification from inactivity redirects
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('reason') === 'session_timeout') {
+      toast.info(t('sessionTimeout.expiredToast', 'Your session has expired due to inactivity. Please sign in again.'));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [t]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -84,46 +138,85 @@ export function Login() {
 
     setLoading(true);
     try {
-      await authService.logout().catch(() => undefined);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_roles');
+      localStorage.removeItem('user_features');
+      localStorage.removeItem('talnova_last_activity');
       const loginData = await authService.login(email, password);
-      const backendRole = loginData.user?.role;
-      const backendRoles = loginData.user?.roles || (backendRole ? [backendRole] : []);
 
-      applyProfileLanguage(loginData.user?.preferences?.language);
-
-      let userRole: 'admin' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin' = 'employee';
-      if (backendRole === 'super_admin') {
-        userRole = 'super_admin';
-      } else if (backendRole === 'owner' || backendRole === 'admin') {
-        userRole = 'admin';
-      } else if (backendRole === 'manager') {
-        userRole = 'manager';
-      } else if (backendRole === 'hr_admin') {
-        userRole = 'hr_admin';
-      } else if (backendRole === 'it_admin') {
-        userRole = 'it_admin';
+      // Check if user is required to change password on first login
+      if (loginData.user?.mustChangePassword) {
+        setPendingLoginData(loginData);
+        setShowFirstLoginModal(true);
+        return;
       }
 
-      setRole(userRole as any);
-      setRoles(backendRoles as any);
-      toast.success(t('login.success'));
-
-      if (userRole === 'super_admin') {
-        navigate('/super-admin');
-      } else if (userRole === 'admin' || userRole === 'hr_admin') {
-        navigate('/');
-      } else if (userRole === 'it_admin') {
-        navigate('/tasks/it-ops');
-      } else if (userRole === 'manager') {
-        navigate('/manager');
-      } else {
-        navigate('/employee');
-      }
+      completeLoginTransition(loginData);
     } catch (err: any) {
       toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFirstLoginChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || !confirmPassword) {
+      toast.error(t('login.errorEmpty'));
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error(t('register.invitation.passwordMinLength', 'Password must be at least 8 characters.'));
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error(t('register.invitation.passwordsDoNotMatch', 'Passwords do not match.'));
+      return;
+    }
+
+    if (newPassword === password) {
+      toast.error('New password must be different from your current temporary password.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await authService.changePassword({
+        currentPassword: password,
+        newPassword
+      });
+
+      toast.success(t('resetPassword.toastSuccess', 'Password updated successfully! Welcome aboard.'));
+
+      const updatedLoginData = {
+        ...pendingLoginData,
+        user: {
+          ...pendingLoginData?.user,
+          mustChangePassword: false,
+        }
+      };
+
+      setShowFirstLoginModal(false);
+      const toComplete = updatedLoginData;
+      setPendingLoginData(null);
+      completeLoginTransition(toComplete);
+    } catch (err: any) {
+      toast.error(getErrorMessage(err) || 'Failed to update password');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleCancelFirstLogin = async () => {
+    await authService.logout().catch(() => undefined);
+    setShowFirstLoginModal(false);
+    setPendingLoginData(null);
+    setNewPassword('');
+    setConfirmPassword('');
+    toast.info('Sign-in cancelled. Please change your password to access your workspace.');
   };
 
   return (
@@ -279,6 +372,135 @@ export function Login() {
           <LanguageSwitcher variant="full" />
         </div>
       </div>
+
+      {/* First-Login Forced Password Reset Dialog */}
+      {showFirstLoginModal && (
+        <div
+          id="first-login-modal-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-in fade-in duration-200"
+        >
+          <div
+            id="first-login-modal"
+            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0F172A] p-6 sm:p-8 shadow-2xl backdrop-blur-xl"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 p-2.5 text-amber-400 border border-amber-500/30">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {t('login.firstLoginTitle', 'Set Your Permanent Password')}
+                </h3>
+                <p className="text-xs text-amber-400/90 font-medium">
+                  First-Time Authentication Required
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed mb-6">
+              {t('login.firstLoginSubtitle', 'Your account was provisioned with a temporary password. Please set a new secure password before accessing your workspace.')}
+            </p>
+
+            <form onSubmit={handleFirstLoginChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  {t('login.newPasswordLabel', 'New Password')}
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                    <Lock className="h-4 w-4" />
+                  </span>
+                  <input
+                    id="first-login-new-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300"
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  {t('login.confirmPasswordLabel', 'Confirm New Password')}
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                    <Lock className="h-4 w-4" />
+                  </span>
+                  <input
+                    id="first-login-confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-[11px] text-gray-400 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <div className={`h-1.5 w-1.5 rounded-full ${newPassword.length >= 8 ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                  <span className={newPassword.length >= 8 ? 'text-emerald-400 font-medium' : ''}>
+                    At least 8 characters long
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className={`h-1.5 w-1.5 rounded-full ${confirmPassword && newPassword === confirmPassword ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                  <span className={confirmPassword && newPassword === confirmPassword ? 'text-emerald-400 font-medium' : ''}>
+                    Passwords match
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse sm:flex-row items-center gap-3 pt-2">
+                <Button
+                  id="first-login-cancel-btn"
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelFirstLogin}
+                  disabled={isChangingPassword}
+                  className="w-full sm:w-auto flex-1 border-white/10 text-gray-300 hover:bg-white/5 hover:text-white"
+                >
+                  {t('login.cancelSignOutBtn', 'Cancel & Sign Out')}
+                </Button>
+                <Button
+                  id="first-login-submit-btn"
+                  type="submit"
+                  disabled={isChangingPassword || newPassword.length < 8 || newPassword !== confirmPassword}
+                  className="w-full sm:w-auto flex-1 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 shadow-md shadow-indigo-500/20"
+                >
+                  {isChangingPassword ? (
+                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent mx-auto" />
+                  ) : (
+                    t('login.updatePasswordBtn', 'Update Password & Continue')
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

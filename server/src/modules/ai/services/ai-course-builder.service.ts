@@ -45,7 +45,12 @@ export class AICourseBuilderService {
           department,
           level,
           moduleCount,
-          groundedArticles
+          groundedArticles,
+          {
+            organizationId: orgObjectId,
+            userId: userObjectId,
+            feature: "ai_course_builder",
+          }
         );
 
         if (Array.isArray(generatedModules) && generatedModules.length > 0) {

@@ -24,6 +24,7 @@ export function useCreateJourney() {
     mutationFn: journeyService.createJourney,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journeys'] });
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
     },
   });
 }
@@ -46,6 +47,7 @@ export function useDeleteJourney() {
     mutationFn: journeyService.deleteJourney,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journeys'] });
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
     },
   });
 }

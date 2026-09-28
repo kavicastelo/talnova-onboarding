@@ -46,18 +46,47 @@ export interface IOrganization extends Document {
   size?: "1-10" | "11-50" | "51-250" | "251-1000" | "1000+";
   supportEmail?: string;
   status: "Active" | "Suspended";
-  plan: "Starter" | "Growth" | "Professional" | "Enterprise";
+  plan: string;
+  packageId?: mongoose.Types.ObjectId;
+  packageSlug?: string;
   subscription?: {
+    packageId?: mongoose.Types.ObjectId;
+    packageSlug?: string;
+    packageName?: string;
     plan?: string;
     status?: string;
     seatLimit?: number;
     billingCycle?: string;
+    billingInterval?: "monthly" | "annual";
+    basePrice?: number;
+    addOnPrice?: number;
+    addOnsTotal?: number;
+    customPrice?: number;
+    customPricePerMonth?: number;
+    customPricePerYear?: number;
+    finalPrice?: number;
+    currency?: string;
+    activeAddOns?: string[];
+    addOns?: any[];
+    currentPeriodStart?: Date;
+    currentPeriodEnd?: Date;
+    cancelAtPeriodEnd?: boolean;
     renewsAt?: Date;
   };
+  features?: Record<string, boolean>;
   limits?: {
     maxUsers?: number;
     maxStorageGb?: number;
+    maxJourneys?: number;
+    maxKiosks?: number;
+    aiTokenMonthlyLimit?: number;
   };
+  customFeatureOverrides?: Array<{
+    featureKey: string;
+    override: "enable" | "disable" | "default";
+    reason?: string;
+    updatedAt?: Date;
+  }>;
   branding: {
     logo?: IUploadReference;
     favicon?: IUploadReference;
@@ -169,18 +198,49 @@ const OrganizationSchema = new Schema<IOrganization>(
     },
     supportEmail: { type: String, lowercase: true, trim: true },
     status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
-    plan: { type: String, enum: ["Starter", "Growth", "Professional", "Enterprise"], default: "Starter" },
+    plan: { type: String, default: "Starter" },
+    packageId: { type: Schema.Types.ObjectId, ref: "Package" },
+    packageSlug: { type: String, trim: true },
     subscription: {
+      packageId: { type: Schema.Types.ObjectId, ref: "Package" },
+      packageSlug: { type: String, trim: true },
+      packageName: { type: String },
       plan: { type: String, default: "Starter" },
       status: { type: String, default: "active" },
       seatLimit: { type: Number, default: 50 },
       billingCycle: { type: String, default: "monthly" },
-      renewsAt: { type: Date }
+      billingInterval: { type: String, enum: ["monthly", "annual"], default: "monthly" },
+      basePrice: { type: Number, default: 0 },
+      addOnPrice: { type: Number, default: 0 },
+      addOnsTotal: { type: Number, default: 0 },
+      customPrice: { type: Number },
+      customPricePerMonth: { type: Number },
+      customPricePerYear: { type: Number },
+      finalPrice: { type: Number, default: 0 },
+      currency: { type: String, default: "USD" },
+      activeAddOns: { type: [String], default: [] },
+      addOns: { type: [Schema.Types.Mixed], default: [] },
+      currentPeriodStart: { type: Date },
+      currentPeriodEnd: { type: Date },
+      cancelAtPeriodEnd: { type: Boolean, default: false },
+      renewsAt: { type: Date },
     },
+    features: { type: Schema.Types.Mixed, default: {} },
     limits: {
       maxUsers: { type: Number, default: 50 },
-      maxStorageGb: { type: Number, default: 10 }
+      maxStorageGb: { type: Number, default: 10 },
+      maxJourneys: { type: Number, default: 20 },
+      maxKiosks: { type: Number, default: 5 },
+      aiTokenMonthlyLimit: { type: Number, default: 500000 },
     },
+    customFeatureOverrides: [
+      {
+        featureKey: { type: String, required: true },
+        override: { type: String, enum: ["enable", "disable", "default"], default: "default" },
+        reason: { type: String },
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
     branding: {
       logo: { type: UploadReferenceSchema },
       favicon: { type: UploadReferenceSchema },

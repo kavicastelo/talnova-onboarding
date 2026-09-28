@@ -3,7 +3,7 @@ import { SuperAdminService } from "../services/super-admin.service.js";
 import { featureTelemetryService } from "../services/feature-telemetry.service.js";
 
 export class SuperAdminController {
-  constructor(private readonly superAdminService: SuperAdminService) {}
+  constructor(private readonly superAdminService: SuperAdminService) { }
 
   // ---------------------------------------------------------------------------
   // 1. Search & Telemetry
@@ -163,6 +163,33 @@ export class SuperAdminController {
     });
   };
 
+  deleteOrganization = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    const { mode } = (request.query as any) || (request.body as any) || {};
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.deleteOrganization(
+      id,
+      mode === "soft" ? "soft" : "hard",
+      actorUserId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: data.message,
+      data,
+    });
+  };
+
+  restoreOrganization = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.restoreOrganization(id, actorUserId);
+    return reply.status(200).send({
+      success: true,
+      message: data.message,
+      data,
+    });
+  };
+
   // ---------------------------------------------------------------------------
   // 3. Users & Sessions
   // ---------------------------------------------------------------------------
@@ -252,6 +279,21 @@ export class SuperAdminController {
     return reply.status(200).send({
       success: true,
       message: "Invoice retrieved successfully",
+      data,
+    });
+  };
+
+  getPackageInvoicePreview = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const { orgId } = request.params as { orgId: string };
+    const data = await this.superAdminService.generatePackageInvoicePreview(
+      orgId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Package invoice preview generated successfully",
       data,
     });
   };
@@ -418,10 +460,10 @@ export class SuperAdminController {
   };
 
   getApiObservability = async (
-    _request: FastifyRequest,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
-    const data = this.superAdminService.getApiObservability();
+    const data = this.superAdminService.getApiObservability(request.query);
     return reply.status(200).send({
       success: true,
       message: "API telemetry metrics retrieved",
@@ -442,10 +484,10 @@ export class SuperAdminController {
   };
 
   getAiObservability = async (
-    _request: FastifyRequest,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
-    const data = await this.superAdminService.getAiObservability();
+    const data = await this.superAdminService.getAiObservability(request.query);
     return reply.status(200).send({
       success: true,
       message: "AI telemetry retrieved",
@@ -472,13 +514,118 @@ export class SuperAdminController {
   };
 
   getStorageObservability = async (
-    _request: FastifyRequest,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
-    const data = await this.superAdminService.getStorageObservability();
+    const data = await this.superAdminService.getStorageObservability(request.query);
     return reply.status(200).send({
       success: true,
       message: "Storage telemetry retrieved",
+      data,
+    });
+  };
+
+  updateOrganizationStorageLimit = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const { id } = request.params as { id: string };
+    const { maxStorageGb } = (request.body as any) || {};
+    const data = await this.superAdminService.updateOrganizationStorageLimit(id, maxStorageGb);
+    return reply.status(200).send({
+      success: true,
+      message: "Organization storage limit updated successfully",
+      data,
+    });
+  };
+
+  // ---------------------------------------------------------------------------
+  // 5.1 Packages, Plans & Modular Entitlements
+  // ---------------------------------------------------------------------------
+
+  getPackages = async (request: FastifyRequest, reply: FastifyReply) => {
+    const data = await this.superAdminService.getPackages(request.query);
+    return reply.status(200).send({
+      success: true,
+      message: "Package templates retrieved successfully",
+      data,
+    });
+  };
+
+  getPackageById = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const data = await this.superAdminService.getPackageById(id);
+    return reply.status(200).send({
+      success: true,
+      message: "Package details retrieved successfully",
+      data,
+    });
+  };
+
+  createPackage = async (request: FastifyRequest, reply: FastifyReply) => {
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.createPackage(
+      request.body,
+      actorUserId
+    );
+    return reply.status(201).send({
+      success: true,
+      message: "Package template created successfully",
+      data,
+    });
+  };
+
+  updatePackage = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.updatePackage(
+      id,
+      request.body,
+      actorUserId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Package template updated successfully",
+      data,
+    });
+  };
+
+  deletePackage = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.deletePackage(id, actorUserId);
+    return reply.status(200).send({
+      success: true,
+      message: data.message,
+      data,
+    });
+  };
+
+  clonePackage = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.clonePackage(id, actorUserId);
+    return reply.status(201).send({
+      success: true,
+      message: "Package cloned successfully",
+      data,
+    });
+  };
+
+  assignOrganizationPackage = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const { id } = request.params as { id: string };
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.assignOrganizationPackage(
+      id,
+      request.body,
+      actorUserId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Package successfully assigned to organization",
       data,
     });
   };

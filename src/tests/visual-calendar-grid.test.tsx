@@ -6,6 +6,8 @@ import { CalendarWeekView } from '../components/calendar/CalendarWeekView';
 import { DayAgendaModal } from '../components/calendar/DayAgendaModal';
 import { MeetingEvent } from '../services/calendar.service';
 
+const noop = () => { /* test noop */ };
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, defaultValOrOptions?: any) => {
@@ -127,8 +129,8 @@ describe('Phase 2 — Visual Calendar Grid & Day Agenda Component Test Suite', (
         <CalendarMonthGrid
           currentDate={targetDate}
           events={mockEvents}
-          onSelectDate={() => {}}
-          onSelectEvent={() => {}}
+          onSelectDate={noop}
+          onSelectEvent={noop}
           getCategoryLabel={getCategoryLabel}
         />
       );
@@ -160,11 +162,11 @@ describe('Phase 2 — Visual Calendar Grid & Day Agenda Component Test Suite', (
         <CalendarWeekView
           currentDate={targetDate}
           events={mockEvents}
-          onSelectDate={() => {}}
-          onSelectEvent={() => {}}
+          onSelectDate={noop}
+          onSelectEvent={noop}
           getCategoryLabel={getCategoryLabel}
           isManager={true}
-          onQuickSchedule={() => {}}
+          onQuickSchedule={noop}
         />
       );
 
@@ -182,16 +184,16 @@ describe('Phase 2 — Visual Calendar Grid & Day Agenda Component Test Suite', (
       const html = renderToString(
         <DayAgendaModal
           isOpen={true}
-          onClose={() => {}}
+          onClose={noop}
           date={selectedDate}
           events={mockEvents}
           employees={mockEmployees}
           isManager={true}
           getCategoryLabel={getCategoryLabel}
-          onScheduleForDay={() => {}}
-          onOpenNotes={() => {}}
-          onDownloadIcs={() => {}}
-          onCancelMeeting={() => {}}
+          onScheduleForDay={noop}
+          onOpenNotes={noop}
+          onDownloadIcs={noop}
+          onCancelMeeting={noop}
         />
       );
 
@@ -211,16 +213,16 @@ describe('Phase 2 — Visual Calendar Grid & Day Agenda Component Test Suite', (
       const html = renderToString(
         <DayAgendaModal
           isOpen={true}
-          onClose={() => {}}
+          onClose={noop}
           date={emptyDate}
           events={mockEvents}
           employees={mockEmployees}
           isManager={true}
           getCategoryLabel={getCategoryLabel}
-          onScheduleForDay={() => {}}
-          onOpenNotes={() => {}}
-          onDownloadIcs={() => {}}
-          onCancelMeeting={() => {}}
+          onScheduleForDay={noop}
+          onOpenNotes={noop}
+          onDownloadIcs={noop}
+          onCancelMeeting={noop}
         />
       );
 

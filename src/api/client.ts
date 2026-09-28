@@ -155,6 +155,7 @@ apiClient.interceptors.response.use(
         );
         const { accessToken } = res.data.data;
         localStorage.setItem('auth_token', accessToken);
+        localStorage.setItem('talnova_last_activity', String(Date.now()));
         
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -164,6 +165,9 @@ apiClient.interceptors.response.use(
         console.error('Token refresh failed', refreshError);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_role');
+        localStorage.removeItem('user_roles');
+        localStorage.removeItem('user_features');
+        localStorage.removeItem('talnova_last_activity');
         window.location.href = '/login';
       }
     }

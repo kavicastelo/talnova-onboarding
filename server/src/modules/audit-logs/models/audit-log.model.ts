@@ -32,7 +32,9 @@ export interface IAuditLog extends Document {
     | "login"
     | "logout"
     | "export"
-    | "status_change";
+    | "status_change"
+    | "error"
+    | "execute";
   description: string;
   metadata?: {
     previousValue?: any;
@@ -97,6 +99,8 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "logout",
         "export",
         "status_change",
+        "error",
+        "execute",
       ],
       required: true,
     },

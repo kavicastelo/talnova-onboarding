@@ -10,7 +10,11 @@
     "ai": "AI & Automation",
     "email": "Email Delivery",
     "language": "Language & Region",
-    "profile": "Profile"
+    "profile": "Profile",
+    "generalGroup": "Organization",
+    "securityGroup": "Security & Alerts",
+    "integrationsGroup": "Integrations",
+    "billingGroup": "Billing"
   },
   "workspace": {
     "orgName": "Organization Name",

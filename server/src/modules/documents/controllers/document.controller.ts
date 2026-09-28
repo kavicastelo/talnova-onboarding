@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { DocumentService } from "../services/document.service.js";
 import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
 
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) {}
@@ -95,7 +96,7 @@ export class DocumentController {
     const params = request.params as any;
 
     const reqMetadata = {
-      ipAddress: request.ip,
+      ipAddress: getClientIp(request),
       userAgent: request.headers["user-agent"],
     };
 
@@ -120,7 +121,7 @@ export class DocumentController {
     const body = request.body as any;
 
     const reqMetadata = {
-      ipAddress: request.ip,
+      ipAddress: getClientIp(request),
       userAgent: request.headers["user-agent"],
     };
 

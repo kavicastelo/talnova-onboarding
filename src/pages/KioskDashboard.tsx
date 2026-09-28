@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   RefreshCw,
@@ -51,6 +52,7 @@ type TabType = 'journeys' | 'devices' | 'analytics';
 
 export function KioskDashboard() {
   const { t } = useTranslation(['kiosk', 'common']);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('journeys');
   const [journeys, setJourneys] = useState<KioskJourney[]>([]);
   const [devices, setDevices] = useState<KioskDevice[]>([]);
@@ -221,6 +223,7 @@ export function KioskDashboard() {
       // Open immediately in builder
       setEditingJourneyId(created._id);
       fetchData();
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
     } catch (err: any) {
       toast.error(err?.message || t('toasts.failedCreateJourney', { defaultValue: 'Failed to create kiosk journey' }));
     } finally {
@@ -234,6 +237,7 @@ export function KioskDashboard() {
         await kioskService.deleteJourney(id);
         toast.success(t('toasts.journeyDeleted', { defaultValue: 'Kiosk journey deleted' }));
         fetchData();
+        queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
       } catch (err: any) {
         toast.error(err?.message || t('toasts.failedDeleteJourney', { defaultValue: 'Failed to delete journey' }));
       }
@@ -250,6 +254,7 @@ export function KioskDashboard() {
       setPairModalOpen(false);
       setSelectedDevice(null);
       fetchData();
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
     } catch (err: any) {
       toast.error(err?.message || t('toasts.failedLinkJourney', { defaultValue: 'Failed to link journey to device' }));
     } finally {

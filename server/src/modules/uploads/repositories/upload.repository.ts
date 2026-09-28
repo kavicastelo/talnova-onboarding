@@ -105,6 +105,25 @@ export class UploadRepository {
       { new: true }
     );
   }
+
+  async getTotalStorageBytes(orgId: string | mongoose.Types.ObjectId): Promise<number> {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const res = await Upload.aggregate([
+      {
+        $match: {
+          organizationId: orgObjectId,
+          "lifecycle.status": { $ne: "deleted" },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalBytes: { $sum: "$fileSizeBytes" },
+        },
+      },
+    ]);
+    return res[0]?.totalBytes || 0;
+  }
 }
 
 export default UploadRepository;

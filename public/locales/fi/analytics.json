@@ -1,5 +1,6 @@
 {
   "title": "Yrityksen analytiikka ja perehdytyksen telemetria",
+  "benchmarkDynamic": "Nopein: {{fastest}} pv • Alan vertailuarvo: 21 pv",
   "subtitle": "Reaaliaikainen kohorttinopeus, perehdytyssuppilon keskeytysvaiheet ja osastokohtainen tuottavuuden kasvu.",
   "exportCSV": "Vie CSV",
   "scheduleReport": "Ajasta sähköpostiraportti",

@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { OnboardingCaseService, onboardingCaseService } from "../services/onboarding-case.service.js";
 import { GetExceptionsQuery, ResolveExceptionBody } from "../schemas/onboarding.schema.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
 
 export class OnboardingCaseController {
   constructor(private readonly service: OnboardingCaseService = onboardingCaseService) {}
@@ -47,7 +48,7 @@ export class OnboardingCaseController {
       actorUserId,
       resolution,
       {
-        ipAddress: request.ip,
+        ipAddress: getClientIp(request),
         userAgent: request.headers["user-agent"],
       }
     );

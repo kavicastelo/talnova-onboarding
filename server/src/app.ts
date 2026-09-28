@@ -60,6 +60,7 @@ export async function buildApp() {
     logger: loggerConfig,
     disableRequestLogging: true, // Custom request/response lifecycle logging in logging.middleware.ts
     bodyLimit: 50 * 1024 * 1024, // 50MB body limit for bulk operations
+    trustProxy: appConfig.trustProxy ?? true,
   });
 
   // Register foundational plugins

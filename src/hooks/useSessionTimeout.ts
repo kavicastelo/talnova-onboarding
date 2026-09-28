@@ -75,10 +75,12 @@ export function useSessionTimeout(): SessionTimeoutState {
     setIsWarningOpen(false);
 
     try {
-      await apiClient.post('/auth/logout').catch(() => {});
+      await apiClient.post('/auth/logout').catch(() => undefined);
     } finally {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_role');
+      localStorage.removeItem('user_roles');
+      localStorage.removeItem('user_features');
       localStorage.removeItem(LAST_ACTIVITY_KEY);
       window.location.href = '/login?reason=session_timeout';
     }
@@ -104,8 +106,19 @@ export function useSessionTimeout(): SessionTimeoutState {
     if (!user || !localStorage.getItem('auth_token')) return;
 
     // Set initial activity
-    const initial = getLatestActivity();
+    const now = Date.now();
+    const stored = getLatestActivity();
+    // Only trust stored activity if it's strictly within the active timeout window (e.g. cross-tab sync).
+    // If stored value is older than timeoutSeconds, it's stale residue from a prior session and must be reset.
+    const isValidStored = stored > 0 && (now - stored) < (timeoutSeconds * 1000);
+    const initial = isValidStored ? stored : now;
+
     lastActivityRef.current = initial;
+    try {
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(initial));
+    } catch {
+      // ignore
+    }
 
     const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
     const handleUserEvent = () => recordActivity();

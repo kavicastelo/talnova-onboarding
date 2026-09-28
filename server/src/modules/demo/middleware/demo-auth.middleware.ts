@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import AppError from "../../../common/errors/app-error.js";
 import { demoSessionService } from "../services/demo-session.service.js";
 import { DemoResetService } from "../services/demo-reset.service.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -43,7 +44,7 @@ export async function demoAuthenticate(request: FastifyRequest, _reply: FastifyR
     }
 
     // Validate active session in isolated demo database
-    await demoSessionService.validateSession(payload.sessionId, request.ip);
+    await demoSessionService.validateSession(payload.sessionId, getClientIp(request));
 
     // Attach demo identity to request context
     request.demoUser = {

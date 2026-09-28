@@ -22,7 +22,11 @@ import {
   Eye,
   Trash2,
   Building2,
-  Edit3
+  Edit3,
+  Zap,
+  Package as PackageIcon,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { SuperAdminShell } from '../components/super-admin/SuperAdminShell';
 import { Card } from '../components/Card';
@@ -42,13 +46,17 @@ import {
   useRecordExpense,
   useSuperAdminOrganizations,
   useSuperAdminCustomerAccounts,
-  useUpdateCustomerAccount
+  useUpdateCustomerAccount,
+  usePackageInvoicePreview,
+  useSuperAdminPackages
 } from '../hooks/useSuperAdmin';
 import {
   superAdminService,
   CustomerAccountItem,
   CustomerAccountStatus,
-  BillingCycle
+  BillingCycle,
+  PackageDistributionItem,
+  PackageFeatureItem
 } from '../services/superAdmin.service';
 import {
   AreaChart,
@@ -90,6 +98,9 @@ export function SuperAdminFinance() {
   };
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [packageFilter, setPackageFilter] = useState<string>('all');
+  const [cycleFilter, setCycleFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
@@ -110,6 +121,9 @@ export function SuperAdminFinance() {
     refetch: refetchInvoices
   } = useSuperAdminInvoices({
     search: searchQuery || undefined,
+    packageSlug: packageFilter !== 'all' ? packageFilter : undefined,
+    billingCycle: cycleFilter !== 'all' ? cycleFilter : undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
     page,
     limit,
   });
@@ -145,12 +159,37 @@ export function SuperAdminFinance() {
     d.setDate(d.getDate() + 30);
     return d.toISOString().split('T')[0];
   });
-  const [lineItems, setLineItems] = useState<Array<{ description: string; quantity: number; unitPrice: number }>>([
-    { description: 'Enterprise Platform Seat Licenses', quantity: 10, unitPrice: 49 },
+  const [lineItems, setLineItems] = useState<Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    itemType?: 'package_base' | 'addon' | 'overage' | 'custom' | 'discount';
+    featureKey?: string;
+    packageSlug?: string;
+  }>>([
+    { description: 'Growth Suite Platform Base Rate', quantity: 1, unitPrice: 249, itemType: 'package_base' },
   ]);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [taxAmount, setTaxAmount] = useState<number>(0);
   const [newNotes, setNewNotes] = useState('');
+  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
+  const [selectedPackageSlug, setSelectedPackageSlug] = useState<string>('');
+  const [selectedPackageName, setSelectedPackageName] = useState<string>('');
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'annually' | 'quarterly' | 'custom'>('monthly');
+
+  // Customize package engine hooks for modal
+  const {
+    data: packagePreview,
+    isLoading: previewLoading,
+  } = usePackageInvoicePreview(selectedOrgId);
+  const { data: packagesResponse } = useSuperAdminPackages();
+  const availablePackages = packagesResponse?.packages || [];
+
+  const currentPackageTemplate = availablePackages.find(
+    p => (p.id || (p as any)._id) === (selectedPackageId || packagePreview?.package?.id) ||
+         p.slug === (selectedPackageSlug || packagePreview?.package?.slug)
+  );
+  const packageAddOns = currentPackageTemplate?.features?.filter(f => f.isAddOn) || [];
 
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -253,8 +292,8 @@ export function SuperAdminFinance() {
     Math.max(0, computedSubtotal - (Number(discountAmount) || 0) + (Number(taxAmount) || 0)) * 100
   ) / 100;
 
-  const handleAddLineItem = () => {
-    setLineItems([...lineItems, { description: '', quantity: 1, unitPrice: 0 }]);
+  const handleAddLineItem = (type: 'package_base' | 'addon' | 'overage' | 'custom' | 'discount' = 'custom') => {
+    setLineItems([...lineItems, { description: '', quantity: 1, unitPrice: 0, itemType: type }]);
   };
 
   const handleRemoveLineItem = (index: number) => {
@@ -265,10 +304,112 @@ export function SuperAdminFinance() {
     setLineItems(lineItems.filter((_, i) => i !== index));
   };
 
-  const handleLineItemChange = (index: number, field: 'description' | 'quantity' | 'unitPrice', val: any) => {
+  const handleLineItemChange = (index: number, field: string, val: any) => {
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: val };
     setLineItems(updated);
+  };
+
+  const handleAutoPopulateFromPackage = () => {
+    if (!packagePreview) {
+      toast.error('No active package configuration found for this organization.');
+      return;
+    }
+
+    if (packagePreview.package) {
+      setSelectedPackageId(packagePreview.package.id || '');
+      setSelectedPackageSlug(packagePreview.package.slug || '');
+      setSelectedPackageName(packagePreview.package.name || '');
+    }
+    if (packagePreview.billingCycle) {
+      setSelectedBillingCycle(packagePreview.billingCycle);
+    }
+    if (packagePreview.currency) {
+      setNewCurrency(packagePreview.currency);
+    }
+    if (packagePreview.discountAmount !== undefined) {
+      setDiscountAmount(packagePreview.discountAmount);
+    }
+    if (packagePreview.taxAmount !== undefined) {
+      setTaxAmount(packagePreview.taxAmount);
+    }
+    if (packagePreview.dueDate) {
+      const d = packagePreview.dueDate.includes('T') ? packagePreview.dueDate.split('T')[0] : packagePreview.dueDate;
+      setNewDueDate(d);
+    }
+    if (packagePreview.issueDate) {
+      const d = packagePreview.issueDate.includes('T') ? packagePreview.issueDate.split('T')[0] : packagePreview.issueDate;
+      setNewIssueDate(d);
+    }
+
+    if (packagePreview.lineItems && packagePreview.lineItems.length > 0) {
+      setLineItems(
+        packagePreview.lineItems.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          itemType: item.itemType || 'package_base',
+          featureKey: item.featureKey,
+          packageSlug: item.packageSlug || packagePreview.package?.slug
+        }))
+      );
+      toast.success(`Loaded ${packagePreview.lineItems.length} line items from ${packagePreview.package?.name || 'active package'}`);
+    } else {
+      toast.info('Active package has 0 standard line items (free plan or unconfigured).');
+    }
+  };
+
+  const handleSelectPackageTemplate = (pkgId: string) => {
+    if (!pkgId) {
+      setSelectedPackageId('');
+      setSelectedPackageSlug('');
+      setSelectedPackageName('');
+      return;
+    }
+
+    const pkg = availablePackages.find(p => (p.id || (p as any)._id) === pkgId);
+    if (!pkg) return;
+
+    setSelectedPackageId(pkg.id || (pkg as any)._id);
+    setSelectedPackageSlug(pkg.slug);
+    setSelectedPackageName(pkg.name);
+
+    const isAnnual = selectedBillingCycle === 'annually';
+    const basePrice = isAnnual
+      ? (pkg.billing?.basePriceAnnual ? pkg.billing.basePriceAnnual / 12 : (pkg.billing?.basePriceMonthly ? pkg.billing.basePriceMonthly * 10 / 12 : 0))
+      : (pkg.billing?.basePriceMonthly || 0);
+
+    const nonBaseItems = lineItems.filter(i => i.itemType !== 'package_base');
+    const newBaseItem = {
+      description: `${pkg.name} — Core Platform License (${isAnnual ? 'Annual Rate / Mo' : 'Monthly'})`,
+      quantity: 1,
+      unitPrice: Math.round((basePrice + Number.EPSILON) * 100) / 100,
+      itemType: 'package_base' as const,
+      packageSlug: pkg.slug
+    };
+
+    setLineItems([newBaseItem, ...nonBaseItems]);
+    toast.info(`Updated base license to ${pkg.name} ($${basePrice.toFixed(2)}/mo)`);
+  };
+
+  const handleAddAddOnLineItem = (feat: PackageFeatureItem) => {
+    const isAnnual = selectedBillingCycle === 'annually';
+    const price = isAnnual
+      ? (feat.addOnPriceAnnual ? feat.addOnPriceAnnual / 12 : (feat.addOnPriceMonthly ? feat.addOnPriceMonthly * 10 / 12 : 0))
+      : (feat.addOnPriceMonthly || 0);
+
+    setLineItems([
+      ...lineItems,
+      {
+        description: `Add-On: ${feat.name} [${feat.featureKey}]`,
+        quantity: 1,
+        unitPrice: Math.round((price + Number.EPSILON) * 100) / 100,
+        itemType: 'addon',
+        featureKey: feat.featureKey,
+        packageSlug: selectedPackageSlug || packagePreview?.package?.slug
+      }
+    ]);
+    toast.success(`Added ${feat.name} add-on`);
   };
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
@@ -308,6 +449,10 @@ export function SuperAdminFinance() {
         organizationId: selectedOrgId || undefined,
         organization: newOrg.trim(),
         customerName: newOrg.trim(),
+        packageId: selectedPackageId || packagePreview?.package?.id || undefined,
+        packageSlug: selectedPackageSlug || packagePreview?.package?.slug || undefined,
+        packageName: selectedPackageName || packagePreview?.package?.name || undefined,
+        billingCycle: selectedBillingCycle,
         currency: newCurrency,
         issueDate: newIssueDate,
         dueDate: newDueDate,
@@ -316,6 +461,9 @@ export function SuperAdminFinance() {
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           amount: Math.round((Number(item.quantity) * Number(item.unitPrice) + Number.EPSILON) * 100) / 100,
+          itemType: item.itemType || 'custom',
+          featureKey: item.featureKey,
+          packageSlug: item.packageSlug || selectedPackageSlug || undefined,
         })),
         discountAmount: Number(discountAmount) || 0,
         taxAmount: Number(taxAmount) || 0,
@@ -327,7 +475,11 @@ export function SuperAdminFinance() {
 
       setShowModal(false);
       toast.success(`${newType} issued successfully.`);
-      setLineItems([{ description: 'Enterprise Platform Seat Licenses', quantity: 10, unitPrice: 49 }]);
+      setLineItems([{ description: 'Growth Suite Platform Base Rate', quantity: 1, unitPrice: 249, itemType: 'package_base' }]);
+      setSelectedPackageId('');
+      setSelectedPackageSlug('');
+      setSelectedPackageName('');
+      setSelectedBillingCycle('monthly');
       setDiscountAmount(0);
       setTaxAmount(0);
       setNewNotes('');
@@ -467,11 +619,23 @@ export function SuperAdminFinance() {
     overdueRevenue: 0
   };
 
-  const tierDistribution = financeData?.tierDistribution || [
-    { tier: 'Starter', name: 'Starter', count: 0, mrr: 0, arr: 0, percentage: 0, color: '#3B82F6' },
-    { tier: 'Pro', name: 'Pro / Growth', count: 0, mrr: 0, arr: 0, percentage: 0, color: '#8B5CF6' },
-    { tier: 'Enterprise', name: 'Enterprise', count: 0, mrr: 0, arr: 0, percentage: 0, color: '#10B981' }
-  ];
+  const packageDistribution: PackageDistributionItem[] =
+    financeData?.packageDistribution && financeData.packageDistribution.length > 0
+      ? financeData.packageDistribution
+      : (financeData?.tierDistribution || [
+          { tier: 'Starter', name: 'Starter', count: 0, mrr: 0, arr: 0, percentage: 0, color: '#3B82F6' },
+          { tier: 'Pro', name: 'Pro / Growth', count: 0, mrr: 0, arr: 0, percentage: 0, color: '#8B5CF6' },
+          { tier: 'Enterprise', name: 'Enterprise', count: 0, mrr: 0, arr: 0, percentage: 0, color: '#10B981' }
+        ]).map((td: any) => ({
+          slug: td.tier.toLowerCase(),
+          name: td.name,
+          tier: td.tier.toLowerCase(),
+          count: td.count,
+          mrr: td.mrr,
+          arr: td.arr,
+          percentage: td.percentage,
+          color: td.color || '#6366F1'
+        }));
 
   const monthlyGrowth = financeData?.monthlyGrowth || [];
 
@@ -495,55 +659,50 @@ export function SuperAdminFinance() {
         <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 border border-slate-200 rounded-xl">
           <button
             onClick={() => handleTabChange('overview')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'overview'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'overview'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
+              }`}
           >
             <DollarSign className="w-4 h-4" />
             Finance Overview
           </button>
           <button
             onClick={() => handleTabChange('invoices')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'invoices'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'invoices'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
+              }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
             Invoices & Receivables
           </button>
           <button
             onClick={() => handleTabChange('payments')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'payments'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'payments'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
+              }`}
           >
             <CreditCard className="w-4 h-4" />
             Payment Ledger
           </button>
           <button
             onClick={() => handleTabChange('expenses')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'expenses'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'expenses'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
+              }`}
           >
             <BarChart3 className="w-4 h-4" />
             Operating Expenses
           </button>
           <button
             onClick={() => handleTabChange('accounts')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'accounts'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'accounts'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
+              }`}
           >
             <Layers className="w-4 h-4" />
             Customer Accounts
@@ -688,8 +847,8 @@ export function SuperAdminFinance() {
                   <Card data-testid="tier-distribution-chart" className="lg:col-span-5 border border-slate-200 bg-white shadow-sm rounded-xl p-6">
                     <div className="flex items-center justify-between mb-5">
                       <div>
-                        <h2 className="text-base font-semibold text-slate-900">Subscription Tier Distribution</h2>
-                        <p className="text-xs text-slate-500">Distribution of Starter, Pro, and Enterprise tiers</p>
+                        <h2 className="text-base font-semibold text-slate-900">Customize Package Distribution</h2>
+                        <p className="text-xs text-slate-500">Live breakdown across modular packages and add-on subscriptions</p>
                       </div>
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                         <PieChartIcon className="h-4 w-4" />
@@ -698,9 +857,9 @@ export function SuperAdminFinance() {
 
                     {/* Progress Stack Bar */}
                     <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden flex mb-6">
-                      {tierDistribution.map((item) => (
+                      {packageDistribution.map((item) => (
                         <div
-                          key={item.tier}
+                          key={item.slug || item.name}
                           style={{
                             width: `${item.percentage > 0 ? item.percentage : 0}%`,
                             backgroundColor: item.color
@@ -711,11 +870,11 @@ export function SuperAdminFinance() {
                       ))}
                     </div>
 
-                    {/* Tiers List */}
+                    {/* Packages List */}
                     <div className="space-y-3.5">
-                      {tierDistribution.map((item) => (
+                      {packageDistribution.map((item) => (
                         <div
-                          key={item.tier}
+                          key={item.slug || item.name}
                           className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3.5 hover:border-slate-200 transition-colors"
                         >
                           <div className="flex items-center gap-3">
@@ -724,7 +883,12 @@ export function SuperAdminFinance() {
                               style={{ backgroundColor: item.color }}
                             />
                             <div>
-                              <div className="text-sm font-semibold text-slate-900">{item.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-900">{item.name}</span>
+                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] py-0 font-medium capitalize">
+                                  {item.tier}
+                                </Badge>
+                              </div>
                               <div className="text-xs text-slate-500">
                                 {item.count} {item.count === 1 ? 'workspace' : 'workspaces'} ({item.percentage}%)
                               </div>
@@ -827,7 +991,7 @@ export function SuperAdminFinance() {
                 </div>
 
                 {/* Search bar and billing records directory */}
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
                   <div className="relative flex-1">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                       <Search className="h-4 w-4" />
@@ -842,6 +1006,64 @@ export function SuperAdminFinance() {
                       placeholder="Search billing records by invoice number, tenant name, or notes..."
                       className="block w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                     />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Package Filter */}
+                    <div className="relative min-w-[150px]">
+                      <select
+                        value={packageFilter}
+                        onChange={(e) => {
+                          setPackageFilter(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full text-xs rounded-lg border border-slate-300 bg-white py-2 px-3 text-slate-700 outline-none focus:border-indigo-500 font-medium"
+                      >
+                        <option value="all">All Packages</option>
+                        {availablePackages.map((pkg) => (
+                          <option key={pkg.id || (pkg as any)._id} value={pkg.slug}>
+                            {pkg.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Cycle Filter */}
+                    <div className="relative min-w-[130px]">
+                      <select
+                        value={cycleFilter}
+                        onChange={(e) => {
+                          setCycleFilter(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full text-xs rounded-lg border border-slate-300 bg-white py-2 px-3 text-slate-700 outline-none focus:border-indigo-500 font-medium"
+                      >
+                        <option value="all">All Cycles</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="annual">Annual</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="relative min-w-[130px]">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full text-xs rounded-lg border border-slate-300 bg-white py-2 px-3 text-slate-700 outline-none focus:border-indigo-500 font-medium"
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="issued">Issued</option>
+                        <option value="paid">Paid</option>
+                        <option value="partially_paid">Partially Paid</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="draft">Draft</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -862,6 +1084,7 @@ export function SuperAdminFinance() {
                             <tr>
                               <th className="px-6 py-4">Document Details</th>
                               <th className="px-6 py-4">Tenant / Organization</th>
+                              <th className="px-6 py-4">Package & Cycle</th>
                               <th className="px-6 py-4">Description</th>
                               <th className="px-6 py-4">Status</th>
                               <th className="px-6 py-4">Due Date</th>
@@ -918,6 +1141,21 @@ export function SuperAdminFinance() {
                                     </div>
                                   </td>
                                   <td className="px-6 py-4 font-semibold text-slate-900">{inv.customerName || inv.organization}</td>
+                                  <td className="px-6 py-4">
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <PackageIcon className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                                        <span className="font-semibold text-xs text-slate-800">
+                                          {inv.packageName || (inv.packageSlug ? inv.packageSlug.replace('-', ' ') : 'Custom Package')}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 text-[10px]">
+                                        <span className="uppercase font-bold tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                          {inv.billingCycle === 'annually' ? 'Annual' : 'Monthly'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
                                   <td className="px-6 py-4 text-slate-600 max-w-xs truncate">{inv.description || inv.notes || '—'}</td>
                                   <td className="px-6 py-4">{statusBadge}</td>
                                   <td className="px-6 py-4 text-slate-500">{formattedDueDate}</td>
@@ -1116,13 +1354,13 @@ export function SuperAdminFinance() {
                             const cat = (exp.category || 'other').toLowerCase();
                             const catBadgeClass =
                               cat === 'infrastructure' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                              cat === 'ai_compute' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                              cat === 'software_licenses' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                              cat === 'salaries' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              cat === 'marketing' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                              cat === 'office' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                              cat === 'legal' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                              'bg-slate-100 text-slate-700 border-slate-200';
+                                cat === 'ai_compute' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                  cat === 'software_licenses' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                    cat === 'salaries' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                      cat === 'marketing' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                        cat === 'office' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                          cat === 'legal' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                            'bg-slate-100 text-slate-700 border-slate-200';
 
                             const expDate = exp.expenseDate || exp.date || exp.incurredAt;
                             const formattedDate = expDate ? new Date(expDate).toLocaleDateString() : 'N/A';
@@ -1215,11 +1453,10 @@ export function SuperAdminFinance() {
                         <button
                           key={statusKey}
                           onClick={() => setAccountStatusFilter(statusKey)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                            isActive
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${isActive
                               ? 'bg-indigo-600 text-white shadow-sm'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
+                            }`}
                         >
                           {statusKey === 'good_standing' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                           {statusKey === 'delinquent' && <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />}
@@ -1260,7 +1497,7 @@ export function SuperAdminFinance() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {customerAccounts.map((acc) => {
-                      const org = acc.organization || (typeof acc.organizationId === 'object' ? acc.organizationId : {});
+                      const org = (acc.organization || (typeof acc.organizationId === 'object' ? acc.organizationId : {})) as any;
                       const balanceDue = acc.totalBalanceDue ?? 0;
                       const hasBalanceDue = balanceDue > 0;
 
@@ -1330,6 +1567,20 @@ export function SuperAdminFinance() {
                               </div>
 
                               <div className="flex items-center justify-between">
+                                <span className="text-slate-500">Package & Add-Ons:</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-semibold text-slate-800 text-[11px]">
+                                    {org.subscription?.packageName || org.plan || 'Custom Suite'}
+                                  </span>
+                                  {Array.isArray(org.subscription?.activeAddOns) && org.subscription.activeAddOns.length > 0 && (
+                                    <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-mono font-medium">
+                                      +{org.subscription.activeAddOns.length} add-on{org.subscription.activeAddOns.length > 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between">
                                 <span className="text-slate-500">Invoiced / Paid:</span>
                                 <span className="font-mono text-slate-700 text-[11px]">
                                   ${(acc.totalPaid || 0).toLocaleString()} / ${(acc.totalInvoiced || 0).toLocaleString()}
@@ -1394,11 +1645,18 @@ export function SuperAdminFinance() {
         {/* Dynamic Itemized Invoice Creation Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-            <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
+            <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">Issue B2B Enterprise Invoice</h3>
-                  <p className="text-xs text-slate-500">Configure itemized line items, contractual terms, taxes, and discounts.</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Issue Customized Package Invoice</h3>
+                    <p className="text-xs text-slate-500">
+                      Modular pricing engine: dynamically sync line items, add-ons, contract overrides, and billing intervals.
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -1409,74 +1667,210 @@ export function SuperAdminFinance() {
                 </button>
               </div>
 
-              <form onSubmit={handleCreateInvoice} className="space-y-5 overflow-y-auto pr-1 py-4 flex-1">
-                {/* Organization & Currency Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                      Target Organization / Customer <span className="text-rose-500">*</span>
-                    </label>
-                    {orgsData?.data && orgsData.data.length > 0 ? (
-                      <div className="space-y-1.5">
-                        <select
-                          value={selectedOrgId}
-                          onChange={(e) => {
-                            const found = orgsData.data.find((o: any) => o._id === e.target.value);
-                            setSelectedOrgId(e.target.value);
-                            if (found) setNewOrg(found.name);
-                          }}
-                          className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                          <option value="">-- Select Active Organization --</option>
-                          {orgsData.data.map((org: any) => (
-                            <option key={org._id || org.id} value={org._id || org.id}>
-                              {org.name} ({org.plan || 'Standard'})
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          required
-                          value={newOrg}
-                          onChange={(e) => setNewOrg(e.target.value)}
-                          placeholder="Or type customer name..."
-                          className="block w-full rounded-lg border border-slate-300 bg-white py-1.5 px-3 text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                    ) : (
+              <form onSubmit={handleCreateInvoice} className="space-y-4 overflow-y-auto pr-1 py-4 flex-1">
+                {/* Organization Row */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                    Target Organization / Customer <span className="text-rose-500">*</span>
+                  </label>
+                  {orgsData?.data && orgsData.data.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select
+                        value={selectedOrgId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const found = orgsData.data.find((o: any) => (o._id || o.id) === val);
+                          setSelectedOrgId(val);
+                          if (found) {
+                            setNewOrg(found.name);
+                            if (found.plan) {
+                              setSelectedPackageSlug(found.plan.toLowerCase());
+                            }
+                          }
+                        }}
+                        className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                      >
+                        <option value="">-- Select Active Organization --</option>
+                        {orgsData.data.map((org: any) => (
+                          <option key={org._id || org.id} value={org._id || org.id}>
+                            {org.name} ({org.plan || 'Standard'})
+                          </option>
+                        ))}
+                      </select>
                       <input
                         type="text"
                         required
                         value={newOrg}
                         onChange={(e) => setNewOrg(e.target.value)}
-                        placeholder="Talnova Labs, Inc."
+                        placeholder="Customer legal name (e.g. Talnova Labs, Inc.)"
                         className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500"
                       />
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      value={newOrg}
+                      onChange={(e) => setNewOrg(e.target.value)}
+                      placeholder="Talnova Labs, Inc."
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500"
+                    />
+                  )}
+                </div>
+
+                {/* Active Package Engine Live Preview Banner */}
+                {selectedOrgId && (
+                  <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-white p-3.5 shadow-sm space-y-2.5">
+                    {previewLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-indigo-700 py-1">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Querying active package configuration and modular add-ons...</span>
+                      </div>
+                    ) : packagePreview ? (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-sm">
+                              <PackageIcon className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-900">
+                                  {packagePreview.package?.name || 'Active Package'}
+                                </span>
+                                <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px] py-0 font-semibold uppercase tracking-wider">
+                                  {packagePreview.package?.tier || 'standard'}
+                                </Badge>
+                                {packagePreview.package?.badge && (
+                                  <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium border border-amber-200">
+                                    {packagePreview.package.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-600">
+                                <span>
+                                  Billing Interval: <strong className="uppercase font-semibold text-slate-800">{packagePreview.billingInterval || packagePreview.billingCycle}</strong>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  Active Add-Ons: <strong className="text-purple-700">{packagePreview.activeAddOnsCount}</strong>
+                                </span>
+                                {packagePreview.isCustomPrice && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[11px]">
+                                      Negotiated Contract: ${packagePreview.negotiatedPrice}/mo
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            onClick={handleAutoPopulateFromPackage}
+                            className="text-xs h-8 px-3 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm font-semibold"
+                          >
+                            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                            Auto-Populate from Package & Add-ons
+                          </Button>
+                        </div>
+
+                        {/* Modular Add-on Tags */}
+                        {packagePreview.activeAddOns && packagePreview.activeAddOns.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-indigo-100/70">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-700 mr-1">
+                              Subscribed Modular Add-Ons:
+                            </span>
+                            {packagePreview.activeAddOns.map((addon) => (
+                              <span
+                                key={addon}
+                                className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200"
+                              >
+                                +{addon}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 py-1">
+                        <Info className="w-3.5 h-3.5 text-slate-400" />
+                        <span>No customize package profile mapped to this tenant yet.</span>
+                      </div>
                     )}
+                  </div>
+                )}
+
+                {/* Package Template Override & Modular Add-On Quick Selector */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                      Package Template Override
+                    </label>
+                    <select
+                      value={selectedPackageId}
+                      onChange={(e) => handleSelectPackageTemplate(e.target.value)}
+                      className="w-full text-xs rounded-lg border border-slate-300 bg-white py-1.5 px-2.5 text-slate-900 outline-none focus:border-indigo-500"
+                    >
+                      <option value="">
+                        -- {selectedPackageName ? `Active: ${selectedPackageName}` : 'Select Package Template to Set Base Price'} --
+                      </option>
+                      {availablePackages.map((pkg) => {
+                        const isAnnual = selectedBillingCycle === 'annually';
+                        const rate = isAnnual
+                          ? (pkg.billing?.basePriceAnnual ? pkg.billing.basePriceAnnual / 12 : (pkg.billing?.basePriceMonthly ? pkg.billing.basePriceMonthly * 10 / 12 : 0))
+                          : (pkg.billing?.basePriceMonthly || 0);
+                        return (
+                          <option key={pkg.id || (pkg as any)._id} value={pkg.id || (pkg as any)._id}>
+                            {pkg.name} ({pkg.tier}) — ${rate.toFixed(2)}/mo
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Currency</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                      Quick Add Add-on from Package Catalog
+                    </label>
                     <select
-                      value={newCurrency}
-                      onChange={(e) => setNewCurrency(e.target.value)}
-                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                      value=""
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        const feat = currentPackageTemplate?.features?.find(f => f.featureKey === e.target.value);
+                        if (feat) handleAddAddOnLineItem(feat);
+                      }}
+                      disabled={!packageAddOns || packageAddOns.length === 0}
+                      className="w-full text-xs rounded-lg border border-slate-300 bg-white py-1.5 px-2.5 text-slate-900 outline-none focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
                     >
-                      <option value="USD">USD ($ - US Dollar)</option>
-                      <option value="EUR">EUR (€ - Euro)</option>
-                      <option value="GBP">GBP (£ - British Pound)</option>
+                      <option value="">
+                        {packageAddOns.length > 0 ? `+ Add Modular Add-on (${packageAddOns.length} available)` : 'No modular add-ons in selected package'}
+                      </option>
+                      {packageAddOns.map((feat) => {
+                        const isAnnual = selectedBillingCycle === 'annually';
+                        const price = isAnnual
+                          ? (feat.addOnPriceAnnual ? feat.addOnPriceAnnual / 12 : (feat.addOnPriceMonthly ? feat.addOnPriceMonthly * 10 / 12 : 0))
+                          : (feat.addOnPriceMonthly || 0);
+                        return (
+                          <option key={feat.featureKey} value={feat.featureKey}>
+                            +{feat.name} (+${price.toFixed(2)}/mo)
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
 
-                {/* Document Type, Status, & Dates */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                {/* Document Type, Status, Billing Cycle & Currency */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Doc Type</label>
                     <select
                       value={newType}
                       onChange={(e) => setNewType(e.target.value as any)}
-                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500"
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     >
                       <option value="Invoice">Invoice</option>
                       <option value="Receipt">Receipt</option>
@@ -1488,7 +1882,7 @@ export function SuperAdminFinance() {
                     <select
                       value={newStatus}
                       onChange={(e) => setNewStatus(e.target.value)}
-                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500"
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     >
                       <option value="issued">Issued</option>
                       <option value="draft">Draft</option>
@@ -1500,6 +1894,36 @@ export function SuperAdminFinance() {
                   </div>
 
                   <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Billing Cycle</label>
+                    <select
+                      value={selectedBillingCycle}
+                      onChange={(e) => setSelectedBillingCycle(e.target.value as any)}
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="annually">Annual (Yearly)</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="custom">Custom Contract</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Currency</label>
+                    <select
+                      value={newCurrency}
+                      onChange={(e) => setNewCurrency(e.target.value)}
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    >
+                      <option value="USD">USD ($ - US Dollar)</option>
+                      <option value="EUR">EUR (€ - Euro)</option>
+                      <option value="GBP">GBP (£ - British Pound)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
                       Issue Date <span className="text-rose-500">*</span>
                     </label>
@@ -1508,7 +1932,7 @@ export function SuperAdminFinance() {
                       required
                       value={newIssueDate}
                       onChange={(e) => setNewIssueDate(e.target.value)}
-                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500"
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-1.5 px-3 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
@@ -1522,7 +1946,7 @@ export function SuperAdminFinance() {
                       value={newDueDate}
                       min={newIssueDate}
                       onChange={(e) => setNewDueDate(e.target.value)}
-                      className="block w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm text-slate-900 outline-none focus:border-indigo-500"
+                      className="block w-full rounded-lg border border-slate-300 bg-white py-1.5 px-3 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
@@ -1534,63 +1958,97 @@ export function SuperAdminFinance() {
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Itemized Line Items</span>
                       <span className="text-xs text-slate-500 ml-2">({lineItems.length} items configured)</span>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddLineItem}
-                      className="text-xs h-7 gap-1 bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add Line
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddLineItem('custom')}
+                        className="text-xs h-7 gap-1 bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Line
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="p-3 space-y-3">
+                  <div className="p-3 space-y-2.5">
                     {lineItems.map((item, idx) => {
                       const itemTotal = Math.round((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) * 100) / 100;
                       return (
-                        <div key={idx} className="flex flex-col sm:flex-row items-center gap-2.5 bg-white p-2.5 rounded-lg border border-slate-200">
+                        <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
                           <span className="text-xs font-bold text-slate-400 w-5 text-center">{idx + 1}.</span>
-                          <div className="flex-1 w-full">
+
+                          {/* Line Item Classification Badge / Selector */}
+                          <div className="w-full sm:w-32">
+                            <select
+                              value={item.itemType || 'custom'}
+                              onChange={(e) => handleLineItemChange(idx, 'itemType', e.target.value)}
+                              className={`w-full text-[11px] font-semibold rounded-md border py-1.5 px-1.5 outline-none ${
+                                item.itemType === 'package_base'
+                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                                  : item.itemType === 'addon'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-300'
+                                  : item.itemType === 'overage'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                  : item.itemType === 'discount'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-300'
+                                  : 'bg-slate-50 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              <option value="package_base">📦 Base Package</option>
+                              <option value="addon">✨ Add-On</option>
+                              <option value="overage">⚡ Overage</option>
+                              <option value="custom">💼 Custom / Svc</option>
+                              <option value="discount">🏷️ Discount / Cr</option>
+                            </select>
+                          </div>
+
+                          {/* Description Input */}
+                          <div className="flex-1 w-full relative">
                             <input
                               type="text"
                               required
-                              placeholder="Line item description (e.g. 50 Seat Licenses @ Growth Tier)"
+                              placeholder="Line item description (e.g. Growth Suite Platform License)"
                               value={item.description}
                               onChange={(e) => handleLineItemChange(idx, 'description', e.target.value)}
                               className="w-full text-xs rounded-md border border-slate-300 py-1.5 px-2 text-slate-900 outline-none focus:border-indigo-500"
                             />
+                            {item.featureKey && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 pointer-events-none">
+                                {item.featureKey}
+                              </span>
+                            )}
                           </div>
+
+                          {/* Qty, Unit Price, Total, and Delete */}
                           <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <div className="w-20">
+                            <div className="w-16">
                               <label className="text-[10px] text-slate-500 sm:hidden block">Qty</label>
                               <input
                                 type="number"
                                 min="1"
                                 required
-                                placeholder="Qty"
                                 value={item.quantity}
                                 onChange={(e) => handleLineItemChange(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                                className="w-full text-xs rounded-md border border-slate-300 py-1.5 px-2 text-slate-900 outline-none focus:border-indigo-500 text-center"
+                                className="w-full text-xs rounded-md border border-slate-300 py-1.5 px-1.5 text-slate-900 outline-none focus:border-indigo-500 text-center"
                               />
                             </div>
-                            <div className="w-28">
+                            <div className="w-24">
                               <label className="text-[10px] text-slate-500 sm:hidden block">Unit Price</label>
                               <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-[10px] text-slate-400">$</span>
+                                <span className="absolute inset-y-0 left-0 pl-1.5 flex items-center text-[10px] text-slate-400">$</span>
                                 <input
                                   type="number"
                                   step="0.01"
                                   min="0"
                                   required
-                                  placeholder="0.00"
                                   value={item.unitPrice}
                                   onChange={(e) => handleLineItemChange(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                  className="w-full text-xs rounded-md border border-slate-300 py-1.5 pl-5 pr-2 text-slate-900 outline-none focus:border-indigo-500"
+                                  className="w-full text-xs rounded-md border border-slate-300 py-1.5 pl-4 pr-1 text-slate-900 outline-none focus:border-indigo-500"
                                 />
                               </div>
                             </div>
-                            <div className="w-24 text-right">
+                            <div className="w-20 text-right">
                               <label className="text-[10px] text-slate-500 sm:hidden block">Total</label>
                               <span className="text-xs font-semibold text-slate-900 font-mono">
                                 ${itemTotal.toFixed(2)}
@@ -1680,9 +2138,16 @@ export function SuperAdminFinance() {
                   <Button
                     type="submit"
                     disabled={createInvoiceMutation.isPending}
-                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2"
                   >
-                    {createInvoiceMutation.isPending ? 'Issuing Invoice...' : `Issue ${newType}`}
+                    {createInvoiceMutation.isPending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Issuing Invoice...
+                      </>
+                    ) : (
+                      `Issue ${newType}`
+                    )}
                   </Button>
                 </div>
               </form>
@@ -1707,8 +2172,8 @@ export function SuperAdminFinance() {
                           invoiceDetail.invoice.status === 'paid' || invoiceDetail.invoice.status === 'Paid'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : invoiceDetail.invoice.status === 'partially_paid'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
                         }>
                           {invoiceDetail.invoice.status}
                         </Badge>
@@ -1738,12 +2203,25 @@ export function SuperAdminFinance() {
               ) : (
                 <div className="space-y-6 overflow-y-auto pr-1 py-4 flex-1 text-sm">
                   {/* Metadata Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs">
                     <div>
                       <span className="text-slate-400 block font-medium">Customer / Tenant</span>
-                      <span className="font-semibold text-slate-900 mt-0.5 block">
+                      <span className="font-semibold text-slate-900 mt-0.5 block truncate">
                         {invoiceDetail.invoice.customerName || invoiceDetail.invoice.organization}
                       </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Package & Interval</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 text-[11px]">
+                          {invoiceDetail.invoice.packageName || (invoiceDetail.invoice.packageSlug ? invoiceDetail.invoice.packageSlug.replace('-', ' ') : 'Custom')}
+                        </span>
+                        {invoiceDetail.invoice.billingCycle && (
+                          <span className="text-[10px] uppercase font-bold text-slate-500">
+                            ({invoiceDetail.invoice.billingCycle})
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <span className="text-slate-400 block font-medium">Issue Date</span>
@@ -1777,6 +2255,7 @@ export function SuperAdminFinance() {
                         <thead className="bg-slate-100/70 border-b border-slate-200 text-slate-600 uppercase font-semibold">
                           <tr>
                             <th className="px-4 py-2.5">#</th>
+                            <th className="px-4 py-2.5">Type</th>
                             <th className="px-4 py-2.5">Description</th>
                             <th className="px-4 py-2.5 text-center">Qty</th>
                             <th className="px-4 py-2.5 text-right">Unit Price</th>
@@ -1785,19 +2264,62 @@ export function SuperAdminFinance() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {invoiceDetail.invoice.lineItems && invoiceDetail.invoice.lineItems.length > 0 ? (
-                            invoiceDetail.invoice.lineItems.map((li, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
-                                <td className="px-4 py-2.5 font-medium text-slate-900">{li.description}</td>
-                                <td className="px-4 py-2.5 text-center text-slate-700">{li.quantity}</td>
-                                <td className="px-4 py-2.5 text-right font-mono text-slate-700">
-                                  ${Number(li.unitPrice).toFixed(2)}
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">
-                                  ${Number(li.amount).toFixed(2)}
-                                </td>
-                              </tr>
-                            ))
+                            invoiceDetail.invoice.lineItems.map((li, idx) => {
+                              let typeBadge = (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                  Custom
+                                </span>
+                              );
+                              if (li.itemType === 'package_base') {
+                                typeBadge = (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    Base Package
+                                  </span>
+                                );
+                              } else if (li.itemType === 'addon') {
+                                typeBadge = (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                    Add-On
+                                  </span>
+                                );
+                              } else if (li.itemType === 'overage') {
+                                typeBadge = (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                    Overage
+                                  </span>
+                                );
+                              } else if (li.itemType === 'discount') {
+                                typeBadge = (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                    Discount
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
+                                  <td className="px-4 py-2.5">{typeBadge}</td>
+                                  <td className="px-4 py-2.5 font-medium text-slate-900">
+                                    <div className="flex items-center gap-1.5">
+                                      <span>{li.description}</span>
+                                      {li.featureKey && (
+                                        <span className="text-[9px] font-mono text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                                          {li.featureKey}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-center text-slate-700">{li.quantity}</td>
+                                  <td className="px-4 py-2.5 text-right font-mono text-slate-700">
+                                    ${Number(li.unitPrice).toFixed(2)}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">
+                                    ${Number(li.amount).toFixed(2)}
+                                  </td>
+                                </tr>
+                              );
+                            })
                           ) : (
                             <tr>
                               <td className="px-4 py-2.5 text-slate-400 font-mono">1</td>
@@ -2032,11 +2554,10 @@ export function SuperAdminFinance() {
                       value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       placeholder="0.00"
-                      className={`block w-full rounded-lg border py-2 pl-8 pr-4 text-sm font-mono text-slate-900 outline-none ${
-                        isOverpayment
+                      className={`block w-full rounded-lg border py-2 pl-8 pr-4 text-sm font-mono text-slate-900 outline-none ${isOverpayment
                           ? 'border-rose-400 bg-rose-50/30 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
                           : 'border-slate-300 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                      }`}
+                        }`}
                     />
                   </div>
 

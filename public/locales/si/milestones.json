@@ -45,6 +45,7 @@
     "resubmitSelfEvaluation": "නැවත ස්වයං ඇගයීම ඉදිරිපත් කරන්න",
     "clickCheckboxHint": "සම්පූර්ණ කළ අයිතම සලකුණු කිරීමට කොටුව ක්ලික් කරන්න",
     "viewReviewBtn": "ඇගයීම සහ ශ්‍රේණිගත කිරීම බලන්න",
+    "updateReflection": "ස්වයං ඇගයීම යාවත්කාලීන කරන්න",
     "paginationLabel": "සන්ධිස්ථාන",
     "status": {
       "pending": "පොරොත්තු පිරික්සුම",
@@ -59,6 +60,7 @@
     "assignProgramBtn": "සන්ධිස්ථාන වැඩසටහනක් පවරන්න",
     "filterAll": "සියලු සමාලෝචන",
     "filterAwaiting": "අනුමැතිය බලාපොරොත්තුවෙන්",
+    "awaitingSignoff": "අනුමැතිය අපේක්ෂාවෙන්",
     "filterPending": "පොරොත්තු පිරික්සුම",
     "filterApproved": "අනුමතයි",
     "filterOverdue": "කල් ඉකුත් වූ / උත්සන්න වූ",
@@ -280,5 +282,12 @@
     "cancel": "අවලංගු කරන්න",
     "save": "වෙනස්කම් සුරකින්න",
     "saving": "යාවත්කාලීන වෙමින් පවතී..."
+  },
+  "common": {
+    "viewDetails": "විස්තර බලන්න"
+  },
+  "integrations": {
+    "reviewScheduled": "සමාලෝචනය උපලේඛනගත කර ඇත",
+    "reviewFailed": "සමාලෝචනය අසාර්ථක විය"
   }
 }

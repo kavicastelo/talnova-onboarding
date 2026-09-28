@@ -10,6 +10,10 @@ import {
   LOCALE_DISPLAY_NAMES,
 } from './localization.config';
 
+import enCommon from './locales/en/common.json';
+import enNav from './locales/en/nav.json';
+import enAuth from './locales/en/auth.json';
+
 // Re-export from shared config so existing imports keep working
 export { SUPPORTED_LOCALES, LOCALE_DISPLAY_NAMES, LANG_STORAGE_KEY };
 export type { SupportedLocale } from './localization.config';
@@ -23,6 +27,15 @@ i18n
     defaultNS: 'common',
     fallbackLng: FALLBACK_LOCALE,
     supportedLngs: SUPPORTED_LOCALES,
+
+    // Core English namespaces are bundled synchronously for zero-latency initial render
+    resources: {
+      en: {
+        common: enCommon,
+        nav: enNav,
+        auth: enAuth,
+      },
+    },
 
     detection: {
       order: ['localStorage', 'navigator'],
@@ -39,6 +52,8 @@ i18n
     },
 
     partialBundledLanguages: true,
+    returnNull: false,
+    returnEmptyString: false,
 
     react: {
       useSuspense: false,

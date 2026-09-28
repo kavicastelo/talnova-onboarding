@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -24,12 +24,12 @@ import { Badge } from '../components/Badge';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
 import { SuperAdminShell } from '../components/super-admin/SuperAdminShell';
+import { TenantProvisionModal } from '../components/super-admin/TenantProvisionModal';
 import { useSuperAdminFilter } from '../context/SuperAdminFilterContext';
 import {
   useSuperAdminTelemetry,
   useSuperAdminActivityLogs,
-  useSuperAdminOrganizations,
-  useCreateOrganization
+  useSuperAdminOrganizations
 } from '../hooks/useSuperAdmin';
 import {
   AreaChart,
@@ -40,7 +40,6 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { toast } from 'sonner';
 
 function SuperAdminDashboardContent() {
   const navigate = useNavigate();
@@ -74,15 +73,8 @@ function SuperAdminDashboardContent() {
   const [chartMetric, setChartMetric] = useState<'users_orgs' | 'finance_onboardings'>('users_orgs');
   const [logFilterCategory, setLogFilterCategory] = useState<string>('all');
 
-  const createOrgMutation = useCreateOrganization();
-
   // Provision Modal State
   const [showModal, setShowModal] = useState(false);
-  const [tenantName, setTenantName] = useState('');
-  const [tenantDomain, setTenantDomain] = useState('');
-  const [tenantEmail, setTenantEmail] = useState('');
-  const [tenantPlan, setTenantPlan] = useState<'Starter' | 'Growth' | 'Professional' | 'Enterprise'>('Enterprise');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Trigger refetch when universal filter refreshKey changes
   useEffect(() => {
@@ -92,37 +84,6 @@ function SuperAdminDashboardContent() {
       refetchOrgs();
     }
   }, [refreshKey, refetchTelemetry, refetchLogs, refetchOrgs]);
-
-  const handleCreateTenant = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tenantName.trim() || !tenantDomain.trim() || !tenantEmail.trim()) {
-      toast.error('Please complete all required tenant fields.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await createOrgMutation.mutateAsync({
-        name: tenantName.trim(),
-        domain: tenantDomain.trim(),
-        adminEmail: tenantEmail.trim(),
-        plan: tenantPlan
-      });
-
-      toast.success(`Tenant "${tenantName}" provisioned successfully.`);
-      setShowModal(false);
-      setTenantName('');
-      setTenantDomain('');
-      setTenantEmail('');
-      setTenantPlan('Enterprise');
-      refetchOrgs();
-      refetchTelemetry();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to provision tenant.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const stats = telemetry?.stats;
   const growthData = telemetry?.growthData || [];
@@ -791,91 +752,14 @@ function SuperAdminDashboardContent() {
       </div>
 
       {/* Provision Tenant Modal Dialog */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md border-slate-200 bg-white p-6 shadow-2xl relative text-slate-900 rounded-2xl">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-indigo-600" />
-              Provision New Tenant
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Create an isolated organizational workspace with enterprise governance.
-            </p>
-
-            <form onSubmit={handleCreateTenant} className="space-y-4 mt-5">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Organization Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={tenantName}
-                  onChange={(e) => setTenantName(e.target.value)}
-                  placeholder="Acme Global Corporation"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Domain or Subdomain *</label>
-                <input
-                  type="text"
-                  required
-                  value={tenantDomain}
-                  onChange={(e) => setTenantDomain(e.target.value)}
-                  placeholder="acme.com or acme"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Primary Admin Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={tenantEmail}
-                  onChange={(e) => setTenantEmail(e.target.value)}
-                  placeholder="admin@acme.com"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Subscription Plan Tier</label>
-                <select
-                  value={tenantPlan}
-                  onChange={(e: any) => setTenantPlan(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                >
-                  <option value="Starter">Starter Plan</option>
-                  <option value="Growth">Growth Plan</option>
-                  <option value="Professional">Professional Plan</option>
-                  <option value="Enterprise">Enterprise Tier</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowModal(false)}
-                  className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-sm"
-                >
-                  {isSubmitting ? 'Provisioning…' : 'Confirm Provisioning'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
+      <TenantProvisionModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onCreated={() => {
+          refetchOrgs();
+          refetchTelemetry();
+        }}
+      />
     </div>
   );
 }

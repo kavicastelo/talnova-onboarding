@@ -18,9 +18,10 @@ import {
 } from '../hooks/useNotifications';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight, Workflow, Sparkles, Mail } from 'lucide-react';
+import { AlertCircle, RefreshCw, X, Plus, Trash2, KeyRound, ArrowRight, Workflow, Sparkles, Mail, CreditCard, Building2, Palette, Network, ShieldCheck, Bell, Award } from 'lucide-react';
 import { AIIntegrationSettings } from '../components/settings/AIIntegrationSettings';
 import { EmailIntegrationSettings } from '../components/settings/EmailIntegrationSettings';
+import { OrganizationPlanAndUsage } from '../components/settings/OrganizationPlanAndUsage';
 import { CertificateRenderer, CertificateTemplateId, CertificateTheme, CertificateBadge } from '../components/certificates/CertificateRenderer';
 import { Skeleton } from '../components/Skeleton';
 import { useTranslation } from 'react-i18next';
@@ -462,35 +463,100 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto" data-testid="admin-settings-view">
-      <div>
+    <div className="space-y-6 max-w-6xl mx-auto pb-12" data-testid="admin-settings-view">
+      <div className="border-b border-border/40 pb-5">
         <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mt-1 text-sm">
           {t('sections.workspace')}
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="general" data-testid="tab-general">{t('sections.workspace')}</TabsTrigger>
-          <TabsTrigger value="branding" data-testid="tab-branding">{t('sections.branding')}</TabsTrigger>
-          <TabsTrigger value="departments" data-testid="tab-departments">{t('sections.departments')}</TabsTrigger>
-          <TabsTrigger value="roles" data-testid="tab-security">{t('sections.security')}</TabsTrigger>
-          <TabsTrigger value="notifications" data-testid="tab-notifications">{t('sections.notifications')}</TabsTrigger>
-          <TabsTrigger value="certificates" data-testid="tab-certificates">{t('sections.certificates')}</TabsTrigger>
-          {isOrgAdmin && (
-            <>
-              <TabsTrigger value="ai" data-testid="tab-ai">
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
-                {t('sections.ai')}
-              </TabsTrigger>
-              <TabsTrigger value="email" data-testid="tab-email">
-                <Mail className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
-                {t('sections.email')}
-              </TabsTrigger>
-            </>
-          )}
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={handleTabChange} orientation="vertical" className="space-y-0">
+        <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
+          {/* Left Vertical Navigation Rail */}
+          <aside className="w-full lg:w-64 shrink-0 lg:sticky lg:top-6">
+            <TabsList
+              variant="sidebar"
+              className="flex flex-row overflow-x-auto scrollbar-none gap-1.5 p-1.5 bg-muted/40 border border-border/60 rounded-xl lg:flex-col lg:overflow-visible lg:bg-transparent lg:border-none lg:p-0 lg:gap-5 lg:items-stretch w-full"
+            >
+              {/* Group: Organization */}
+              <div className="flex flex-row lg:flex-col gap-1 items-stretch shrink-0">
+                <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+                  {t('sections.generalGroup', 'Organization')}
+                </div>
+                <TabsTrigger value="general" data-testid="tab-general">
+                  <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                  {t('sections.workspace')}
+                </TabsTrigger>
+                <TabsTrigger value="branding" data-testid="tab-branding">
+                  <Palette className="mr-2 h-4 w-4 shrink-0" />
+                  {t('sections.branding')}
+                </TabsTrigger>
+                <TabsTrigger value="departments" data-testid="tab-departments">
+                  <Network className="mr-2 h-4 w-4 shrink-0" />
+                  {t('sections.departments')}
+                </TabsTrigger>
+              </div>
+
+              <div className="hidden lg:block h-px bg-border/40 my-0.5" />
+
+              {/* Group: Security & Compliance */}
+              <div className="flex flex-row lg:flex-col gap-1 items-stretch shrink-0">
+                <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+                  {t('sections.securityGroup', 'Security & Alerts')}
+                </div>
+                <TabsTrigger value="roles" data-testid="tab-security">
+                  <ShieldCheck className="mr-2 h-4 w-4 shrink-0" />
+                  {t('sections.security')}
+                </TabsTrigger>
+                <TabsTrigger value="notifications" data-testid="tab-notifications">
+                  <Bell className="mr-2 h-4 w-4 shrink-0" />
+                  {t('sections.notifications')}
+                </TabsTrigger>
+                <TabsTrigger value="certificates" data-testid="tab-certificates">
+                  <Award className="mr-2 h-4 w-4 shrink-0" />
+                  {t('sections.certificates')}
+                </TabsTrigger>
+              </div>
+
+              {isOrgAdmin && (
+                <>
+                  <div className="hidden lg:block h-px bg-border/40 my-0.5" />
+
+                  {/* Group: Integrations */}
+                  <div className="flex flex-row lg:flex-col gap-1 items-stretch shrink-0">
+                    <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+                      {t('sections.integrationsGroup', 'Integrations')}
+                    </div>
+                    <TabsTrigger value="ai" data-testid="tab-ai">
+                      <Sparkles className="mr-2 h-4 w-4 shrink-0 text-indigo-500" />
+                      {t('sections.ai')}
+                    </TabsTrigger>
+                    <TabsTrigger value="email" data-testid="tab-email">
+                      <Mail className="mr-2 h-4 w-4 shrink-0 text-indigo-500" />
+                      {t('sections.email')}
+                    </TabsTrigger>
+                  </div>
+
+                  <div className="hidden lg:block h-px bg-border/40 my-0.5" />
+
+                  {/* Group: Account */}
+                  <div className="flex flex-row lg:flex-col gap-1 items-stretch shrink-0">
+                    <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+                      {t('sections.billingGroup', 'Billing')}
+                    </div>
+                    <TabsTrigger value="subscription" data-testid="tab-subscription">
+                      <CreditCard className="mr-2 h-4 w-4 shrink-0 text-indigo-500" />
+                      Plan & Quotas
+                    </TabsTrigger>
+                  </div>
+                </>
+              )}
+            </TabsList>
+          </aside>
+
+          {/* Right Main Content Area */}
+          <main className="flex-1 min-w-0 w-full space-y-6">
 
         <TabsContent value="general" className="space-y-6">
           <Card>
@@ -1282,8 +1348,13 @@ export function Settings() {
             <TabsContent value="email" className="space-y-6">
               <EmailIntegrationSettings />
             </TabsContent>
+            <TabsContent value="subscription" className="space-y-6">
+              <OrganizationPlanAndUsage />
+            </TabsContent>
           </>
         )}
+          </main>
+        </div>
       </Tabs>
     </div>
   );

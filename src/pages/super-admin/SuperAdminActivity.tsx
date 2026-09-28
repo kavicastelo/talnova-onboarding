@@ -169,20 +169,28 @@ export function SuperAdminActivity() {
             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
               <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
                 <span className="text-xs text-slate-500 px-2 font-medium">Category:</span>
-                {(['all', 'security', 'tenant', 'onboarding', 'finance', 'system'] as const).map((c) => (
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'security', label: 'Security' },
+                  { id: 'tenant', label: 'Tenants' },
+                  { id: 'onboarding', label: 'Journeys' },
+                  { id: 'finance', label: 'Finance' },
+                  { id: 'ai', label: 'AI' },
+                  { id: 'system', label: 'System' },
+                ].map((c) => (
                   <button
-                    key={c}
+                    key={c.id}
                     onClick={() => {
-                      setCategory(c);
+                      setCategory(c.id);
                       setPage(1);
                     }}
-                    className={`px-2 py-1 text-xs rounded-md capitalize font-medium transition-all ${
-                      category === c
+                    className={`px-2 py-1 text-xs rounded-md font-medium transition-all ${
+                      category === c.id
                         ? 'bg-indigo-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                     }`}
                   >
-                    {c}
+                    {c.label}
                   </button>
                 ))}
               </div>

@@ -3,6 +3,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { storageConfig } from "../../../config/index.js";
 import UploadRepository from "../repositories/upload.repository.js";
 import AppError from "../../../common/errors/app-error.js";
+import Organization from "../../organizations/models/organization.model.js";
+import SystemLogBuffer from "../../../infrastructure/telemetry/system-log-buffer.js";
 import mongoose from "mongoose";
 
 export class UploadService {
@@ -53,6 +55,29 @@ export class UploadService {
   ) {
     if (data.fileSizeBytes > storageConfig.maxUploadSize) {
       throw new AppError(413, "FILE_TOO_LARGE", `File size exceeds the limit of ${storageConfig.maxUploadSize} bytes`);
+    }
+
+    // Storage Quota Enforcement: Check organization storage consumption against limit
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const org = await Organization.findById(orgObjectId).select("name limits plan");
+    const maxStorageGb = org?.limits?.maxStorageGb ?? 10;
+    const maxStorageBytes = maxStorageGb * 1024 * 1024 * 1024;
+
+    const currentUsedBytes = await this.repository.getTotalStorageBytes(orgObjectId);
+    if (currentUsedBytes + data.fileSizeBytes > maxStorageBytes) {
+      const usedGb = (currentUsedBytes / (1024 * 1024 * 1024)).toFixed(2);
+      SystemLogBuffer.record({
+        level: "warning",
+        source: "storage",
+        eventType: "STORAGE_QUOTA_EXCEEDED",
+        organizationId: orgObjectId.toString(),
+        description: `Storage quota exceeded for organization "${org?.name || orgObjectId}": ${usedGb} GB / ${maxStorageGb} GB used`,
+      });
+      throw new AppError(
+        413,
+        "STORAGE_QUOTA_EXCEEDED",
+        `Organization storage quota exceeded (${usedGb} GB / ${maxStorageGb} GB used). Please upgrade your plan or request additional storage quota.`
+      );
     }
 
     const fileType = this.classifyFileType(data.mimeType);
