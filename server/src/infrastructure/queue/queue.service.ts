@@ -57,7 +57,7 @@ export class QueueService {
     if (options.idempotencyKey) {
       const uniqueKey = `${options.organizationId.toString()}:${options.idempotencyKey}`;
       if (this.processedKeys.has(uniqueKey)) {
-        console.warn(`[QueueService] Job ${jobName} suppressed by idempotency key: ${uniqueKey}`);
+        // console.warn(`[QueueService] Job ${jobName} suppressed by idempotency key: ${uniqueKey}`);
         return null;
       }
       this.processedKeys.add(uniqueKey);
@@ -149,7 +149,7 @@ export class QueueService {
       const handler = this.jobHandlers.get(job.name);
 
       if (!handler) {
-        console.error(`[QueueService] No registered handler for job: ${job.name}`);
+        // console.error(`[QueueService] No registered handler for job: ${job.name}`);
         job.status = "failed";
         job.lastError = `No handler registered for ${job.name}`;
         job.updatedAt = new Date();
@@ -159,7 +159,7 @@ export class QueueService {
           SystemJob.updateOne(
             { _id: new mongoose.Types.ObjectId(job.id) },
             { $set: { status: "failed", lastError: job.lastError } }
-          ).catch(() => {});
+          ).catch(() => { });
         }
         continue;
       }
@@ -175,7 +175,7 @@ export class QueueService {
             $set: { status: "processing", lockedAt: new Date() },
             $inc: { attempts: 1 },
           }
-        ).catch(() => {});
+        ).catch(() => { });
       }
 
       try {
@@ -194,7 +194,7 @@ export class QueueService {
                 lockedAt: null,
               },
             }
-          ).catch(() => {});
+          ).catch(() => { });
         }
       } catch (error: any) {
         job.lastError = error?.message || String(error);
@@ -202,9 +202,9 @@ export class QueueService {
 
         if (job.attempts < (job.options.maxRetries || 3)) {
           const backoff = (job.options.backoffDelayMs || 1000) * Math.pow(2, job.attempts - 1);
-          console.warn(
-            `[QueueService] Job ${job.name} (${job.id}) failed (attempt ${job.attempts}). Retrying in ${backoff}ms...`
-          );
+          // console.warn(
+          //   `[QueueService] Job ${job.name} (${job.id}) failed (attempt ${job.attempts}). Retrying in ${backoff}ms...`
+          // );
           job.status = "pending";
 
           if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(job.id)) {
@@ -218,16 +218,16 @@ export class QueueService {
                   lockedAt: null,
                 },
               }
-            ).catch(() => {});
+            ).catch(() => { });
           }
 
           await new Promise((resolve) => setTimeout(resolve, backoff));
           this.jobQueue.push(job);
         } else {
-          console.error(
-            `[QueueService] Job ${job.name} (${job.id}) failed permanently after ${job.attempts} attempts:`,
-            error
-          );
+          // console.error(
+          //   `[QueueService] Job ${job.name} (${job.id}) failed permanently after ${job.attempts} attempts:`,
+          //   error
+          // );
           job.status = "failed";
           this.failedJobs.push(job);
 
@@ -241,7 +241,7 @@ export class QueueService {
                   lockedAt: null,
                 },
               }
-            ).catch(() => {});
+            ).catch(() => { });
           }
         }
       }
@@ -290,13 +290,13 @@ export class QueueService {
       }
 
       if (resumed > 0) {
-        console.log(`[QueueService] Resumed ${resumed} persistent jobs from MongoDB.`);
+        // console.log(`[QueueService] Resumed ${resumed} persistent jobs from MongoDB.`);
         this.processQueue();
       }
 
       return resumed;
     } catch (err: any) {
-      console.warn("[QueueService] Could not resume persistent jobs:", err.message);
+      // console.warn("[QueueService] Could not resume persistent jobs:", err.message);
       return 0;
     }
   }

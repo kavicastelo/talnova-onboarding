@@ -76,6 +76,7 @@ export function Register() {
 
       if (data?.accessToken) {
         localStorage.setItem('auth_token', data.accessToken);
+        localStorage.setItem('talnova_last_activity', String(Date.now()));
       }
       const assignedRole = (data?.user?.role || inviteData?.role || 'employee') as any;
       const assignedRoles = (Array.isArray(data?.user?.roles) && data.user.roles.length > 0
@@ -143,6 +144,7 @@ export function Register() {
       const token = data?.accessToken || data?.token;
       if (token) {
         localStorage.setItem('auth_token', token);
+        localStorage.setItem('talnova_last_activity', String(Date.now()));
       }
       const userRole = (data?.user?.role || 'owner') as any;
       setRole(userRole);

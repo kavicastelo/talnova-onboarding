@@ -45,6 +45,7 @@
     "resubmitSelfEvaluation": "Lähetä itsearviointi uudelleen",
     "clickCheckboxHint": "Napsauta valintaruutua merkitäksesi valmiit kohdat",
     "viewReviewBtn": "Näytä arviointi ja luokitus",
+    "updateReflection": "Päivitä itsearviointi",
     "paginationLabel": "virstanpylväät",
     "status": {
       "pending": "Odottava katsaus",
@@ -59,6 +60,7 @@
     "assignProgramBtn": "Määritä virstanpylväsohjelma",
     "filterAll": "Kaikki arvioinnit",
     "filterAwaiting": "Odottaa hyväksyntää",
+    "awaitingSignoff": "Odottaa hyväksyntää",
     "filterPending": "Odottava katsaus",
     "filterApproved": "Hyväksytty",
     "filterOverdue": "Myöhässä / Eskaloitu",
@@ -280,5 +282,12 @@
     "cancel": "Peruuta",
     "save": "Tallenna tilan muutos",
     "saving": "Päivitetään..."
+  },
+  "common": {
+    "viewDetails": "Näytä tiedot"
+  },
+  "integrations": {
+    "reviewScheduled": "Katselmointi ajoitettu",
+    "reviewFailed": "Ajoitus epäonnistui"
   }
 }

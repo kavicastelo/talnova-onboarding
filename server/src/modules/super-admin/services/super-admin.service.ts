@@ -16,14 +16,23 @@ import { Upload } from "../../uploads/models/upload.model.js";
 import Session from "../../auth/models/session.model.js";
 import Task from "../../tasks/models/task.model.js";
 import Alert from "../models/alert.model.js";
+import KioskDeviceModel from "../../kiosk/models/kiosk-device.model.js";
+import KioskJourneyModel from "../../kiosk/models/kiosk-journey.model.js";
 import AlertService from "./alert.service.js";
 import ReportGeneratorService from "./report-generator.service.js";
 import PlatformSetting from "../models/platform-setting.model.js";
 import { hashPassword } from "../../../utils/crypto.js";
 import TelemetryBuffer from "../../../infrastructure/telemetry/telemetry-buffer.js";
+import SystemLogBuffer from "../../../infrastructure/telemetry/system-log-buffer.js";
+import OrganizationIntegration from "../../integrations/models/organization-integration.model.js";
+import { getDemoConnection } from "../../demo/database/demo-connection.js";
 import TenantStatusCache from "../../../infrastructure/cache/tenant-status.cache.js";
+import crypto from "crypto";
+import { EmailService } from "../../../shared/email/email.service.js";
 import { DEFAULT_PLATFORM_FLAGS, type IFeatureFlagSeed } from "../config/default-feature-flags.js";
-export { DEFAULT_PLATFORM_FLAGS, type IFeatureFlagSeed };
+import Package, { IPackage, IPackageFeature } from "../models/package.model.js";
+import { DEFAULT_PACKAGES, CANONICAL_PACKAGE_FEATURES, type IDefaultPackageSeed } from "../config/default-packages.js";
+export { DEFAULT_PLATFORM_FLAGS, type IFeatureFlagSeed, DEFAULT_PACKAGES, CANONICAL_PACKAGE_FEATURES, type IDefaultPackageSeed };
 
 export class SuperAdminService {
   // ---------------------------------------------------------------------------
@@ -528,12 +537,20 @@ export class SuperAdminService {
   // ---------------------------------------------------------------------------
 
   async getOrganizations(query: any) {
-    const { search, page = "1", limit = "10" } = query || {};
+    const { search, page = "1", limit = "10", status } = query || {};
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    const filter: any = { isDeleted: false };
+    const filter: any = {};
+    if (status === "archived") {
+      filter.isDeleted = true;
+    } else if (status === "all") {
+      // include all
+    } else {
+      filter.isDeleted = false;
+    }
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -561,7 +578,13 @@ export class SuperAdminService {
           domain: org.domain || "",
           slug: org.slug,
           plan: org.plan || "Starter",
+          packageId: org.packageId?.toString() || org.subscription?.packageId?.toString(),
+          packageSlug: org.packageSlug,
           status: org.status || "Active",
+          isDeleted: !!org.isDeleted,
+          deletedAt: org.deletedAt
+            ? org.deletedAt.toISOString()
+            : undefined,
           subscription: org.subscription,
           limits: org.limits,
           seatLimit: org.limits?.maxUsers || org.subscription?.seatLimit || 50,
@@ -594,6 +617,9 @@ export class SuperAdminService {
       plan,
       tier,
       supportEmail,
+      initialPassword,
+      sendWelcomeEmail,
+      requirePasswordChange,
     } = body || {};
 
     if (!name || !name.trim()) {
@@ -658,12 +684,74 @@ export class SuperAdminService {
     const orgId = new mongoose.Types.ObjectId();
     const selectedPlan = tier || plan || "Enterprise";
 
+    // Resolve package template if specified or match by tier/plan
+    let matchedPkg: any;
+    if (body.packageId) {
+      if (mongoose.Types.ObjectId.isValid(body.packageId)) {
+        matchedPkg = await Package.findById(body.packageId);
+      }
+      if (!matchedPkg) {
+        matchedPkg = await Package.findOne({ slug: String(body.packageId).toLowerCase().trim() });
+      }
+    } else if (body.packageSlug) {
+      matchedPkg = await Package.findOne({ slug: String(body.packageSlug).toLowerCase().trim() });
+    } else if (tier || plan) {
+      const planName = String(tier || plan).trim();
+      matchedPkg = await Package.findOne({
+        $or: [
+          { slug: planName.toLowerCase() },
+          { name: new RegExp(`^${planName}$`, "i") },
+          { tier: planName.toLowerCase() },
+        ],
+      });
+    }
+
+    const isAnnual = body.billingInterval === "annual";
+    const basePrice = matchedPkg ? (isAnnual ? (matchedPkg.billing.basePriceAnnual || matchedPkg.billing.basePriceMonthly * 10) : matchedPkg.billing.basePriceMonthly) : 0;
+    const activeAddOnList: string[] = Array.isArray(body.activeAddOns) ? body.activeAddOns : [];
+    let addOnPrice = 0;
+    if (matchedPkg) {
+      for (const aKey of activeAddOnList) {
+        const feat = matchedPkg.features.find((f: any) => f.featureKey === aKey) || CANONICAL_PACKAGE_FEATURES.find((c) => c.featureKey === aKey);
+        if (feat) {
+          addOnPrice += isAnnual ? (feat.addOnPriceAnnual || (feat.addOnPriceMonthly || 0) * 10) : (feat.addOnPriceMonthly || 0);
+        }
+      }
+    }
+    const hasCustomPrice = body.customPrice !== undefined && body.customPrice !== null && body.customPrice !== "" && !isNaN(Number(body.customPrice));
+    const finalPrice = hasCustomPrice ? Number(body.customPrice) : basePrice + addOnPrice;
+
+    const orgLimits = {
+      maxUsers: body.customLimits?.maxUsers ? Number(body.customLimits.maxUsers) : (matchedPkg?.limits?.maxUsers || 50),
+      maxStorageGb: body.customLimits?.maxStorageGb ? Number(body.customLimits.maxStorageGb) : (matchedPkg?.limits?.maxStorageGb || 10),
+      maxJourneys: body.customLimits?.maxJourneys ? Number(body.customLimits.maxJourneys) : (matchedPkg?.limits?.maxJourneys || 20),
+      maxKiosks: body.customLimits?.maxKiosks ? Number(body.customLimits.maxKiosks) : (matchedPkg?.limits?.maxKiosks || 5),
+      aiTokenMonthlyLimit: body.customLimits?.aiTokenMonthlyLimit ? Number(body.customLimits.aiTokenMonthlyLimit) : (matchedPkg?.limits?.aiTokenMonthlyLimit || 500000),
+    };
+
     const newOrg = new Organization({
       _id: orgId,
       name: name.trim(),
       domain: domainLower,
       slug: slugLower,
-      plan: selectedPlan,
+      plan: matchedPkg ? matchedPkg.name : selectedPlan,
+      packageId: matchedPkg?._id,
+      packageSlug: matchedPkg?.slug,
+      limits: orgLimits,
+      subscription: {
+        packageId: matchedPkg?._id,
+        packageName: matchedPkg?.name,
+        plan: matchedPkg ? matchedPkg.name : selectedPlan,
+        status: "active",
+        billingInterval: isAnnual ? "annual" : "monthly",
+        basePrice,
+        addOnPrice,
+        customPrice: hasCustomPrice ? Number(body.customPrice) : undefined,
+        finalPrice,
+        currency: matchedPkg?.billing?.currency || "USD",
+        activeAddOns: activeAddOnList,
+        seatLimit: orgLimits.maxUsers,
+      },
       status: "Active",
       supportEmail: targetAdminEmail,
       createdBy: actorUserId,
@@ -682,9 +770,49 @@ export class SuperAdminService {
 
     await newOrg.save();
 
-    // Create Initial Owner User
-    const defaultPassword = "Password123!";
-    const passwordHash = await hashPassword(defaultPassword);
+    // Synchronize initial feature flag entitlements for package if resolved
+    if (matchedPkg) {
+      const enabledKeys = new Set<string>();
+      const disabledKeys = new Set<string>();
+      for (const feat of matchedPkg.features) {
+        if (feat.enabled || activeAddOnList.includes(feat.featureKey)) {
+          enabledKeys.add(feat.featureKey);
+        } else {
+          disabledKeys.add(feat.featureKey);
+        }
+      }
+      if (enabledKeys.size > 0) {
+        await FeatureFlag.updateMany(
+          { key: { $in: Array.from(enabledKeys) } },
+          {
+            $addToSet: { targetOrganizationIds: orgId },
+            $pull: { excludedOrganizationIds: orgId },
+          }
+        );
+      }
+      if (disabledKeys.size > 0) {
+        await FeatureFlag.updateMany(
+          { key: { $in: Array.from(disabledKeys) } },
+          {
+            $pull: { targetOrganizationIds: orgId },
+            $addToSet: { excludedOrganizationIds: orgId },
+          }
+        );
+      }
+    }
+
+    // Create Initial Owner User with secure credentials
+    const tempPassword = initialPassword && String(initialPassword).trim().length >= 8
+      ? String(initialPassword).trim()
+      : `Talnova-${crypto.randomBytes(3).toString("hex").toUpperCase()}!26`;
+    const passwordHash = await hashPassword(tempPassword);
+
+    // Generate secure one-time activation token (valid 72h)
+    const rawActivationToken = crypto.randomBytes(32).toString("hex");
+    const hashedActivationToken = crypto.createHash("sha256").update(rawActivationToken).digest("hex");
+    const activationExpires = new Date(Date.now() + 72 * 3600 * 1000);
+    const mustChange = requirePasswordChange !== false;
+
     const ownerUserId = new mongoose.Types.ObjectId();
     const ownerUser = new User({
       _id: ownerUserId,
@@ -705,6 +833,7 @@ export class SuperAdminService {
       },
       permissions: {
         role: "owner",
+        roles: ["owner"],
         customRoles: [],
       },
       preferences: {
@@ -721,10 +850,32 @@ export class SuperAdminService {
       security: {
         mfaEnabled: false,
         failedLoginAttempts: 0,
+        passwordResetToken: hashedActivationToken,
+        passwordResetExpires: activationExpires,
+        mustChangePassword: mustChange,
       },
     });
 
     await ownerUser.save();
+
+    // Dispatch Welcome Email asynchronously if requested
+    const shouldSendEmail = sendWelcomeEmail !== false;
+    if (shouldSendEmail) {
+      try {
+        const emailService = new EmailService();
+        emailService.sendTenantWelcomeEmail(
+          targetAdminEmail,
+          rawActivationToken,
+          newOrg.name,
+          tempPassword,
+          mustChange
+        ).catch((err: any) => {
+          console.warn(`[SuperAdminService] Failed to send tenant welcome email to ${targetAdminEmail}:`, err?.message);
+        });
+      } catch (emailErr: any) {
+        console.warn("[SuperAdminService] Error initiating email dispatch:", emailErr?.message);
+      }
+    }
 
     // Automatically create initial CustomerAccount in good_standing
     await CustomerAccount.create({
@@ -768,6 +919,13 @@ export class SuperAdminService {
         id: ownerUser._id.toString(),
         email: ownerUser.auth.email,
         role: ownerUser.permissions.role,
+      },
+      credentials: {
+        email: targetAdminEmail,
+        temporaryPassword: tempPassword,
+        activationUrl: `http://localhost:5173/register?token=${rawActivationToken}`,
+        mustChangePassword: mustChange,
+        emailDispatched: shouldSendEmail,
       },
       usersCount: 1,
       createdAt: newOrg.createdAt
@@ -896,6 +1054,39 @@ export class SuperAdminService {
     if (targetPlan) {
       updates.plan = targetPlan;
       updates["subscription.plan"] = targetPlan;
+
+      // Find matching package template to prevent packageId and limits desynchronization
+      const matchedPkg = await Package.findOne({
+        $or: [
+          { slug: targetPlan.toLowerCase().trim() },
+          { name: new RegExp(`^${targetPlan.trim()}$`, "i") },
+          { tier: targetPlan.toLowerCase().trim() },
+        ],
+      });
+      if (matchedPkg) {
+        updates.packageId = matchedPkg._id;
+        updates.packageSlug = matchedPkg.slug;
+        updates["subscription.packageId"] = matchedPkg._id;
+        updates["subscription.packageName"] = matchedPkg.name;
+
+        // If seat limit wasn't explicitly changed, adopt package limit
+        if (requestedSeats === undefined && matchedPkg.limits?.maxUsers) {
+          updates["limits.maxUsers"] = matchedPkg.limits.maxUsers;
+          updates["subscription.seatLimit"] = matchedPkg.limits.maxUsers;
+        }
+        if (matchedPkg.limits?.maxStorageGb && !org.limits?.maxStorageGb) {
+          updates["limits.maxStorageGb"] = matchedPkg.limits.maxStorageGb;
+        }
+        if (matchedPkg.limits?.maxJourneys && !org.limits?.maxJourneys) {
+          updates["limits.maxJourneys"] = matchedPkg.limits.maxJourneys;
+        }
+        if (matchedPkg.limits?.maxKiosks && !org.limits?.maxKiosks) {
+          updates["limits.maxKiosks"] = matchedPkg.limits.maxKiosks;
+        }
+        if (matchedPkg.limits?.aiTokenMonthlyLimit && !org.limits?.aiTokenMonthlyLimit) {
+          updates["limits.aiTokenMonthlyLimit"] = matchedPkg.limits.aiTokenMonthlyLimit;
+        }
+      }
     }
 
     if (requestedSeats !== undefined) {
@@ -980,6 +1171,7 @@ export class SuperAdminService {
       storageAgg,
       totalFlagsCount,
       overriddenFlagsCount,
+      kiosksCount,
     ] = await Promise.all([
       User.countDocuments({ organizationId: orgId, isDeleted: false }),
       User.countDocuments({
@@ -1048,13 +1240,26 @@ export class SuperAdminService {
           { excludedOrganizationIds: orgId },
         ],
       }),
+      Promise.all([
+        KioskDeviceModel.countDocuments({
+          $or: [{ organizationId: orgId }, { organizationId: org._id }],
+          status: { $ne: "decommissioned" },
+        }),
+        KioskJourneyModel.countDocuments({
+          $or: [{ organizationId: orgId }, { organizationId: org._id }],
+          isDeleted: false,
+        }),
+      ]).then(([devices, journeys]) => Math.max(devices, journeys)),
     ]);
 
     const totalStorageBytes = storageAgg[0]?.totalBytes || 0;
     const totalFilesCount = storageAgg[0]?.count || 0;
     const maxUsers = org.limits?.maxUsers || org.subscription?.seatLimit || 50;
-    const maxStorageBytes =
-      (org.limits?.maxStorageGb || 50) * 1024 * 1024 * 1024;
+    const maxStorageGb = org.limits?.maxStorageGb ?? 10;
+    const maxStorageBytes = maxStorageGb * 1024 * 1024 * 1024;
+    const maxJourneys = org.limits?.maxJourneys ?? 20;
+    const maxKiosks = org.limits?.maxKiosks ?? 5;
+    const aiTokenMonthlyLimit = org.limits?.aiTokenMonthlyLimit ?? 500000;
 
     return {
       organization: {
@@ -1063,6 +1268,8 @@ export class SuperAdminService {
         slug: org.slug,
         domain: org.domain,
         plan: org.plan,
+        packageId: org.packageId?.toString() || org.subscription?.packageId?.toString(),
+        packageSlug: org.packageSlug,
         status: org.status,
         supportEmail: org.supportEmail,
         branding: org.branding,
@@ -1088,9 +1295,21 @@ export class SuperAdminService {
               ? Math.round((totalStorageBytes / maxStorageBytes) * 100)
               : 0,
         },
+        journeys: {
+          current: journeys.length,
+          limit: maxJourneys,
+          utilizationPct:
+            maxJourneys > 0 ? Math.round((journeys.length / maxJourneys) * 100) : 0,
+        },
+        kiosks: {
+          current: kiosksCount,
+          limit: maxKiosks,
+          utilizationPct:
+            maxKiosks > 0 ? Math.round((kiosksCount / maxKiosks) * 100) : 0,
+        },
         aiTokens: {
           monthlyUsed: 0,
-          monthlyBudget: 1000000,
+          monthlyBudget: aiTokenMonthlyLimit,
           utilizationPct: 0,
         },
       },
@@ -1184,6 +1403,228 @@ export class SuperAdminService {
     });
 
     return { id: org._id.toString(), status: org.status };
+  }
+
+  async deleteOrganization(
+    id: string,
+    mode: "soft" | "hard" = "hard",
+    actorUserId?: string
+  ) {
+    const isObjId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjId
+      ? { _id: new mongoose.Types.ObjectId(id) }
+      : { slug: id.toLowerCase().trim() };
+
+    const org = await Organization.findOne(filter);
+    if (!org) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+    }
+
+    const orgId = org._id as mongoose.Types.ObjectId;
+    const orgName = org.name;
+    const orgSlug = org.slug;
+
+    if (mode === "soft") {
+      // 1. Mark organization as soft-deleted & suspended
+      org.isDeleted = true;
+      org.deletedAt = new Date();
+      org.status = "Suspended";
+      await org.save();
+
+      // 2. Revoke all active user sessions for this organization
+      await Session.updateMany(
+        { organizationId: orgId, isValid: true },
+        { $set: { isValid: false, revokedReason: "ORGANIZATION_ARCHIVED" } }
+      );
+      TenantStatusCache.addSuspended(orgId.toString());
+
+      // 3. Mark all users as terminated/inactive
+      await User.updateMany(
+        { organizationId: orgId },
+        { $set: { isDeleted: true, "employment.status": "terminated" } }
+      );
+
+      // 4. Log Audit Event
+      await AuditLog.create({
+        organizationId: orgId,
+        actorUserId,
+        actorType: "user",
+        eventCategory: "organization",
+        eventType: "ORGANIZATION_ARCHIVED",
+        resourceType: "Organization",
+        resourceId: orgId,
+        action: "archive",
+        description: `Organization '${orgName}' (${orgSlug}) was archived (soft-deleted) by Super Admin.`,
+        severity: "warning",
+      });
+
+      return {
+        success: true,
+        mode: "soft",
+        message: `Organization '${orgName}' has been archived. Data is preserved and can be restored.`,
+        organization: {
+          id: orgId.toString(),
+          name: orgName,
+          slug: orgSlug,
+          isDeleted: true,
+          status: "Suspended",
+        },
+      };
+    }
+
+    // MODE === "HARD": Complete GDPR Cascade Purge
+    // 1. Revoke sessions and cache
+    await Session.deleteMany({ organizationId: orgId });
+    TenantStatusCache.removeSuspended(orgId.toString());
+
+    // 2. Cascade delete across all standard tenant models
+    const deleteResults: Record<string, number> = {};
+
+    const deleteOperations = [
+      { name: "users", op: () => User.deleteMany({ organizationId: orgId }) },
+      { name: "sessions", op: () => Session.deleteMany({ organizationId: orgId }) },
+      { name: "journeys", op: () => Journey.deleteMany({ organizationId: orgId }) },
+      { name: "tasks", op: () => Task.deleteMany({ organizationId: orgId }) },
+      { name: "onboardingCases", op: () => OnboardingCase.deleteMany({ organizationId: orgId }) },
+      { name: "uploads", op: () => Upload.deleteMany({ organizationId: orgId }) },
+      { name: "invoices", op: () => Invoice.deleteMany({ organizationId: orgId }) },
+      { name: "customerAccounts", op: () => CustomerAccount.deleteMany({ organizationId: orgId }) },
+      { name: "paymentRecords", op: () => PaymentRecord.deleteMany({ organizationId: orgId }) },
+      { name: "expenseRecords", op: () => ExpenseRecord.deleteMany({ organizationId: orgId }) },
+      { name: "alerts", op: () => Alert.deleteMany({ organizationId: orgId }) },
+      { name: "aiUsageRecords", op: () => AIUsageRecord.deleteMany({ organizationId: orgId }) },
+      { name: "tenantAuditLogs", op: () => AuditLog.deleteMany({ organizationId: orgId }) },
+    ];
+
+    for (const item of deleteOperations) {
+      try {
+        const res = await item.op();
+        deleteResults[item.name] = res.deletedCount || 0;
+      } catch {
+        // Continue cascade
+      }
+    }
+
+    // 3. Dynamic safety net across ALL collections in the MongoDB database
+    if (mongoose.connection.db) {
+      try {
+        const allCollections = await mongoose.connection.db.collections();
+        for (const col of allCollections) {
+          const colName = col.collectionName.toLowerCase();
+          if (["platformsettings", "platform_settings"].includes(colName)) {
+            continue;
+          }
+          try {
+            const countRes = await col.deleteMany({
+              $or: [
+                { organizationId: orgId },
+                { organizationId: orgId.toString() },
+              ],
+            });
+            if (countRes.deletedCount > 0 && !deleteResults[col.collectionName]) {
+              deleteResults[col.collectionName] = countRes.deletedCount;
+            }
+          } catch {
+            // Ignore collections without organizationId index/field
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    // 4. Finally delete the Organization document itself
+    await Organization.deleteOne({ _id: orgId });
+    deleteResults["organizations"] = 1;
+
+    // 5. Create a system-level AuditLog entry recording the permanent purge
+    await AuditLog.create({
+      actorUserId,
+      actorType: "user",
+      eventCategory: "organization",
+      eventType: "ORGANIZATION_PURGED",
+      resourceType: "Organization",
+      resourceId: orgId,
+      action: "delete",
+      description: `Organization '${orgName}' (${orgSlug}) and all associated records were permanently purged (GDPR erasure).`,
+      severity: "critical",
+    });
+
+    return {
+      success: true,
+      mode: "hard",
+      message: `Organization '${orgName}' and all associated data have been permanently erased from the platform.`,
+      organization: {
+        id: orgId.toString(),
+        name: orgName,
+        slug: orgSlug,
+      },
+      deletedCounts: deleteResults,
+    };
+  }
+
+  async restoreOrganization(id: string, actorUserId?: string) {
+    const isObjId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjId
+      ? { _id: new mongoose.Types.ObjectId(id) }
+      : { slug: id.toLowerCase().trim() };
+
+    const org = await Organization.findOne(filter);
+    if (!org) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+    }
+
+    if (!org.isDeleted) {
+      return {
+        success: true,
+        message: `Organization '${org.name}' is already active.`,
+        organization: {
+          id: org._id.toString(),
+          name: org.name,
+          slug: org.slug,
+          status: org.status,
+          isDeleted: false,
+        },
+      };
+    }
+
+    org.isDeleted = false;
+    org.deletedAt = undefined;
+    org.status = "Active";
+    await org.save();
+
+    TenantStatusCache.removeSuspended(org._id.toString());
+
+    // Restore associated users
+    await User.updateMany(
+      { organizationId: org._id, isDeleted: true },
+      { $set: { isDeleted: false, "employment.status": "active" } }
+    );
+
+    await AuditLog.create({
+      organizationId: org._id,
+      actorUserId,
+      actorType: "user",
+      eventCategory: "organization",
+      eventType: "ORGANIZATION_RESTORED",
+      resourceType: "Organization",
+      resourceId: org._id,
+      action: "restore",
+      description: `Organization '${org.name}' (${org.slug}) was restored from archive by Super Admin.`,
+      severity: "info",
+    });
+
+    return {
+      success: true,
+      message: `Organization '${org.name}' has been restored to active status.`,
+      organization: {
+        id: org._id.toString(),
+        name: org.name,
+        slug: org.slug,
+        status: org.status,
+        isDeleted: false,
+      },
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -1543,6 +1984,9 @@ export class SuperAdminService {
       search,
       status,
       organizationId,
+      packageSlug,
+      packageId,
+      billingCycle,
       page = "1",
       limit = "10",
     } = query || {};
@@ -1553,6 +1997,16 @@ export class SuperAdminService {
     const filter: any = { isDeleted: false };
     if (organizationId && mongoose.Types.ObjectId.isValid(organizationId)) {
       filter.organizationId = new mongoose.Types.ObjectId(organizationId);
+    }
+    if (packageSlug && packageSlug !== "all") {
+      filter.packageSlug = packageSlug.toLowerCase().trim();
+    }
+    if (packageId && mongoose.Types.ObjectId.isValid(packageId)) {
+      filter.packageId = new mongoose.Types.ObjectId(packageId);
+    }
+    if (billingCycle && billingCycle !== "all") {
+      const normCycle = billingCycle.toLowerCase().trim();
+      filter.billingCycle = normCycle === "annual" ? "annually" : normCycle;
     }
     if (status && status !== "all") {
       if (status === "Paid" || status === "paid") {
@@ -1572,6 +2026,8 @@ export class SuperAdminService {
         { invoiceNo: { $regex: search, $options: "i" } },
         { customerName: { $regex: search, $options: "i" } },
         { organization: { $regex: search, $options: "i" } },
+        { packageName: { $regex: search, $options: "i" } },
+        { packageSlug: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
         { notes: { $regex: search, $options: "i" } },
       ];
@@ -1627,6 +2083,10 @@ export class SuperAdminService {
       organizationId: inv.organizationId ? inv.organizationId.toString() : null,
       customerName: inv.customerName || inv.organization,
       organization: inv.customerName || inv.organization,
+      packageId: inv.packageId ? inv.packageId.toString() : null,
+      packageSlug: inv.packageSlug || null,
+      packageName: inv.packageName || null,
+      billingCycle: inv.billingCycle || "monthly",
       currency: inv.currency || "USD",
       issueDate: inv.issueDate,
       dueDate: inv.dueDate,
@@ -1697,6 +2157,10 @@ export class SuperAdminService {
           : null,
         customerName: invoice.customerName || invoice.organization,
         organization: invoice.customerName || invoice.organization,
+        packageId: invoice.packageId ? invoice.packageId.toString() : null,
+        packageSlug: invoice.packageSlug || null,
+        packageName: invoice.packageName || null,
+        billingCycle: invoice.billingCycle || "monthly",
         currency: invoice.currency || "USD",
         issueDate: invoice.issueDate,
         dueDate: invoice.dueDate,
@@ -1760,6 +2224,10 @@ export class SuperAdminService {
       organizationId,
       organization,
       customerName,
+      packageId,
+      packageSlug,
+      packageName,
+      billingCycle = "monthly",
       currency = "USD",
       issueDate,
       dueDate,
@@ -1771,19 +2239,21 @@ export class SuperAdminService {
       status = "issued",
       notes,
       description,
+      generateFromPackage = false,
     } = body || {};
 
     let custName = (customerName || organization || "").trim();
     let targetOrgId = organizationId;
+    let foundOrg: any = null;
 
     if (targetOrgId && mongoose.Types.ObjectId.isValid(targetOrgId)) {
       targetOrgId = new mongoose.Types.ObjectId(targetOrgId);
-      if (!custName) {
-        const foundOrg = await Organization.findById(targetOrgId);
-        if (foundOrg) custName = foundOrg.name;
+      foundOrg = await Organization.findById(targetOrgId);
+      if (foundOrg && !custName) {
+        custName = foundOrg.name;
       }
     } else if (custName) {
-      const foundOrg = await Organization.findOne({
+      foundOrg = await Organization.findOne({
         name: { $regex: new RegExp(`^${custName}$`, "i") },
         isDeleted: false,
       });
@@ -1794,6 +2264,7 @@ export class SuperAdminService {
         const anyOrg = await Organization.findOne({ isDeleted: false });
         if (anyOrg) {
           targetOrgId = anyOrg._id;
+          foundOrg = anyOrg;
         } else {
           throw new AppError(
             400,
@@ -1810,7 +2281,44 @@ export class SuperAdminService {
       );
     }
 
-    if (Array.isArray(lineItems) && lineItems.length === 0) {
+    // Resolve package association
+    let finalPackageId: mongoose.Types.ObjectId | undefined =
+      packageId && mongoose.Types.ObjectId.isValid(packageId)
+        ? new mongoose.Types.ObjectId(packageId)
+        : foundOrg?.subscription?.packageId;
+    let finalPackageSlug: string | undefined =
+      packageSlug || foundOrg?.subscription?.packageSlug || foundOrg?.plan?.toLowerCase();
+    let finalPackageName: string | undefined = packageName;
+    let finalBillingCycle: "monthly" | "annually" | "quarterly" | "custom" =
+      billingCycle || foundOrg?.subscription?.billingCycle || "monthly";
+
+    if (!finalPackageName && (finalPackageId || finalPackageSlug)) {
+      const resolvedPkg = await Package.findOne({
+        $or: [
+          ...(finalPackageId ? [{ _id: finalPackageId }] : []),
+          ...(finalPackageSlug ? [{ slug: finalPackageSlug.toLowerCase().trim() }] : []),
+        ],
+      });
+      if (resolvedPkg) {
+        finalPackageName = resolvedPkg.name;
+        finalPackageId = resolvedPkg._id;
+        finalPackageSlug = resolvedPkg.slug;
+      }
+    }
+
+    let sourceLineItems = lineItems;
+    if (generateFromPackage && (!sourceLineItems || sourceLineItems.length === 0)) {
+      const preview = await this.generatePackageInvoicePreview(targetOrgId.toString());
+      sourceLineItems = preview.lineItems;
+      if (!finalPackageId && preview.package?.id) {
+        finalPackageId = new mongoose.Types.ObjectId(preview.package.id);
+      }
+      if (!finalPackageSlug) finalPackageSlug = preview.package?.slug;
+      if (!finalPackageName) finalPackageName = preview.package?.name;
+      finalBillingCycle = preview.billingCycle as any;
+    }
+
+    if (Array.isArray(sourceLineItems) && sourceLineItems.length === 0) {
       throw new AppError(
         400,
         "INVALID_LINE_ITEMS",
@@ -1819,8 +2327,8 @@ export class SuperAdminService {
     }
 
     let preparedLineItems: any[] = [];
-    if (Array.isArray(lineItems) && lineItems.length > 0) {
-      preparedLineItems = lineItems.map((item: any) => {
+    if (Array.isArray(sourceLineItems) && sourceLineItems.length > 0) {
+      preparedLineItems = sourceLineItems.map((item: any) => {
         const desc = (item.description || "").trim();
         if (!desc) {
           throw new AppError(
@@ -1836,6 +2344,9 @@ export class SuperAdminService {
           quantity: qty,
           unitPrice: Math.round((unit + Number.EPSILON) * 100) / 100,
           amount: Math.round((qty * unit + Number.EPSILON) * 100) / 100,
+          itemType: item.itemType || "custom",
+          featureKey: item.featureKey || undefined,
+          packageSlug: item.packageSlug || finalPackageSlug || undefined,
         };
       });
     } else if (amount !== undefined && amount !== null && Number(amount) >= 0) {
@@ -1849,6 +2360,7 @@ export class SuperAdminService {
           quantity: 1,
           unitPrice: parsedAmount,
           amount: parsedAmount,
+          itemType: "custom",
         },
       ];
     } else {
@@ -1886,6 +2398,10 @@ export class SuperAdminService {
       invoiceNo,
       organizationId: targetOrgId,
       customerName: custName,
+      packageId: finalPackageId,
+      packageSlug: finalPackageSlug,
+      packageName: finalPackageName,
+      billingCycle: finalBillingCycle,
       currency: (currency || "USD").toUpperCase().trim(),
       issueDate: parsedIssueDate,
       dueDate: parsedDueDate,
@@ -1924,6 +2440,10 @@ export class SuperAdminService {
       organizationId: newInvoice.organizationId.toString(),
       customerName: newInvoice.customerName,
       organization: newInvoice.customerName,
+      packageId: newInvoice.packageId ? newInvoice.packageId.toString() : null,
+      packageSlug: newInvoice.packageSlug || null,
+      packageName: newInvoice.packageName || null,
+      billingCycle: newInvoice.billingCycle || "monthly",
       currency: newInvoice.currency,
       issueDate: newInvoice.issueDate,
       dueDate: newInvoice.dueDate,
@@ -1942,27 +2462,209 @@ export class SuperAdminService {
     };
   }
 
+  async generatePackageInvoicePreview(orgId: string) {
+    if (!orgId || orgId === "undefined" || orgId === "null" || typeof orgId !== "string" || !orgId.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Organization ID or slug is required");
+    }
+
+    const trimmedOrgId = orgId.trim();
+    let org: any = null;
+    if (mongoose.Types.ObjectId.isValid(trimmedOrgId)) {
+      org = await Organization.findOne({ _id: trimmedOrgId, isDeleted: false });
+    }
+    if (!org) {
+      org = await Organization.findOne({ slug: trimmedOrgId.toLowerCase(), isDeleted: false });
+    }
+    if (!org) {
+      throw new AppError(404, "NOT_FOUND", `Organization '${orgId}' not found`);
+    }
+
+    // 1. Resolve Package Template from Organization Subscription or Catalog
+    let pkg: IPackage | null = null;
+    if (org.subscription?.packageId && mongoose.Types.ObjectId.isValid(org.subscription.packageId)) {
+      pkg = await Package.findById(org.subscription.packageId);
+    }
+    if (!pkg && org.packageId && mongoose.Types.ObjectId.isValid(org.packageId)) {
+      pkg = await Package.findById(org.packageId);
+    }
+    if (!pkg && (org.subscription?.packageSlug || org.packageSlug)) {
+      const slugToFind = (org.subscription?.packageSlug || org.packageSlug).toLowerCase().trim();
+      pkg = await Package.findOne({ slug: slugToFind });
+    }
+    if (!pkg && org.plan) {
+      pkg = await Package.findOne({
+        $or: [
+          { slug: org.plan.toLowerCase().trim() },
+          { name: new RegExp(`^${org.plan.trim()}$`, "i") },
+        ],
+      });
+    }
+    if (!pkg) {
+      pkg = await Package.findOne({ isDefault: true });
+    }
+    if (!pkg) {
+      pkg = await Package.findOne({ status: "active" }).sort({ createdAt: 1 });
+    }
+
+    // 2. Billing Interval & Cycle
+    const rawInterval = (org.subscription?.billingInterval || org.subscription?.billingCycle || "monthly").toLowerCase();
+    const isAnnually = rawInterval === "annual" || rawInterval === "annually";
+    const billingInterval: "monthly" | "annual" = isAnnually ? "annual" : "monthly";
+    const billingCycle: "monthly" | "annually" | "quarterly" | "custom" = isAnnually ? "annually" : "monthly";
+    const currency = (org.subscription?.currency || pkg?.billing?.currency || "USD").toUpperCase().trim();
+
+    // 3. Base Plan Price & Calculation
+    let basePrice = 0;
+    if (isAnnually) {
+      if (typeof org.subscription?.basePrice === "number" && org.subscription.basePrice > 0) {
+        basePrice = org.subscription.basePrice;
+      } else if (pkg?.billing?.basePriceAnnual && pkg.billing.basePriceAnnual > 0) {
+        basePrice = pkg.billing.basePriceAnnual;
+      } else if (pkg?.billing?.basePriceMonthly && pkg.billing.basePriceMonthly > 0) {
+        basePrice = Math.round(pkg.billing.basePriceMonthly * 10 * 100) / 100;
+      } else {
+        basePrice = 0;
+      }
+    } else {
+      if (typeof org.subscription?.basePrice === "number" && org.subscription.basePrice >= 0) {
+        basePrice = org.subscription.basePrice;
+      } else if (pkg?.billing?.basePriceMonthly !== undefined && pkg.billing.basePriceMonthly >= 0) {
+        basePrice = pkg.billing.basePriceMonthly;
+      } else {
+        basePrice = 49;
+      }
+    }
+
+    const lineItems: any[] = [];
+    const packageName = pkg?.name || org.plan || "Standard";
+    const packageSlug = pkg?.slug || "standard";
+    const cycleLabel = isAnnually ? "Annual Subscription" : "Monthly Subscription";
+
+    lineItems.push({
+      description: `${packageName} Plan - ${cycleLabel}`,
+      quantity: 1,
+      unitPrice: Math.round(basePrice * 100) / 100,
+      amount: Math.round(basePrice * 100) / 100,
+      itemType: "package_base",
+      packageSlug,
+    });
+
+    // 4. Modular Active Add-Ons
+    const activeAddOnKeys = (org.subscription?.activeAddOns || org.subscription?.addOns || []).map((k: any) =>
+      typeof k === "string" ? k.trim() : (k.featureKey || k.key || "").trim()
+    ).filter(Boolean);
+
+    let addOnsSubtotal = 0;
+    if (pkg && Array.isArray(pkg.features) && activeAddOnKeys.length > 0) {
+      for (const addonKey of activeAddOnKeys) {
+        const feature = pkg.features.find(
+          (f) => f.featureKey.toLowerCase() === addonKey.toLowerCase()
+        ) || CANONICAL_PACKAGE_FEATURES.find(
+          (c) => c.featureKey.toLowerCase() === addonKey.toLowerCase()
+        );
+
+        let addonPrice = 0;
+        if (feature) {
+          if (isAnnually) {
+            addonPrice = feature.addOnPriceAnnual && feature.addOnPriceAnnual > 0
+              ? feature.addOnPriceAnnual
+              : Math.round((feature.addOnPriceMonthly || 0) * 10 * 100) / 100;
+          } else {
+            addonPrice = feature.addOnPriceMonthly || 0;
+          }
+        }
+
+        const featureName = feature?.name || addonKey.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        const roundedPrice = Math.round(addonPrice * 100) / 100;
+        addOnsSubtotal += roundedPrice;
+
+        lineItems.push({
+          description: `${featureName} Add-On (${isAnnually ? "Annual" : "Monthly"})`,
+          quantity: 1,
+          unitPrice: roundedPrice,
+          amount: roundedPrice,
+          itemType: "addon",
+          featureKey: addonKey,
+          packageSlug,
+        });
+      }
+    }
+
+    let subtotal = Math.round(lineItems.reduce((sum, item) => sum + (item.amount || 0), 0) * 100) / 100;
+    let discountAmount = 0;
+    const finalNegotiatedPrice = org.subscription?.finalPrice ?? org.subscription?.customPrice;
+
+    // 5. Contract Negotiated Override Price Adjustment if applicable
+    if (typeof finalNegotiatedPrice === "number" && finalNegotiatedPrice >= 0 && finalNegotiatedPrice !== subtotal) {
+      if (finalNegotiatedPrice < subtotal) {
+        discountAmount = Math.round((subtotal - finalNegotiatedPrice) * 100) / 100;
+      } else {
+        const enterpriseAdjustment = Math.round((finalNegotiatedPrice - subtotal) * 100) / 100;
+        lineItems.push({
+          description: `Custom Enterprise Contract Scope Adjustment (${isAnnually ? "Annual" : "Monthly"})`,
+          quantity: 1,
+          unitPrice: enterpriseAdjustment,
+          amount: enterpriseAdjustment,
+          itemType: "custom",
+          packageSlug,
+        });
+        subtotal = Math.round((subtotal + enterpriseAdjustment) * 100) / 100;
+      }
+    }
+
+    const totalAmount = Math.round(Math.max(0, subtotal - discountAmount) * 100) / 100;
+
+    return {
+      organizationId: org._id.toString(),
+      customerName: org.name,
+      currency,
+      billingCycle,
+      billingInterval,
+      package: {
+        id: pkg?._id?.toString() || null,
+        name: packageName,
+        slug: packageSlug,
+        tier: pkg?.tier || "standard",
+        badge: pkg?.badge || "",
+      },
+      limits: org.limits || pkg?.limits || {},
+      activeAddOns: activeAddOnKeys,
+      lineItems,
+      subtotal,
+      discountAmount,
+      taxAmount: 0,
+      totalAmount,
+      activeAddOnsCount: activeAddOnKeys.length,
+      isCustomPrice: typeof finalNegotiatedPrice === "number",
+      negotiatedPrice: typeof finalNegotiatedPrice === "number" ? finalNegotiatedPrice : null,
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      issueDate: new Date().toISOString().split("T")[0],
+    };
+  }
+
   async exportInvoicesCsv() {
     const invoices = await Invoice.find({ isDeleted: false }).sort({
       createdAt: -1,
     });
     let csv =
-      "Invoice No,Customer,Issue Date,Due Date,Currency,Subtotal,Discount,Tax,Total Amount,Amount Paid,Balance Due,Status,Type,Items Count,Notes\n";
+      "Invoice No,Customer,Package,Billing Cycle,Issue Date,Due Date,Currency,Subtotal,Discount,Tax,Total Amount,Amount Paid,Balance Due,Status,Type,Items Count,Notes\n";
     for (const inv of invoices) {
       const cust = (inv.customerName || inv.organization || "").replace(
         /"/g,
         '""'
       );
+      const pkgName = (inv.packageName || inv.packageSlug || "").replace(/"/g, '""');
+      const cycle = inv.billingCycle || "monthly";
       const notes = (inv.notes || inv.description || "").replace(/"/g, '""');
       const issue = inv.issueDate
         ? inv.issueDate instanceof Date
-          ? inv.issueDate.toISOString().split("T")[0]
-          : String(inv.issueDate)
+          ? (inv.issueDate as Date).toISOString().split("T")[0]
+          : new Date(inv.issueDate).toISOString().split("T")[0]
         : "";
       const due = inv.dueDate
         ? inv.dueDate instanceof Date
-          ? inv.dueDate.toISOString().split("T")[0]
-          : String(inv.dueDate)
+          ? (inv.dueDate as Date).toISOString().split("T")[0]
+          : new Date(inv.dueDate).toISOString().split("T")[0]
         : "";
       const itemsCount = Array.isArray(inv.lineItems)
         ? inv.lineItems.length
@@ -1977,19 +2679,19 @@ export class SuperAdminService {
         (inv.status === "Paid" || inv.status === "paid" ? 0 : total);
       const curr = inv.currency || "USD";
 
-      csv += `"${inv.invoiceNo}","${cust}","${issue}","${due}","${curr}",${subtotal},${discount},${tax},${total},${paid},${bal},"${inv.status}","${inv.type}",${itemsCount},"${notes}"\n`;
+      csv += `"${inv.invoiceNo}","${cust}","${pkgName}","${cycle}","${issue}","${due}","${curr}",${subtotal},${discount},${tax},${total},${paid},${bal},"${inv.status}","${inv.type}",${itemsCount},"${notes}"\n`;
     }
     return csv;
   }
 
   async getFinanceOverview() {
-    const PLAN_PRICES: Record<string, number> = {
-      Starter: 99,
-      Growth: 199,
-      Pro: 299,
-      Professional: 299,
-      Enterprise: 999,
-    };
+    const packages = await Package.find({ status: { $ne: "archived" } });
+    const packageById = new Map<string, IPackage>();
+    const packageBySlug = new Map<string, IPackage>();
+    packages.forEach((p) => {
+      packageById.set(p._id.toString(), p);
+      packageBySlug.set(p.slug.toLowerCase(), p);
+    });
 
     const orgs = await Organization.find({ isDeleted: false });
     const activeOrgs = orgs.filter(
@@ -2004,29 +2706,143 @@ export class SuperAdminService {
       Enterprise: { count: 0, mrr: 0 },
     };
 
+    // Pre-populate packageDistributionMap with all non-archived packages
+    const packageDistributionMap = new Map<
+      string,
+      { name: string; slug: string; tier: string; count: number; mrr: number; color?: string }
+    >();
+    const PACKAGE_COLORS = ["#6366F1", "#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EC4899", "#14B8A6"];
+    packages.forEach((p, idx) => {
+      packageDistributionMap.set(p.slug.toLowerCase(), {
+        name: p.name,
+        slug: p.slug.toLowerCase(),
+        tier: p.tier,
+        count: 0,
+        mrr: 0,
+        color: PACKAGE_COLORS[idx % PACKAGE_COLORS.length],
+      });
+    });
+
     for (const org of activeOrgs) {
+      let pkg: IPackage | undefined = undefined;
+      if (org.subscription?.packageId) {
+        pkg = packageById.get(org.subscription.packageId.toString());
+      }
+      if (!pkg && org.packageId) {
+        pkg = packageById.get(org.packageId.toString());
+      }
+      const matchedSlug = org.subscription?.packageSlug || org.packageSlug;
+      if (!pkg && matchedSlug) {
+        pkg = packageBySlug.get(matchedSlug.toLowerCase());
+      }
       const rawPlan = (org.plan ||
         org.subscription?.plan ||
-        "Starter") as string;
-      const normalizedPlan =
-        rawPlan === "Professional" ||
-        rawPlan === "Growth" ||
-        rawPlan === "Pro"
-          ? "Pro"
-          : rawPlan === "Enterprise"
-          ? "Enterprise"
-          : "Starter";
+        "Standard") as string;
+      if (!pkg && rawPlan) {
+        pkg =
+          packageBySlug.get(rawPlan.toLowerCase()) ||
+          packages.find(
+            (p) => p.name.toLowerCase() === rawPlan.toLowerCase()
+          );
+      }
 
-      const monthlyPrice =
-        (org.subscription as any)?.price ??
-        (PLAN_PRICES[rawPlan] || PLAN_PRICES[normalizedPlan] || 99);
+      const rawCycle = (org.subscription?.billingInterval || org.subscription?.billingCycle || "monthly").toLowerCase();
+      const isAnnually = rawCycle === "annual" || rawCycle === "annually";
+
+      // Dynamically compute monthly price from custom price or package base + add-ons
+      let monthlyPrice = 0;
+      if (
+        typeof org.subscription?.finalPrice === "number" &&
+        org.subscription.finalPrice > 0
+      ) {
+        monthlyPrice = isAnnually
+          ? Math.round((org.subscription.finalPrice / 12) * 100) / 100
+          : org.subscription.finalPrice;
+      } else if (
+        typeof org.subscription?.customPricePerMonth === "number" &&
+        org.subscription.customPricePerMonth > 0
+      ) {
+        monthlyPrice = org.subscription.customPricePerMonth;
+      } else if (
+        typeof org.subscription?.customPrice === "number" &&
+        org.subscription.customPrice > 0
+      ) {
+        monthlyPrice = isAnnually
+          ? Math.round((org.subscription.customPrice / 12) * 100) / 100
+          : org.subscription.customPrice;
+      } else if (typeof (org.subscription as any)?.price === "number") {
+        monthlyPrice = (org.subscription as any).price;
+      } else if (pkg) {
+        const baseMonthly = isAnnually
+          ? pkg.billing?.basePriceAnnual
+            ? pkg.billing.basePriceAnnual / 12
+            : (pkg.billing?.basePriceMonthly ? pkg.billing.basePriceMonthly * 10 / 12 : 0)
+          : pkg.billing?.basePriceMonthly || 0;
+
+        let addOnsMonthly = 0;
+        if (
+          typeof org.subscription?.addOnsTotal === "number" &&
+          org.subscription.addOnsTotal > 0
+        ) {
+          addOnsMonthly = isAnnually
+            ? org.subscription.addOnsTotal / 12
+            : org.subscription.addOnsTotal;
+        } else if (
+          Array.isArray(org.subscription?.activeAddOns) &&
+          org.subscription.activeAddOns.length > 0 &&
+          Array.isArray(pkg.features)
+        ) {
+          for (const addonKey of org.subscription.activeAddOns) {
+            const f = pkg.features.find(
+              (feat) => feat.featureKey.toLowerCase() === addonKey.toLowerCase()
+            );
+            if (f) {
+              addOnsMonthly += isAnnually
+                ? f.addOnPriceAnnual
+                  ? f.addOnPriceAnnual / 12
+                  : (f.addOnPriceMonthly ? f.addOnPriceMonthly * 10 / 12 : 0)
+                : f.addOnPriceMonthly || 0;
+            }
+          }
+        }
+        monthlyPrice =
+          Math.round((baseMonthly + addOnsMonthly + Number.EPSILON) * 100) / 100;
+      } else {
+        monthlyPrice = isAnnually ? 490 / 12 : 49;
+      }
+
       totalMrr += monthlyPrice;
+
+      // Normalized tier for backwards compatibility
+      const tierKey = pkg?.tier || (rawPlan.toLowerCase().includes("enterprise") ? "Enterprise" : rawPlan.toLowerCase().includes("pro") ? "Pro" : "Starter");
+      const normalizedPlan =
+        tierKey === "enterprise" || rawPlan === "Enterprise"
+          ? "Enterprise"
+          : tierKey === "custom" || rawPlan === "Professional" || rawPlan === "Growth" || rawPlan === "Pro"
+          ? "Pro"
+          : "Starter";
 
       if (!tierCounts[normalizedPlan]) {
         tierCounts[normalizedPlan] = { count: 0, mrr: 0 };
       }
       tierCounts[normalizedPlan].count += 1;
-      tierCounts[normalizedPlan].mrr += monthlyPrice;
+      tierCounts[normalizedPlan].mrr =
+        Math.round((tierCounts[normalizedPlan].mrr + monthlyPrice) * 100) / 100;
+
+      // Dynamic package tracking
+      const pkgSlugKey = pkg?.slug || normalizedPlan.toLowerCase();
+      const existingPkgDist = packageDistributionMap.get(pkgSlugKey) || {
+        name: pkg?.name || rawPlan,
+        slug: pkgSlugKey,
+        tier: pkg?.tier || (normalizedPlan === "Enterprise" ? "enterprise" : "standard"),
+        count: 0,
+        mrr: 0,
+        color: "#6366F1",
+      };
+      existingPkgDist.count += 1;
+      existingPkgDist.mrr =
+        Math.round((existingPkgDist.mrr + monthlyPrice) * 100) / 100;
+      packageDistributionMap.set(pkgSlugKey, existingPkgDist);
     }
 
     const activeSubscriptions = activeOrgs.length;
@@ -2093,6 +2909,17 @@ export class SuperAdminService {
         color: TIER_COLORS[tier] || "#6366F1",
       };
     });
+
+    const packageDistribution = Array.from(packageDistributionMap.values()).map(
+      (p) => ({
+        ...p,
+        arr: Math.round(p.mrr * 12 * 100) / 100,
+        percentage:
+          activeSubscriptions > 0
+            ? Number(((p.count / activeSubscriptions) * 100).toFixed(1))
+            : 0,
+      })
+    );
 
     // 6-Month historical MRR trajectory
     const now = new Date();
@@ -2182,6 +3009,7 @@ export class SuperAdminService {
         overdueRevenue,
       },
       tierDistribution,
+      packageDistribution,
       monthlyGrowth,
       invoicesSummary: {
         totalRevenue,
@@ -2195,34 +3023,121 @@ export class SuperAdminService {
   }
 
   async exportFinanceCsv() {
-    const PLAN_PRICES: Record<string, number> = {
-      Starter: 99,
-      Growth: 199,
-      Pro: 299,
-      Professional: 299,
-      Enterprise: 999,
-    };
+    const packages = await Package.find({ status: { $ne: "archived" } });
+    const packageById = new Map<string, IPackage>();
+    const packageBySlug = new Map<string, IPackage>();
+    packages.forEach((p) => {
+      packageById.set(p._id.toString(), p);
+      packageBySlug.set(p.slug.toLowerCase(), p);
+    });
 
     const orgs = await Organization.find({ isDeleted: false }).sort({ name: 1 });
     let csv =
-      "Organization,Domain,Plan,Status,Seats,MRR ($),ARR ($),Created At\n";
+      "Organization,Domain,Package,Tier,Billing Cycle,Status,Seats,Active AddOns,MRR ($),ARR ($),Created At\n";
 
     for (const org of orgs) {
-      const plan = org.plan || org.subscription?.plan || "Starter";
-      const price =
-        (org.subscription as any)?.price ?? (PLAN_PRICES[plan] || 99);
+      let pkg: IPackage | undefined = undefined;
+      if (org.subscription?.packageId) {
+        pkg = packageById.get(org.subscription.packageId.toString());
+      }
+      if (!pkg && org.packageId) {
+        pkg = packageById.get(org.packageId.toString());
+      }
+      const matchedSlug = org.subscription?.packageSlug || org.packageSlug;
+      if (!pkg && matchedSlug) {
+        pkg = packageBySlug.get(matchedSlug.toLowerCase());
+      }
+      const rawPlan = org.plan || org.subscription?.plan || "Standard";
+      if (!pkg && rawPlan) {
+        pkg =
+          packageBySlug.get(rawPlan.toLowerCase()) ||
+          packages.find(
+            (p) => p.name.toLowerCase() === rawPlan.toLowerCase()
+          );
+      }
+
+      const rawCycle = (org.subscription?.billingInterval || org.subscription?.billingCycle || "monthly").toLowerCase();
+      const isAnnually = rawCycle === "annual" || rawCycle === "annually";
+      const cycle = isAnnually ? "annual" : "monthly";
+      const packageName = pkg?.name || rawPlan;
+      const packageTier = pkg?.tier || "standard";
+      const activeAddOnsList = (org.subscription?.activeAddOns || []).join("; ");
+
+      let monthlyPrice = 0;
+      if (
+        typeof org.subscription?.finalPrice === "number" &&
+        org.subscription.finalPrice > 0
+      ) {
+        monthlyPrice = isAnnually
+          ? Math.round((org.subscription.finalPrice / 12) * 100) / 100
+          : org.subscription.finalPrice;
+      } else if (
+        typeof org.subscription?.customPricePerMonth === "number" &&
+        org.subscription.customPricePerMonth > 0
+      ) {
+        monthlyPrice = org.subscription.customPricePerMonth;
+      } else if (
+        typeof org.subscription?.customPrice === "number" &&
+        org.subscription.customPrice > 0
+      ) {
+        monthlyPrice = isAnnually
+          ? Math.round((org.subscription.customPrice / 12) * 100) / 100
+          : org.subscription.customPrice;
+      } else if (typeof (org.subscription as any)?.price === "number") {
+        monthlyPrice = (org.subscription as any).price;
+      } else if (pkg) {
+        const baseMonthly = isAnnually
+          ? pkg.billing?.basePriceAnnual
+            ? pkg.billing.basePriceAnnual / 12
+            : (pkg.billing?.basePriceMonthly ? pkg.billing.basePriceMonthly * 10 / 12 : 0)
+          : pkg.billing?.basePriceMonthly || 0;
+
+        let addOnsMonthly = 0;
+        if (
+          typeof org.subscription?.addOnsTotal === "number" &&
+          org.subscription.addOnsTotal > 0
+        ) {
+          addOnsMonthly = isAnnually
+            ? org.subscription.addOnsTotal / 12
+            : org.subscription.addOnsTotal;
+        } else if (
+          Array.isArray(org.subscription?.activeAddOns) &&
+          org.subscription.activeAddOns.length > 0 &&
+          Array.isArray(pkg.features)
+        ) {
+          for (const addonKey of org.subscription.activeAddOns) {
+            const f = pkg.features.find(
+              (feat) => feat.featureKey.toLowerCase() === addonKey.toLowerCase()
+            );
+            if (f) {
+              addOnsMonthly += isAnnually
+                ? f.addOnPriceAnnual
+                  ? f.addOnPriceAnnual / 12
+                  : (f.addOnPriceMonthly ? f.addOnPriceMonthly * 10 / 12 : 0)
+                : f.addOnPriceMonthly || 0;
+            }
+          }
+        }
+        monthlyPrice = Math.round((baseMonthly + addOnsMonthly + Number.EPSILON) * 100) / 100;
+      } else {
+        monthlyPrice = isAnnually ? 490 / 12 : 49;
+      }
+
       const mrr =
-        (org.status || "Active").toLowerCase() === "active" ? price : 0;
-      const arr = mrr * 12;
+        (org.status || "Active").toLowerCase() === "active" ? monthlyPrice : 0;
+      const arr = Math.round(mrr * 12 * 100) / 100;
       const seats =
         org.limits?.maxUsers || org.subscription?.seatLimit || 50;
       const created = org.createdAt
         ? org.createdAt.toISOString().split("T")[0]
         : "";
 
-      csv += `"${org.name}","${org.domain || ""}","${plan}","${
+      csv += `"${org.name.replace(/"/g, '""')}","${(org.domain || "").replace(
+        /"/g,
+        '""'
+      )}","${packageName.replace(/"/g, '""')}","${packageTier}","${cycle}","${
         org.status || "Active"
-      }",${seats},${mrr},${arr},"${created}"\n`;
+      }",${seats},"${activeAddOnsList.replace(/"/g, '""')}",${mrr},${arr},"${created}"\n`;
     }
 
     return csv;
@@ -3332,8 +4247,19 @@ export class SuperAdminService {
     ) {
       filter.organizationId = new mongoose.Types.ObjectId(organizationId);
     }
+    // Category normalization & aliasing
     if (category && category !== "all") {
-      filter.eventCategory = category;
+      if (category === "tenant") {
+        filter.eventCategory = "organization";
+      } else if (category === "onboarding") {
+        filter.eventCategory = { $in: ["journey", "assignment"] };
+      } else if (category === "finance") {
+        filter.eventCategory = "billing";
+      } else if (category === "authentication") {
+        filter.eventCategory = "auth";
+      } else {
+        filter.eventCategory = category;
+      }
     }
     if (severity && severity !== "all") {
       filter.severity = severity;
@@ -3380,59 +4306,129 @@ export class SuperAdminService {
       severityAgg.map((s) => [s._id, s.count])
     );
 
+    let events = logs.map((l) => ({
+      id: l._id.toString(),
+      description: l.description,
+      category: l.eventCategory,
+      action: l.action,
+      severity: l.severity,
+      eventType: l.eventType,
+      resourceType: l.resourceType,
+      resourceId: l.resourceId?.toString(),
+      actor: l.actorUserId
+        ? {
+            id: (l.actorUserId as any)._id?.toString(),
+            name: (l.actorUserId as any).profile?.fullName || "User",
+            email: (l.actorUserId as any).auth?.email,
+          }
+        : { name: "System Operator", email: "system@talnova.app" },
+      organization: l.organizationId
+        ? {
+            id: (l.organizationId as any)._id?.toString(),
+            name: (l.organizationId as any).name,
+            slug: (l.organizationId as any).slug,
+          }
+        : { name: "Platform Infrastructure", slug: "talnova" },
+      createdAt: l.createdAt,
+    }));
+
+    // If viewing system logs or on first page with empty results, enrich with live in-memory SystemLogBuffer
+    if (category === "system" || (!category && pageNum === 1)) {
+      const bufferLogs = SystemLogBuffer.getLogs({
+        organizationId: organizationId !== "all" ? organizationId : undefined,
+        severity: severity !== "all" ? severity : undefined,
+        limit: limitNum,
+      }).map((b) => ({
+        id: b.id,
+        description: b.description,
+        category: "system" as const,
+        action: (b.action || "status_change") as any,
+        severity: (b.severity === "high" ? "warning" : b.severity) as "info" | "warning" | "critical",
+        eventType: b.eventType,
+        resourceType: b.source,
+        resourceId: undefined,
+        actor: { name: "System Runtime", email: "runtime@talnova.internal" },
+        organization: { name: "Platform Infrastructure", slug: "talnova" },
+        createdAt: new Date(b.timestamp),
+      }));
+
+      const existingDesc = new Set(events.map((e) => e.description));
+      const freshBufferLogs = bufferLogs.filter((b) => !existingDesc.has(b.description));
+      events = [...freshBufferLogs, ...events].slice(0, limitNum);
+    }
+
     return {
-      events: logs.map((l) => ({
-        id: l._id.toString(),
-        description: l.description,
-        category: l.eventCategory,
-        action: l.action,
-        severity: l.severity,
-        eventType: l.eventType,
-        resourceType: l.resourceType,
-        resourceId: l.resourceId?.toString(),
-        actor: l.actorUserId
-          ? {
-              id: (l.actorUserId as any)._id?.toString(),
-              name: (l.actorUserId as any).profile?.fullName || "User",
-              email: (l.actorUserId as any).auth?.email,
-            }
-          : { name: "System Operator", email: "system@talnova.app" },
-        organization: l.organizationId
-          ? {
-              id: (l.organizationId as any)._id?.toString(),
-              name: (l.organizationId as any).name,
-              slug: (l.organizationId as any).slug,
-            }
-          : { name: "Platform Infrastructure", slug: "talnova" },
-        createdAt: l.createdAt,
-      })),
+      events,
       summary: {
-        total,
-        criticalCount: severityMap["critical"] || 0,
+        total: Math.max(total, events.length),
+        criticalCount: severityMap["critical"] || events.filter((e) => e.severity === "critical").length,
         highCount: severityMap["high"] || 0,
-        warningCount: severityMap["warning"] || 0,
-        infoCount: severityMap["info"] || 0,
+        warningCount: severityMap["warning"] || events.filter((e) => e.severity === "warning").length,
+        infoCount: severityMap["info"] || events.filter((e) => e.severity === "info").length,
       },
       page: pageNum,
-      totalPages: Math.ceil(total / limitNum) || 1,
+      totalPages: Math.ceil(Math.max(total, events.length) / limitNum) || 1,
     };
   }
 
-  getApiObservability() {
-    return TelemetryBuffer.getMetrics();
+  getApiObservability(query?: any) {
+    const orgId = query?.organizationId && query.organizationId !== "all" ? query.organizationId : undefined;
+    const page = query?.page ? parseInt(query.page, 10) : 1;
+    const limit = query?.limit ? parseInt(query.limit, 10) : 10;
+    const search = query?.search ? String(query.search).trim() : undefined;
+    const status = query?.status && query.status !== "all" ? query.status : undefined;
+    const sortBy = query?.sortBy ? String(query.sortBy) : undefined;
+    const sortOrder = query?.sortOrder === "asc" ? "asc" : "desc";
+
+    return TelemetryBuffer.getMetrics({
+      windowMs: 60000,
+      organizationId: orgId,
+      page,
+      limit,
+      search,
+      status: status as any,
+      sortBy: sortBy as any,
+      sortOrder,
+    });
   }
 
   async getInfrastructureObservability() {
     const mem = process.memoryUsage();
     const uptimeSeconds = Math.floor(process.uptime());
 
-    const [orgs, users, journeys, tasks, uploads, auditLogs] = await Promise.all([
+    let dbPingMs = 0;
+    try {
+      const t0 = Date.now();
+      await mongoose.connection.db?.command({ ping: 1 });
+      dbPingMs = Date.now() - t0;
+    } catch {
+      dbPingMs = -1;
+    }
+
+    let demoPingMs = 0;
+    let demoState = "DISCONNECTED";
+    try {
+      const demoConn = getDemoConnection();
+      demoState = demoConn.readyState === 1 ? "CONNECTED" : "DISCONNECTED";
+      if (demoConn.readyState === 1) {
+        const t0 = Date.now();
+        await demoConn.db?.command({ ping: 1 });
+        demoPingMs = Date.now() - t0;
+      }
+    } catch {
+      demoPingMs = -1;
+    }
+
+    const [orgs, users, journeys, tasks, uploads, auditLogs, aiUsage, alerts, sessions] = await Promise.all([
       Organization.countDocuments(),
       User.countDocuments(),
       Journey.countDocuments(),
       Task.countDocuments(),
       Upload.countDocuments(),
       AuditLog.countDocuments(),
+      AIUsageRecord.countDocuments(),
+      Alert.countDocuments(),
+      Session.countDocuments(),
     ]);
 
     return {
@@ -3455,6 +4451,7 @@ export class SuperAdminService {
         state: mongoose.connection.readyState === 1 ? "CONNECTED" : "DEGRADED",
         name: mongoose.connection.name || "talnova",
         host: mongoose.connection.host || "localhost",
+        pingMs: dbPingMs,
         collections: [
           { name: "organizations", documents: orgs },
           { name: "users", documents: users },
@@ -3462,24 +4459,65 @@ export class SuperAdminService {
           { name: "tasks", documents: tasks },
           { name: "uploads", documents: uploads },
           { name: "audit_logs", documents: auditLogs },
+          { name: "ai_usage_records", documents: aiUsage },
+          { name: "alerts", documents: alerts },
+          { name: "sessions", documents: sessions },
         ],
+      },
+      demoDatabase: {
+        state: demoState,
+        name: "talnova_demo",
+        pingMs: demoPingMs,
       },
     };
   }
 
-  async getAiObservability() {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  async getAiObservability(query?: any) {
+    const { organizationId } = query || {};
+    const orgFilter =
+      organizationId &&
+      organizationId !== "all" &&
+      mongoose.Types.ObjectId.isValid(organizationId)
+        ? new mongoose.Types.ObjectId(organizationId)
+        : null;
 
-    const featureAggregates = await AIUsageRecord.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-      {
-        $group: {
-          _id: "$feature",
-          requests: { $sum: 1 },
-          tokens: { $sum: "$totalTokens" },
-          cost: { $sum: "$estimatedCostUsd" },
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const matchCriteria: any = { createdAt: { $gte: thirtyDaysAgo } };
+    if (orgFilter) {
+      matchCriteria.organizationId = orgFilter;
+    }
+
+    const [featureAggregates, tenantUsageAggregates, tenantIntegrations, allOrgs] = await Promise.all([
+      AIUsageRecord.aggregate([
+        { $match: matchCriteria },
+        {
+          $group: {
+            _id: "$feature",
+            requests: { $sum: 1 },
+            tokens: { $sum: "$totalTokens" },
+            cost: { $sum: "$estimatedCostUsd" },
+          },
         },
-      },
+      ]),
+      AIUsageRecord.aggregate([
+        { $match: matchCriteria },
+        {
+          $group: {
+            _id: "$organizationId",
+            requests: { $sum: 1 },
+            tokens: { $sum: "$totalTokens" },
+            cost: { $sum: "$estimatedCostUsd" },
+            lastUsedAt: { $max: "$createdAt" },
+          },
+        },
+      ]),
+      OrganizationIntegration.find({
+        type: "ai",
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
+      }).lean(),
+      Organization.find(orgFilter ? { _id: orgFilter } : { isDeleted: { $ne: true } })
+        .select("_id name slug plan")
+        .lean(),
     ]);
 
     const featureLabelMap: Record<string, string> = {
@@ -3487,6 +4525,7 @@ export class SuperAdminService {
       ai_assistant: "Onboarding Assistant",
       kb_rag: "Knowledge Base RAG",
       document_summary: "Document Summarizer",
+      milestone_reflection: "Milestone Reflection Coach",
     };
 
     const breakdownMap = new Map<
@@ -3508,6 +4547,7 @@ export class SuperAdminService {
       "ai_assistant",
       "kb_rag",
       "document_summary",
+      "milestone_reflection",
     ];
     const featureBreakdown = canonicalFeatures.map((fKey) => {
       const stats = breakdownMap.get(fKey) || {
@@ -3546,12 +4586,13 @@ export class SuperAdminService {
       Math.round(
         featureAggregates.reduce((sum, f) => sum + (f.cost || 0), 0) * 100
       ) / 100;
-    const monthlyBudget = 2500000;
+    const monthlyBudget = orgFilter ? 500000 : 2500000;
     const utilizationPct =
       Math.round(((tokensConsumed / monthlyBudget) * 100) * 100) / 100;
 
+    // Dominant model
     const dominantModelAgg = await AIUsageRecord.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      { $match: matchCriteria },
       { $group: { _id: "$model", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 1 },
@@ -3559,7 +4600,62 @@ export class SuperAdminService {
     const dominantModel =
       dominantModelAgg.length > 0
         ? dominantModelAgg[0]._id
-        : "gemini-1.5-flash / pro";
+        : (tenantIntegrations[0]?.publicConfig?.model || "Multi-Provider (OpenAI / Gemini / Claude)");
+
+    // Tenant Integration Map
+    const integrationByOrg = new Map<string, any>();
+    tenantIntegrations.forEach((integ: any) => {
+      if (integ.organizationId) {
+        integrationByOrg.set(integ.organizationId.toString(), integ);
+      }
+    });
+
+    const tenantUsageMap = new Map<string, any>();
+    tenantUsageAggregates.forEach((item: any) => {
+      if (item._id) {
+        tenantUsageMap.set(item._id.toString(), item);
+      }
+    });
+
+    // Provider Inventory Counts
+    const providerCounts: Record<string, number> = {
+      openai: 0,
+      gemini: 0,
+      anthropic: 0,
+      azure_openai: 0,
+      custom: 0,
+      not_configured: 0,
+    };
+
+    const byOrganization = allOrgs.map((org: any) => {
+      const orgId = org._id.toString();
+      const integ = integrationByOrg.get(orgId);
+      const usage = tenantUsageMap.get(orgId) || { requests: 0, tokens: 0, cost: 0 };
+      const provider = integ?.provider || "not_configured";
+      const model = integ?.publicConfig?.model || (integ?.provider === "openai" ? "gpt-4o-mini" : integ?.provider === "gemini" ? "gemini-1.5-flash" : "N/A");
+      const status = integ?.status || "not_configured";
+
+      if (providerCounts[provider] !== undefined) {
+        providerCounts[provider]++;
+      } else {
+        providerCounts.custom++;
+      }
+
+      return {
+        organizationId: orgId,
+        name: org.name,
+        slug: org.slug,
+        plan: org.plan || "Starter",
+        provider,
+        model,
+        status,
+        hasByok: status === "configured" || status === "valid",
+        requests: usage.requests,
+        tokens: usage.tokens,
+        costEstimateUSD: Math.round((usage.cost || 0) * 100) / 100,
+        lastUsedAt: usage.lastUsedAt || null,
+      };
+    }).sort((a, b) => b.tokens - a.tokens);
 
     return {
       model: dominantModel,
@@ -3569,6 +4665,8 @@ export class SuperAdminService {
       utilizationPct,
       costEstimateUSD,
       featureBreakdown,
+      providerCounts,
+      byOrganization,
     };
   }
 
@@ -3651,16 +4749,44 @@ export class SuperAdminService {
     };
   }
 
-  async getStorageObservability() {
-    const storageByType = await Upload.aggregate([
-      { $match: { "lifecycle.status": { $ne: "deleted" } } },
-      {
-        $group: {
-          _id: "$type",
-          totalBytes: { $sum: "$fileSizeBytes" },
-          count: { $sum: 1 },
+  async getStorageObservability(query?: any) {
+    const { organizationId } = query || {};
+    const orgFilter =
+      organizationId &&
+      organizationId !== "all" &&
+      mongoose.Types.ObjectId.isValid(organizationId)
+        ? new mongoose.Types.ObjectId(organizationId)
+        : null;
+
+    const matchStage: any = { "lifecycle.status": { $ne: "deleted" } };
+    if (orgFilter) {
+      matchStage.organizationId = orgFilter;
+    }
+
+    const [storageByType, storageByOrgAgg, allOrgs] = await Promise.all([
+      Upload.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: "$type",
+            totalBytes: { $sum: "$fileSizeBytes" },
+            count: { $sum: 1 },
+          },
         },
-      },
+      ]),
+      Upload.aggregate([
+        { $match: { "lifecycle.status": { $ne: "deleted" }, ...(orgFilter ? { organizationId: orgFilter } : {}) } },
+        {
+          $group: {
+            _id: "$organizationId",
+            totalBytes: { $sum: "$fileSizeBytes" },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Organization.find(orgFilter ? { _id: orgFilter } : { isDeleted: { $ne: true } })
+        .select("_id name slug plan limits status")
+        .lean(),
     ]);
 
     const totalBytes = storageByType.reduce(
@@ -3671,6 +4797,44 @@ export class SuperAdminService {
       (sum, item) => sum + (item.count || 0),
       0
     );
+
+    const orgUsageMap = new Map<string, { totalBytes: number; count: number }>();
+    storageByOrgAgg.forEach((item) => {
+      if (item._id) {
+        orgUsageMap.set(item._id.toString(), {
+          totalBytes: item.totalBytes || 0,
+          count: item.count || 0,
+        });
+      }
+    });
+
+    const byOrganization = allOrgs.map((org: any) => {
+      const orgId = org._id.toString();
+      const usage = orgUsageMap.get(orgId) || { totalBytes: 0, count: 0 };
+      const maxStorageGb = org.limits?.maxStorageGb || 10;
+      const maxStorageBytes = maxStorageGb * 1024 * 1024 * 1024;
+      const usedBytes = usage.totalBytes;
+      const percentUsed = Math.min(100, Math.round((usedBytes / maxStorageBytes) * 100));
+
+      let status: "healthy" | "warning" | "exceeded" = "healthy";
+      if (percentUsed >= 100) status = "exceeded";
+      else if (percentUsed >= 80) status = "warning";
+
+      return {
+        organizationId: orgId,
+        name: org.name,
+        slug: org.slug,
+        plan: org.plan || "Starter",
+        status: org.status || "Active",
+        usedBytes,
+        usedMB: Math.round(usedBytes / (1024 * 1024)),
+        usedGB: Number((usedBytes / (1024 * 1024 * 1024)).toFixed(2)),
+        maxStorageGb,
+        percentUsed,
+        fileCount: usage.count,
+        storageStatus: status,
+      };
+    }).sort((a, b) => b.usedBytes - a.usedBytes);
 
     return {
       provider: "Cloudflare R2 / S3",
@@ -3683,6 +4847,63 @@ export class SuperAdminService {
         count: s.count,
         sizeMB: Math.round((s.totalBytes || 0) / (1024 * 1024)),
       })),
+      byOrganization,
+    };
+  }
+
+  async updateOrganizationStorageLimit(orgId: string, maxStorageGb: number) {
+    if (!orgId || orgId === "undefined" || orgId === "null" || typeof orgId !== "string" || !orgId.trim()) {
+      throw new AppError(400, "INVALID_ID", "Valid organization ID or slug is required");
+    }
+
+    const trimmedOrgId = orgId.trim();
+    let org: any = null;
+    if (mongoose.Types.ObjectId.isValid(trimmedOrgId)) {
+      org = await Organization.findById(trimmedOrgId);
+    }
+    if (!org) {
+      org = await Organization.findOne({ slug: trimmedOrgId });
+    }
+    if (!org || org.isDeleted) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+    }
+
+    const limitNum = Math.max(1, Math.min(10000, Number(maxStorageGb) || 10));
+
+    const updated = await Organization.findByIdAndUpdate(
+      org._id,
+      { $set: { "limits.maxStorageGb": limitNum } },
+      { new: true }
+    );
+    if (!updated) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+    }
+
+    AuditLog.create({
+      organizationId: updated._id,
+      actorType: "system",
+      eventCategory: "organization",
+      eventType: "STORAGE_QUOTA_UPDATED",
+      resourceType: "organization",
+      resourceId: updated._id,
+      action: "update",
+      description: `Storage quota updated to ${limitNum} GB for organization "${updated.name}"`,
+      metadata: { previousLimit: updated.limits?.maxStorageGb, newLimit: limitNum },
+      severity: "info",
+    }).catch(() => {});
+
+    SystemLogBuffer.record({
+      level: "info",
+      source: "storage",
+      eventType: "STORAGE_QUOTA_UPDATED",
+      organizationId: orgId,
+      description: `Storage quota updated to ${limitNum} GB for organization "${updated.name}"`,
+    });
+
+    return {
+      organizationId: orgId,
+      name: updated.name,
+      maxStorageGb: limitNum,
     };
   }
 
@@ -4588,6 +5809,636 @@ export class SuperAdminService {
       updatedBy: currentSetting.updatedBy,
     };
   }
+
+  // ---------------------------------------------------------------------------
+  // 7. Packages, Plans & Modular Entitlements
+  // ---------------------------------------------------------------------------
+
+  async syncDefaultPackages() {
+    for (const seed of DEFAULT_PACKAGES) {
+      const existing = await Package.findOne({ slug: seed.slug });
+      if (!existing) {
+        const features = CANONICAL_PACKAGE_FEATURES.map((feat) => ({
+          ...feat,
+          enabled: seed.enabledFeatureKeys.includes(feat.featureKey),
+        }));
+
+        await Package.create({
+          name: seed.name,
+          slug: seed.slug,
+          description: seed.description,
+          badge: seed.badge || "",
+          tier: seed.tier,
+          isPublic: seed.isPublic,
+          isDefault: seed.isDefault,
+          status: "active",
+          billing: seed.billing,
+          limits: seed.limits,
+          features,
+        });
+      } else {
+        // Ensure any newly added canonical features exist on the package
+        const existingKeys = new Set(existing.features.map((f) => f.featureKey));
+        let changed = false;
+        for (const feat of CANONICAL_PACKAGE_FEATURES) {
+          if (!existingKeys.has(feat.featureKey)) {
+            existing.features.push({
+              ...feat,
+              enabled: seed.enabledFeatureKeys.includes(feat.featureKey),
+            });
+            changed = true;
+          }
+        }
+        if (changed) {
+          await existing.save();
+        }
+      }
+    }
+  }
+
+  async getPackages(query?: any) {
+    const { status, tier, search } = query || {};
+    await this.syncDefaultPackages();
+
+    const filter: any = {};
+    if (status && status !== "all") {
+      filter.status = status;
+    } else {
+      filter.status = { $ne: "archived" };
+    }
+    if (tier && tier !== "all") {
+      filter.tier = tier;
+    }
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), "i");
+      filter.$or = [{ name: regex }, { slug: regex }, { description: regex }];
+    }
+
+    const packages = await Package.find(filter).sort({ "billing.basePriceMonthly": 1, createdAt: 1 }).lean();
+
+    // Tenant counts per package
+    const tenantCounts = await Organization.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: { $ifNull: ["$packageId", "$plan"] },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const countMap = new Map<string, number>();
+    tenantCounts.forEach((t) => {
+      if (t._id) {
+        countMap.set(t._id.toString(), t.count);
+      }
+    });
+
+    const items = packages.map((pkg) => {
+      const byId = countMap.get(pkg._id.toString()) || 0;
+      const byName = countMap.get(pkg.name) || 0;
+      const bySlug = countMap.get(pkg.slug) || 0;
+      const activeTenantsCount = Math.max(byId, byName, bySlug);
+
+      return {
+        ...pkg,
+        id: pkg._id.toString(),
+        activeTenantsCount,
+      };
+    });
+
+    return {
+      packages: items,
+      canonicalFeatures: CANONICAL_PACKAGE_FEATURES,
+      total: items.length,
+    };
+  }
+
+  async getPackageById(id: string) {
+    let pkg: any;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      pkg = await Package.findById(id).lean();
+    }
+    if (!pkg) {
+      pkg = await Package.findOne({ slug: id.toLowerCase().trim() }).lean();
+    }
+    if (!pkg) {
+      throw new AppError(404, "PACKAGE_NOT_FOUND", "Package not found");
+    }
+
+    const tenantCount = await Organization.countDocuments({
+      isDeleted: false,
+      $or: [{ packageId: pkg._id }, { packageSlug: pkg.slug }, { plan: pkg.name }],
+    });
+
+    const sampleTenants = await Organization.find({
+      isDeleted: false,
+      $or: [{ packageId: pkg._id }, { packageSlug: pkg.slug }, { plan: pkg.name }],
+    })
+      .limit(10)
+      .select("_id name slug domain status limits subscription createdAt")
+      .lean();
+
+    return {
+      ...pkg,
+      id: pkg._id.toString(),
+      activeTenantsCount: tenantCount,
+      sampleTenants: sampleTenants.map((t) => ({
+        id: t._id.toString(),
+        name: t.name,
+        slug: t.slug,
+        status: t.status,
+        subscription: t.subscription,
+      })),
+      canonicalFeatures: CANONICAL_PACKAGE_FEATURES,
+    };
+  }
+
+  async createPackage(payload: any, actorUserId?: string) {
+    const {
+      name,
+      slug,
+      description,
+      badge,
+      tier = "standard",
+      isPublic = true,
+      isDefault = false,
+      billing,
+      limits,
+      features,
+    } = payload || {};
+
+    if (!name || !name.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Package name is required");
+    }
+
+    const generatedSlug = (slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-")).toLowerCase().replace(/(^-|-$)/g, "");
+    const existing = await Package.findOne({ slug: generatedSlug });
+    if (existing) {
+      throw new AppError(409, "SLUG_ALREADY_EXISTS", `Package with slug '${generatedSlug}' already exists`);
+    }
+
+    if (isDefault) {
+      await Package.updateMany({ isDefault: true }, { $set: { isDefault: false } });
+    }
+
+    // Merge provided features with canonical catalog
+    const featureMap = new Map<string, any>();
+    (features || []).forEach((f: any) => {
+      featureMap.set(f.featureKey, f);
+    });
+
+    const fullFeatures = CANONICAL_PACKAGE_FEATURES.map((cFeat) => {
+      const custom = featureMap.get(cFeat.featureKey);
+      return {
+        ...cFeat,
+        enabled: custom?.enabled ?? false,
+        isAddOn: custom?.isAddOn ?? cFeat.isAddOn ?? false,
+        addOnPriceMonthly: custom?.addOnPriceMonthly ?? cFeat.addOnPriceMonthly ?? 0,
+        addOnPriceAnnual: custom?.addOnPriceAnnual ?? cFeat.addOnPriceAnnual ?? 0,
+      };
+    });
+
+    const newPkg = await Package.create({
+      name: name.trim(),
+      slug: generatedSlug,
+      description: (description || "").trim(),
+      badge: (badge || "").trim(),
+      tier,
+      isPublic: Boolean(isPublic),
+      isDefault: Boolean(isDefault),
+      status: "active",
+      billing: {
+        basePriceMonthly: Math.max(0, Number(billing?.basePriceMonthly) || 0),
+        basePriceAnnual: Math.max(0, Number(billing?.basePriceAnnual) || 0),
+        currency: billing?.currency || "USD",
+      },
+      limits: {
+        maxUsers: Math.max(1, Number(limits?.maxUsers) || 25),
+        maxStorageGb: Math.max(1, Number(limits?.maxStorageGb) || 10),
+        maxJourneys: Math.max(0, Number(limits?.maxJourneys) || 10),
+        maxKiosks: Math.max(0, Number(limits?.maxKiosks) || 5),
+        aiTokenMonthlyLimit: Math.max(0, Number(limits?.aiTokenMonthlyLimit) || 500000),
+      },
+      features: fullFeatures,
+      createdBy: actorUserId && mongoose.Types.ObjectId.isValid(actorUserId) ? new mongoose.Types.ObjectId(actorUserId) : undefined,
+    });
+
+    if (actorUserId && mongoose.Types.ObjectId.isValid(actorUserId)) {
+      AuditLog.create({
+        actorUserId: new mongoose.Types.ObjectId(actorUserId),
+        actorType: "user",
+        eventCategory: "organization",
+        eventType: "PACKAGE_CREATED",
+        resourceType: "Package",
+        resourceId: newPkg._id,
+        action: "create",
+        description: `Super Admin created package template "${newPkg.name}" (${newPkg.slug})`,
+        severity: "info",
+        metadata: { slug: newPkg.slug, tier: newPkg.tier, billing: newPkg.billing },
+      }).catch(() => {});
+    }
+
+    SystemLogBuffer.record({
+      level: "info",
+      source: "server",
+      eventType: "PACKAGE_CREATED",
+      description: `Package template created: "${newPkg.name}" ($${newPkg.billing.basePriceMonthly}/mo)`,
+    });
+
+    return {
+      ...newPkg.toObject(),
+      id: newPkg._id.toString(),
+    };
+  }
+
+  async updatePackage(id: string, payload: any, actorUserId?: string) {
+    const pkg = await Package.findById(id);
+    if (!pkg) {
+      throw new AppError(404, "PACKAGE_NOT_FOUND", "Package not found");
+    }
+
+    const {
+      name,
+      description,
+      badge,
+      tier,
+      isPublic,
+      isDefault,
+      status,
+      billing,
+      limits,
+      features,
+    } = payload || {};
+
+    if (name) pkg.name = name.trim();
+    if (description !== undefined) pkg.description = description.trim();
+    if (badge !== undefined) pkg.badge = badge.trim();
+    if (tier) pkg.tier = tier;
+    if (isPublic !== undefined) pkg.isPublic = Boolean(isPublic);
+    if (status) pkg.status = status;
+
+    if (isDefault) {
+      await Package.updateMany({ _id: { $ne: pkg._id }, isDefault: true }, { $set: { isDefault: false } });
+      pkg.isDefault = true;
+    } else if (isDefault === false) {
+      pkg.isDefault = false;
+    }
+
+    if (billing) {
+      if (billing.basePriceMonthly !== undefined) pkg.billing.basePriceMonthly = Math.max(0, Number(billing.basePriceMonthly) || 0);
+      if (billing.basePriceAnnual !== undefined) pkg.billing.basePriceAnnual = Math.max(0, Number(billing.basePriceAnnual) || 0);
+      if (billing.currency) pkg.billing.currency = billing.currency.toUpperCase();
+    }
+
+    if (limits) {
+      if (limits.maxUsers !== undefined) pkg.limits.maxUsers = Math.max(1, Number(limits.maxUsers) || 1);
+      if (limits.maxStorageGb !== undefined) pkg.limits.maxStorageGb = Math.max(1, Number(limits.maxStorageGb) || 1);
+      if (limits.maxJourneys !== undefined) pkg.limits.maxJourneys = Math.max(0, Number(limits.maxJourneys) || 0);
+      if (limits.maxKiosks !== undefined) pkg.limits.maxKiosks = Math.max(0, Number(limits.maxKiosks) || 0);
+      if (limits.aiTokenMonthlyLimit !== undefined) pkg.limits.aiTokenMonthlyLimit = Math.max(0, Number(limits.aiTokenMonthlyLimit) || 0);
+    }
+
+    if (Array.isArray(features)) {
+      const incomingMap = new Map<string, any>();
+      features.forEach((f: any) => incomingMap.set(f.featureKey, f));
+
+      pkg.features = CANONICAL_PACKAGE_FEATURES.map((cFeat) => {
+        const custom = incomingMap.get(cFeat.featureKey);
+        const existingFeat = pkg.features.find((f) => f.featureKey === cFeat.featureKey);
+        return {
+          ...cFeat,
+          enabled: custom?.enabled ?? existingFeat?.enabled ?? false,
+          isAddOn: custom?.isAddOn ?? existingFeat?.isAddOn ?? cFeat.isAddOn ?? false,
+          addOnPriceMonthly: custom?.addOnPriceMonthly ?? existingFeat?.addOnPriceMonthly ?? cFeat.addOnPriceMonthly ?? 0,
+          addOnPriceAnnual: custom?.addOnPriceAnnual ?? existingFeat?.addOnPriceAnnual ?? cFeat.addOnPriceAnnual ?? 0,
+        };
+      });
+    }
+
+    pkg.updatedAt = new Date();
+    if (actorUserId && mongoose.Types.ObjectId.isValid(actorUserId)) {
+      pkg.updatedBy = new mongoose.Types.ObjectId(actorUserId);
+    }
+
+    await pkg.save();
+
+    if (actorUserId && mongoose.Types.ObjectId.isValid(actorUserId)) {
+      AuditLog.create({
+        actorUserId: new mongoose.Types.ObjectId(actorUserId),
+        actorType: "user",
+        eventCategory: "organization",
+        eventType: "PACKAGE_UPDATED",
+        resourceType: "Package",
+        resourceId: pkg._id,
+        action: "update",
+        description: `Super Admin updated package template "${pkg.name}"`,
+        severity: "info",
+        metadata: { slug: pkg.slug, billing: pkg.billing },
+      }).catch(() => {});
+    }
+
+    return {
+      ...pkg.toObject(),
+      id: pkg._id.toString(),
+    };
+  }
+
+  async deletePackage(id: string, actorUserId?: string) {
+    const pkg = await Package.findById(id);
+    if (!pkg) {
+      throw new AppError(404, "PACKAGE_NOT_FOUND", "Package not found");
+    }
+
+    const tenantCount = await Organization.countDocuments({
+      isDeleted: false,
+      $or: [{ packageId: pkg._id }, { packageSlug: pkg.slug }, { plan: pkg.name }],
+    });
+
+    if (tenantCount > 0) {
+      // Archive instead of destructive purge to protect active tenants
+      pkg.status = "archived";
+      await pkg.save();
+
+      return {
+        action: "archived",
+        message: `Package "${pkg.name}" is currently assigned to ${tenantCount} tenant(s). It has been archived and hidden from selection.`,
+        activeTenantsCount: tenantCount,
+      };
+    }
+
+    await Package.deleteOne({ _id: pkg._id });
+
+    if (actorUserId && mongoose.Types.ObjectId.isValid(actorUserId)) {
+      AuditLog.create({
+        actorUserId: new mongoose.Types.ObjectId(actorUserId),
+        actorType: "user",
+        eventCategory: "organization",
+        eventType: "PACKAGE_DELETED",
+        resourceType: "Package",
+        resourceId: pkg._id,
+        action: "delete",
+        description: `Super Admin deleted unassigned package "${pkg.name}"`,
+        severity: "info",
+      }).catch(() => {});
+    }
+
+    return {
+      action: "deleted",
+      message: `Package "${pkg.name}" deleted successfully.`,
+    };
+  }
+
+  async clonePackage(id: string, actorUserId?: string) {
+    const source = await Package.findById(id);
+    if (!source) {
+      throw new AppError(404, "PACKAGE_NOT_FOUND", "Source package not found");
+    }
+
+    const uniqueSuffix = Date.now().toString(36);
+    const newName = `${source.name} (Copy)`;
+    const newSlug = `${source.slug}-copy-${uniqueSuffix}`;
+
+    const cloned = await Package.create({
+      name: newName,
+      slug: newSlug,
+      description: source.description,
+      badge: source.badge,
+      tier: "custom",
+      isPublic: false,
+      isDefault: false,
+      status: "active",
+      billing: { ...source.billing },
+      limits: { ...source.limits },
+      features: source.features.map((f) => ({ ...f })),
+      createdBy: actorUserId && mongoose.Types.ObjectId.isValid(actorUserId) ? new mongoose.Types.ObjectId(actorUserId) : undefined,
+    });
+
+    return {
+      ...cloned.toObject(),
+      id: cloned._id.toString(),
+    };
+  }
+
+  async assignOrganizationPackage(orgId: string, payload: any, actorUserId?: string) {
+    if (!orgId || orgId === "undefined" || orgId === "null" || typeof orgId !== "string" || !orgId.trim()) {
+      throw new AppError(400, "INVALID_ID", "Valid organization ID or slug is required");
+    }
+
+    const trimmedOrgId = orgId.trim();
+    let org: any = null;
+    if (mongoose.Types.ObjectId.isValid(trimmedOrgId)) {
+      org = await Organization.findById(trimmedOrgId);
+    }
+    if (!org) {
+      org = await Organization.findOne({ slug: trimmedOrgId });
+    }
+    if (!org || org.isDeleted) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+    }
+
+    const {
+      packageId,
+      billingInterval = "monthly",
+      activeAddOns = [],
+      addOns = [],
+      customPrice,
+      customLimits,
+      featureOverrides = [],
+      reason,
+    } = payload || {};
+
+    let pkg: any;
+    if (packageId) {
+      if (mongoose.Types.ObjectId.isValid(packageId)) {
+        pkg = await Package.findById(packageId);
+      }
+      if (!pkg) {
+        pkg = await Package.findOne({ slug: String(packageId).toLowerCase().trim() });
+      }
+    }
+    if (!pkg) {
+      throw new AppError(400, "PACKAGE_REQUIRED", "A valid package is required to assign to the organization");
+    }
+
+    // 1. Calculate Base Price
+    const isAnnual = billingInterval === "annual";
+    const basePrice = isAnnual ? (pkg.billing.basePriceAnnual || pkg.billing.basePriceMonthly * 10) : pkg.billing.basePriceMonthly;
+
+    // 2. Calculate Add-ons Price
+    const effectiveAddOns: string[] = Array.isArray(activeAddOns) && activeAddOns.length > 0
+      ? activeAddOns
+      : (Array.isArray(addOns) ? addOns : []);
+    let addOnPrice = 0;
+    const featureMap = new Map<string, any>();
+    pkg.features.forEach((f: any) => featureMap.set(f.featureKey, f));
+
+    for (const addOnKey of effectiveAddOns) {
+      const feat = featureMap.get(addOnKey) || CANONICAL_PACKAGE_FEATURES.find((c) => c.featureKey === addOnKey);
+      if (feat) {
+        const fee = isAnnual ? (feat.addOnPriceAnnual || (feat.addOnPriceMonthly || 0) * 10) : (feat.addOnPriceMonthly || 0);
+        addOnPrice += fee;
+      }
+    }
+
+    // 3. Hybrid Price Calculation: Custom contract override vs (Base + Add-on)
+    const hasCustomPrice = customPrice !== undefined && customPrice !== null && customPrice !== "" && !isNaN(Number(customPrice));
+    const finalPrice = hasCustomPrice ? Number(customPrice) : basePrice + addOnPrice;
+
+    // 4. Update Organization Limits & Subscription
+    const updatedLimits = {
+      maxUsers: customLimits?.maxUsers !== undefined ? Math.max(1, Number(customLimits.maxUsers)) : (pkg.limits.maxUsers || 50),
+      maxStorageGb: customLimits?.maxStorageGb !== undefined ? Math.max(1, Number(customLimits.maxStorageGb)) : (pkg.limits.maxStorageGb || 10),
+      maxJourneys: customLimits?.maxJourneys !== undefined ? Math.max(0, Number(customLimits.maxJourneys)) : (pkg.limits.maxJourneys || 20),
+      maxKiosks: customLimits?.maxKiosks !== undefined ? Math.max(0, Number(customLimits.maxKiosks)) : (pkg.limits.maxKiosks || 5),
+      aiTokenMonthlyLimit: customLimits?.aiTokenMonthlyLimit !== undefined ? Math.max(0, Number(customLimits.aiTokenMonthlyLimit)) : (pkg.limits.aiTokenMonthlyLimit || 500000),
+    };
+
+    org.plan = pkg.name;
+    org.packageId = pkg._id;
+    org.packageSlug = pkg.slug;
+    org.limits = updatedLimits;
+    org.subscription = {
+      packageId: pkg._id,
+      packageName: pkg.name,
+      plan: pkg.name,
+      status: "active",
+      billingInterval,
+      basePrice,
+      addOnPrice,
+      addOnsTotal: addOnPrice,
+      customPrice: hasCustomPrice ? Number(customPrice) : undefined,
+      finalPrice,
+      currency: pkg.billing.currency || "USD",
+      activeAddOns: effectiveAddOns,
+      seatLimit: updatedLimits.maxUsers,
+      renewsAt: new Date(Date.now() + (isAnnual ? 365 : 30) * 24 * 60 * 60 * 1000),
+    };
+
+    if (Array.isArray(featureOverrides)) {
+      org.customFeatureOverrides = featureOverrides.map((fo: any) => ({
+        featureKey: fo.featureKey,
+        override: fo.override || "default",
+        reason: fo.reason || "Package assignment override",
+        updatedAt: new Date(),
+      }));
+    }
+
+    // 5. Synchronize Feature Flags Collection & Organization Features (Entitlements)
+    const overrideMap = new Map<string, "enable" | "disable" | "default">();
+    (org.customFeatureOverrides || []).forEach((o: any) => {
+      overrideMap.set(o.featureKey, o.override);
+    });
+
+    const targetOrgObjectId = org._id;
+
+    const enabledKeys = new Set<string>();
+    const disabledKeys = new Set<string>();
+
+    for (const feat of pkg.features) {
+      const explicitOverride = overrideMap.get(feat.featureKey);
+      if (explicitOverride === "enable") {
+        enabledKeys.add(feat.featureKey);
+      } else if (explicitOverride === "disable") {
+        disabledKeys.add(feat.featureKey);
+      } else if (feat.enabled || effectiveAddOns.includes(feat.featureKey)) {
+        enabledKeys.add(feat.featureKey);
+      } else {
+        disabledKeys.add(feat.featureKey);
+      }
+    }
+
+    const featuresDict: Record<string, boolean> = {};
+    for (const key of enabledKeys) {
+      featuresDict[key] = true;
+    }
+    for (const key of disabledKeys) {
+      featuresDict[key] = false;
+    }
+    org.features = featuresDict;
+
+    await org.save();
+
+    // Apply enabled keys to FeatureFlag collection
+    if (enabledKeys.size > 0) {
+      await FeatureFlag.updateMany(
+        { key: { $in: Array.from(enabledKeys) } },
+        {
+          $addToSet: { targetOrganizationIds: targetOrgObjectId },
+          $pull: { excludedOrganizationIds: targetOrgObjectId },
+        }
+      );
+    }
+
+    // Apply disabled keys to FeatureFlag collection
+    if (disabledKeys.size > 0) {
+      await FeatureFlag.updateMany(
+        { key: { $in: Array.from(disabledKeys) } },
+        {
+          $pull: { targetOrganizationIds: targetOrgObjectId },
+          $addToSet: { excludedOrganizationIds: targetOrgObjectId },
+        }
+      );
+    }
+
+    // Invalidate in-memory runtime cache for real-time consistency
+    FeatureFlagService.invalidateCache();
+
+    // 6. Audit & System Telemetry Logging
+    if (actorUserId && mongoose.Types.ObjectId.isValid(actorUserId)) {
+      AuditLog.create({
+        organizationId: targetOrgObjectId,
+        actorUserId: new mongoose.Types.ObjectId(actorUserId),
+        actorType: "user",
+        eventCategory: "organization",
+        eventType: "PACKAGE_ASSIGNED",
+        resourceType: "Organization",
+        resourceId: org._id,
+        action: "update",
+        description: `Package "${pkg.name}" assigned to organization "${org.name}" at $${finalPrice}/${billingInterval} (Base: $${basePrice}, Add-ons: $${addOnPrice}${hasCustomPrice ? `, Custom Contract Override: $${customPrice}` : ""})`,
+        severity: "info",
+        metadata: {
+          packageId: pkg._id,
+          packageSlug: pkg.slug,
+          finalPrice,
+          activeAddOns: effectiveAddOns,
+          limits: updatedLimits,
+          reason,
+        },
+      }).catch(() => {});
+    }
+
+    SystemLogBuffer.record({
+      level: "info",
+      source: "server",
+      eventType: "PACKAGE_ASSIGNED",
+      organizationId: org._id.toString(),
+      description: `Package "${pkg.name}" assigned to organization "${org.name}" ($${finalPrice}/${billingInterval})`,
+    });
+
+    return {
+      organization: {
+        id: org._id.toString(),
+        name: org.name,
+        slug: org.slug,
+        plan: org.plan,
+        packageId: org.packageId?.toString(),
+        packageSlug: org.packageSlug,
+        limits: org.limits,
+        features: org.features,
+        subscription: org.subscription,
+        customFeatureOverrides: org.customFeatureOverrides,
+      },
+      package: {
+        id: pkg._id.toString(),
+        name: pkg.name,
+        slug: pkg.slug,
+        tier: pkg.tier,
+        billing: pkg.billing,
+      },
+    };
+  }
 }
 
+export const superAdminService = new SuperAdminService();
 export default SuperAdminService;

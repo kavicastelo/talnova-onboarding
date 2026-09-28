@@ -1,5 +1,6 @@
 {
   "title": "Company Analytics & Onboarding Telemetry",
+  "benchmarkDynamic": "Fastest: {{fastest}}d • Industry benchmark: 21d",
   "subtitle": "Real-time cohort velocity, onboarding funnel drop-off stages, and departmental productivity ramp-up.",
   "exportCSV": "Export CSV",
   "scheduleReport": "Schedule Email Report",

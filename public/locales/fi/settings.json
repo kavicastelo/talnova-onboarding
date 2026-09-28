@@ -10,7 +10,11 @@
     "ai": "Tekoäly ja automaatio",
     "email": "Sähköpostin toimitus",
     "language": "Kieli ja alue",
-    "profile": "Profiili"
+    "profile": "Profiili",
+    "generalGroup": "Organisaatio",
+    "securityGroup": "Tietoturva ja ilmoitukset",
+    "integrationsGroup": "Integraatiot",
+    "billingGroup": "Laskutus"
   },
   "workspace": {
     "orgName": "Organisaation nimi",

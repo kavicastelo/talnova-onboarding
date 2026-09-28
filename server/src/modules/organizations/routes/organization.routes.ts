@@ -22,6 +22,9 @@ export async function organizationRoutes(app: FastifyInstance) {
   // GET /api/v1/organizations/current
   app.get("/current", controller.getCurrent as any);
 
+  // GET /api/v1/organizations/current/usage
+  app.get("/current/usage", controller.getUsage as any);
+
   // PATCH /api/v1/organizations/current
   app.patch(
     "/current",

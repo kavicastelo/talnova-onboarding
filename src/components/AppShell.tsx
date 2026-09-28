@@ -76,7 +76,8 @@ import {
   Clock,
   ToggleLeft,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  Package as PackageIcon
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -172,7 +173,7 @@ function titleCase(s: string) {
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, setRole, roles, can, hasFeature } = useRole();
+  const { role, setRole, roles, can, hasFeature, isFeaturesLoaded } = useRole();
   const { t } = useTranslation('nav');
 
   const isEmployee = role === 'employee';
@@ -366,6 +367,7 @@ export function AppShell() {
       label: t('groups.tenantsUsers') || 'Tenants & Users',
       items: [
         { title: t('items.organizations') || 'Organizations', url: '/super-admin/organizations', icon: Users },
+        { title: 'Packages & Plans', url: '/super-admin/packages', icon: PackageIcon },
         {
           title: t('items.usersAccess') || 'Users & Access',
           url: '/super-admin/users',
@@ -606,11 +608,15 @@ export function AppShell() {
 
   useEffect(() => {
     if (isAnonymousKb) return;
-    if (userError) {
+    if (!userLoading && userError) {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_roles');
+      localStorage.removeItem('user_features');
+      localStorage.removeItem('talnova_last_activity');
       navigate('/login');
     }
-  }, [userError, navigate, location.pathname, isAnonymousKb]);
+  }, [userError, userLoading, navigate, location.pathname, isAnonymousKb]);
 
   const rawNavSections = !hasToken
     ? anonymousNavSections
@@ -728,8 +734,23 @@ export function AppShell() {
           </SidebarHeader>
 
           <SidebarContent>
-            {navSections.map((section) => (
-              <SidebarGroup key={section.label}>
+            {!isFeaturesLoaded && hasToken ? (
+              <div className="p-3 space-y-4 animate-pulse" data-testid="sidebar-nav-skeleton">
+                <div className="space-y-2">
+                  <div className="h-3 w-20 bg-muted/60 rounded" />
+                  <div className="h-7 bg-muted/40 rounded-md" />
+                  <div className="h-7 bg-muted/40 rounded-md" />
+                  <div className="h-7 bg-muted/40 rounded-md" />
+                </div>
+                <div className="space-y-2 pt-2">
+                  <div className="h-3 w-24 bg-muted/60 rounded" />
+                  <div className="h-7 bg-muted/40 rounded-md" />
+                  <div className="h-7 bg-muted/40 rounded-md" />
+                </div>
+              </div>
+            ) : (
+              navSections.map((section) => (
+                <SidebarGroup key={section.label}>
                 <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
                   {section.label}
                 </SidebarGroupLabel>
@@ -800,7 +821,8 @@ export function AppShell() {
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
-            ))}
+            ))
+            )}
           </SidebarContent>
 
           <SidebarFooter className="p-3">

@@ -21,7 +21,8 @@ import {
   ArrowRight,
   Sparkles,
   FileText,
-  Monitor
+  Monitor,
+  Zap
 } from 'lucide-react';
 import {
   Bar,
@@ -33,6 +34,7 @@ import {
   'recharts';
 import { ChartContainer, ChartTooltipContent } from '../components/Chart';
 import { useDashboardSummary } from '../hooks/useDashboard';
+import { useOrganizationUsage } from '../hooks/useSettings';
 import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +45,7 @@ import { useRole } from '../context/RoleContext';
 export function AdminDashboard() {
   const { hasFeature } = useRole();
   const { data: summary, isLoading, isError, error, refetch } = useDashboardSummary();
+  const { data: usageData } = useOrganizationUsage();
   const { t } = useTranslation('dashboard');
 
   const activityPagination = usePagination({ data: summary?.recentActivity || [], initialPageSize: 5 });
@@ -131,6 +134,43 @@ export function AdminDashboard() {
           {t('admin.subtitle')}
         </p>
       </div>
+
+      {/* Plan & Quota Capacity Ribbon */}
+      {usageData && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 px-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-white to-white shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center shrink-0">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div className="text-xs">
+              <span className="font-bold text-slate-900 mr-2 text-sm">
+                {usageData.package?.name || usageData.subscription?.plan || 'Standard'} Plan
+              </span>
+              <span className="text-slate-500 font-mono text-[11px]">
+                · {usageData.metrics.users.current}/{usageData.metrics.users.limit} Seats ({usageData.metrics.users.percent}%)
+                · {usageData.metrics.storage.currentGb}/{usageData.metrics.storage.limitGb} GB Storage
+                · {usageData.metrics.journeys.current}/{usageData.metrics.journeys.limit} Journeys
+                · {usageData.metrics.kiosks?.current ?? 0}/{usageData.metrics.kiosks?.limit ?? 0} Kiosks
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {usageData.warnings && usageData.warnings.length > 0 && (
+              <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                <AlertCircle className="h-3 w-3 text-amber-600" />
+                Quota Alert
+              </span>
+            )}
+            <Link
+              to="/settings?tab=subscription"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-white hover:bg-indigo-50/50 px-2.5 py-1 rounded-lg border border-indigo-200/60 shadow-2xs transition-colors"
+            >
+              Manage Plan <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Onboarding Journey Launchpad */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

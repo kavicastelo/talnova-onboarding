@@ -9,9 +9,20 @@ export interface ITelemetryEntry {
 
 export interface IEndpointMetric {
   route: string;
+  method?: string;
+  path?: string;
   p95: number;
+  avgLatency?: number;
   count24h: number;
+  errorRate?: number;
   status: "healthy" | "degraded" | "critical";
+}
+
+export interface ITelemetryPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface ITelemetryMetrics {
@@ -27,6 +38,18 @@ export interface ITelemetryMetrics {
     errorRate: number;
   };
   endpoints: IEndpointMetric[];
+  pagination: ITelemetryPagination;
+}
+
+export interface IGetMetricsOptions {
+  windowMs?: number;
+  organizationId?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: "all" | "healthy" | "degraded" | "critical";
+  sortBy?: "count24h" | "p95" | "avgLatency" | "errorRate" | "route" | "status";
+  sortOrder?: "asc" | "desc";
 }
 
 export class TelemetryBuffer {
@@ -70,9 +93,43 @@ export class TelemetryBuffer {
   }
 
   /**
-   * Compute dynamic latency percentiles, RPM throughput, and endpoint health metrics.
+   * Compute dynamic latency percentiles, RPM throughput, and paginated endpoint health metrics.
    */
-  public static getMetrics(windowMs = 60000): ITelemetryMetrics {
+  public static getMetrics(
+    windowMsOrOptions: number | IGetMetricsOptions = 60000,
+    organizationId?: string,
+    extraOptions?: Partial<IGetMetricsOptions>
+  ): ITelemetryMetrics {
+    let windowMs = 60000;
+    let orgId = organizationId;
+    let page = 1;
+    let limit = 10;
+    let search: string | undefined;
+    let statusFilter: string | undefined;
+    let sortBy: string = "count24h";
+    let sortOrder: "asc" | "desc" = "desc";
+
+    if (typeof windowMsOrOptions === "object" && windowMsOrOptions !== null) {
+      windowMs = windowMsOrOptions.windowMs ?? 60000;
+      orgId = windowMsOrOptions.organizationId;
+      page = windowMsOrOptions.page ? Math.max(1, Number(windowMsOrOptions.page)) : 1;
+      limit = windowMsOrOptions.limit ? Math.max(1, Math.min(100, Number(windowMsOrOptions.limit))) : 10;
+      search = windowMsOrOptions.search?.trim();
+      statusFilter = windowMsOrOptions.status;
+      sortBy = windowMsOrOptions.sortBy || "count24h";
+      sortOrder = windowMsOrOptions.sortOrder === "asc" ? "asc" : "desc";
+    } else {
+      windowMs = typeof windowMsOrOptions === "number" ? windowMsOrOptions : 60000;
+      if (extraOptions) {
+        page = extraOptions.page ? Math.max(1, Number(extraOptions.page)) : 1;
+        limit = extraOptions.limit ? Math.max(1, Math.min(100, Number(extraOptions.limit))) : 10;
+        search = extraOptions.search?.trim();
+        statusFilter = extraOptions.status;
+        sortBy = extraOptions.sortBy || "count24h";
+        sortOrder = extraOptions.sortOrder === "asc" ? "asc" : "desc";
+      }
+    }
+
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const windowStart = now - windowMs;
@@ -84,6 +141,10 @@ export class TelemetryBuffer {
       const item = TelemetryBuffer.buffer[i];
       if (!item) continue;
 
+      if (orgId && orgId !== "all" && item.organizationId !== orgId) {
+        continue;
+      }
+
       if (item.timestamp >= oneDayAgo) {
         validEntries.push(item);
       }
@@ -92,8 +153,29 @@ export class TelemetryBuffer {
       }
     }
 
-    // Default response when buffer is empty
+    // Default nominal endpoints when buffer has no traffic yet
+    const nominalEndpoints: IEndpointMetric[] = [
+      { route: "GET /api/v1/super-admin/telemetry", method: "GET", path: "/api/v1/super-admin/telemetry", p95: 0, avgLatency: 0, count24h: 0, errorRate: 0, status: "healthy" },
+      { route: "GET /api/v1/super-admin/search", method: "GET", path: "/api/v1/super-admin/search", p95: 0, avgLatency: 0, count24h: 0, errorRate: 0, status: "healthy" },
+      { route: "GET /api/v1/super-admin/organizations", method: "GET", path: "/api/v1/super-admin/organizations", p95: 0, avgLatency: 0, count24h: 0, errorRate: 0, status: "healthy" },
+      { route: "POST /api/v1/auth/login", method: "POST", path: "/api/v1/auth/login", p95: 0, avgLatency: 0, count24h: 0, errorRate: 0, status: "healthy" },
+    ];
+
     if (validEntries.length === 0) {
+      let filtered = nominalEndpoints;
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = filtered.filter((e) => e.route.toLowerCase().includes(q));
+      }
+      if (statusFilter && statusFilter !== "all") {
+        filtered = filtered.filter((e) => e.status === statusFilter);
+      }
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const currentPage = Math.min(page, totalPages);
+      const startIndex = (currentPage - 1) * limit;
+      const endpoints = filtered.slice(startIndex, startIndex + limit);
+
       return {
         latency: {
           p50: 0,
@@ -106,12 +188,13 @@ export class TelemetryBuffer {
           successRate: 100,
           errorRate: 0,
         },
-        endpoints: [
-          { route: "GET /api/v1/super-admin/telemetry", p95: 0, count24h: 0, status: "healthy" },
-          { route: "GET /api/v1/super-admin/search", p95: 0, count24h: 0, status: "healthy" },
-          { route: "GET /api/v1/super-admin/organizations", p95: 0, count24h: 0, status: "healthy" },
-          { route: "POST /api/v1/auth/login", p95: 0, count24h: 0, status: "healthy" },
-        ],
+        endpoints,
+        pagination: {
+          page: currentPage,
+          limit,
+          total,
+          totalPages,
+        },
       };
     }
 
@@ -153,6 +236,7 @@ export class TelemetryBuffer {
       const epLen = stats.latencies.length;
       const epP95 = stats.latencies[Math.min(epLen - 1, Math.floor(epLen * 0.95))];
       const epErrRate = (stats.errors / stats.count) * 100;
+      const epAvgLatency = stats.latencies.reduce((sum, lat) => sum + lat, 0) / epLen;
 
       let status: "healthy" | "degraded" | "critical" = "healthy";
       if (epP95 >= 500 || epErrRate >= 15) {
@@ -161,17 +245,59 @@ export class TelemetryBuffer {
         status = "degraded";
       }
 
+      const [method, ...pathParts] = route.split(" ");
+      const path = pathParts.join(" ");
+
       endpointMetrics.push({
         route,
+        method: method || "GET",
+        path: path || route,
         p95: Number(epP95.toFixed(1)),
+        avgLatency: Number(epAvgLatency.toFixed(1)),
         count24h: stats.count,
+        errorRate: Number(epErrRate.toFixed(1)),
         status,
       });
     }
 
-    // Sort endpoints by call volume descending, top 10
-    endpointMetrics.sort((a, b) => b.count24h - a.count24h);
-    const topEndpoints = endpointMetrics.slice(0, 10);
+    // Filter by search query
+    let filteredEndpoints = endpointMetrics;
+    if (search) {
+      const q = search.toLowerCase();
+      filteredEndpoints = filteredEndpoints.filter((e) => e.route.toLowerCase().includes(q));
+    }
+
+    // Filter by health status
+    if (statusFilter && statusFilter !== "all") {
+      filteredEndpoints = filteredEndpoints.filter((e) => e.status === statusFilter);
+    }
+
+    // Sorting
+    filteredEndpoints.sort((a, b) => {
+      let comp = 0;
+      if (sortBy === "p95") {
+        comp = a.p95 - b.p95;
+      } else if (sortBy === "avgLatency") {
+        comp = (a.avgLatency || 0) - (b.avgLatency || 0);
+      } else if (sortBy === "errorRate") {
+        comp = (a.errorRate || 0) - (b.errorRate || 0);
+      } else if (sortBy === "route") {
+        comp = a.route.localeCompare(b.route);
+      } else if (sortBy === "status") {
+        const priority: Record<string, number> = { critical: 3, degraded: 2, healthy: 1 };
+        comp = (priority[a.status] || 0) - (priority[b.status] || 0);
+      } else {
+        comp = a.count24h - b.count24h;
+      }
+      return sortOrder === "asc" ? comp : -comp;
+    });
+
+    // Pagination
+    const total = filteredEndpoints.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const currentPage = Math.min(page, totalPages);
+    const startIndex = (currentPage - 1) * limit;
+    const paginatedEndpoints = filteredEndpoints.slice(startIndex, startIndex + limit);
 
     return {
       latency: {
@@ -185,7 +311,13 @@ export class TelemetryBuffer {
         successRate,
         errorRate,
       },
-      endpoints: topEndpoints,
+      endpoints: paginatedEndpoints,
+      pagination: {
+        page: currentPage,
+        limit,
+        total,
+        totalPages,
+      },
     };
   }
 

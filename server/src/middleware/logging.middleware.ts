@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import TelemetryBuffer from "../infrastructure/telemetry/telemetry-buffer.js";
+import { getClientIp } from "../common/utils/ip.util.js";
 
 export function registerLogging(app: FastifyInstance) {
   app.addHook("onRequest", async (request) => {
@@ -8,7 +9,7 @@ export function registerLogging(app: FastifyInstance) {
       reqId: request.id,
       method: request.method,
       url: request.url,
-      ip: request.ip,
+      ip: getClientIp(request),
       userAgent: request.headers["user-agent"],
     }, `📥 Incoming Request: ${request.method} ${request.url}`);
   });

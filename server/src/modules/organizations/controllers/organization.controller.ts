@@ -15,6 +15,17 @@ export class OrganizationController {
     });
   };
 
+  getUsage = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const usage = await this.orgService.getOrganizationUsage(user.organizationId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Organization usage and limits retrieved successfully",
+      data: usage,
+    });
+  };
+
   updateCurrent = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const org = await this.orgService.updateOrganization(user.organizationId, request.body as any);

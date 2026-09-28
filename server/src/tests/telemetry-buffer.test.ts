@@ -250,4 +250,75 @@ describe("Super Admin Telemetry Suite: SA-OBS-001 In-Memory API Request Telemetr
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it("7. Supports pagination, search, status filtering, and sorting in TelemetryBuffer", () => {
+    const now = Date.now();
+    // Populate 15 distinct routes
+    for (let i = 1; i <= 15; i++) {
+      const isCritical = i <= 3; // 3 critical
+      const isDegraded = i > 3 && i <= 7; // 4 degraded
+      // rest 8 are healthy
+      const status = isCritical ? 500 : 200;
+      const latency = isCritical ? 900 : isDegraded ? 400 : 50;
+
+      for (let c = 0; c < i * 5; c++) {
+        TelemetryBuffer.record({
+          timestamp: now - 1000,
+          method: i % 2 === 0 ? "POST" : "GET",
+          route: `/api/v1/resource-${i}`,
+          statusCode: status,
+          durationMs: latency,
+        });
+      }
+    }
+
+    // Default pagination: limit 10, page 1
+    const p1 = TelemetryBuffer.getMetrics({ page: 1, limit: 10 });
+    expect(p1.endpoints.length).toBe(10);
+    expect(p1.pagination.page).toBe(1);
+    expect(p1.pagination.limit).toBe(10);
+    expect(p1.pagination.total).toBe(15);
+    expect(p1.pagination.totalPages).toBe(2);
+
+    // Page 2: remaining 5
+    const p2 = TelemetryBuffer.getMetrics({ page: 2, limit: 10 });
+    expect(p2.endpoints.length).toBe(5);
+    expect(p2.pagination.page).toBe(2);
+
+    // Search filter
+    const searchRes = TelemetryBuffer.getMetrics({ search: "resource-12" });
+    expect(searchRes.endpoints.length).toBe(1);
+    expect(searchRes.endpoints[0].route).toContain("resource-12");
+    expect(searchRes.pagination.total).toBe(1);
+
+    // Status filter: critical
+    const criticalRes = TelemetryBuffer.getMetrics({ status: "critical" });
+    expect(criticalRes.endpoints.every((e) => e.status === "critical")).toBe(true);
+    expect(criticalRes.pagination.total).toBe(3);
+
+    // Sorting: sortBy p95 asc
+    const sortedRes = TelemetryBuffer.getMetrics({ sortBy: "p95", sortOrder: "asc" });
+    for (let k = 0; k < sortedRes.endpoints.length - 1; k++) {
+      expect(sortedRes.endpoints[k].p95).toBeLessThanOrEqual(sortedRes.endpoints[k + 1].p95);
+    }
+  });
+
+  it("8. HTTP GET /observability/api supports pagination and filter query params", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/super-admin/observability/api?page=1&limit=5&sortBy=count24h&sortOrder=desc",
+      headers: {
+        Authorization: `Bearer ${superAdminToken}`,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.success).toBe(true);
+    expect(body.data.pagination).toBeDefined();
+    expect(body.data.pagination.page).toBe(1);
+    expect(body.data.pagination.limit).toBe(5);
+    expect(Array.isArray(body.data.endpoints)).toBe(true);
+    expect(body.data.endpoints.length).toBeLessThanOrEqual(5);
+  });
 });

@@ -122,6 +122,26 @@ export class EmployeeService {
       throw new AppError(409, "CONFLICT", "A user with this email address already exists.");
     }
 
+    // Fetch organization info to verify existence and check seat quota
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      throw new AppError(404, "NOT_FOUND", "Organization not found");
+    }
+
+    const maxUsers = org.limits?.maxUsers ?? org.subscription?.seatLimit ?? 50;
+    const currentUserCount = await User.countDocuments({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: { $ne: true },
+    });
+
+    if (currentUserCount >= maxUsers) {
+      throw new AppError(
+        403,
+        "SEAT_LIMIT_REACHED",
+        `Organization user seat limit reached (${currentUserCount}/${maxUsers}). Please upgrade your plan to invite more members.`
+      );
+    }
+
     // Set temporary password hash (must be updated during invitation accept flow)
     const tempPasswordHash = await hashPassword(Math.random().toString(36).slice(-10) + "Temp123!");
 
@@ -186,8 +206,7 @@ export class EmployeeService {
       console.warn("[EmployeeService] OnboardingCase creation handled:", caseErr?.message);
     }
 
-    // Fetch organization info to personalize the email
-    const org = await Organization.findById(orgId);
+    // Fetch organization name to personalize the email
     const orgName = org?.name || "Talnova Workspace";
 
     // Send invitation email using organization email service
@@ -535,6 +554,21 @@ export class EmployeeService {
       : new Set([...fatalRows, ...conflictRows]).size;
     const validCount = Math.max(0, usersData.length - invalidCount);
 
+    const maxUsers = org.limits?.maxUsers ?? 50;
+    const currentUserCount = await User.countDocuments({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: { $ne: true },
+    });
+
+    if (currentUserCount + willCreateCount > maxUsers) {
+      warnings.push({
+        row: 0,
+        email: "BATCH_OVERFLOW",
+        field: "seats",
+        message: `Import batch will exceed organization seat limit (${currentUserCount + willCreateCount}/${maxUsers}). Users beyond available seats will be rejected.`,
+      });
+    }
+
     return {
       totalRows: usersData.length,
       validCount,
@@ -544,6 +578,11 @@ export class EmployeeService {
       warningCount: warnings.length,
       willCreateCount,
       willUpdateCount,
+      seatCapacity: {
+        current: currentUserCount,
+        limit: maxUsers,
+        available: Math.max(0, maxUsers - currentUserCount),
+      },
       errors,
       conflicts,
       warnings,
@@ -593,6 +632,12 @@ export class EmployeeService {
     if (!org) {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
     }
+
+    const maxUsers = org.limits?.maxUsers ?? org.subscription?.seatLimit ?? 50;
+    const currentUserCount = await User.countDocuments({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: { $ne: true },
+    });
 
     const defaultPasswordHash = await hashPassword("Welcome@2026!");
     const shouldTriggerWorkflows = options?.triggerWorkflows !== false;
@@ -753,6 +798,15 @@ export class EmployeeService {
         }
       }
 
+      // Enforce organization seat limit
+      if (currentUserCount + documentsToInsert.length >= maxUsers) {
+        results.failures.push({
+          email,
+          reason: `Organization seat limit reached (${maxUsers} seats maximum). Upgrade plan to add more members.`,
+        });
+        continue;
+      }
+
       // Construct user document to insert
       const newDocId = new mongoose.Types.ObjectId();
       if (data.employeeId) {
@@ -797,6 +851,7 @@ export class EmployeeService {
         security: {
           mfaEnabled: false,
           failedLoginAttempts: 0,
+          mustChangePassword: true,
         },
         createdBy: new mongoose.Types.ObjectId(creatorId),
         isDeleted: false,
@@ -973,7 +1028,14 @@ export class EmployeeService {
       }
     }
 
-    return results;
+    return {
+      ...results,
+      defaultCredentials: {
+        temporaryPassword: "Welcome@2026!",
+        mustChangePassword: true,
+        loginUrl: "/login",
+      },
+    };
   }
 
   async setLegalHold(

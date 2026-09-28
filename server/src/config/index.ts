@@ -25,6 +25,7 @@ export const appConfig = {
   isProduction: parsedEnv.NODE_ENV === "production",
   isDevelopment: parsedEnv.NODE_ENV === "development",
   isTest: parsedEnv.NODE_ENV === "test",
+  trustProxy: parsedEnv.TRUST_PROXY,
 };
 
 export const dbConfig = {

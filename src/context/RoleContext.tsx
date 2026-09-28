@@ -17,6 +17,7 @@ interface RoleContextValue {
   refreshFeatures: () => Promise<void>;
   simulateFlagsMode: boolean;
   setSimulateFlagsMode: (enabled: boolean) => void;
+  isFeaturesLoaded: boolean;
 }
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
@@ -52,7 +53,27 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
     return [role || 'employee'];
   });
 
-  const [features, setFeatures] = useState<Record<string, boolean>>(initialFeatures || {});
+  const [features, setFeatures] = useState<Record<string, boolean>>(() => {
+    if (initialFeatures && Object.keys(initialFeatures).length > 0) return initialFeatures;
+    try {
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_features') : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+
+  const [isFeaturesLoaded, setIsFeaturesLoaded] = useState<boolean>(() => {
+    if (initialFeatures && Object.keys(initialFeatures).length > 0) return true;
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (!token) return true;
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_features') : null;
+    return Boolean(saved);
+  });
   const [simulateFlagsMode, setSimulateFlagsModeState] = useState<boolean>(() => {
     if (typeof localStorage !== 'undefined') {
       return localStorage.getItem('simulate_flags_mode') === 'true';
@@ -78,7 +99,11 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
 
       if (resData.features) {
         setFeatures(resData.features);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('user_features', JSON.stringify(resData.features));
+        }
       }
+      setIsFeaturesLoaded(true);
 
       const userData = resData.user || resData;
       const backendRole: Role = (userData.role || userData.permissions?.role || 'employee') as Role;
@@ -124,8 +149,10 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('user_roles', JSON.stringify(backendRoles));
       }
+      setIsFeaturesLoaded(true);
     } catch {
       // Non-fatal if unauthenticated
+      setIsFeaturesLoaded(true);
     }
   }, []);
 
@@ -210,11 +237,17 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
         return Boolean(features[flagKey]);
       }
 
-      // Default from canonical 105 platform catalog
+      // If features have been loaded (or cached) for this tenant session,
+      // any feature NOT present in the organization's resolved package is disabled
+      if (isFeaturesLoaded && Object.keys(features).length > 0) {
+        return false;
+      }
+
+      // Default from canonical 105 platform catalog only when unauthenticated
       const meta = getFeatureMetadata(normalizedKey);
       return meta.defaultEnabled;
     },
-    [features, role, simulateFlagsMode]
+    [features, isFeaturesLoaded, role, simulateFlagsMode]
   );
 
   return (
@@ -231,6 +264,7 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
         refreshFeatures,
         simulateFlagsMode,
         setSimulateFlagsMode,
+        isFeaturesLoaded,
       }}>
       {children}
     </RoleContext.Provider>

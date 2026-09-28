@@ -1,5 +1,6 @@
 import { apiClient } from '../api/client';
 import { User, ApiResponse } from '../types';
+import { queryClient } from '../queryClient';
 
 export const authService = {
   getCurrentUser: async (): Promise<User> => {
@@ -36,11 +37,17 @@ export const authService = {
       password
     });
     const { accessToken, user } = res.data.data;
+    queryClient.clear();
     localStorage.setItem('auth_token', accessToken);
     const userRole = user?.role || 'employee';
     const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
     localStorage.setItem('user_role', userRole);
     localStorage.setItem('user_roles', JSON.stringify(userRoles));
+    const features = (res.data.data as any)?.features || user?.features;
+    if (features) {
+      localStorage.setItem('user_features', JSON.stringify(features));
+    }
+    localStorage.setItem('talnova_last_activity', String(Date.now()));
     return { accessToken, user };
   },
 
@@ -51,6 +58,9 @@ export const authService = {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_role');
       localStorage.removeItem('user_roles');
+      localStorage.removeItem('user_features');
+      localStorage.removeItem('talnova_last_activity');
+      queryClient.clear();
     }
   },
 
@@ -86,6 +96,7 @@ export const authService = {
   acceptInvitation: async (payload: { token: string; password: string }): Promise<any> => {
     const res = await apiClient.post<ApiResponse<any>>('/auth/invitations/accept', payload);
     const { accessToken, user } = res.data.data || {};
+    queryClient.clear();
     if (accessToken) {
       localStorage.setItem('auth_token', accessToken);
     }
@@ -93,6 +104,12 @@ export const authService = {
     const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
     localStorage.setItem('user_role', userRole);
     localStorage.setItem('user_roles', JSON.stringify(userRoles));
+    localStorage.setItem('talnova_last_activity', String(Date.now()));
     return { accessToken, user };
+  },
+
+  changePassword: async (payload: { currentPassword?: string; newPassword: string }): Promise<any> => {
+    const res = await apiClient.post<ApiResponse<any>>('/auth/change-password', payload);
+    return res.data;
   }
 };

@@ -10,7 +10,11 @@
     "ai": "AI & ஆட்டோமேஷன்",
     "email": "மின்னஞ்சல் விநியோகம்",
     "language": "மொழி & பிராந்தியம்",
-    "profile": "சுயவிவரம்"
+    "profile": "சுயவிவரம்",
+    "generalGroup": "நிறுவனம்",
+    "securityGroup": "பாதுகாப்பு & விழிப்பூட்டல்கள்",
+    "integrationsGroup": "ஒருங்கிணைப்புகள்",
+    "billingGroup": "பில்லிங்"
   },
   "workspace": {
     "orgName": "நிறுவனத்தின் பெயர்",

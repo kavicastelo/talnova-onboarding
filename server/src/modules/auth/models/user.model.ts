@@ -66,6 +66,7 @@ export interface IUser extends Document {
     passwordResetToken?: string;
     passwordResetExpires?: Date;
     supervisorPinHash?: string;
+    mustChangePassword?: boolean;
   };
   compliance?: {
     legalHold?: boolean;
@@ -169,6 +170,7 @@ const UserSchema = new Schema<IUser>(
       passwordResetToken: { type: String },
       passwordResetExpires: { type: Date },
       supervisorPinHash: { type: String },
+      mustChangePassword: { type: Boolean, default: false },
     },
     compliance: {
       legalHold: { type: Boolean, default: false },

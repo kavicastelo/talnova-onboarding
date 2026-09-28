@@ -1,5 +1,8 @@
 {
   "title": "Kertakirjautuminen ja hakemistointegraatiot",
+  "common": {
+    "loading": "Tarkistetaan saatavuutta..."
+  },
   "subtitle": "Määritä yrityksen identiteetintarjoajat (SAML 2.0 / OIDC), SCIM-hakemistojen provisiointi ja automatisoidut roolimääritykset.",
   "saveConfig": "Tallenna määritykset",
   "provider": "Identiteetintarjoaja",

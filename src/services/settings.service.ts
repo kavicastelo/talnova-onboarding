@@ -119,6 +119,120 @@ export const settingsService = {
   deleteDepartment: async (id: string): Promise<any> => {
     const response = await apiClient.delete<ApiResponse<any>>(`/organizations/departments/${id}`);
     return response.data.data;
-  }
+  },
+
+  getUsage: async (): Promise<OrganizationUsageData> => {
+    const response = await apiClient.get<ApiResponse<OrganizationUsageData>>('/organizations/current/usage');
+    return response.data.data;
+  },
 };
+
+export interface OrganizationUsageData {
+  organizationId: string;
+  name: string;
+  subscription: {
+    plan: string;
+    status: string;
+    billingCycle: string;
+    billingInterval?: 'monthly' | 'annual';
+    currentPeriodStart?: string;
+    currentPeriodEnd?: string;
+    cancelAtPeriodEnd?: boolean;
+    packageId?: string;
+    packageName?: string;
+    basePrice?: number;
+    addOnPrice?: number;
+    customPrice?: number;
+    finalPrice?: number;
+    customPricePerMonth?: number;
+    customPricePerYear?: number;
+    activeAddOns?: string[];
+    addOns?: any[];
+    addOnsTotal?: number;
+  };
+  package?: {
+    name: string;
+    slug: string;
+    tier: string;
+    description?: string;
+    billing?: {
+      basePriceMonthly: number;
+      basePriceAnnual: number;
+      currency?: string;
+    };
+    pricing?: {
+      monthly: number;
+      annual: number;
+    };
+    features: Array<{
+      featureKey: string;
+      name: string;
+      module: string;
+      includedInTier: boolean;
+      isAddOn?: boolean;
+      addOnPriceMonthly?: number;
+      addOnPriceAnnual?: number;
+    }>;
+    limits: {
+      maxUsers: number;
+      maxStorageGb: number;
+      maxJourneys: number;
+      maxKiosks: number;
+      aiTokenMonthlyLimit?: number;
+    };
+  } | null;
+  limits?: {
+    maxUsers?: number;
+    maxStorageGb?: number;
+    maxJourneys?: number;
+    maxKiosks?: number;
+    aiTokenMonthlyLimit?: number;
+  };
+  features?: Record<string, boolean>;
+  metrics: {
+    users: {
+      current: number;
+      limit: number;
+      available: number;
+      percent: number;
+      isWarning: boolean;
+      isExceeded: boolean;
+    };
+    storage: {
+      currentBytes: number;
+      currentGb: number;
+      limitGb: number;
+      limitBytes: number;
+      filesCount: number;
+      percent: number;
+      isWarning: boolean;
+      isExceeded: boolean;
+    };
+    journeys: {
+      current: number;
+      limit: number;
+      available: number;
+      percent: number;
+      isWarning: boolean;
+      isExceeded: boolean;
+    };
+    kiosks: {
+      current: number;
+      limit: number;
+      available: number;
+      percent: number;
+      isWarning: boolean;
+      isExceeded: boolean;
+    };
+    aiTokens: {
+      current: number;
+      limit: number;
+      available: number;
+      percent: number;
+      isWarning: boolean;
+      isExceeded: boolean;
+    };
+  };
+  warnings: string[];
+}
 

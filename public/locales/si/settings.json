@@ -10,7 +10,11 @@
     "ai": "AI සහ ස්වයංක්‍රීයකරණය",
     "email": "විද්‍යුත් තැපැල් බෙදාහැරීම",
     "language": "භාෂාව සහ කලාපය",
-    "profile": "පැතිකඩ"
+    "profile": "පැතිකඩ",
+    "generalGroup": "සංවිධානය",
+    "securityGroup": "ආරක්ෂාව සහ දැනුම්දීම්",
+    "integrationsGroup": "ඒකාබද්ධ කිරීම්",
+    "billingGroup": "බිල්පත්"
   },
   "workspace": {
     "orgName": "ආයතනයේ නම",

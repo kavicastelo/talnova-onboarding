@@ -35,15 +35,34 @@ export interface OrganizationItem {
   name: string;
   domain?: string;
   slug: string;
-  plan: 'Starter' | 'Growth' | 'Professional' | 'Enterprise';
+  plan: string;
+  packageId?: string;
+  packageName?: string;
+  packageSlug?: string;
   status: 'Active' | 'Suspended';
+  isDeleted?: boolean;
+  deletedAt?: string;
   seatLimit?: number;
   subscription?: {
     plan?: string;
+    packageName?: string;
     seatLimit?: number;
+    packageId?: string;
+    billingInterval?: 'monthly' | 'annual';
+    basePrice?: number;
+    addOnPrice?: number;
+    customPrice?: number;
+    finalPrice?: number;
+    activeAddOns?: string[];
+    addOns?: any[];
+    addOnsTotal?: number;
   };
   limits?: {
     maxUsers?: number;
+    maxStorageGb?: number;
+    maxJourneys?: number;
+    maxKiosks?: number;
+    aiTokenMonthlyLimit?: number;
   };
   usersCount: number;
   createdAt: string;
@@ -55,6 +74,42 @@ export interface InvoiceLineItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  itemType?: "package_base" | "addon" | "overage" | "custom" | "discount";
+  featureKey?: string;
+  packageSlug?: string;
+}
+
+export interface PackageInvoicePreview {
+  organizationId: string;
+  customerName: string;
+  currency: string;
+  billingCycle: 'monthly' | 'annually' | 'quarterly' | 'custom';
+  billingInterval: 'monthly' | 'annual';
+  package: {
+    id: string | null;
+    name: string;
+    slug: string;
+    tier: 'free' | 'standard' | 'custom' | 'enterprise';
+    badge?: string;
+  };
+  limits?: {
+    maxUsers?: number;
+    maxStorageGb?: number;
+    maxJourneys?: number;
+    maxKiosks?: number;
+    aiTokenMonthlyLimit?: number;
+  };
+  activeAddOns: string[];
+  lineItems: InvoiceLineItem[];
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  activeAddOnsCount: number;
+  isCustomPrice: boolean;
+  negotiatedPrice: number | null;
+  issueDate: string;
+  dueDate: string;
 }
 
 export type InvoiceLifecycleStatus =
@@ -77,6 +132,10 @@ export interface InvoiceItem {
   organizationId?: string;
   customerName?: string;
   organization: string;
+  packageId?: string;
+  packageSlug?: string;
+  packageName?: string;
+  billingCycle?: 'monthly' | 'annually' | 'quarterly' | 'custom';
   currency?: string;
   issueDate?: string | Date;
   dueDate: string | Date;
@@ -258,6 +317,17 @@ export interface FinanceMonthlyGrowth {
   subscriptions: number;
 }
 
+export interface PackageDistributionItem {
+  name: string;
+  slug: string;
+  tier: string;
+  count: number;
+  mrr: number;
+  arr: number;
+  percentage: number;
+  color?: string;
+}
+
 export interface FinanceOverview {
   summary: {
     totalArr: number;
@@ -270,6 +340,7 @@ export interface FinanceOverview {
     overdueRevenue: number;
   };
   tierDistribution: TierDistributionItem[];
+  packageDistribution?: PackageDistributionItem[];
   monthlyGrowth: FinanceMonthlyGrowth[];
   invoicesSummary: {
     totalRevenue: number;
@@ -304,6 +375,48 @@ export interface BatchUpdateOrgFlagsPayload {
   reason?: string;
 }
 
+export interface ApiObservabilityParams {
+  organizationId?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface EndpointMetric {
+  route: string;
+  method?: string;
+  path?: string;
+  p95: number;
+  avgLatency?: number;
+  count24h: number;
+  errorRate?: number;
+  status: 'healthy' | 'degraded' | 'critical';
+}
+
+export interface ApiObservabilityData {
+  latency: {
+    p50: number;
+    p95: number;
+    p99: number;
+    unit: string;
+  };
+  throughput: {
+    rpm: number;
+    successRate: number;
+    errorRate: number;
+  };
+  endpoints: EndpointMetric[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const superAdminService = {
   getStats: async (): Promise<any> => {
     const response = await apiClient.get<ApiResponse<any>>('/super-admin/stats');
@@ -320,7 +433,7 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getOrganizations: async (params?: { search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<OrganizationItem>> => {
+  getOrganizations: async (params?: { search?: string; page?: number; limit?: number; status?: string }): Promise<PaginatedResponse<OrganizationItem>> => {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<OrganizationItem>>>('/super-admin/organizations', { params });
     return response.data.data;
   },
@@ -329,11 +442,26 @@ export const superAdminService = {
     name: string;
     domain?: string;
     slug?: string;
-    plan: 'Starter' | 'Growth' | 'Professional' | 'Enterprise';
+    plan?: 'Starter' | 'Growth' | 'Professional' | 'Enterprise' | string;
+    packageId?: string;
+    activeAddOns?: string[];
+    customPrice?: number;
+    billingInterval?: 'monthly' | 'annual';
     adminEmail?: string;
     supportEmail?: string;
-  }): Promise<OrganizationItem> => {
-    const response = await apiClient.post<ApiResponse<OrganizationItem>>('/super-admin/organizations', org);
+    initialPassword?: string;
+    sendWelcomeEmail?: boolean;
+    requirePasswordChange?: boolean;
+  }): Promise<OrganizationItem & {
+    credentials?: {
+      email: string;
+      temporaryPassword: string;
+      activationUrl: string;
+      mustChangePassword: boolean;
+      emailDispatched: boolean;
+    };
+  }> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/organizations', org);
     return response.data.data;
   },
 
@@ -355,6 +483,18 @@ export const superAdminService = {
   quarantineOrganization: async (id: string, reason?: string): Promise<any> => {
     const response = await apiClient.post<ApiResponse<any>>(`/super-admin/organizations/${id}/quarantine`, { reason });
     return response.data.data;
+  },
+
+  deleteOrganization: async (id: string, mode: 'soft' | 'hard' = 'hard'): Promise<any> => {
+    const response = await apiClient.delete<ApiResponse<any>>(`/super-admin/organizations/${id}`, {
+      params: { mode }
+    });
+    return response.data;
+  },
+
+  restoreOrganization: async (id: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/organizations/${id}/restore`);
+    return response.data;
   },
 
   getUsers: async (params?: { search?: string; organizationId?: string; role?: string; status?: string; page?: number; limit?: number }): Promise<any> => {
@@ -387,13 +527,18 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getInvoices: async (params?: { search?: string; page?: number; limit?: number }): Promise<{ invoices: PaginatedResponse<InvoiceItem>; summary: FinanceSummary }> => {
+  getInvoices: async (params?: { search?: string; status?: string; packageSlug?: string; packageId?: string; billingCycle?: string; page?: number; limit?: number }): Promise<{ invoices: PaginatedResponse<InvoiceItem>; summary: FinanceSummary }> => {
     const response = await apiClient.get<ApiResponse<{ invoices: PaginatedResponse<InvoiceItem>; summary: FinanceSummary }>>('/super-admin/invoices', { params });
     return response.data.data;
   },
 
   getInvoiceById: async (id: string): Promise<InvoiceDetailResponse> => {
     const response = await apiClient.get<ApiResponse<InvoiceDetailResponse>>(`/super-admin/invoices/${id}`);
+    return response.data.data;
+  },
+
+  getPackageInvoicePreview: async (orgId: string): Promise<PackageInvoicePreview> => {
+    const response = await apiClient.get<ApiResponse<PackageInvoicePreview>>(`/super-admin/invoices/preview/${orgId}`);
     return response.data.data;
   },
 
@@ -440,8 +585,17 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getApiObservability: async (): Promise<any> => {
-    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/api');
+  getApiObservability: async (params?: ApiObservabilityParams | string): Promise<ApiObservabilityData> => {
+    let queryParams: any = undefined;
+    if (typeof params === 'string') {
+      queryParams = params && params !== 'all' ? { organizationId: params } : undefined;
+    } else if (params) {
+      queryParams = {
+        ...params,
+        organizationId: params.organizationId && params.organizationId !== 'all' ? params.organizationId : undefined,
+      };
+    }
+    const response = await apiClient.get<ApiResponse<ApiObservabilityData>>('/super-admin/observability/api', { params: queryParams });
     return response.data.data;
   },
 
@@ -450,13 +604,20 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  getAIObservability: async (): Promise<any> => {
-    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/ai');
+  getAIObservability: async (organizationId?: string): Promise<any> => {
+    const params = organizationId && organizationId !== 'all' ? { organizationId } : undefined;
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/ai', { params });
     return response.data.data;
   },
 
-  getStorageObservability: async (): Promise<any> => {
-    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/storage');
+  getStorageObservability: async (organizationId?: string): Promise<any> => {
+    const params = organizationId && organizationId !== 'all' ? { organizationId } : undefined;
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/storage', { params });
+    return response.data.data;
+  },
+
+  updateOrganizationStorageLimit: async (id: string, maxStorageGb: number): Promise<any> => {
+    const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/organizations/${id}/storage-limit`, { maxStorageGb });
     return response.data.data;
   },
 
@@ -500,7 +661,7 @@ export const superAdminService = {
     return response.data.data;
   },
 
-  toggleFeatureFlag: async (key: string, data: { enabled?: boolean; isEnabled?: boolean; rolloutPct?: number; rolloutPercentage?: number; [k: string]: any }): Promise<any> => {
+  toggleFeatureFlag: async (key: string, data: { enabled?: boolean; isEnabled?: boolean; rolloutPct?: number; rolloutPercentage?: number;[k: string]: any }): Promise<any> => {
     const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/settings/flags/${key}`, data);
     return response.data.data;
   },
@@ -652,7 +813,97 @@ export const superAdminService = {
     const response = await apiClient.get<ApiResponse<any>>('/super-admin/demo/telemetry/analytics');
     return response.data.data;
   },
+
+  // Packages & Plans
+  getPackages: async (params?: { status?: string; tier?: string; search?: string }): Promise<{ packages: PackageItem[]; canonicalFeatures: any[]; total: number }> => {
+    const response = await apiClient.get<ApiResponse<{ packages: PackageItem[]; canonicalFeatures: any[]; total: number }>>('/super-admin/packages', { params });
+    return response.data.data;
+  },
+  getPackageById: async (id: string): Promise<PackageItem & { sampleTenants?: any[]; canonicalFeatures?: any[] }> => {
+    const response = await apiClient.get<ApiResponse<PackageItem & { sampleTenants?: any[]; canonicalFeatures?: any[] }>>(`/super-admin/packages/${id}`);
+    return response.data.data;
+  },
+  createPackage: async (payload: Partial<PackageItem>): Promise<PackageItem> => {
+    const response = await apiClient.post<ApiResponse<PackageItem>>('/super-admin/packages', payload);
+    return response.data.data;
+  },
+  updatePackage: async (id: string, payload: Partial<PackageItem>): Promise<PackageItem> => {
+    const response = await apiClient.patch<ApiResponse<PackageItem>>(`/super-admin/packages/${id}`, payload);
+    return response.data.data;
+  },
+  deletePackage: async (id: string): Promise<any> => {
+    const response = await apiClient.delete<ApiResponse<any>>(`/super-admin/packages/${id}`);
+    return response.data.data;
+  },
+  clonePackage: async (id: string): Promise<PackageItem> => {
+    const response = await apiClient.post<ApiResponse<PackageItem>>(`/super-admin/packages/${id}/clone`);
+    return response.data.data;
+  },
+  assignOrganizationPackage: async (orgId: string, payload: AssignPackagePayload): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/organizations/${orgId}/assign-package`, payload);
+    return response.data.data;
+  },
 };
+
+export interface PackageFeatureItem {
+  featureKey: string;
+  name: string;
+  module: "learning" | "operations" | "compliance" | "people" | "intelligence" | "enterprise";
+  description?: string;
+  enabled: boolean;
+  isAddOn: boolean;
+  addOnPriceMonthly?: number;
+  addOnPriceAnnual?: number;
+}
+
+export interface PackageItem {
+  id: string;
+  _id?: string;
+  name: string;
+  slug: string;
+  description: string;
+  badge?: string;
+  tier: "free" | "standard" | "custom" | "enterprise";
+  isPublic: boolean;
+  isDefault: boolean;
+  status: "active" | "archived" | "draft";
+  billing: {
+    basePriceMonthly: number;
+    basePriceAnnual: number;
+    currency: string;
+  };
+  limits: {
+    maxUsers: number;
+    maxStorageGb: number;
+    maxJourneys?: number;
+    maxKiosks?: number;
+    aiTokenMonthlyLimit?: number;
+  };
+  features: PackageFeatureItem[];
+  activeTenantsCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AssignPackagePayload {
+  packageId: string;
+  billingInterval?: "monthly" | "annual";
+  activeAddOns?: string[];
+  customPrice?: number;
+  customLimits?: {
+    maxUsers?: number;
+    maxStorageGb?: number;
+    maxJourneys?: number;
+    maxKiosks?: number;
+    aiTokenMonthlyLimit?: number;
+  };
+  featureOverrides?: Array<{
+    featureKey: string;
+    override: "enable" | "disable" | "default";
+    reason?: string;
+  }>;
+  reason?: string;
+}
 
 export interface PlatformSettingsItem {
   maintenanceMode: boolean;

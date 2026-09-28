@@ -7,6 +7,7 @@ import {
   getDemoRiskAlertModel,
   getDemoActivityLogModel,
 } from "../models/index.js";
+import { normalizeIp } from "../../../common/utils/ip.util.js";
 
 export class DemoSessionService {
   /**
@@ -51,10 +52,13 @@ export class DemoSessionService {
       );
     }
 
+    const normSessionIp = normalizeIp(session.ipAddress);
+    const normCurrentIp = normalizeIp(currentIp);
+
     // Rapid IP change detection during active session
-    if (currentIp && session.ipAddress && session.ipAddress !== currentIp) {
+    if (normCurrentIp && normSessionIp && normSessionIp !== normCurrentIp) {
       session.riskStatus = "HIGH_RISK";
-      session.suspiciousReason = `Sudden IP shift detected: ${session.ipAddress} -> ${currentIp}`;
+      session.suspiciousReason = `Sudden IP shift detected: ${normSessionIp} -> ${normCurrentIp}`;
       await DemoSession.updateOne(
         { _id: session._id },
         { riskStatus: "HIGH_RISK", suspiciousReason: session.suspiciousReason }
@@ -67,12 +71,12 @@ export class DemoSessionService {
         severity: "HIGH",
         status: "OPEN",
         signals: [
-          `Active session IP changed from ${session.ipAddress} to ${currentIp}`,
+          `Active session IP changed from ${normSessionIp} to ${normCurrentIp}`,
           `Session ID: ${session.sessionId}`,
         ],
         details: {
-          previousIp: session.ipAddress,
-          newIp: currentIp,
+          previousIp: normSessionIp,
+          newIp: normCurrentIp,
           timestamp: new Date(),
         },
       });
@@ -82,7 +86,7 @@ export class DemoSessionService {
         demoUserId: session.demoUserId,
         action: "SUSPICIOUS_IP_SHIFT",
         category: "SECURITY",
-        description: `Rapid IP change detected during session ${session.sessionId}: ${session.ipAddress} -> ${currentIp}`,
+        description: `Rapid IP change detected during session ${session.sessionId}: ${normSessionIp} -> ${normCurrentIp}`,
         severity: "warning",
       });
     }

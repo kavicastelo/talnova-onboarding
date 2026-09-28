@@ -5,6 +5,8 @@ import { appConfig } from "../../../config/index.js";
 import { LoginInput } from "../schemas/login.schema.js";
 import EmailService from "../../../shared/email/email.service.js";
 import PlatformSetting from "../../super-admin/models/platform-setting.model.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
+import { FeatureFlagService } from "../../super-admin/services/feature-flag.service.js";
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -14,7 +16,7 @@ export class AuthController {
     reply: FastifyReply
   ) => {
     const { email, password } = request.body;
-    const ipAddress = request.ip;
+    const ipAddress = getClientIp(request);
     const deviceInfo = request.headers["user-agent"];
 
     const result = await this.authService.login(email, password, ipAddress, deviceInfo);
@@ -27,6 +29,18 @@ export class AuthController {
         "MAINTENANCE_MODE",
         platformSetting.maintenanceMessage || "Talnova Onboarding is undergoing planned infrastructure maintenance."
       );
+    }
+
+    let features: Record<string, boolean> = {};
+    if (result.user.organizationId) {
+      try {
+        features = await FeatureFlagService.getAllResolvedFlags(
+          result.user.organizationId.toString(),
+          result.user.role
+        );
+      } catch {
+        // non-fatal
+      }
     }
 
     // Set refresh token cookie
@@ -44,6 +58,7 @@ export class AuthController {
       data: {
         accessToken: result.accessToken,
         user: result.user,
+        features,
       },
     });
   };
@@ -83,10 +98,21 @@ export class AuthController {
   };
 
   logout = async (request: FastifyRequest, reply: FastifyReply) => {
-    // If authenticated, invalidate session using the request.user payload
+    // If authenticated, invalidate session using the request.user payload or extract from refreshToken cookie
     const user = request.user as any;
-    if (user?.sessionId) {
-      await this.authService.logout(user.sessionId);
+    let sessionId = user?.sessionId;
+    if (!sessionId && (request.cookies as any)?.refreshToken) {
+      try {
+        const decoded = (request.server as any).jwt?.decode?.((request.cookies as any).refreshToken);
+        if (decoded?.sessionId) {
+          sessionId = decoded.sessionId;
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+    if (sessionId) {
+      await this.authService.logout(sessionId);
     }
 
     // Always clear the cookie

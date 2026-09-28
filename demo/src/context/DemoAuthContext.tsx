@@ -61,7 +61,7 @@ export const DemoAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
 
-  const login = async (email: string, password: string = 'DemoPass123!') => {
+  const login = async (email: string, password = 'DemoPass123!') => {
     setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/demo/auth/login`, {

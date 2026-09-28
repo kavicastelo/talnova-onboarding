@@ -45,6 +45,7 @@
     "resubmitSelfEvaluation": "Re-Submit Self-Evaluation",
     "clickCheckboxHint": "Click checkbox to check-off completed items",
     "viewReviewBtn": "View Evaluation & Rating",
+    "updateReflection": "Update Reflection",
     "paginationLabel": "milestones",
     "status": {
       "pending": "Pending Check-In",
@@ -59,6 +60,7 @@
     "assignProgramBtn": "Assign Milestone Program",
     "filterAll": "All Reviews",
     "filterAwaiting": "Awaiting Sign-off",
+    "awaitingSignoff": "Awaiting Sign-off",
     "filterPending": "Pending Check-in",
     "filterApproved": "Approved",
     "filterOverdue": "Overdue / Escalated",
@@ -280,5 +282,12 @@
     "cancel": "Cancel",
     "save": "Save Status Change",
     "saving": "Updating..."
+  },
+  "common": {
+    "viewDetails": "View Details"
+  },
+  "integrations": {
+    "reviewScheduled": "Review Scheduled",
+    "reviewFailed": "Review Failed"
   }
 }

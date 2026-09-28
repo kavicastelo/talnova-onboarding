@@ -1,5 +1,8 @@
 {
   "title": "Single Sign-On & Directory Integrations",
+  "common": {
+    "loading": "Checking availability..."
+  },
   "subtitle": "Configure enterprise identity providers (SAML 2.0 / OIDC), SCIM directory provisioning, and automated role mappings.",
   "saveConfig": "Save Configuration",
   "provider": "Identity Provider",
@@ -99,6 +102,7 @@
       "agendaLabel": "Discussion Agenda",
       "agendaPlaceholder": "Review dev environment setup, team channels, and questions.",
       "locationLabel": "Video Call Location Link",
+      "locationPlaceholder": "https://meet.google.com/abc-defg-hij",
       "attendeesLabel": "Meeting Participants * (Min. 1 Invitee)",
       "selectAtLeastOne": "Add at least one team member to schedule.",
       "availableSlotsLabel": "Recommended Mutual Free Slots",

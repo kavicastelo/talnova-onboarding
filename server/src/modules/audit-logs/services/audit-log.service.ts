@@ -8,7 +8,7 @@ export class AuditLogService {
   constructor(private readonly repository: AuditLogRepository) {}
 
   async logEvent(data: {
-    organizationId: string | mongoose.Types.ObjectId;
+    organizationId?: string | mongoose.Types.ObjectId;
     actorUserId?: string | mongoose.Types.ObjectId;
     actorType?: "user" | "system" | "api" | "scheduler";
     eventCategory:
@@ -19,7 +19,12 @@ export class AuditLogService {
       | "content"
       | "organization"
       | "security"
-      | "system";
+      | "system"
+      | "finance"
+      | "ai"
+      | "infrastructure"
+      | "admin"
+      | "feature_flag";
     eventType: string;
     resourceType: string;
     resourceId?: string | mongoose.Types.ObjectId;
@@ -32,12 +37,19 @@ export class AuditLogService {
       | "archive"
       | "restore"
       | "login"
-      | "logout";
+      | "logout"
+      | "export"
+      | "status_change"
+      | "error"
+      | "execute";
     description: string;
     metadata?: {
       previousValue?: any;
       newValue?: any;
       changes?: Record<string, any>;
+      exportFilters?: Record<string, any>;
+      recordCount?: number;
+      reason?: string;
     };
     request?: {
       ipAddress?: string;
@@ -48,13 +60,19 @@ export class AuditLogService {
     severity?: "info" | "warning" | "critical";
   }) {
     const auditLogData = {
-      organizationId: new mongoose.Types.ObjectId(data.organizationId),
-      actorUserId: data.actorUserId ? new mongoose.Types.ObjectId(data.actorUserId) : undefined,
+      organizationId: data.organizationId && mongoose.Types.ObjectId.isValid(data.organizationId.toString())
+        ? new mongoose.Types.ObjectId(data.organizationId.toString())
+        : undefined,
+      actorUserId: data.actorUserId && mongoose.Types.ObjectId.isValid(data.actorUserId.toString())
+        ? new mongoose.Types.ObjectId(data.actorUserId.toString())
+        : undefined,
       actorType: data.actorType || "user",
       eventCategory: data.eventCategory,
       eventType: data.eventType,
       resourceType: data.resourceType,
-      resourceId: data.resourceId ? new mongoose.Types.ObjectId(data.resourceId) : undefined,
+      resourceId: data.resourceId && mongoose.Types.ObjectId.isValid(data.resourceId.toString())
+        ? new mongoose.Types.ObjectId(data.resourceId.toString())
+        : undefined,
       action: data.action,
       description: data.description,
       metadata: data.metadata,

@@ -5,6 +5,9 @@ export interface IInvoiceLineItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  itemType?: "package_base" | "addon" | "overage" | "custom" | "discount";
+  featureKey?: string;
+  packageSlug?: string;
 }
 
 export type InvoiceStatus =
@@ -26,6 +29,10 @@ export interface IInvoice extends Document {
   organizationId: mongoose.Types.ObjectId;
   customerName: string;
   organization?: string; // Virtual / Legacy fallback
+  packageId?: mongoose.Types.ObjectId;
+  packageSlug?: string;
+  packageName?: string;
+  billingCycle?: "monthly" | "annually" | "quarterly" | "custom";
   currency: string;
   issueDate: Date;
   dueDate: Date;
@@ -53,6 +60,13 @@ const InvoiceLineItemSchema = new Schema<IInvoiceLineItem>(
     quantity: { type: Number, required: true, min: 1, default: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     amount: { type: Number, required: true, min: 0 },
+    itemType: {
+      type: String,
+      enum: ["package_base", "addon", "overage", "custom", "discount"],
+      default: "custom",
+    },
+    featureKey: { type: String, trim: true },
+    packageSlug: { type: String, trim: true, lowercase: true },
   },
   { _id: false }
 );
@@ -79,6 +93,26 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: String,
       required: true,
       trim: true,
+    },
+    packageId: {
+      type: Schema.Types.ObjectId,
+      ref: "Package",
+      index: true,
+    },
+    packageSlug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+    packageName: {
+      type: String,
+      trim: true,
+    },
+    billingCycle: {
+      type: String,
+      enum: ["monthly", "annually", "quarterly", "custom"],
+      default: "monthly",
     },
     currency: {
       type: String,

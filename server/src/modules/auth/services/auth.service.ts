@@ -117,9 +117,12 @@ export class AuthService {
     const accessToken = this.jwt.sign(payload, { expiresIn: "15m" });
     const refreshToken = this.jwt.sign(payload, { expiresIn: "30d" });
 
+    const mustChangePassword = !!user.security?.mustChangePassword;
+
     return {
       accessToken,
       refreshToken,
+      mustChangePassword,
       user: {
         id: user._id,
         email: user.auth.email,
@@ -128,6 +131,7 @@ export class AuthService {
         role: user.permissions.role,
         roles: userRoles,
         organizationId: user.organizationId,
+        mustChangePassword,
       },
     };
   }
@@ -261,6 +265,50 @@ export class AuthService {
 
     // Invalidate all active sessions for this user on password change
     await this.sessionRepository.invalidateAllUserSessions(user._id);
+  }
+
+  /**
+   * Changes the user's password (e.g., during mandatory first login or profile update).
+   */
+  async changePassword(
+    userId: string | mongoose.Types.ObjectId,
+    currentPassword?: string,
+    newPassword?: string
+  ): Promise<{ success: boolean; message: string }> {
+    if (!newPassword || newPassword.trim().length < 8) {
+      throw new AppError(400, "BAD_REQUEST", "New password must be at least 8 characters long.");
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError(404, "NOT_FOUND", "User account not found.");
+    }
+
+    // If current password was provided, verify it
+    if (currentPassword) {
+      const isValid = await verifyPassword(currentPassword, user.auth.passwordHash);
+      if (!isValid) {
+        throw new AppError(400, "INVALID_CREDENTIALS", "Current password does not match.");
+      }
+    }
+
+    // Verify new password is not identical to existing
+    const isSame = await verifyPassword(newPassword, user.auth.passwordHash);
+    if (isSame) {
+      throw new AppError(400, "PASSWORD_UNCHANGED", "New password must be different from current password.");
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+
+    await this.userRepository.update(user._id, {
+      "auth.passwordHash": passwordHash,
+      "auth.passwordChangedAt": new Date(),
+      "security.mustChangePassword": false,
+      "security.passwordResetToken": null,
+      "security.passwordResetExpires": null,
+    } as any);
+
+    return { success: true, message: "Password updated successfully." };
   }
 }
 

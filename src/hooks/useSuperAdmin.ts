@@ -3,6 +3,7 @@ import {
   superAdminService,
   type UpdateOrgFlagOverridePayload,
   type BatchUpdateOrgFlagsPayload,
+  type ApiObservabilityParams,
 } from '../services/superAdmin.service';
 import { apiClient } from '../api/client';
 
@@ -30,7 +31,7 @@ export function useSuperAdminActivityLogs() {
   });
 }
 
-export function useSuperAdminOrganizations(params?: { search?: string; page?: number; limit?: number }) {
+export function useSuperAdminOrganizations(params?: { search?: string; page?: number; limit?: number; status?: string }) {
   return useQuery({
     queryKey: ['superAdminOrganizations', params],
     queryFn: () => superAdminService.getOrganizations(params),
@@ -73,11 +74,53 @@ export function useToggleOrganizationStatus() {
   });
 }
 
-export function useSuperAdminInvoices(params?: { search?: string; page?: number; limit?: number }) {
+export function useDeleteOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mode }: { id: string; mode?: 'soft' | 'hard' }) =>
+      superAdminService.deleteOrganization(id, mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminTelemetry'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminStats'] });
+    },
+  });
+}
+
+export function useRestoreOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => superAdminService.restoreOrganization(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminTelemetry'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminStats'] });
+    },
+  });
+}
+
+export function useSuperAdminInvoices(params?: {
+  search?: string;
+  status?: string;
+  packageSlug?: string;
+  packageId?: string;
+  billingCycle?: string;
+  page?: number;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: ['superAdminInvoices', params],
     queryFn: () => superAdminService.getInvoices(params),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePackageInvoicePreview(orgId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['superAdminPackageInvoicePreview', orgId],
+    queryFn: () => (orgId ? superAdminService.getPackageInvoicePreview(orgId) : null),
+    enabled: Boolean(orgId && orgId !== 'undefined' && orgId !== ''),
+    staleTime: 60 * 1000,
   });
 }
 
@@ -215,10 +258,10 @@ export function useSuperAdminActivityEvents(params?: { organizationId?: string; 
   });
 }
 
-export function useSuperAdminApiObservability() {
+export function useSuperAdminApiObservability(params?: ApiObservabilityParams | string) {
   return useQuery({
-    queryKey: ['superAdminApiObservability'],
-    queryFn: superAdminService.getApiObservability,
+    queryKey: ['superAdminApiObservability', params],
+    queryFn: () => superAdminService.getApiObservability(params),
     staleTime: 15 * 1000,
   });
 }
@@ -231,19 +274,31 @@ export function useSuperAdminInfrastructure() {
   });
 }
 
-export function useSuperAdminAIObservability() {
+export function useSuperAdminAIObservability(organizationId?: string) {
   return useQuery({
-    queryKey: ['superAdminAIObservability'],
-    queryFn: superAdminService.getAIObservability,
+    queryKey: ['superAdminAIObservability', organizationId],
+    queryFn: () => superAdminService.getAIObservability(organizationId),
     staleTime: 30 * 1000,
   });
 }
 
-export function useSuperAdminStorage() {
+export function useSuperAdminStorage(organizationId?: string) {
   return useQuery({
-    queryKey: ['superAdminStorage'],
-    queryFn: superAdminService.getStorageObservability,
+    queryKey: ['superAdminStorage', organizationId],
+    queryFn: () => superAdminService.getStorageObservability(organizationId),
     staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdateOrganizationStorageLimit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, maxStorageGb }: { id: string; maxStorageGb: number }) =>
+      superAdminService.updateOrganizationStorageLimit(id, maxStorageGb),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminStorage'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+    },
   });
 }
 
@@ -460,6 +515,92 @@ export function useSuperAdminFeatureAdoption(timeWindowDays = 30) {
 }
 
 export const useFeatureAdoptionSummary = useSuperAdminFeatureAdoption;
+
+// =============================================================================
+// Package & Plan Management Hooks
+// =============================================================================
+
+export function useSuperAdminPackages(params?: { status?: string; tier?: string; search?: string }) {
+  return useQuery({
+    queryKey: ['superAdminPackages', params],
+    queryFn: () => superAdminService.getPackages(params),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useSuperAdminPackage(id?: string) {
+  return useQuery({
+    queryKey: ['superAdminPackage', id],
+    queryFn: () => (id ? superAdminService.getPackageById(id) : null),
+    enabled: Boolean(id),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreatePackage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => superAdminService.createPackage(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminPackages'] });
+    },
+  });
+}
+
+export function useUpdatePackage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      superAdminService.updatePackage(id, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminPackages'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminPackage', variables.id] });
+    },
+  });
+}
+
+export function useDeletePackage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => superAdminService.deletePackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminPackages'] });
+    },
+  });
+}
+
+export function useClonePackage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => superAdminService.clonePackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminPackages'] });
+    },
+  });
+}
+
+export function useAssignOrganizationPackage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: { orgId?: string; id?: string; payload?: any; data?: any }) => {
+      const targetOrgId = variables.orgId || variables.id;
+      const targetPayload = variables.payload || variables.data;
+      if (!targetOrgId || targetOrgId === 'undefined') {
+        throw new Error('Valid organization ID is required');
+      }
+      return superAdminService.assignOrganizationPackage(targetOrgId, targetPayload);
+    },
+    onSuccess: (_, variables) => {
+      const targetOrgId = variables.orgId || variables.id;
+      if (targetOrgId) {
+        queryClient.invalidateQueries({ queryKey: ['superAdminOrganization360', targetOrgId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['superAdminOrganizations'] });
+      queryClient.invalidateQueries({ queryKey: ['superAdminPackages'] });
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
+    },
+  });
+}
 
 
 
