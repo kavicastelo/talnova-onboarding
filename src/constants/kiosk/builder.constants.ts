@@ -5,7 +5,13 @@ export const KIOSK_BUILDER_VALIDATION_TYPES = [
   "missing_audio",
   "missing_media",
   "invalid_routing",
-  "accessibility"
+  "accessibility",
+  "step_structure",
+  "terminal_completion",
+  "media_asset",
+  "language_translation",
+  "quiz_correctness",
+  "supervisor_availability"
 ] as const;
 
 /**

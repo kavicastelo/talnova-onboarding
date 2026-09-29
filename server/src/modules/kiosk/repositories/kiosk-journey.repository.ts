@@ -109,22 +109,51 @@ export class KioskJourneyRepository {
 
   async publish(
     id: string | mongoose.Types.ObjectId,
-    publishedBy: string | mongoose.Types.ObjectId
+    publishedBy: string | mongoose.Types.ObjectId,
+    nextVersion?: number,
+    options?: {
+      status?: "published" | "scheduled";
+      scheduling?: { publishAt?: Date; expiresAt?: Date };
+    }
   ): Promise<IKioskJourney | null> {
     const journey = await this.findById(id);
     if (!journey) return null;
 
-    const currentVersion = journey.publishing.version;
-    const nextVersion = journey.publishing.status === "published" ? currentVersion : currentVersion + 1;
+    const versionToSet =
+      nextVersion !== undefined
+        ? nextVersion
+        : journey.publishing.status === "published"
+        ? journey.publishing.version
+        : journey.publishing.version + 1;
 
+    const setFields: Record<string, any> = {
+      "publishing.status": options?.status || "published",
+      "publishing.version": versionToSet,
+      "publishing.publishedAt": new Date(),
+      updatedBy: new mongoose.Types.ObjectId(publishedBy)
+    };
+
+    if (options?.scheduling !== undefined) {
+      setFields["publishing.scheduling"] = options.scheduling;
+    }
+
+    return KioskJourneyModel.findOneAndUpdate(
+      { _id: id, isDeleted: false },
+      { $set: setFields },
+      { new: true }
+    );
+  }
+
+  async unpublish(
+    id: string | mongoose.Types.ObjectId,
+    userId: string | mongoose.Types.ObjectId
+  ): Promise<IKioskJourney | null> {
     return KioskJourneyModel.findOneAndUpdate(
       { _id: id, isDeleted: false },
       {
         $set: {
-          "publishing.status": "published",
-          "publishing.version": nextVersion,
-          "publishing.publishedAt": new Date(),
-          updatedBy: new mongoose.Types.ObjectId(publishedBy)
+          "publishing.status": "draft",
+          updatedBy: new mongoose.Types.ObjectId(userId)
         }
       },
       { new: true }

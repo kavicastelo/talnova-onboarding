@@ -10,11 +10,19 @@ import { KioskDeviceStatus } from "../types/common.types.js";
 import { KioskTelemetry } from "../types/device.types.js";
 import { KioskJourneyModel, IKioskJourney } from "../models/kiosk-journey.model.js";
 import KioskDeviceModel from "../models/kiosk-device.model.js";
+import { KioskDeviceAssignmentModel } from "../models/kiosk-assignment.model.js";
 import User from "../../auth/models/user.model.js";
 import { Organization } from "../../organizations/models/organization.model.js";
 import { PackageModel } from "../../super-admin/models/package.model.js";
+import { KioskJourneyVersionRepository } from "../repositories/kiosk-journey-version.repository.js";
+import { IKioskJourneyVersion } from "../models/kiosk-journey-version.model.js";
+import { computeCanonicalStepsChecksum } from "../utils/checksum.util.js";
+import { validateJourneyForPublish } from "../validation/journey-publish.validator.js";
+import { ValidationReport } from "../types/validation.types.js";
 
 export class KioskService {
+  private readonly journeyVersionRepo: KioskJourneyVersionRepository;
+
   constructor(
     private readonly journeyRepo: KioskJourneyRepository,
     private readonly deviceRepo: KioskDeviceRepository,
@@ -22,8 +30,11 @@ export class KioskService {
     private readonly securityService: KioskSecurityService,
     private readonly jwt?: {
       sign: (payload: any, options?: any) => string;
-    }
-  ) {}
+    },
+    journeyVersionRepo?: KioskJourneyVersionRepository
+  ) {
+    this.journeyVersionRepo = journeyVersionRepo || new KioskJourneyVersionRepository();
+  }
 
   getDeviceRepo(): KioskDeviceRepository {
     return this.deviceRepo;
@@ -55,15 +66,47 @@ export class KioskService {
     return updated;
   }
 
-  async publishJourney(id: string, orgId: string, userId: string): Promise<IKioskJourney> {
+  async publishJourney(
+    id: string,
+    orgId: string,
+    userId: string,
+    changelog?: string,
+    scheduling?: { publishAt?: Date | string; expiresAt?: Date | string }
+  ): Promise<IKioskJourney> {
     const journey = await this.journeyRepo.findByIdAndOrg(id, orgId);
     if (!journey) {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
 
-    // Trigger refinement validation before marking as published
+    // Merge incoming scheduling if provided
+    const effectiveScheduling = scheduling || journey.publishing?.scheduling;
+
+    // Validate scheduling constraints
+    if (effectiveScheduling?.publishAt && effectiveScheduling?.expiresAt) {
+      const pubDate = new Date(effectiveScheduling.publishAt);
+      const expDate = new Date(effectiveScheduling.expiresAt);
+      if (expDate <= pubDate) {
+        throw new AppError(
+          400,
+          "VALIDATION_FAILED",
+          "Expiration date must be after scheduled publication date"
+        );
+      }
+    }
+
+    const now = new Date();
+    const isFuturePublish =
+      effectiveScheduling?.publishAt && new Date(effectiveScheduling.publishAt) > now;
+    const targetStatus = isFuturePublish ? "scheduled" : "published";
+
+    // Trigger refinement validation before marking as published / scheduled
     const json = JSON.parse(JSON.stringify(journey.toJSON()));
     delete json.__v;
+    json.publishing.status = targetStatus;
+    if (effectiveScheduling) {
+      json.publishing.scheduling = effectiveScheduling;
+    }
+
     const validationResult = KioskJourneySchema.safeParse(json);
     if (!validationResult.success) {
       throw new AppError(
@@ -73,11 +116,318 @@ export class KioskService {
       );
     }
 
-    const published = await this.journeyRepo.publish(id, userId);
+    // Enforce rigorous pre-publish linter rules (K-JRN-003)
+    const prepublishReport = await validateJourneyForPublish(journey, {
+      organizationId: orgId,
+      checkDatabase: true
+    });
+
+    if (!prepublishReport.isValid) {
+      const summary = prepublishReport.errors.map((e) => e.message).join("; ");
+      throw new AppError(
+        400,
+        "VALIDATION_FAILED",
+        `Pre-publish validation failed: ${summary}`,
+        {
+          errors: prepublishReport.errors,
+          warnings: prepublishReport.warnings
+        }
+      );
+    }
+
+    // 1. Determine monotonically incrementing version number based on historical snapshots
+    const latestSnapshot = await this.journeyVersionRepo.findLatestVersion(journey._id);
+    const nextVersion = (latestSnapshot?.version || 0) + 1;
+
+    // 2. Deep-clone steps and compute deterministic SHA-256 canonical steps checksum
+    const clonedSteps = JSON.parse(JSON.stringify(journey.steps || []));
+    const contentChecksum = computeCanonicalStepsChecksum(clonedSteps);
+
+    // 3. Deep-clone settings
+    const clonedSettings = JSON.parse(JSON.stringify(journey.settings || {}));
+
+    // 4. Create immutable version snapshot record in KioskJourneyVersionModel
+    await this.journeyVersionRepo.createSnapshot({
+      journeyId: journey._id,
+      organizationId: journey.organizationId,
+      version: nextVersion,
+      title: journey.title,
+      description: journey.description,
+      languages: [...(journey.languages || [])],
+      steps: clonedSteps,
+      settings: clonedSettings,
+      contentChecksum,
+      publishedBy: new mongoose.Types.ObjectId(userId),
+      publishedAt: isFuturePublish && effectiveScheduling?.publishAt ? new Date(effectiveScheduling.publishAt) : now,
+      status: "published",
+      changelog: changelog || undefined
+    });
+
+    // 5. Update draft document in KioskJourneyModel
+    const published = await this.journeyRepo.publish(id, userId, nextVersion, {
+      status: targetStatus,
+      scheduling: effectiveScheduling
+        ? {
+            publishAt: effectiveScheduling.publishAt ? new Date(effectiveScheduling.publishAt) : undefined,
+            expiresAt: effectiveScheduling.expiresAt ? new Date(effectiveScheduling.expiresAt) : undefined
+          }
+        : undefined
+    });
     if (!published) {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
     return published;
+  }
+
+  async unpublishJourney(
+    id: string,
+    orgId: string,
+    userId: string
+  ): Promise<IKioskJourney> {
+    const journey = await this.journeyRepo.findByIdAndOrg(id, orgId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    const unpublished = await this.journeyRepo.unpublish(id, userId);
+    if (!unpublished) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    return unpublished;
+  }
+
+  async rollbackJourney(
+    id: string,
+    orgId: string,
+    targetVersion: number,
+    userId: string
+  ): Promise<IKioskJourney> {
+    const journey = await this.journeyRepo.findByIdAndOrg(id, orgId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+
+    const targetSnapshot = await this.journeyVersionRepo.findByJourneyAndVersion(
+      journey._id,
+      targetVersion
+    );
+    if (!targetSnapshot) {
+      throw new AppError(404, "NOT_FOUND", `Target journey version ${targetVersion} not found`);
+    }
+
+    // 1. Determine next monotonically increasing version number
+    const latestSnapshot = await this.journeyVersionRepo.findLatestVersion(journey._id);
+    const nextVersion = (latestSnapshot?.version || 0) + 1;
+
+    // 2. Deep-clone content and settings from the target historic snapshot
+    const clonedSteps = JSON.parse(JSON.stringify(targetSnapshot.steps || []));
+    const contentChecksum = targetSnapshot.contentChecksum || computeCanonicalStepsChecksum(clonedSteps);
+    const clonedSettings = JSON.parse(JSON.stringify(targetSnapshot.settings || {}));
+
+    // 3. Create a brand new immutable version snapshot in KioskJourneyVersionModel
+    await this.journeyVersionRepo.createSnapshot({
+      journeyId: journey._id,
+      organizationId: journey.organizationId,
+      version: nextVersion,
+      title: targetSnapshot.title,
+      description: targetSnapshot.description,
+      languages: [...(targetSnapshot.languages || [])],
+      steps: clonedSteps,
+      settings: clonedSettings,
+      contentChecksum,
+      publishedBy: new mongoose.Types.ObjectId(userId),
+      publishedAt: new Date(),
+      status: "published",
+      changelog: `Rollback to version ${targetVersion}`
+    });
+
+    // 4. Update the draft document in KioskJourneyModel with rolled-back content and new version number
+    const updated = await KioskJourneyModel.findOneAndUpdate(
+      { _id: journey._id, isDeleted: false },
+      {
+        $set: {
+          title: targetSnapshot.title,
+          description: targetSnapshot.description,
+          languages: targetSnapshot.languages,
+          steps: clonedSteps,
+          settings: clonedSettings,
+          "publishing.status": "published",
+          "publishing.version": nextVersion,
+          "publishing.publishedAt": new Date(),
+          updatedBy: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    return updated;
+  }
+
+  async getDeviceManifest(
+    deviceIdOrGuid: string,
+    orgId: string,
+    now = new Date()
+  ): Promise<{
+    deviceId: string;
+    organizationId: string;
+    journeys: IKioskJourney[];
+  }> {
+    const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrGuid) && deviceIdOrGuid.length === 24;
+    const device = isObjectId
+      ? await KioskDeviceModel.findOne({
+          _id: new mongoose.Types.ObjectId(deviceIdOrGuid),
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false
+        })
+      : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+    if (!device || device.organizationId.toString() !== orgId.toString() || device.isDeleted) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    if (device.status === "suspended" || device.status === "decommissioned") {
+      throw new AppError(403, "FORBIDDEN", `Device is ${device.status}. Manifest access denied.`);
+    }
+
+    const candidateJourneyIds = new Set<string>();
+
+    if (device.currentJourneyId) {
+      candidateJourneyIds.add(device.currentJourneyId.toString());
+    }
+
+    // Include multi-journey assignments if present
+    const assignments = await KioskDeviceAssignmentModel.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetId: device._id,
+      isActive: true
+    }).sort({ priority: 1 });
+
+    for (const a of assignments) {
+      candidateJourneyIds.add(a.journeyId.toString());
+    }
+
+    if (candidateJourneyIds.size === 0) {
+      return {
+        deviceId: device.deviceId,
+        organizationId: orgId,
+        journeys: []
+      };
+    }
+
+    const candidateJourneys = await KioskJourneyModel.find({
+      _id: { $in: Array.from(candidateJourneyIds).map((id) => new mongoose.Types.ObjectId(id)) },
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false
+    });
+
+    // Filter eligible journeys:
+    // - Must be published (not draft, not archived, not scheduled before its time)
+    // - Must not be expired (scheduling.expiresAt must be > now)
+    const eligibleJourneys = candidateJourneys.filter((journey) => {
+      if (journey.publishing.status !== "published") {
+        return false;
+      }
+      const scheduling = journey.publishing.scheduling;
+      if (scheduling?.publishAt && new Date(scheduling.publishAt) > now) {
+        return false;
+      }
+      if (scheduling?.expiresAt && new Date(scheduling.expiresAt) <= now) {
+        return false;
+      }
+      return true;
+    });
+
+    return {
+      deviceId: device.deviceId,
+      organizationId: orgId,
+      journeys: eligibleJourneys
+    };
+  }
+
+  async processScheduledPublishing(now = new Date()): Promise<{
+    activated: string[];
+    expired: string[];
+  }> {
+    const activated: string[] = [];
+    const expired: string[] = [];
+
+    // 1. Activate scheduled journeys where publishAt <= now
+    const scheduledToActivate = await KioskJourneyModel.find({
+      isDeleted: false,
+      "publishing.status": "scheduled",
+      "publishing.scheduling.publishAt": { $lte: now },
+      $or: [
+        { "publishing.scheduling.expiresAt": { $exists: false } },
+        { "publishing.scheduling.expiresAt": null },
+        { "publishing.scheduling.expiresAt": { $gt: now } }
+      ]
+    });
+
+    for (const journey of scheduledToActivate) {
+      await KioskJourneyModel.updateOne(
+        { _id: journey._id },
+        {
+          $set: {
+            "publishing.status": "published",
+            "publishing.publishedAt": journey.publishing.scheduling?.publishAt || now
+          }
+        }
+      );
+      activated.push(journey._id.toString());
+    }
+
+    // 2. Expire journeys where expiresAt <= now
+    const toExpire = await KioskJourneyModel.find({
+      isDeleted: false,
+      "publishing.status": { $in: ["published", "scheduled"] },
+      "publishing.scheduling.expiresAt": { $lte: now }
+    });
+
+    for (const journey of toExpire) {
+      await KioskJourneyModel.updateOne(
+        { _id: journey._id },
+        {
+          $set: {
+            "publishing.status": "archived"
+          }
+        }
+      );
+      expired.push(journey._id.toString());
+    }
+
+    return { activated, expired };
+  }
+
+  async listJourneyVersions(
+    journeyId: string,
+    orgId: string
+  ): Promise<IKioskJourneyVersion[]> {
+    const journey = await this.journeyRepo.findByIdAndOrg(journeyId, orgId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    return this.journeyVersionRepo.listVersionsByJourney(journey._id, journey.organizationId);
+  }
+
+  async getJourneyVersion(
+    journeyId: string,
+    orgId: string,
+    version: number
+  ): Promise<IKioskJourneyVersion> {
+    const journey = await this.journeyRepo.findByIdAndOrg(journeyId, orgId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    const snapshot = await this.journeyVersionRepo.findByJourneyAndVersion(
+      journey._id,
+      version
+    );
+    if (!snapshot) {
+      throw new AppError(404, "NOT_FOUND", `Journey version ${version} not found`);
+    }
+    return snapshot;
   }
 
   async getJourney(id: string, orgId: string): Promise<IKioskJourney> {
@@ -86,6 +436,20 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
     return journey;
+  }
+
+  async validateJourneyForPublish(
+    id: string,
+    orgId: string
+  ): Promise<ValidationReport> {
+    const journey = await this.journeyRepo.findByIdAndOrg(id, orgId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    return validateJourneyForPublish(journey, {
+      organizationId: orgId,
+      checkDatabase: true
+    });
   }
 
   async deleteJourney(id: string, orgId: string, userId: string): Promise<void> {
@@ -146,12 +510,12 @@ export class KioskService {
     }
 
     // 15-minute activation window (900 seconds)
-    const code = this.securityService.generatePairingCode(orgId, deviceId, 900000);
+    const code = await this.securityService.generatePairingCode(orgId, deviceId, 900000);
     return { code, expiresInSeconds: 900 };
   }
 
   async pairDevice(code: string, deviceId: string, name: string, location: string) {
-    const pairingData = this.securityService.verifyPairingCode(code);
+    const pairingData = await this.securityService.verifyPairingCode(code, deviceId);
     if (!pairingData) {
       throw new AppError(400, "INVALID_OR_EXPIRED_PAIRING_CODE", "Invalid or expired pairing code");
     }
@@ -161,19 +525,21 @@ export class KioskService {
       throw new AppError(400, "DEVICE_MISMATCH", "Pairing code was generated for a different hardware GUID");
     }
 
-    // Sign long-lived token for physical device (e.g. 10 years expiry)
+    // Sign token for physical device (90 days expiry, K-DEV-003)
     const token = this.jwt
       ? this.jwt.sign(
           {
             deviceId,
             organizationId: orgId,
             role: "kiosk_device",
+            jti: crypto.randomUUID()
           },
-          { expiresIn: "3650d" }
+          { expiresIn: "90d" }
         )
       : "";
 
     const tokenRef = crypto.createHash("sha256").update(token).digest("hex");
+    const tokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
     let device = await this.deviceRepo.findByFingerprint(deviceId);
 
@@ -189,6 +555,7 @@ export class KioskService {
         status: "online",
         paired: true,
         tokenRef,
+        tokenExpiresAt,
         pairedAt: new Date(),
         lastSeen: new Date()
       } as any);
@@ -222,6 +589,7 @@ export class KioskService {
         status: "online",
         paired: true,
         tokenRef,
+        tokenExpiresAt,
         pairedAt: new Date(),
         lastSeen: new Date(),
         currentContentVersion: 0,
@@ -230,6 +598,64 @@ export class KioskService {
     }
 
     return { device, token };
+  }
+
+  async refreshDeviceToken(deviceId: string, orgId: string, currentToken?: string) {
+    const device = await this.deviceRepo.findByFingerprint(deviceId);
+    if (!device) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    if (device.organizationId.toString() !== orgId.toString()) {
+      throw new AppError(403, "FORBIDDEN", "Device does not belong to specified organization");
+    }
+
+    if (device.status === "suspended" || device.status === "decommissioned") {
+      throw new AppError(403, "FORBIDDEN", `Device is ${device.status}. Token refresh denied.`);
+    }
+
+    // Verify current token hash matches tokenRef if token is provided
+    if (currentToken && device.tokenRef) {
+      const incomingHash = crypto.createHash("sha256").update(currentToken).digest("hex");
+      if (incomingHash !== device.tokenRef) {
+        throw new AppError(401, "UNAUTHORIZED", "Device token has been revoked or rotated.");
+      }
+    }
+
+    // Sign new device JWT with 90-day expiry (K-DEV-003)
+    const token = this.jwt
+      ? this.jwt.sign(
+          {
+            deviceId,
+            organizationId: orgId,
+            role: "kiosk_device",
+            jti: crypto.randomUUID()
+          },
+          { expiresIn: "90d" }
+        )
+      : "";
+
+    const tokenRef = crypto.createHash("sha256").update(token).digest("hex");
+    const tokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+    const updatedDevice = await KioskDeviceModel.findByIdAndUpdate(
+      device._id,
+      {
+        $set: {
+          tokenRef,
+          tokenExpiresAt,
+          status: "online",
+          paired: true,
+          lastSeen: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    return {
+      device: updatedDevice || device,
+      token
+    };
   }
 
   async heartbeat(deviceId: string, orgId: string, contentVersion: number, telemetry: KioskTelemetry) {
@@ -269,6 +695,14 @@ export class KioskService {
       }
     }
     return this.deviceRepo.pairJourney(id, journeyId);
+  }
+
+  async revokeDevice(id: string, orgId: string, userId?: string) {
+    const revoked = await this.deviceRepo.revoke(id, orgId, userId);
+    if (!revoked) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk device not found");
+    }
+    return revoked;
   }
 
   // --- Analytics Sync ---

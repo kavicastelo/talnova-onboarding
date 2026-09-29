@@ -153,14 +153,129 @@ export class KioskController {
     });
   };
 
+  validateJourney = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const report = await this.kioskService.validateJourneyForPublish(params.id, user.organizationId);
+    return reply.status(200).send({
+      success: true,
+      message: report.isValid ? "Journey passed pre-publish validation" : "Journey has pre-publish validation errors",
+      data: report
+    });
+  };
+
   publishJourney = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;
-    const journey = await this.kioskService.publishJourney(params.id, user.organizationId, user.userId);
+    const body = (request.body as any) || {};
+    const journey = await this.kioskService.publishJourney(
+      params.id,
+      user.organizationId,
+      user.userId,
+      body.changelog,
+      body.scheduling
+    );
     return reply.status(200).send({
       success: true,
-      message: "Kiosk journey published successfully",
+      message:
+        journey.publishing?.status === "scheduled"
+          ? "Kiosk journey scheduled for publication"
+          : "Kiosk journey published successfully",
       data: journey
+    });
+  };
+
+  unpublishJourney = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const journey = await this.kioskService.unpublishJourney(
+      params.id,
+      user.organizationId,
+      user.userId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk journey unpublished successfully and reverted to draft",
+      data: journey
+    });
+  };
+
+  rollbackJourney = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const targetVersion = parseInt(params.version, 10);
+    if (isNaN(targetVersion) || targetVersion < 1) {
+      throw new AppError(400, "BAD_REQUEST", "Valid target version number is required for rollback");
+    }
+    const journey = await this.kioskService.rollbackJourney(
+      params.id,
+      user.organizationId,
+      targetVersion,
+      user.userId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: `Kiosk journey rolled back to version ${targetVersion} successfully`,
+      data: journey
+    });
+  };
+
+  listJourneyVersions = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const versions = await this.kioskService.listJourneyVersions(params.id, user.organizationId);
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk journey versions retrieved successfully",
+      data: versions
+    });
+  };
+
+  getJourneyVersion = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const versionNum = parseInt(params.version, 10);
+    if (isNaN(versionNum) || versionNum < 1) {
+      throw new AppError(400, "BAD_REQUEST", "Valid version number is required");
+    }
+    const version = await this.kioskService.getJourneyVersion(
+      params.id,
+      user.organizationId,
+      versionNum
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk journey version retrieved successfully",
+      data: version
+    });
+  };
+
+  getDeviceManifest = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const deviceIdentifier = (params.id && params.id !== "me") ? params.id : user.deviceId;
+    if (!deviceIdentifier) {
+      throw new AppError(400, "BAD_REQUEST", "Device identifier is required");
+    }
+    const manifest = await this.kioskService.getDeviceManifest(
+      deviceIdentifier,
+      user.organizationId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Device manifest retrieved successfully",
+      data: manifest
+    });
+  };
+
+  triggerScheduledPublishing = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    const refDate = body.now ? new Date(body.now) : new Date();
+    const result = await this.kioskService.processScheduledPublishing(refDate);
+    return reply.status(200).send({
+      success: true,
+      message: "Scheduled publishing processed successfully",
+      data: result
     });
   };
 
@@ -196,6 +311,40 @@ export class KioskController {
       success: true,
       message: "Device paired successfully",
       deviceToken: result.token,
+      device: {
+        id: result.device._id.toString(),
+        _id: result.device._id.toString(),
+        name: result.device.name,
+        deviceId: result.device.deviceId,
+        hardwareGuid: (result.device as any).hardwareGuid || result.device.deviceId,
+        location: result.device.location,
+        status: result.device.status,
+        paired: (result.device as any).paired ?? true
+      },
+      data: {
+        deviceToken: result.token,
+        token: result.token,
+        device: result.device
+      }
+    });
+  };
+
+  refreshDeviceToken = async (request: FastifyRequest, reply: FastifyReply) => {
+    const devicePayload = request.user as any;
+    const authHeader = request.headers.authorization;
+    const currentToken = authHeader ? authHeader.replace(/^Bearer\s+/i, "") : "";
+
+    const result = await this.kioskService.refreshDeviceToken(
+      devicePayload.deviceId,
+      devicePayload.organizationId,
+      currentToken
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device token refreshed successfully",
+      deviceToken: result.token,
+      token: result.token,
       device: {
         id: result.device._id.toString(),
         _id: result.device._id.toString(),
@@ -289,6 +438,23 @@ export class KioskController {
       success: true,
       message: "Journey paired to device successfully",
       data: updated
+    });
+  };
+
+  revokeDevice = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const device = await this.kioskService.revokeDevice(
+      params.id,
+      user.organizationId,
+      user.userId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device enrollment revoked and decommissioned successfully",
+      data: device
     });
   };
 

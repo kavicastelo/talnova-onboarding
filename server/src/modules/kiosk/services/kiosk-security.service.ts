@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
+import { KioskPairingCodeModel } from "../models/kiosk-pairing-code.model.js";
+import AppError from "../../../common/errors/app-error.js";
 
 export interface PairingData {
   orgId: string;
@@ -7,8 +10,8 @@ export interface PairingData {
 }
 
 export class KioskSecurityService {
-  // In-memory store for device pairing codes
-  private pairingCodes = new Map<string, PairingData>();
+  // Rate limiting map: tracks consecutive failed pairing attempts per identifier (deviceId or IP)
+  private failedAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
   /**
    * Generates an HMAC-SHA256 signature for a secure public kiosk playback URL.
@@ -25,13 +28,11 @@ export class KioskSecurityService {
    * Verifies the signature of a signed URL query payload and asserts expiration bounds.
    */
   verifySignature(journeyId: string, orgId: string, exp: number, sig: string, secret: string): boolean {
-    // 1. Check expiration (exp is Unix timestamp in seconds)
     const currentUnixTimestamp = Math.floor(Date.now() / 1000);
     if (currentUnixTimestamp > exp) {
       return false;
     }
 
-    // 2. Generate expected signature and compare safely
     try {
       const expectedSig = this.generateSignature(journeyId, orgId, exp, secret);
       const sigBuf = Buffer.from(sig, "hex");
@@ -46,49 +47,127 @@ export class KioskSecurityService {
   }
 
   /**
-   * Generates a secure, 6-digit numeric pairing code for a physical device registration stream.
-   * Codes expire after ttlMs (default 15 minutes / 900000 ms).
+   * Generates a cryptographically secure, 6-digit numeric pairing code (CSPRNG)
+   * stored persistently in MongoDB with TTL auto-expiry index (15 minutes).
    */
-  generatePairingCode(orgId: string, deviceId: string, ttlMs = 900000): string {
-    // Generate a 6-digit random code string
-    let code: string;
-    do {
-      code = Math.floor(100000 + Math.random() * 900000).toString();
-    } while (this.pairingCodes.has(code)); // Ensure uniqueness
+  async generatePairingCode(orgId: string, deviceId?: string, ttlMs = 900000): Promise<string> {
+    let code = "";
+    let collisionRetries = 0;
 
-    this.pairingCodes.set(code, {
-      orgId,
-      deviceId,
-      expiresAt: Date.now() + ttlMs
+    // Generate with CSPRNG entropy and assert uniqueness against active codes
+    do {
+      code = crypto.randomInt(100000, 1000000).toString();
+      collisionRetries++;
+
+      const existing = await KioskPairingCodeModel.findOne({
+        code,
+        consumed: false,
+        expiresAt: { $gt: new Date() }
+      });
+      if (!existing) break;
+    } while (collisionRetries < 10);
+
+    const expiresAt = new Date(Date.now() + ttlMs);
+
+    await KioskPairingCodeModel.create({
+      code,
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      deviceId: deviceId || undefined,
+      expiresAt,
+      consumed: false,
+      attemptsCount: 0
     });
 
     return code;
   }
 
   /**
-   * Validates a device registration code, removing it from the store upon lookup (single-use guarantee).
+   * Atomically validates and consumes a device pairing code (single-use guarantee).
+   * Prevents race conditions and replay attacks using atomic findOneAndUpdate.
    */
-  verifyPairingCode(code: string): PairingData | null {
-    const data = this.pairingCodes.get(code);
-    if (!data) {
+  async verifyPairingCode(code: string, identifier?: string): Promise<PairingData | null> {
+    // Brute force protection: limit to 5 consecutive failed attempts
+    if (identifier && this.isRateLimited(identifier)) {
+      throw new AppError(
+        429,
+        "RATE_LIMIT_EXCEEDED",
+        "Too many failed pairing attempts. Please wait 15 minutes before trying again."
+      );
+    }
+
+    const record = await KioskPairingCodeModel.findOneAndUpdate(
+      {
+        code,
+        consumed: false,
+        expiresAt: { $gt: new Date() }
+      },
+      {
+        $set: {
+          consumed: true,
+          consumedAt: new Date()
+        },
+        $inc: {
+          attemptsCount: 1
+        }
+      },
+      { new: true }
+    );
+
+    if (!record) {
+      if (identifier) {
+        this.recordFailedAttempt(identifier);
+      }
       return null;
     }
 
-    // Always delete after single-use validation lookup to prevent replay attacks
-    this.pairingCodes.delete(code);
-
-    if (Date.now() > data.expiresAt) {
-      return null;
+    if (identifier) {
+      this.resetFailedAttempts(identifier);
     }
 
-    return data;
+    return {
+      orgId: record.organizationId.toString(),
+      deviceId: record.deviceId || "",
+      expiresAt: record.expiresAt.getTime()
+    };
   }
 
   /**
-   * Utility for testing: clears pairing codes
+   * Checks if an identifier (deviceId or IP) has exceeded failed attempt threshold.
    */
-  clearPairingCodes(): void {
-    this.pairingCodes.clear();
+  isRateLimited(identifier: string): boolean {
+    const entry = this.failedAttempts.get(identifier);
+    if (!entry) return false;
+
+    // 15-minute rate limit window
+    if (Date.now() - entry.lastAttempt > 15 * 60 * 1000) {
+      this.failedAttempts.delete(identifier);
+      return false;
+    }
+
+    return entry.count >= 5;
+  }
+
+  recordFailedAttempt(identifier: string): void {
+    const now = Date.now();
+    const entry = this.failedAttempts.get(identifier);
+    if (!entry || now - entry.lastAttempt > 15 * 60 * 1000) {
+      this.failedAttempts.set(identifier, { count: 1, lastAttempt: now });
+    } else {
+      entry.count += 1;
+      entry.lastAttempt = now;
+    }
+  }
+
+  resetFailedAttempts(identifier: string): void {
+    this.failedAttempts.delete(identifier);
+  }
+
+  /**
+   * Utility for testing: clears pairing codes in database and resets attempt tracking.
+   */
+  async clearPairingCodes(): Promise<void> {
+    await KioskPairingCodeModel.deleteMany({});
+    this.failedAttempts.clear();
   }
 }
 

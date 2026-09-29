@@ -72,6 +72,15 @@ export class SchedulerService {
       );
       await kioskService.scanKioskFleetHealth(job.data?.organizationId);
     });
+    queueService.registerWorker("process_kiosk_publishing_schedules", async (job) => {
+      const kioskService = new KioskService(
+        new KioskJourneyRepository(),
+        new KioskDeviceRepository(),
+        new KioskAnalyticsRepository(),
+        new KioskSecurityService()
+      );
+      await kioskService.processScheduledPublishing(job.data?.now ? new Date(job.data.now) : new Date());
+    });
 
     this.timer = setInterval(async () => {
       try {
@@ -163,6 +172,16 @@ export class SchedulerService {
         }
       );
     }
+
+    // Process kiosk publishing schedule activations and expirations
+    await queueService.enqueue(
+      "process_kiosk_publishing_schedules",
+      { now: new Date().toISOString() },
+      {
+        organizationId: "system",
+        idempotencyKey: `kiosk_pub_${new Date().toISOString().substring(0, 16)}`,
+      }
+    );
 
     // The publisher is global because it selects pending events across tenants.
     await queueService.enqueue("publish_onboarding_outbox", {}, {

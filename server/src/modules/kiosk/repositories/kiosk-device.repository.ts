@@ -117,6 +117,34 @@ export class KioskDeviceRepository {
 
     return KioskDeviceModel.findByIdAndUpdate(id, update, { new: true });
   }
+
+  async revoke(
+    idOrDeviceId: string | mongoose.Types.ObjectId,
+    orgId: string | mongoose.Types.ObjectId,
+    userId?: string
+  ): Promise<IKioskDevice | null> {
+    const isObjectId = typeof idOrDeviceId === "object" || (mongoose.Types.ObjectId.isValid(idOrDeviceId) && idOrDeviceId.length === 24);
+    const query: Record<string, any> = {
+      $or: [
+        ...(isObjectId ? [{ _id: new mongoose.Types.ObjectId(idOrDeviceId.toString()) }] : []),
+        { deviceId: idOrDeviceId.toString() }
+      ],
+      organizationId: new mongoose.Types.ObjectId(orgId.toString())
+    };
+
+    const update: Record<string, any> = {
+      $set: {
+        status: "decommissioned",
+        paired: false,
+        tokenRef: "",
+        isDeleted: true,
+        deletedAt: new Date(),
+        ...(userId && mongoose.Types.ObjectId.isValid(userId) ? { deletedBy: new mongoose.Types.ObjectId(userId) } : {})
+      }
+    };
+
+    return KioskDeviceModel.findOneAndUpdate(query, update, { new: true });
+  }
 }
 
 export default KioskDeviceRepository;

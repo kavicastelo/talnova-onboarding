@@ -57,18 +57,43 @@ export const KioskJourneySettingsSchema = z
     autoReturnHome: z.boolean(),
     hideNavigation: z.boolean(),
     disableExit: z.boolean(),
+    requireSupervisorWitness: z.boolean().optional(),
     security: KioskJourneySecuritySettingsSchema
   })
   .strict();
+
+/**
+ * Scheduling window settings for published/scheduled journeys.
+ */
+export const KioskJourneySchedulingSettingsSchema = z
+  .object({
+    publishAt: z.union([z.date(), z.string().datetime()]).nullable().optional(),
+    expiresAt: z.union([z.date(), z.string().datetime()]).nullable().optional()
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.publishAt && data.expiresAt) {
+      const pubDate = new Date(data.publishAt);
+      const expDate = new Date(data.expiresAt);
+      if (expDate <= pubDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["expiresAt"],
+          message: "Expiration date must be after scheduled publication date"
+        });
+      }
+    }
+  });
 
 /**
  * Publishing lifecycle status and version metadata.
  */
 export const KioskPublishingSettingsSchema = z
   .object({
-    status: z.enum(["draft", "published", "archived"]),
+    status: z.enum(["draft", "published", "archived", "scheduled"]),
     version: z.number().int().positive(),
-    publishedAt: z.union([z.date(), z.string().datetime()]).nullable().optional()
+    publishedAt: z.union([z.date(), z.string().datetime()]).nullable().optional(),
+    scheduling: KioskJourneySchedulingSettingsSchema.optional()
   })
   .strict();
 
@@ -98,7 +123,7 @@ export const BaseKioskJourneySchema = z
  * Shared refinement check for validating kiosk steps uniqueness, sequence, and routing paths.
  */
 const refineJourneyData = (data: {
-  publishing: { status: "draft" | "published" | "archived" };
+  publishing: { status: "draft" | "published" | "archived" | "scheduled" };
   languages: readonly string[];
   steps: readonly z.infer<typeof KioskStepSchema>[];
 }, ctx: z.RefinementCtx) => {
@@ -119,11 +144,11 @@ const refineJourneyData = (data: {
   const stepIds = new Set<string>();
   const stepOrders = new Set<number>();
 
-  if (data.publishing.status === "published" && data.steps.length === 0) {
+  if ((data.publishing.status === "published" || data.publishing.status === "scheduled") && data.steps.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["steps"],
-      message: "Published journeys must contain at least one step"
+      message: "Published or scheduled journeys must contain at least one step"
     });
   }
 

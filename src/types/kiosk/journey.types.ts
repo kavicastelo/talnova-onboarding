@@ -9,6 +9,8 @@ import {
 } from "./common.types.js";
 import { KioskStep } from "./step.types.js";
 
+export * from "./validation.types.js";
+
 export interface KioskJourneySecuritySettings {
   readonly protectionType: KioskSecurityProtectionType;
   readonly pinCode?: string;
@@ -23,12 +25,19 @@ export interface KioskJourneySettings {
   readonly hideNavigation: boolean; // Distraction-free, interactions only
   readonly disableExit: boolean; // Forces lockdown mode in wrapper
   readonly security: KioskJourneySecuritySettings;
+  readonly requireSupervisorWitness?: boolean;
+}
+
+export interface KioskJourneySchedulingSettings {
+  readonly publishAt?: Timestamp;
+  readonly expiresAt?: Timestamp;
 }
 
 export interface KioskPublishingSettings {
   readonly status: KioskPublishingStatus;
   readonly version: VersionNumber;
   readonly publishedAt?: Timestamp;
+  readonly scheduling?: KioskJourneySchedulingSettings;
 }
 
 export interface KioskJourney {
@@ -47,3 +56,21 @@ export interface KioskJourney {
   readonly isDeleted: boolean;
   readonly deletedAt?: Timestamp;
 }
+
+export interface KioskJourneyVersion {
+  readonly _id: string;
+  readonly journeyId: JourneyId;
+  readonly organizationId: OrganizationId;
+  readonly version: VersionNumber;
+  readonly title: string;
+  readonly description?: string;
+  readonly languages: readonly LanguageCode[];
+  readonly steps: readonly KioskStep[];
+  readonly settings: KioskJourneySettings;
+  readonly contentChecksum: string;
+  readonly publishedBy: string;
+  readonly publishedAt: Timestamp;
+  readonly status: "published" | "superseded" | "revoked";
+  readonly changelog?: string;
+}
+

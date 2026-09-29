@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import crypto from "crypto";
 import { buildApp } from "../app.js";
 import { FastifyInstance } from "fastify";
 import mongoose from "mongoose";
@@ -132,7 +133,18 @@ describe("Journey Test UJ-KSK-004: Kiosk Device Heartbeat & Analytics Sync", () 
       },
     });
 
-    // 5. Create Paired Kiosk Device
+    // 5. Generate Device Token
+    deviceToken = app.jwt.sign(
+      {
+        deviceId: testDeviceId,
+        organizationId: testOrg._id.toString(),
+        role: "kiosk_device",
+      },
+      { expiresIn: "365d" }
+    );
+    const tokenRef = crypto.createHash("sha256").update(deviceToken).digest("hex");
+
+    // 6. Create Paired Kiosk Device
     await KioskDeviceModel.deleteMany({ deviceId: testDeviceId });
     testDevice = await KioskDeviceModel.create({
       organizationId: testOrg._id,
@@ -142,22 +154,13 @@ describe("Journey Test UJ-KSK-004: Kiosk Device Heartbeat & Analytics Sync", () 
       location: "Building 3",
       status: "online",
       paired: true,
+      tokenRef,
       currentJourneyId: testJourney._id,
       currentContentVersion: 1,
       lastSeen: new Date(Date.now() - 3600000), // 1 hour ago
       lastHeartbeatAt: new Date(Date.now() - 3600000),
       telemetry: {},
     });
-
-    // 6. Generate Device Token
-    deviceToken = app.jwt.sign(
-      {
-        deviceId: testDeviceId,
-        organizationId: testOrg._id.toString(),
-        role: "kiosk_device",
-      },
-      { expiresIn: "365d" }
-    );
 
     // 7. Generate Expired Device Token
     const nowSec = Math.floor(Date.now() / 1000);

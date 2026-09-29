@@ -101,7 +101,7 @@ apiClient.interceptors.request.use(
         config.url = `/demo${config.url.startsWith('/') ? '' : '/'}${config.url}`;
       }
     } else {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('kiosk_device_token');
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -128,6 +128,32 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // K-DEV-004: Handle instantaneous device revocation & lockdown (DEF-005)
+    const responseData = error.response?.data as any;
+    const errorCode = responseData?.code || responseData?.error?.code;
+    if (error.response?.status === 401 && (errorCode === 'DEVICE_REVOKED' || responseData?.message?.includes?.('revoked'))) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('kiosk_device_token');
+        localStorage.removeItem('kiosk_device_info');
+        localStorage.removeItem('kiosk_is_paired');
+        localStorage.setItem('kiosk_device_revoked', 'true');
+      }
+      import('../features/kiosk/services/device-identity.service.js')
+        .then((m) => m.deviceIdentityService?.clearDeviceCredentials())
+        .catch(() => {});
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('talnova:kiosk:device_revoked', {
+            detail: {
+              message: responseData?.message || 'Device enrollment revoked. Please contact your system administrator.'
+            }
+          })
+        );
+      }
+      return Promise.reject(error);
+    }
 
     // 401 Unauthorized handling (session expired/invalid)
     if (error.response?.status === 401 && !originalRequest._retry) {

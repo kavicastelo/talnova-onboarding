@@ -80,24 +80,22 @@ This register catalogues all confirmed defects, architectural deficiencies, and 
 
 - **ID**: DEF-005
 - **Severity**: HIGH
+- **Status**: RESOLVED (Implemented under `K-DEV-004`)
 - **Area**: Backend Security & Zero Trust Architecture
-- **Current Behavior**: `verifyDeviceToken` middleware validates the JWT bearer token and executes `KioskDeviceModel.findOne({ deviceId: payload.deviceId, organizationId: payload.organizationId })`. If the device record is found in the database, access is granted. The middleware DOES NOT check if `device.status === 'decommissioned'`, `device.status === 'suspended'`, `device.paired === false`, or if `tokenRef` matches the current active token.
-- **Expected Behavior**: The middleware must assert that `device.status === 'online' || device.status === 'maintenance'`, `device.paired === true`, `device.isRevoked === false`, and that the token hash matches `device.tokenRef`. Decommissioned or stolen devices must be immediately rejected with `401 UNAUTHORIZED / DEVICE_REVOKED`.
+- **Current Behavior**: Previously, `verifyDeviceToken` middleware only checked if a device document existed in MongoDB. Decommissioned, suspended, or deleted devices could still make authenticated requests.
+- **Expected Behavior**: The middleware must assert that `device.status in ['online', 'maintenance']`, `device.paired === true`, `device.isDeleted === false`, and that the incoming token's SHA-256 hash strictly matches `device.tokenRef`. Decommissioned, suspended, or token-mismatched devices must be immediately rejected with `401 DEVICE_REVOKED`.
+- **Resolution**:
+  - Refactored `verifyDeviceToken` in `server/src/modules/kiosk/plugins/kiosk-auth.plugin.ts` to compute `hash = crypto.createHash("sha256").update(rawToken).digest("hex")`, query `{ deviceId, organizationId, isDeleted: false, paired: true, status: { $in: ["online", "maintenance"] } }`, and assert `device.tokenRef === hash`, throwing `AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.")`.
+  - Implemented administrative endpoint `POST /api/v1/kiosk/devices/:id/revoke` setting `status = 'decommissioned'`, `paired = false`, `tokenRef = ''`, and `isDeleted = true`.
+  - Added frontend Axios response interceptor in `src/api/client.ts` catching `401 / DEVICE_REVOKED`, purging local device credentials via `deviceIdentityService.clearDeviceCredentials()`, and locking down the terminal with `KioskRevokedScreen` stating *"Device enrollment revoked. Please contact your system administrator."*.
+  - Added comprehensive test suites in `server/src/tests/kiosk-revocation.test.ts` (9/9 passing) and `src/tests/kiosk-revocation-ui.test.tsx` (5/5 passing).
 - **Evidence**:
-  - `server/src/modules/kiosk/plugins/kiosk-auth.plugin.ts` lines 78-86:
-    ```typescript
-    const device = await KioskDeviceModel.findOne({
-      deviceId: payload.deviceId,
-      organizationId: payload.organizationId
-    });
-    if (!device) {
-      throw new AppError(401, "UNAUTHORIZED", "Device registration has been revoked or suspended.");
-    }
-    ```
-- **Root Cause**: Incomplete authorization boundary validation.
+  - `server/src/modules/kiosk/plugins/kiosk-auth.plugin.ts` lines 70-109
+  - `server/src/modules/kiosk/controllers/kiosk.controller.ts` `revokeDevice`
+  - `server/src/modules/kiosk/routes/kiosk.routes.ts` `POST /devices/:id/revoke`
+  - `src/features/kiosk/components/KioskRevokedScreen.tsx`
 - **Related Requirement**: Spec Sections 11, 53, 54, 153.
-- **Related Prompt**: `K-SEC-001`, `K-DEV-004`
-- **Regression Risk**: LOW. Tightening authorization checks on existing endpoints without changing payload formats.
+- **Related Prompt**: `K-DEV-004`
 
 ---
 
@@ -105,16 +103,29 @@ This register catalogues all confirmed defects, architectural deficiencies, and 
 
 - **ID**: DEF-006
 - **Severity**: HIGH
+- **Status**: RESOLVED
 - **Area**: Journey Versioning & Content Governance
 - **Current Behavior**: When an administrator saves draft edits in `KioskBuilder`, changes are written directly to `KioskJourneyModel`. While `publishJourney` increments `publishing.version: number`, the actual steps and settings in the single MongoDB document are overwritten. Any terminal currently running the journey immediately receives mutated content on refresh or step load, breaking live sessions and invalidating historical compliance audits.
 - **Expected Behavior**: Published journey versions must be immutable snapshots stored in a `KioskJourneyVersion` collection. The main `KioskJourney` document serves as the draft/staging workspace. When published, an immutable version is minted. Running sessions stay locked to their starting version.
+- **Resolution**:
+  - Created `KioskJourneyVersionModel` (`server/src/modules/kiosk/models/kiosk-journey-version.model.ts`) with frozen steps, settings, canonical SHA-256 content checksum, monotonic version number, and strict Mongoose lifecycle hooks (`pre('save')`, `pre('updateOne')`, `pre('updateMany')`, `pre('findOneAndUpdate')`, `pre('deleteOne')`, `pre('deleteMany')`, `pre('findOneAndDelete')`) preventing mutations and deletions.
+  - Implemented `canonicalizeJson` and `computeCanonicalStepsChecksum` (`server/src/modules/kiosk/utils/checksum.util.ts`) providing deterministic 64-character SHA-256 hashes over canonical step JSON regardless of object key ordering.
+  - Refactored `KioskService.publishJourney` to mint an immutable version snapshot into `KioskJourneyVersionModel` upon publishing, incrementing `versionNumber = (latestVersion?.version || 0) + 1` and recording content checksum, while updating draft publishing status to `'published'`.
+  - Added `KioskJourneyVersionRepository` (`server/src/modules/kiosk/repositories/kiosk-journey-version.repository.ts`) with tenant-isolated lookup and listing methods.
+  - Exposed `GET /api/v1/kiosk/journeys/:id/versions` (list version history descending) and `GET /api/v1/kiosk/journeys/:id/versions/:version` (retrieve specific immutable snapshot), alongside explicit HTTP guards rejecting prohibited `PUT` and `DELETE` requests with `400 IMMUTABLE_VERSION`.
+  - Verified with comprehensive test suite `server/src/tests/kiosk-journey-versioning.test.ts` (18/18 passing) verifying checksum determinism, snapshot creation, draft edit isolation, subsequent publishing, DB immutability, and tenant isolation.
 - **Evidence**:
-  - `server/src/modules/kiosk/models/kiosk-journey.model.ts` lines 98-109: only stores a scalar `version: Number` on the main journey document.
-  - `server/src/modules/kiosk/services/kiosk.service.ts` lines 46-56: `updateJourney` directly updates the document in-place.
+  - `server/src/modules/kiosk/models/kiosk-journey-version.model.ts`
+  - `server/src/modules/kiosk/repositories/kiosk-journey-version.repository.ts`
+  - `server/src/modules/kiosk/utils/checksum.util.ts`
+  - `server/src/modules/kiosk/services/kiosk.service.ts` lines 66-146
+  - `server/src/modules/kiosk/controllers/kiosk.controller.ts` lines 156-200
+  - `server/src/modules/kiosk/routes/kiosk.routes.ts` lines 250-273
+  - `server/src/tests/kiosk-journey-versioning.test.ts` (18/18 passed)
 - **Root Cause**: Architectural debt from standard CMS pattern not adapted for safety/compliance auditing.
 - **Related Requirement**: Spec Sections 3, 37, 98, 155, 161, 162.
 - **Related Prompt**: `K-JRN-001`, `K-JRN-002`, `K-CMP-001`
-- **Regression Risk**: MEDIUM. Requires version snapshot creation during the publish pipeline and version-pinned read endpoints.
+- **Regression Risk**: RESOLVED. Immutable snapshots isolate drafts from live terminals. All existing API integration tests continue to pass.
 
 ---
 

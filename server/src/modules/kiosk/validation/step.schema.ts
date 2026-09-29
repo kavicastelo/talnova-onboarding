@@ -19,6 +19,29 @@ export const KioskHotspotSchema = z
   .describe("Kiosk slide image hotspot tap boundary");
 
 /**
+ * Quiz question and options configuration schema.
+ */
+export const KioskQuizQuestionSchema = z
+  .object({
+    id: z.string().min(1, { message: "Question ID is required" }),
+    question: z.string().min(1, { message: "Question text is required" }),
+    options: z.array(z.string().min(1, { message: "Option text is required" })).min(2, { message: "At least 2 options required" }),
+    correctOptionIndex: z.number().int().nonnegative({ message: "Correct option index must be non-negative integer" }),
+    explanation: z.string().optional()
+  })
+  .strict();
+
+/**
+ * Quiz evaluation and passing score settings schema.
+ */
+export const KioskQuizConfigSchema = z
+  .object({
+    passingScore: z.number().min(50, { message: "Passing score must be at least 50%" }).max(100, { message: "Passing score cannot exceed 100%" }),
+    questions: z.array(KioskQuizQuestionSchema).min(1, { message: "Quiz must have at least one question" })
+  })
+  .strict();
+
+/**
  * Step interaction settings validator.
  */
 export const KioskInteractionSchema = z
@@ -28,7 +51,9 @@ export const KioskInteractionSchema = z
     hotspots: z.array(KioskHotspotSchema).readonly().optional(),
     correctStepId: z.string().min(1).optional(),
     incorrectStepId: z.string().min(1).optional(),
-    ppeItems: z.array(z.string()).readonly().optional()
+    ppeItems: z.array(z.string()).readonly().optional(),
+    quiz: KioskQuizConfigSchema.optional(),
+    requireSupervisorWitness: z.boolean().optional()
   })
   .strict()
   .describe("Kiosk step advance interaction behavior configuration");
@@ -43,7 +68,9 @@ export const KioskStepSchema = z
     title: z.string().min(1).max(200),
     order: z.number().int().nonnegative(),
     blocks: z.array(KioskBlockSchema).readonly(),
-    interaction: KioskInteractionSchema
+    interaction: KioskInteractionSchema,
+    quiz: KioskQuizConfigSchema.optional(),
+    requireSupervisorWitness: z.boolean().optional()
   })
   .strict()
   .superRefine((data, ctx) => {

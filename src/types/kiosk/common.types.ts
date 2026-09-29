@@ -16,7 +16,7 @@ export type AnalyticsId = string;
 
 export type KioskDeviceStatus = typeof KIOSK_DEVICE_STATUSES[number];
 
-export type KioskPublishingStatus = "draft" | "published" | "archived";
+export type KioskPublishingStatus = "draft" | "published" | "archived" | "scheduled";
 
 export type KioskSecurityProtectionType = typeof KIOSK_SECURITY_PROTECTION_TYPES[number];
 

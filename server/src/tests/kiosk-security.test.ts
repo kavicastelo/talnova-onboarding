@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import nodeCrypto from "crypto";
 import mongoose from "mongoose";
 import { connectDatabase, disconnectDatabase } from "../database/connection.js";
 import { buildApp } from "../app.js";
@@ -82,29 +83,29 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
   });
 
   describe("6-Digit Pairing Codes Manager", () => {
-    it("should generate a unique 6-digit numeric pairing code string", () => {
-      const code = securityService.generatePairingCode(orgId.toString(), deviceId);
+    it("should generate a unique 6-digit numeric pairing code string", async () => {
+      const code = await securityService.generatePairingCode(orgId.toString(), deviceId);
       expect(code).toMatch(/^\d{6}$/);
     });
 
-    it("should verify code and return registration details, then fail on second lookup (single-use guarantee)", () => {
-      const code = securityService.generatePairingCode(orgId.toString(), deviceId);
-      const data = securityService.verifyPairingCode(code);
+    it("should verify code and return registration details, then fail on second lookup (single-use guarantee)", async () => {
+      const code = await securityService.generatePairingCode(orgId.toString(), deviceId);
+      const data = await securityService.verifyPairingCode(code);
 
       expect(data).not.toBeNull();
       expect(data?.orgId).toBe(orgId.toString());
       expect(data?.deviceId).toBe(deviceId);
 
-      // Second check should be null
-      const secondCheck = securityService.verifyPairingCode(code);
+      // Second check should be null (single-use guarantee)
+      const secondCheck = await securityService.verifyPairingCode(code);
       expect(secondCheck).toBeNull();
     });
 
     it("should fail validation if pairing code is expired", async () => {
-      const code = securityService.generatePairingCode(orgId.toString(), deviceId, 1); // 1ms TTL
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      const code = await securityService.generatePairingCode(orgId.toString(), deviceId, 1); // 1ms TTL
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const data = securityService.verifyPairingCode(code);
+      const data = await securityService.verifyPairingCode(code);
       expect(data).toBeNull();
     });
   });
@@ -170,6 +171,9 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
 
   describe("verifyDeviceToken Fastify Hook Plugin", () => {
     it("should allow request if device connection token matches active registry", async () => {
+      const rawToken = "sample-valid-token";
+      const tokenRef = nodeCrypto.createHash("sha256").update(rawToken).digest("hex");
+
       // Seed registered device in database
       await KioskDeviceModel.create({
         organizationId: orgId,
@@ -177,11 +181,17 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
         name: "Heartbeat Terminal",
         location: "Hallway",
         status: "online",
+        paired: true,
+        tokenRef,
+        isDeleted: false,
         telemetry: {},
         currentContentVersion: 1
       });
 
       const request: any = {
+        headers: {
+          authorization: `Bearer ${rawToken}`
+        },
         jwtVerify: async () => {
           // mock
         },
@@ -198,6 +208,9 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
 
     it("should throw AppError if role claims in JWT are invalid", async () => {
       const request: any = {
+        headers: {
+          authorization: "Bearer some-token"
+        },
         jwtVerify: async () => {
           // mock
         },
@@ -218,6 +231,9 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
       await KioskDeviceModel.deleteMany({ deviceId });
 
       const request: any = {
+        headers: {
+          authorization: "Bearer some-token"
+        },
         jwtVerify: async () => {
           // mock
         },
@@ -230,7 +246,7 @@ describe("Kiosk Security & Cryptography Subsystem Tests", () => {
       const reply: any = {};
 
       await expect(verifyDeviceToken(request, reply)).rejects.toThrowError(
-        new AppError(401, "UNAUTHORIZED", "Device registration has been revoked or suspended.")
+        new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.")
       );
     });
   });

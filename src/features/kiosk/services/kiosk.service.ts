@@ -1,5 +1,5 @@
 import { apiClient } from '../../../api/client';
-import { KioskJourney } from '../../../types/kiosk/journey.types';
+import { KioskJourney, KioskJourneyVersion, ValidationReport } from '../../../types/kiosk/journey.types';
 import { KioskDevice, KioskTelemetry, KioskCommand } from '../../../types/kiosk/device.types';
 import { KioskAnalytics, KioskAnalyticsSummary } from '../../../types/kiosk/analytics.types';
 
@@ -16,6 +16,11 @@ export const kioskService = {
     return response.data.data;
   },
 
+  validateJourney: async (id: string): Promise<ValidationReport> => {
+    const response = await apiClient.post<{ success: boolean; data: ValidationReport }>(`/kiosk/journeys/${id}/validate`);
+    return response.data.data;
+  },
+
   updateJourney: async (id: string, payload: Partial<KioskJourney>): Promise<KioskJourney> => {
     const { _id, organizationId, createdAt, updatedAt, createdBy, updatedBy, isDeleted, deletedAt, __v, ...cleanPayload } = payload as any;
     const response = await apiClient.put<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}`, cleanPayload);
@@ -26,8 +31,41 @@ export const kioskService = {
     await apiClient.delete(`/kiosk/journeys/${id}`);
   },
 
-  publishJourney: async (id: string): Promise<KioskJourney> => {
-    const response = await apiClient.post<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}/publish`);
+  publishJourney: async (
+    id: string,
+    changelog?: string,
+    scheduling?: { publishAt?: string | Date; expiresAt?: string | Date }
+  ): Promise<KioskJourney> => {
+    const response = await apiClient.post<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}/publish`, {
+      changelog,
+      scheduling
+    });
+    return response.data.data;
+  },
+
+  unpublishJourney: async (id: string): Promise<KioskJourney> => {
+    const response = await apiClient.post<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}/unpublish`);
+    return response.data.data;
+  },
+
+  rollbackJourney: async (id: string, version: number): Promise<KioskJourney> => {
+    const response = await apiClient.post<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}/rollback/${version}`);
+    return response.data.data;
+  },
+
+  listJourneyVersions: async (id: string): Promise<KioskJourneyVersion[]> => {
+    const response = await apiClient.get<{ success: boolean; data: KioskJourneyVersion[] }>(`/kiosk/journeys/${id}/versions`);
+    return response.data.data;
+  },
+
+  getJourneyVersion: async (id: string, version: number): Promise<KioskJourneyVersion> => {
+    const response = await apiClient.get<{ success: boolean; data: KioskJourneyVersion }>(`/kiosk/journeys/${id}/versions/${version}`);
+    return response.data.data;
+  },
+
+  getDeviceManifest: async (deviceId?: string): Promise<{ deviceId: string; organizationId: string; journeys: KioskJourney[] }> => {
+    const path = deviceId ? `/kiosk/devices/${deviceId}/manifest` : '/kiosk/devices/manifest';
+    const response = await apiClient.get<{ success: boolean; data: { deviceId: string; organizationId: string; journeys: KioskJourney[] } }>(path);
     return response.data.data;
   },
 
@@ -60,6 +98,14 @@ export const kioskService = {
     return { code, expiresInSeconds };
   },
 
+  refreshDeviceToken: async (): Promise<{ device: KioskDevice; token: string; deviceToken: string }> => {
+    const response = await apiClient.post<any>('/kiosk/devices/refresh-token');
+    const data = response.data?.data || response.data;
+    const token = data?.deviceToken || data?.token || response.data?.deviceToken;
+    const device = data?.device || response.data?.device;
+    return { device, token, deviceToken: token };
+  },
+
   heartbeat: async (payload: { currentContentVersion: number; telemetry: KioskTelemetry }): Promise<{ status: string; pendingCommands: KioskCommand[] }> => {
     const response = await apiClient.post<{ success: boolean; data: { status: string; pendingCommands: KioskCommand[] } }>('/kiosk/devices/heartbeat', payload);
     return response.data.data;
@@ -85,6 +131,11 @@ export const kioskService = {
 
   pairJourneyToDevice: async (deviceId: string, journeyId: string | null): Promise<KioskDevice> => {
     const response = await apiClient.post<{ success: boolean; data: KioskDevice }>(`/kiosk/devices/${deviceId}/pair-journey`, { journeyId });
+    return response.data.data;
+  },
+
+  revokeDevice: async (deviceId: string): Promise<KioskDevice> => {
+    const response = await apiClient.post<{ success: boolean; data: KioskDevice }>(`/kiosk/devices/${deviceId}/revoke`);
     return response.data.data;
   },
 

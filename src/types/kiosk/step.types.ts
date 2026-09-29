@@ -1,6 +1,7 @@
 import { StepId } from "./common.types.js";
 import { KioskBlock } from "./block.types.js";
 import { KIOSK_STEP_TYPES, KIOSK_INTERACTION_TYPES } from "../../constants/kiosk/step.constants.js";
+import { KioskQuizConfig } from "./validation.types.js";
 
 export type KioskStepType = typeof KIOSK_STEP_TYPES[number];
 
@@ -20,6 +21,8 @@ export interface KioskInteraction {
   readonly correctStepId?: StepId; // Router target step for successful path/Yes
   readonly incorrectStepId?: StepId; // Router target step for alternate path/No
   readonly ppeItems?: readonly string[]; // For "ppe_checklist" interaction
+  readonly quiz?: KioskQuizConfig;
+  readonly requireSupervisorWitness?: boolean;
 }
 
 export interface KioskStep {
@@ -29,4 +32,6 @@ export interface KioskStep {
   readonly order: number;
   readonly blocks: readonly KioskBlock[];
   readonly interaction: KioskInteraction;
+  readonly quiz?: KioskQuizConfig;
+  readonly requireSupervisorWitness?: boolean;
 }

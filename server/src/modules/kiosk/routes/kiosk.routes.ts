@@ -154,6 +154,15 @@ export async function kioskRoutes(app: FastifyInstance) {
 
   // --- DEVICE AUTHORIZED ENDPOINTS ---
 
+  // POST /api/v1/kiosk/devices/refresh-token (Device credential rotation, K-DEV-003)
+  app.post(
+    "/devices/refresh-token",
+    {
+      preHandler: [verifyDeviceToken]
+    },
+    controller.refreshDeviceToken
+  );
+
   // POST /api/v1/kiosk/devices/heartbeat (Device token heartbeat ping)
   app.post(
     "/devices/heartbeat",
@@ -199,6 +208,56 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.syncAnalytics
   );
 
+  // GET /api/v1/kiosk/devices/manifest (Device manifest for requesting terminal)
+  app.get(
+    "/devices/manifest",
+    {
+      preHandler: [
+        async (request, reply) => {
+          const authHeader = request.headers.authorization;
+          if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+            try {
+              const decoded = app.jwt.decode<any>(authHeader.substring(7));
+              if (decoded?.role === "kiosk_device") {
+                await verifyDeviceToken(request, reply);
+                return;
+              }
+            } catch (err) {
+              // Fail-through
+            }
+          }
+          await authenticate(request, reply);
+        }
+      ]
+    },
+    controller.getDeviceManifest
+  );
+
+  // GET /api/v1/kiosk/devices/:id/manifest (Device manifest by device ID / fingerprint)
+  app.get(
+    "/devices/:id/manifest",
+    {
+      preHandler: [
+        async (request, reply) => {
+          const authHeader = request.headers.authorization;
+          if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+            try {
+              const decoded = app.jwt.decode<any>(authHeader.substring(7));
+              if (decoded?.role === "kiosk_device") {
+                await verifyDeviceToken(request, reply);
+                return;
+              }
+            } catch (err) {
+              // Fail-through
+            }
+          }
+          await authenticate(request, reply);
+        }
+      ]
+    },
+    controller.getDeviceManifest
+  );
+
   // --- ADMIN AUTHORIZED ENDPOINTS (Requires Owner/Admin Role) ---
 
   app.register(async (adminGroup) => {
@@ -237,8 +296,42 @@ export async function kioskRoutes(app: FastifyInstance) {
     // DELETE /api/v1/kiosk/journeys/:id
     adminGroup.delete("/journeys/:id", controller.deleteJourney);
 
+    // POST /api/v1/kiosk/journeys/:id/validate
+    adminGroup.post("/journeys/:id/validate", controller.validateJourney);
+
     // POST /api/v1/kiosk/journeys/:id/publish
     adminGroup.post("/journeys/:id/publish", controller.publishJourney);
+
+    // POST /api/v1/kiosk/journeys/:id/unpublish
+    adminGroup.post("/journeys/:id/unpublish", controller.unpublishJourney);
+
+    // POST /api/v1/kiosk/journeys/:id/rollback/:version
+    adminGroup.post("/journeys/:id/rollback/:version", controller.rollbackJourney);
+
+    // POST /api/v1/kiosk/publishing/process
+    adminGroup.post("/publishing/process", controller.triggerScheduledPublishing);
+
+    // GET /api/v1/kiosk/journeys/:id/versions (list version history)
+    adminGroup.get("/journeys/:id/versions", controller.listJourneyVersions);
+
+    // GET /api/v1/kiosk/journeys/:id/versions/:version (retrieve specific immutable snapshot)
+    adminGroup.get("/journeys/:id/versions/:version", controller.getJourneyVersion);
+
+    // Prohibited mutation guards for immutable version snapshots (DEF-006)
+    adminGroup.put("/journeys/:id/versions/:version", async () => {
+      throw new AppError(
+        400,
+        "IMMUTABLE_VERSION",
+        "Published journey versions are strictly immutable and cannot be modified."
+      );
+    });
+    adminGroup.delete("/journeys/:id/versions/:version", async () => {
+      throw new AppError(
+        400,
+        "IMMUTABLE_VERSION",
+        "Published journey versions are strictly immutable and cannot be deleted."
+      );
+    });
 
     // POST /api/v1/kiosk/devices/pair/code (Generate pairing code)
     adminGroup.post(
@@ -297,6 +390,18 @@ export async function kioskRoutes(app: FastifyInstance) {
         },
       },
       controller.toggleMaintenanceMode
+    );
+
+    // POST /api/v1/kiosk/devices/:id/revoke (Revoke device credentials and decommission, K-DEV-004)
+    adminGroup.post(
+      "/devices/:id/revoke",
+      controller.revokeDevice
+    );
+
+    // DELETE /api/v1/kiosk/devices/:id (Revoke and decommission device)
+    adminGroup.delete(
+      "/devices/:id",
+      controller.revokeDevice
     );
   });
 }
