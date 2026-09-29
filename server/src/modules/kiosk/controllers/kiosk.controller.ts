@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { KioskService } from "../services/kiosk.service.js";
 import AppError from "../../../common/errors/app-error.js";
 import { KioskJourneyModel } from "../models/kiosk-journey.model.js";
+import { KioskSessionModel } from "../models/kiosk-session.model.js";
 import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 
 export class KioskController {
@@ -71,10 +72,23 @@ export class KioskController {
 
     let session: any = null;
     try {
-      session = await mongoose.model("KioskAnalytics").findOne({
-        sessionId: params.id,
-        ...(orgId ? { organizationId: orgId } : {}),
-      });
+      const isObjectId = mongoose.Types.ObjectId.isValid(params.id);
+      const query: Record<string, any> = isObjectId
+        ? { _id: new mongoose.Types.ObjectId(params.id) }
+        : { sessionToken: params.id };
+
+      if (orgId) {
+        query.organizationId = new mongoose.Types.ObjectId(orgId.toString());
+      }
+      session = await KioskSessionModel.findOne(query);
+
+      // Fallback: Check KioskAnalytics legacy session store if not found
+      if (!session) {
+        session = await mongoose.model("KioskAnalytics").findOne({
+          sessionId: params.id,
+          ...(orgId ? { organizationId: orgId } : {}),
+        });
+      }
     } catch {
       // ignore
     }

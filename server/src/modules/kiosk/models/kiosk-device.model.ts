@@ -5,15 +5,23 @@ import { KIOSK_DEVICE_STATUSES } from "../constants/device.constants.js";
 /**
  * Interface representing the KioskDevice document in MongoDB.
  */
-export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId" | "currentJourneyId" | "lastSeen" | "pairedAt">, Document {
+export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId" | "currentJourneyId" | "lastSeen" | "pairedAt" | "lastHeartbeatAt">, Document {
   organizationId: mongoose.Types.ObjectId;
+  deviceId: string;
+  hardwareGuid: string;
+  /**
+   * @deprecated Decoupled in favor of KioskDeviceAssignment (ADR-001, DEF-003). Kept for backward compatibility during migration.
+   */
   currentJourneyId?: mongoose.Types.ObjectId;
   lastSeen: Date;
   lastHeartbeatAt?: Date;
   pairedAt?: Date;
   paired?: boolean;
-  hardwareGuid?: string;
   tokenRef?: string;
+  /**
+   * @deprecated Relegated to optional diagnostic metadata; not used as security anchor or identity (ADR-003).
+   */
+  macAddress?: string;
 }
 
 const KioskTelemetrySchema = new Schema(
@@ -32,7 +40,14 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
     deviceId: { type: String, required: true, trim: true },
-    hardwareGuid: { type: String, trim: true },
+    hardwareGuid: {
+      type: String,
+      required: true,
+      trim: true,
+      default: function (this: any) {
+        return this.deviceId;
+      }
+    },
     name: { type: String, required: true, trim: true },
     location: { type: String, required: true },
     status: {
@@ -46,8 +61,14 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
     lastSeen: { type: Date, required: true, default: Date.now },
     lastHeartbeatAt: { type: Date, default: Date.now },
     ipAddress: { type: String },
+    /**
+     * @deprecated Relegated to optional diagnostic metadata; not used as security anchor or identity (ADR-003).
+     */
     macAddress: { type: String },
     pairedAt: { type: Date },
+    /**
+     * @deprecated Decoupled in favor of KioskDeviceAssignment (ADR-001, DEF-003). Kept for backward compatibility during migration.
+     */
     currentJourneyId: { type: Schema.Types.ObjectId, ref: "KioskJourney" },
     currentContentVersion: { type: Number, required: true, default: 0 },
     telemetry: { type: KioskTelemetrySchema, required: true, default: {} }
@@ -59,6 +80,7 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
 
 // Indexes
 KioskDeviceSchema.index({ deviceId: 1 }, { unique: true });
+KioskDeviceSchema.index({ hardwareGuid: 1 });
 KioskDeviceSchema.index({ organizationId: 1 });
 KioskDeviceSchema.index({ status: 1 });
 KioskDeviceSchema.index({ lastSeen: -1 });

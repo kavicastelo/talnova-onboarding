@@ -5,12 +5,20 @@ export * from "./block.schema.js";
 export * from "./step.schema.js";
 export * from "./journey.schema.js";
 export * from "./device.schema.js";
+export * from "./assignment.schema.js";
+export * from "./session.schema.js";
 export * from "./analytics.schema.js";
 export * from "./player.schema.js";
 export * from "./builder.schema.js";
 
 import { KioskJourneySchema, CreateKioskJourneySchema } from "./journey.schema.js";
 import { KioskDeviceRegistrationSchema, KioskDeviceHeartbeatSchema } from "./device.schema.js";
+import { CreateKioskAssignmentSchema, UpdateKioskAssignmentSchema } from "./assignment.schema.js";
+import {
+  CreateKioskSessionSchema,
+  UpdateKioskSessionProgressSchema,
+  TransitionKioskSessionStatusSchema,
+} from "./session.schema.js";
 import { KioskAnalyticsBulkSyncSchema } from "./analytics.schema.js";
 import { KioskStepSchema } from "./step.schema.js";
 import { KioskBlockSchema } from "./block.schema.js";
@@ -27,6 +35,29 @@ export type KioskDeviceRegistrationOutput = z.output<typeof KioskDeviceRegistrat
 
 export type KioskDeviceHeartbeatInput = z.input<typeof KioskDeviceHeartbeatSchema>;
 export type KioskDeviceHeartbeatOutput = z.output<typeof KioskDeviceHeartbeatSchema>;
+
+export type CreateKioskAssignmentInput = z.input<typeof CreateKioskAssignmentSchema>;
+export type CreateKioskAssignmentOutput = z.output<typeof CreateKioskAssignmentSchema>;
+
+export type UpdateKioskAssignmentInput = z.input<typeof UpdateKioskAssignmentSchema>;
+export type UpdateKioskAssignmentOutput = z.output<typeof UpdateKioskAssignmentSchema>;
+
+export type CreateKioskSessionInput = z.input<typeof CreateKioskSessionSchema>;
+export type CreateKioskSessionOutput = z.output<typeof CreateKioskSessionSchema>;
+
+export type UpdateKioskSessionProgressInput = z.input<
+  typeof UpdateKioskSessionProgressSchema
+>;
+export type UpdateKioskSessionProgressOutput = z.output<
+  typeof UpdateKioskSessionProgressSchema
+>;
+
+export type TransitionKioskSessionStatusInput = z.input<
+  typeof TransitionKioskSessionStatusSchema
+>;
+export type TransitionKioskSessionStatusOutput = z.output<
+  typeof TransitionKioskSessionStatusSchema
+>;
 
 export type KioskAnalyticsBulkSyncInput = z.input<typeof KioskAnalyticsBulkSyncSchema>;
 export type KioskAnalyticsBulkSyncOutput = z.output<typeof KioskAnalyticsBulkSyncSchema>;

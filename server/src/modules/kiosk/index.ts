@@ -1,9 +1,13 @@
 // Entry point for kiosk backend module
 export * from "./models/kiosk-journey.model.js";
 export * from "./models/kiosk-device.model.js";
+export * from "./models/kiosk-assignment.model.js";
+export * from "./models/kiosk-session.model.js";
 export * from "./models/kiosk-analytics.model.js";
 export * from "./repositories/kiosk-journey.repository.js";
 export * from "./repositories/kiosk-device.repository.js";
+export * from "./repositories/kiosk-assignment.repository.js";
+export * from "./repositories/kiosk-session.repository.js";
 export * from "./repositories/kiosk-analytics.repository.js";
 export * from "./validation/index.js";
 export * from "./services/kiosk-security.service.js";
