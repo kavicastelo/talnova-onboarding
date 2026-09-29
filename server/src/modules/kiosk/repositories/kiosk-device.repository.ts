@@ -56,6 +56,9 @@ export class KioskDeviceRepository {
   }
 
   async register(deviceData: Partial<IKioskDevice>): Promise<IKioskDevice> {
+    if (!deviceData.hardwareGuid && deviceData.deviceId) {
+      deviceData.hardwareGuid = deviceData.deviceId;
+    }
     if (deviceData.deviceId) {
       const existing = await KioskDeviceModel.findOne({ deviceId: deviceData.deviceId });
       if (existing) {
@@ -108,15 +111,11 @@ export class KioskDeviceRepository {
     id: string | mongoose.Types.ObjectId,
     journeyId: string | mongoose.Types.ObjectId | null
   ): Promise<IKioskDevice | null> {
-    return KioskDeviceModel.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          currentJourneyId: journeyId ? new mongoose.Types.ObjectId(journeyId) : undefined
-        }
-      },
-      { new: true }
-    );
+    const update = journeyId
+      ? { $set: { currentJourneyId: new mongoose.Types.ObjectId(journeyId) } }
+      : { $unset: { currentJourneyId: 1 } };
+
+    return KioskDeviceModel.findByIdAndUpdate(id, update, { new: true });
   }
 }
 
