@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from './components/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -54,7 +54,7 @@ import { SuperAdminPackages } from './pages/super-admin/SuperAdminPackages';
 import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
-import { KioskPlayerPage } from './features/kiosk';
+import { KioskPlayerPage, KioskPairingScreen } from './features/kiosk';
 import { KioskDashboard } from './pages/KioskDashboard';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { LocalizationProvider } from './context/LocalizationProvider';
@@ -94,6 +94,17 @@ function NotFoundFallback() {
     </div>
   );
 }
+
+const KioskPairRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return (
+    <KioskPairingScreen
+      onPairSuccess={(_device, _token) => {
+        navigate('/kiosk/terminal');
+      }}
+    />
+  );
+};
 
 export function App() {
   useScreenInit();
@@ -209,6 +220,8 @@ export function App() {
             </Route>
             <Route path="/course/:id" element={<CourseViewer />} />
             <Route path="/kiosk/play/:id" element={<KioskPlayerPage />} />
+            <Route path="/kiosk/pair" element={<KioskPairRoute />} />
+            <Route path="/kiosk/terminal" element={<div className="h-screen w-full bg-slate-950 text-white flex items-center justify-center"><p className="text-slate-400">Kiosk Terminal Ready</p></div>} />
           </Routes>
           </SuperAdminFilterProvider>
         </BrowserRouter>

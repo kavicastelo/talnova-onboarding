@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
 import AppError from "../../../common/errors/app-error.js";
@@ -63,7 +64,7 @@ export async function verifySignedUrl(request: FastifyRequest, reply: FastifyRep
 }
 
 /**
- * Middleware hook to verify registered device connection JWTs for diagnostics & heartbeats.
+ * Middleware hook to verify registered device connection JWTs for diagnostics, heartbeats, and token rotation.
  */
 export async function verifyDeviceToken(request: FastifyRequest, reply: FastifyReply) {
   try {
@@ -75,19 +76,30 @@ export async function verifyDeviceToken(request: FastifyRequest, reply: FastifyR
       throw new AppError(403, "FORBIDDEN", "Unauthorized. Device token signature required.");
     }
 
-    // 2. Validate the device is still active in the database
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
+    }
+
+    const rawToken = authHeader.replace(/^Bearer\s+/i, "");
+    const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    // 2. Query device strictly asserting status, paired, isDeleted, and tenant
     const device = await KioskDeviceModel.findOne({
       deviceId: payload.deviceId,
-      organizationId: payload.organizationId
+      organizationId: payload.organizationId,
+      isDeleted: false,
+      paired: true,
+      status: { $in: ["online", "maintenance"] }
     });
 
-    if (!device) {
-      throw new AppError(401, "UNAUTHORIZED", "Device registration has been revoked or suspended.");
+    if (!device || !device.tokenRef || device.tokenRef !== hash) {
+      throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
     }
   } catch (error: any) {
     if (error instanceof AppError) {
       throw error;
     }
-    throw new AppError(401, "UNAUTHORIZED", "Invalid or expired device connection key.");
+    throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
   }
 }

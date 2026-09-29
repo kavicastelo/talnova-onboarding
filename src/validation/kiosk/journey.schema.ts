@@ -57,6 +57,7 @@ export const KioskJourneySettingsSchema = z
     autoReturnHome: z.boolean(),
     hideNavigation: z.boolean(),
     disableExit: z.boolean(),
+    requireSupervisorWitness: z.boolean().optional(),
     security: KioskJourneySecuritySettingsSchema
   })
   .strict();

@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState } from 'react';
-import { KioskJourney } from '../../../types/kiosk/journey.types';
+import { KioskJourney, ValidationReport, ValidationErrorDetail } from '../../../types/kiosk/journey.types';
 import { KioskStep, KioskStepType } from '../../../types/kiosk/step.types';
 import { KioskBlock, KioskBlockType } from '../../../types/kiosk/block.types';
 import { kioskService } from '../services/kiosk.service';
+import { validateJourneyForPublish } from '../validation/journey-publish.validator';
 
 interface KioskBuilderContextProps {
   journey: Partial<KioskJourney> | null;
@@ -11,6 +12,8 @@ interface KioskBuilderContextProps {
   activeStepId: string | null;
   activeBlockId: string | null;
   validationErrors: string[];
+  validationReport: ValidationReport | null;
+  validationErrorDetails: ValidationErrorDetail[];
   isSaving: boolean;
   error: string | null;
 
@@ -47,6 +50,8 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
+  const [validationErrorDetails, setValidationErrorDetails] = useState<ValidationErrorDetail[]>([]);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +63,8 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setOriginalJourney(data);
       setHasUnsavedChanges(false);
       setValidationErrors([]);
+      setValidationReport(null);
+      setValidationErrorDetails([]);
       if (data.steps && data.steps.length > 0) {
         setActiveStepId(data.steps[0].id);
       }
@@ -344,48 +351,12 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // --- Client Side Validation ---
 
   const validateJourney = (): boolean => {
-    const errors: string[] = [];
     if (!journey) return false;
-
-    if (!journey.title || journey.title.trim() === "") {
-      errors.push("Journey title is required.");
-    }
-
-    if (!journey.languages || journey.languages.length === 0) {
-      errors.push("At least one language must be selected.");
-    }
-
-    const steps = journey.steps || [];
-    if (steps.length === 0) {
-      errors.push("Journey must contain at least one step.");
-    }
-
-    steps.forEach((step, idx) => {
-      if (!step.title || step.title.trim() === "") {
-        errors.push(`Step ${idx + 1} is missing a title.`);
-      }
-
-      // Check step destinations exist
-      const stepIds = steps.map((s) => s.id);
-      
-      if (step.interaction?.correctStepId && !stepIds.includes(step.interaction.correctStepId)) {
-        errors.push(`Step "${step.title}" references an invalid destination step for correct path.`);
-      }
-      if (step.interaction?.incorrectStepId && !stepIds.includes(step.interaction.incorrectStepId)) {
-        errors.push(`Step "${step.title}" references an invalid destination step for incorrect path.`);
-      }
-
-      if (step.interaction?.hotspots) {
-        step.interaction.hotspots.forEach((hs, hsIdx) => {
-          if (!stepIds.includes(hs.actionStepId)) {
-            errors.push(`Step "${step.title}" hotspot ${hsIdx + 1} references an invalid destination step.`);
-          }
-        });
-      }
-    });
-
-    setValidationErrors(errors);
-    return errors.length === 0;
+    const report = validateJourneyForPublish(journey);
+    setValidationReport(report);
+    setValidationErrorDetails(report.errors as ValidationErrorDetail[]);
+    setValidationErrors(report.errors.map((e) => e.message));
+    return report.isValid;
   };
 
   return (
@@ -397,6 +368,8 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
         activeStepId,
         activeBlockId,
         validationErrors,
+        validationReport,
+        validationErrorDetails,
         isSaving,
         error,
         loadJourney,

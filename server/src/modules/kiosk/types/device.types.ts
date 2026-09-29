@@ -43,6 +43,9 @@ export interface KioskDevice {
    */
   readonly currentJourneyId?: JourneyId;
   readonly currentContentVersion: VersionNumber;
+  readonly isDeleted?: boolean;
+  readonly deletedAt?: Timestamp;
+  readonly deletedBy?: string;
   readonly telemetry: KioskTelemetry;
 }
 

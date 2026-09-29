@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { KioskBlock } from '../../../types/kiosk/block.types';
 import { KioskPinOverlay } from './KioskPinOverlay';
+import { KioskRevokedScreen } from './KioskRevokedScreen';
+import { deviceIdentityService } from '../services/device-identity.service';
 import { useTranslation } from 'react-i18next';
 
 interface KioskPlayerProps {
@@ -66,6 +68,22 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const [ppeSubmitError, setPpeSubmitError] = useState<string | null>(null);
 
   const [showPinOverlay, setShowPinOverlay] = useState(false);
+  const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
+  const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
+
+  // Instantaneous device revocation event listener (DEF-005 / K-DEV-004)
+  useEffect(() => {
+    const handleRevoked = (e: any) => {
+      setIsRevoked(true);
+      if (e?.detail?.message) {
+        setRevocationMessage(e.detail.message);
+      }
+    };
+    window.addEventListener('talnova:kiosk:device_revoked', handleRevoked);
+    return () => {
+      window.removeEventListener('talnova:kiosk:device_revoked', handleRevoked);
+    };
+  }, []);
 
   const handleExitClick = () => {
     if (journey?.settings?.security?.protectionType === 'pin' && !isAdminPreview) {
@@ -239,6 +257,19 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
       setPpeResetCountdown(10);
     }
   };
+
+  if (isRevoked) {
+    return (
+      <KioskRevokedScreen
+        customMessage={revocationMessage}
+        onReEnroll={() => {
+          setIsRevoked(false);
+          deviceIdentityService.clearRevocationStatus();
+          window.location.href = '/kiosk/pair';
+        }}
+      />
+    );
+  }
 
   if (isLoading) {
     return (

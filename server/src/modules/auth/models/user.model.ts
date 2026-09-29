@@ -43,7 +43,7 @@ export interface IUser extends Document {
     onboardingPausedAt?: Date;
   };
   permissions: {
-    role: "owner" | "admin" | "manager" | "employee" | "super_admin" | "it_admin" | "hr_admin";
+    role: "owner" | "admin" | "manager" | "supervisor" | "employee" | "super_admin" | "it_admin" | "hr_admin";
     roles?: string[];
     customRoles: string[];
   };
@@ -145,7 +145,7 @@ const UserSchema = new Schema<IUser>(
     permissions: {
       role: {
         type: String,
-        enum: ["owner", "admin", "manager", "employee", "super_admin", "it_admin", "hr_admin"],
+        enum: ["owner", "admin", "manager", "supervisor", "employee", "super_admin", "it_admin", "hr_admin"],
         default: "employee",
       },
       roles: { type: [String], default: [] },

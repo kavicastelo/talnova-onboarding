@@ -5,7 +5,7 @@ import { KIOSK_DEVICE_STATUSES } from "../constants/device.constants.js";
 /**
  * Interface representing the KioskDevice document in MongoDB.
  */
-export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId" | "currentJourneyId" | "lastSeen" | "pairedAt" | "lastHeartbeatAt">, Document {
+export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId" | "currentJourneyId" | "lastSeen" | "pairedAt" | "lastHeartbeatAt" | "deletedBy" | "deletedAt">, Document {
   organizationId: mongoose.Types.ObjectId;
   deviceId: string;
   hardwareGuid: string;
@@ -18,6 +18,10 @@ export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId"
   pairedAt?: Date;
   paired?: boolean;
   tokenRef?: string;
+  tokenExpiresAt?: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  deletedBy?: mongoose.Types.ObjectId;
   /**
    * @deprecated Relegated to optional diagnostic metadata; not used as security anchor or identity (ADR-003).
    */
@@ -58,6 +62,10 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
     },
     paired: { type: Boolean, default: true },
     tokenRef: { type: String },
+    tokenExpiresAt: { type: Date },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
+    deletedBy: { type: Schema.Types.ObjectId, ref: "User" },
     lastSeen: { type: Date, required: true, default: Date.now },
     lastHeartbeatAt: { type: Date, default: Date.now },
     ipAddress: { type: String },
@@ -87,6 +95,7 @@ KioskDeviceSchema.index({ lastSeen: -1 });
 
 // Compound indexes
 KioskDeviceSchema.index({ organizationId: 1, status: 1 });
+KioskDeviceSchema.index({ organizationId: 1, isDeleted: 1 });
 KioskDeviceSchema.index({ organizationId: 1, currentJourneyId: 1 });
 
 export const KioskDeviceModel = mongoose.model<IKioskDevice>("KioskDevice", KioskDeviceSchema);

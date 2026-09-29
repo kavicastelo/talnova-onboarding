@@ -1,4 +1,5 @@
 export * from './services/kiosk.service';
+export * from './services/device-identity.service';
 export * from './context/KioskPlayerContext';
 export * from './context/KioskBuilderContext';
 export * from './components/KioskPlayer';
@@ -6,4 +7,6 @@ export * from './pages/KioskPlayerPage';
 export * from './components/KioskPairingScreen';
 export * from './components/KioskPinOverlay';
 export * from './components/KioskExpiredLinkScreen';
+export * from './components/KioskRevokedScreen';
 export * from './components/KioskBuilder';
+export * from './validation/journey-publish.validator';

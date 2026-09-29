@@ -283,6 +283,19 @@ export function KioskDashboard() {
     }
   };
 
+  const handleRevokeDevice = async (deviceId: string, deviceName: string) => {
+    if (window.confirm(t('confirmRevokeDevice', { defaultValue: `Are you sure you want to revoke and decommission terminal "${deviceName}"? All active credentials will be instantly invalidated and the terminal locked down.` }))) {
+      try {
+        await kioskService.revokeDevice(deviceId);
+        toast.success(t('toasts.deviceRevoked', { defaultValue: 'Device enrollment revoked and decommissioned' }));
+        fetchData();
+        queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || err?.message || t('toasts.failedRevokeDevice', { defaultValue: 'Failed to revoke device' }));
+      }
+    }
+  };
+
   // Render the Builder console view if an editing ID is selected
   if (editingJourneyId) {
     return (
@@ -682,6 +695,15 @@ export function KioskDashboard() {
                           >
                             <Zap className="w-3 h-3 text-amber-500" />
                             <span>{t('devicesList.restart', { defaultValue: 'Restart' })}</span>
+                          </button>
+                          <button
+                            data-testid={`revoke-device-${device._id}`}
+                            onClick={() => handleRevokeDevice(device._id, device.name)}
+                            className="px-2 py-1 bg-white border border-rose-200 text-rose-600 rounded text-[10px] font-semibold hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 transition flex items-center space-x-1"
+                            title={t('devicesList.revokeTitle', { defaultValue: 'Instantaneously revoke credentials & decommission terminal' })}
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-500" />
+                            <span>{t('devicesList.revoke', { defaultValue: 'Revoke' })}</span>
                           </button>
                         </div>
 

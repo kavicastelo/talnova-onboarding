@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Monitor, HelpCircle, ArrowRight, CheckCircle } from 'lucide-react';
 import { kioskService } from '../services/kiosk.service';
+import { deviceIdentityService } from '../services/device-identity.service';
+import { KioskRevokedScreen } from './KioskRevokedScreen';
 import { useTranslation } from 'react-i18next';
 
 interface KioskPairingScreenProps {
@@ -17,19 +19,42 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
+  const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
 
-  // Generate or retrieve persistent hardware device ID
+  // Listen to instantaneous device revocation events
   useEffect(() => {
-    let storedId = localStorage.getItem('kiosk_device_id');
-    if (!storedId) {
-      storedId = 'kiosk-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now().toString(36);
-      localStorage.setItem('kiosk_device_id', storedId);
-    }
-    setDeviceId(storedId);
+    const handleRevocation = (event: any) => {
+      setIsRevoked(true);
+      if (event?.detail?.message) {
+        setRevocationMessage(event.detail.message);
+      }
+    };
+
+    window.addEventListener('talnova:kiosk:device_revoked', handleRevocation);
+    return () => {
+      window.removeEventListener('talnova:kiosk:device_revoked', handleRevocation);
+    };
+  }, []);
+
+  // Retrieve or generate persistent cryptographic hardware GUID
+  useEffect(() => {
+    let isMounted = true;
+    deviceIdentityService.getOrCreateHardwareGuid().then((guid) => {
+      if (isMounted) {
+        setDeviceId(guid);
+      }
+    });
     
     // Set default name based on device info
-    setName(localStorage.getItem('kiosk_device_name') || 'Kiosk Tablet ' + Math.random().toString(36).substring(2, 6).toUpperCase());
+    const storedName = localStorage.getItem('kiosk_device_name');
+    const defaultSuffix = deviceIdentityService.getHardwareGuidSync()?.substring(0, 4).toUpperCase() || 'TERM';
+    setName(storedName || 'Kiosk Tablet ' + defaultSuffix);
     setLocation(localStorage.getItem('kiosk_device_location') || 'Reception Lobby');
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleKeyPress = (num: string) => {
@@ -76,6 +101,7 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
             location
           });
           
+          deviceIdentityService.setDeviceCredentials(result.device, result.token);
           setIsSuccess(true);
           // Wait 1.5s to show success state before triggering callback
           setTimeout(() => {
@@ -92,6 +118,20 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
       submitPairing();
     }
   }, [pairCode, deviceId, name, location, onPairSuccess]);
+
+  if (isRevoked) {
+    return (
+      <KioskRevokedScreen
+        customMessage={revocationMessage}
+        onReEnroll={() => {
+          setIsRevoked(false);
+          deviceIdentityService.clearRevocationStatus();
+          setStep(1);
+          setPairCode([]);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 px-6 text-white select-none">
