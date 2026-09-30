@@ -233,9 +233,9 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.getDeviceManifest
   );
 
-  // GET /api/v1/kiosk/devices/:id/manifest (Device manifest by device ID / fingerprint)
+  // GET /api/v1/kiosk/devices/:deviceId/manifest (Device manifest by device ID / fingerprint, ADR-005)
   app.get(
-    "/devices/:id/manifest",
+    "/devices/:deviceId/manifest",
     {
       preHandler: [
         async (request, reply) => {
@@ -361,6 +361,40 @@ export async function kioskRoutes(app: FastifyInstance) {
       },
       controller.pairJourneyToDevice
     );
+
+    // POST /api/v1/kiosk/devices/:id/assignments (Batch update device assignments, K-ASN-001)
+    adminGroup.post(
+      "/devices/:id/assignments",
+      controller.setDeviceAssignments
+    );
+
+    // GET /api/v1/kiosk/devices/:id/assignments (List assigned journeys for device, K-ASN-001)
+    adminGroup.get(
+      "/devices/:id/assignments",
+      controller.getDeviceAssignments
+    );
+
+    // --- Device Group Management (K-ASN-003) ---
+    // GET /api/v1/kiosk/groups
+    adminGroup.get("/groups", controller.getDeviceGroups);
+
+    // GET /api/v1/kiosk/groups/:id
+    adminGroup.get("/groups/:id", controller.getDeviceGroupById);
+
+    // POST /api/v1/kiosk/groups
+    adminGroup.post("/groups", controller.createDeviceGroup);
+
+    // PUT /api/v1/kiosk/groups/:id
+    adminGroup.put("/groups/:id", controller.updateDeviceGroup);
+
+    // DELETE /api/v1/kiosk/groups/:id
+    adminGroup.delete("/groups/:id", controller.deleteDeviceGroup);
+
+    // POST /api/v1/kiosk/groups/:id/assignments (Batch update group assignments)
+    adminGroup.post("/groups/:id/assignments", controller.setGroupAssignments);
+
+    // GET /api/v1/kiosk/groups/:id/assignments (List assigned journeys for group)
+    adminGroup.get("/groups/:id/assignments", controller.getGroupAssignments);
 
     // GET /api/v1/kiosk/journeys/:id/analytics
     adminGroup.get("/journeys/:id/analytics", controller.getJourneyAnalyticsSummary);

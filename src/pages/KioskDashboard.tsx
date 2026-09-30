@@ -24,7 +24,11 @@ import {
   Copy,
   Check,
   Key,
-  Wrench
+  Wrench,
+  Folder,
+  Building2,
+  Layers,
+  Search
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -45,10 +49,11 @@ import { usePagination } from '../hooks/usePagination';
 import { kioskService } from '../features/kiosk/services/kiosk.service';
 import { KioskJourney } from '../types/kiosk/journey.types';
 import { KioskDevice } from '../types/kiosk/device.types';
+import { KioskDeviceGroup } from '../types/kiosk/group.types';
 import { KioskAnalyticsSummary } from '../types/kiosk/analytics.types';
-import { KioskBuilder } from '../features/kiosk';
+import { KioskBuilder, DeviceAssignmentModal, DeviceGroupModal } from '../features/kiosk';
 
-type TabType = 'journeys' | 'devices' | 'analytics';
+type TabType = 'journeys' | 'devices' | 'groups' | 'analytics';
 
 export function KioskDashboard() {
   const { t } = useTranslation(['kiosk', 'common']);
@@ -75,6 +80,17 @@ export function KioskDashboard() {
   const [pairModalOpen, setPairModalOpen] = useState(false);
   const [pairJourneyId, setPairJourneyId] = useState<string>('');
   const [pairing, setPairing] = useState(false);
+
+  // Multi-Journey Assignment states (K-ASN-001)
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+
+  // Device Group states (K-ASN-003)
+  const [deviceGroups, setDeviceGroups] = useState<KioskDeviceGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<KioskDeviceGroup | null>(null);
+  const [createGroupModalOpen, setCreateGroupModalOpen] = useState(false);
+  const [editGroupModalOpen, setEditGroupModalOpen] = useState(false);
+  const [groupAssignmentModalOpen, setGroupAssignmentModalOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState('');
 
   // Pair New Terminal States
   const [pairTerminalModalOpen, setPairTerminalModalOpen] = useState(false);
@@ -147,10 +163,14 @@ export function KioskDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const journeyRes = await kioskService.listJourneys();
-      const deviceRes = await kioskService.listDevices();
+      const [journeyRes, deviceRes, groupsRes] = await Promise.all([
+        kioskService.listJourneys(),
+        kioskService.listDevices(),
+        kioskService.getDeviceGroups()
+      ]);
       setJourneys(journeyRes.journeys || []);
       setDevices(deviceRes.devices || []);
+      setDeviceGroups(groupsRes || []);
       
       // Auto-select first journey for analytics tab if not selected
       if (journeyRes.journeys && journeyRes.journeys.length > 0 && !selectedJourneyId) {
@@ -160,6 +180,19 @@ export function KioskDashboard() {
       toast.error(err?.message || t('toasts.failedFetchData', { defaultValue: 'Failed to fetch kiosk workspace data' }));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string, groupName: string) => {
+    if (!window.confirm(t('groups.confirmDelete', { name: groupName, defaultValue: `Are you sure you want to delete group "${groupName}"?` }))) {
+      return;
+    }
+    try {
+      await kioskService.deleteDeviceGroup(groupId);
+      toast.success(t('groups.deletedSuccess', { defaultValue: 'Device group deleted' }));
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || t('groups.deleteFailed', { defaultValue: 'Failed to delete group' }));
     }
   };
 
@@ -378,6 +411,19 @@ export function KioskDashboard() {
           <Tv className="w-4 h-4" />
           <span>{t('tabs.devices', { count: devices.length, defaultValue: `Paired Devices (${devices.length})` })}</span>
           <Badge variant="secondary" className="ml-1.5">{devices.length}</Badge>
+        </button>
+        <button
+          onClick={() => setActiveTab('groups')}
+          className={`pb-3 text-sm font-semibold border-b-2 transition flex items-center space-x-2 ${
+            activeTab === 'groups'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+          data-testid="tab-groups"
+        >
+          <Folder className="w-4 h-4" />
+          <span>{t('tabs.groups', { count: deviceGroups.length, defaultValue: `Device Groups (${deviceGroups.length})` })}</span>
+          <Badge variant="secondary" className="ml-1.5">{deviceGroups.length}</Badge>
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
@@ -603,23 +649,56 @@ export function KioskDashboard() {
                           </p>
                         </div>
 
-                        {/* Linked Content Journey */}
-                        <div className="flex flex-col space-y-1">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('devicesList.activeJourney', { defaultValue: 'Active Journey' })}</span>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs font-semibold text-slate-700">
-                              {linkedJourney ? linkedJourney.title : <span className="text-slate-400 italic">{t('devicesList.noJourneyPaired', { defaultValue: 'No journey paired' })}</span>}
+                        {/* Assigned Content Journeys (Multi-Journey Engine K-ASN-001) */}
+                        <div className="flex flex-col space-y-1.5 min-w-[200px] max-w-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              {t('devicesList.assignedJourneys', { defaultValue: 'Assigned Journeys' })}
+                              {device.assignments && device.assignments.length > 0 && ` (${device.assignments.length})`}
                             </span>
                             <button
                               onClick={() => {
                                 setSelectedDevice(device);
-                                setPairJourneyId(device.currentJourneyId || 'unpair');
-                                setPairModalOpen(true);
+                                setAssignmentModalOpen(true);
                               }}
                               className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition"
                             >
-                              {t('devicesList.link', { defaultValue: 'Link...' })}
+                              {t('devicesList.manageAssignments', { defaultValue: 'Manage...' })}
                             </button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 items-center">
+                            {device.assignments && device.assignments.length > 0 ? (
+                              device.assignments.map((a: any, idx: number) => {
+                                const jId = (a.journeyId?._id || a.journeyId || '').toString();
+                                const j = journeys.find((item) => item._id === jId);
+                                const title = j?.title || a.journeyTitle || a.title || `Journey #${idx + 1}`;
+                                return (
+                                  <span
+                                    key={a._id || idx}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-xs"
+                                    title={`Priority ${idx + 1}${a.isMandatory ? ' (Mandatory)' : ''}`}
+                                  >
+                                    <span className="font-bold text-indigo-500 mr-1">#{idx + 1}</span>
+                                    <span className="truncate max-w-[130px]">{title}</span>
+                                    {a.isMandatory && (
+                                      <span className="ml-1 text-[9px] font-bold bg-amber-200 text-amber-900 px-1 rounded">
+                                        Req
+                                      </span>
+                                    )}
+                                  </span>
+                                );
+                              })
+                            ) : linkedJourney ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                <span className="font-bold text-slate-400 mr-1">#1</span>
+                                <span className="truncate max-w-[140px]">{linkedJourney.title}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">
+                                {t('devicesList.noJourneyPaired', { defaultValue: 'No journeys assigned' })}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -725,6 +804,253 @@ export function KioskDashboard() {
                     itemLabel={t('devicesList.terminalsLabel', { defaultValue: 'terminals' })}
                   />
                 </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: DEVICE GROUPS & SITE HIERARCHY (K-ASN-003) */}
+      {activeTab === 'groups' && (
+        <div className="space-y-6">
+          {/* Group Overview Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <Card className="p-5 flex items-center space-x-4 border border-slate-200">
+              <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+                <Folder className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-slate-800">{deviceGroups.length}</div>
+                <div className="text-xs text-slate-500 font-medium">
+                  {t('groups.totalGroups', { defaultValue: 'Device Groups' })}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 flex items-center space-x-4 border border-slate-200">
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                <Tv className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-slate-800">
+                  {devices.filter((d) =>
+                    deviceGroups.some((g) =>
+                      (g.deviceIds && g.deviceIds.some((id) => (typeof id === 'string' ? id : (id as any)?._id || String(id)) === d._id)) ||
+                      (d.deviceGroupId && d.deviceGroupId.toString() === g._id.toString())
+                    )
+                  ).length}
+                </div>
+                <div className="text-xs text-slate-500 font-medium">
+                  {t('groups.groupedTerminals', { defaultValue: 'Grouped Terminals' })}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 flex items-center space-x-4 border border-slate-200">
+              <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-slate-800">
+                  {deviceGroups.reduce((acc, g) => acc + (g.assignmentCount || 0), 0)}
+                </div>
+                <div className="text-xs text-slate-500 font-medium">
+                  {t('groups.groupAssignments', { defaultValue: 'Inherited Group Assignments' })}
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Group Registry Card */}
+          <Card className="overflow-hidden border border-slate-200">
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  {t('groups.registryTitle', { defaultValue: 'Terminal Groups & Site Hierarchy' })}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {t('groups.registryDesc', {
+                    defaultValue: 'Assign safety journeys across entire facilities, campus zones, or functional terminal clusters.'
+                  })}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <div className="relative w-48 sm:w-64">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder={t('groups.searchPlaceholder', { defaultValue: 'Search groups...' })}
+                    value={groupSearch}
+                    onChange={(e) => setGroupSearch(e.target.value)}
+                    className="pl-8 text-xs h-9"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => setCreateGroupModalOpen(true)}
+                  data-testid="create-group-btn"
+                  className="flex items-center space-x-1.5 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{t('groups.newGroup', { defaultValue: 'Create Group' })}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Groups List */}
+            {deviceGroups.filter((g) =>
+              g.name.toLowerCase().includes(groupSearch.toLowerCase()) ||
+              (g.description && g.description.toLowerCase().includes(groupSearch.toLowerCase())) ||
+              (g.siteId && g.siteId.toLowerCase().includes(groupSearch.toLowerCase()))
+            ).length === 0 ? (
+              <div className="p-12 text-center">
+                <Folder className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h4 className="text-sm font-bold text-slate-700">
+                  {groupSearch
+                    ? t('groups.noSearchResults', { defaultValue: 'No groups match your search' })
+                    : t('groups.noGroupsYet', { defaultValue: 'No device groups configured' })}
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                  {t('groups.emptyStateDesc', {
+                    defaultValue: 'Create a device group to batch-assign safety journeys across warehouses, security gates, or facility sites.'
+                  })}
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setCreateGroupModalOpen(true)}
+                  className="flex items-center space-x-1.5 mx-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{t('groups.createFirstGroup', { defaultValue: 'Create First Device Group' })}</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {deviceGroups
+                  .filter((g) =>
+                    g.name.toLowerCase().includes(groupSearch.toLowerCase()) ||
+                    (g.description && g.description.toLowerCase().includes(groupSearch.toLowerCase())) ||
+                    (g.siteId && g.siteId.toLowerCase().includes(groupSearch.toLowerCase()))
+                  )
+                  .map((group) => {
+                    const memberDevices = devices.filter((d) =>
+                      (group.deviceIds &&
+                        group.deviceIds.some(
+                          (id) => (typeof id === 'string' ? id : (id as any)?._id || String(id)) === d._id
+                        )) ||
+                      (d.deviceGroupId && d.deviceGroupId.toString() === group._id.toString())
+                    );
+
+                    return (
+                      <div
+                        key={group._id}
+                        data-testid={`device-group-row-${group._id}`}
+                        className="p-5 hover:bg-slate-50/70 transition flex flex-col gap-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start sm:items-center space-x-3">
+                            <div className="p-2.5 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
+                              <Folder className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-bold text-slate-900 text-sm" data-testid={`group-name-${group._id}`}>
+                                  {group.name}
+                                </span>
+                                {group.siteId && (
+                                  <Badge variant="outline" className="text-[10px] bg-slate-50 flex items-center space-x-1">
+                                    <Building2 className="w-3 h-3 text-slate-400" />
+                                    <span>{group.siteId}</span>
+                                  </Badge>
+                                )}
+                                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                  {memberDevices.length} {t('groups.terminalsCount', { count: memberDevices.length, defaultValue: 'terminals' })}
+                                </span>
+                              </div>
+                              {group.description && (
+                                <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+                                  {group.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center space-x-2 self-end sm:self-center">
+                            <button
+                              data-testid={`manage-group-assignments-${group._id}`}
+                              onClick={() => {
+                                setSelectedGroup(group);
+                                setGroupAssignmentModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition"
+                              title={t('groups.manageAssignmentsTitle', { defaultValue: 'Configure journeys assigned to this group' })}
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>{t('groups.manageAssignments', { defaultValue: 'Manage Assignments' })}</span>
+                              {group.assignmentCount !== undefined && group.assignmentCount > 0 && (
+                                <span className="ml-1 bg-indigo-600 text-white rounded-full text-[10px] px-1.5 py-0.2">
+                                  {group.assignmentCount}
+                                </span>
+                              )}
+                            </button>
+
+                            <button
+                              data-testid={`edit-group-${group._id}`}
+                              onClick={() => {
+                                setSelectedGroup(group);
+                                setEditGroupModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800 rounded-md text-xs font-semibold flex items-center space-x-1 transition"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>{t('common:edit', { defaultValue: 'Edit' })}</span>
+                            </button>
+
+                            <button
+                              data-testid={`delete-group-${group._id}`}
+                              onClick={() => handleDeleteGroup(group._id, group.name)}
+                              className="px-2.5 py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 rounded-md text-xs font-semibold flex items-center space-x-1 transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                              <span>{t('common:delete', { defaultValue: 'Delete' })}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Member Terminals Chips & Inherited Assignments Preview */}
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100/80 text-xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                            {t('groups.memberTerminals', { defaultValue: 'Member Terminals:' })}
+                          </span>
+                          {memberDevices.length > 0 ? (
+                            <>
+                              {memberDevices.slice(0, 4).map((d) => (
+                                <span
+                                  key={d._id}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-700 border border-slate-200/80"
+                                  title={`${d.name} (${d.location})`}
+                                >
+                                  <Tv className="w-3 h-3 text-slate-400 mr-1" />
+                                  <span className="truncate max-w-[120px] font-medium">{d.name}</span>
+                                </span>
+                              ))}
+                              {memberDevices.length > 4 && (
+                                <span className="text-[11px] font-semibold text-slate-400">
+                                  +{memberDevices.length - 4} {t('groups.more', { defaultValue: 'more' })}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">
+                              {t('groups.noTerminalsAssigned', { defaultValue: 'No terminals added to this group yet' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </Card>
@@ -926,6 +1252,41 @@ export function KioskDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* MULTI-JOURNEY ASSIGNMENT MODAL (K-ASN-001) */}
+      <DeviceAssignmentModal
+        open={assignmentModalOpen}
+        onOpenChange={setAssignmentModalOpen}
+        device={selectedDevice}
+        journeys={journeys}
+        onAssignmentsUpdated={fetchData}
+      />
+
+      {/* DEVICE GROUP ASSIGNMENT MODAL (K-ASN-003) */}
+      <DeviceAssignmentModal
+        open={groupAssignmentModalOpen}
+        onOpenChange={setGroupAssignmentModalOpen}
+        group={selectedGroup}
+        journeys={journeys}
+        onAssignmentsUpdated={fetchData}
+      />
+
+      {/* CREATE DEVICE GROUP MODAL (K-ASN-003) */}
+      <DeviceGroupModal
+        open={createGroupModalOpen}
+        onOpenChange={setCreateGroupModalOpen}
+        devices={devices}
+        onGroupSaved={fetchData}
+      />
+
+      {/* EDIT DEVICE GROUP MODAL (K-ASN-003) */}
+      <DeviceGroupModal
+        open={editGroupModalOpen}
+        onOpenChange={setEditGroupModalOpen}
+        group={selectedGroup}
+        devices={devices}
+        onGroupSaved={fetchData}
+      />
 
       {/* PAIR DEVICE MODAL */}
       <Dialog open={pairModalOpen} onOpenChange={(open) => !open && setPairModalOpen(false)}>

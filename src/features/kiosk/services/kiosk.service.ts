@@ -1,6 +1,7 @@
 import { apiClient } from '../../../api/client';
 import { KioskJourney, KioskJourneyVersion, ValidationReport } from '../../../types/kiosk/journey.types';
-import { KioskDevice, KioskTelemetry, KioskCommand } from '../../../types/kiosk/device.types';
+import { KioskDevice, KioskTelemetry, KioskCommand, KioskDeviceManifest } from '../../../types/kiosk/device.types';
+import { KioskDeviceGroup } from '../../../types/kiosk/group.types';
 import { KioskAnalytics, KioskAnalyticsSummary } from '../../../types/kiosk/analytics.types';
 
 export const kioskService = {
@@ -63,9 +64,9 @@ export const kioskService = {
     return response.data.data;
   },
 
-  getDeviceManifest: async (deviceId?: string): Promise<{ deviceId: string; organizationId: string; journeys: KioskJourney[] }> => {
+  getDeviceManifest: async (deviceId?: string): Promise<KioskDeviceManifest> => {
     const path = deviceId ? `/kiosk/devices/${deviceId}/manifest` : '/kiosk/devices/manifest';
-    const response = await apiClient.get<{ success: boolean; data: { deviceId: string; organizationId: string; journeys: KioskJourney[] } }>(path);
+    const response = await apiClient.get<{ success: boolean; data: KioskDeviceManifest }>(path);
     return response.data.data;
   },
 
@@ -134,6 +135,24 @@ export const kioskService = {
     return response.data.data;
   },
 
+  getDeviceAssignments: async (deviceId: string): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(`/kiosk/devices/${deviceId}/assignments`);
+    return response.data.data;
+  },
+
+  setDeviceAssignments: async (
+    deviceId: string,
+    assignments: Array<{
+      journeyId: string;
+      priority?: number;
+      isMandatory?: boolean;
+      scheduling?: any;
+    }>
+  ): Promise<any[]> => {
+    const response = await apiClient.post<{ success: boolean; data: any[] }>(`/kiosk/devices/${deviceId}/assignments`, { assignments });
+    return response.data.data;
+  },
+
   revokeDevice: async (deviceId: string): Promise<KioskDevice> => {
     const response = await apiClient.post<{ success: boolean; data: KioskDevice }>(`/kiosk/devices/${deviceId}/revoke`);
     return response.data.data;
@@ -178,5 +197,40 @@ export const kioskService = {
   setSupervisorPin: async (supervisorId: string, pin: string): Promise<boolean> => {
     const response = await apiClient.post<{ success: boolean; message: string }>('/kiosk/supervisor/pin', { supervisorId, pin });
     return response.data.success;
+  },
+
+  // --- Device Groups & Site Rules (K-ASN-003) ---
+  getDeviceGroups: async (params?: { siteId?: string; search?: string }): Promise<KioskDeviceGroup[]> => {
+    const response = await apiClient.get<{ success: boolean; data: KioskDeviceGroup[] }>('/kiosk/groups', { params });
+    return response.data.data;
+  },
+
+  getDeviceGroupById: async (id: string): Promise<KioskDeviceGroup> => {
+    const response = await apiClient.get<{ success: boolean; data: KioskDeviceGroup }>(`/kiosk/groups/${id}`);
+    return response.data.data;
+  },
+
+  createDeviceGroup: async (data: { name: string; description?: string; siteId?: string; deviceIds?: string[] }): Promise<KioskDeviceGroup> => {
+    const response = await apiClient.post<{ success: boolean; data: KioskDeviceGroup }>('/kiosk/groups', data);
+    return response.data.data;
+  },
+
+  updateDeviceGroup: async (id: string, data: Partial<{ name: string; description?: string; siteId?: string; deviceIds?: string[] }>): Promise<KioskDeviceGroup> => {
+    const response = await apiClient.put<{ success: boolean; data: KioskDeviceGroup }>(`/kiosk/groups/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteDeviceGroup: async (id: string): Promise<void> => {
+    await apiClient.delete(`/kiosk/groups/${id}`);
+  },
+
+  getGroupAssignments: async (id: string): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(`/kiosk/groups/${id}/assignments`);
+    return response.data.data;
+  },
+
+  setGroupAssignments: async (id: string, payload: any): Promise<any[]> => {
+    const response = await apiClient.post<{ success: boolean; data: any[] }>(`/kiosk/groups/${id}/assignments`, payload);
+    return response.data.data;
   }
 };

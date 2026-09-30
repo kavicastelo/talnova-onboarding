@@ -46,7 +46,30 @@ export const UpdateKioskAssignmentSchema = CreateKioskAssignmentSchema.partial()
   .strict()
   .describe("Update Kiosk Device Assignment Schema");
 
+export const DeviceAssignmentItemSchema = z
+  .object({
+    journeyId: z.string().min(1, { message: "Journey ID is required" }),
+    priority: z.number().int().min(0).optional().default(0),
+    isMandatory: z.boolean().optional().default(false),
+    scheduling: KioskAssignmentSchedulingSchema.optional().default({ enabled: false }),
+    isActive: z.boolean().optional().default(true),
+  })
+  .describe("Device journey assignment item");
+
+export const BatchDeviceAssignmentsSchema = z.union([
+  z.object({
+    assignments: z.array(z.union([DeviceAssignmentItemSchema, z.string()]))
+  }),
+  z.object({
+    journeyIds: z.array(z.string())
+  }),
+  z.array(z.union([DeviceAssignmentItemSchema, z.string()]))
+]).describe("Batch Device Assignments Schema");
+
 export type CreateKioskAssignmentInput = z.input<typeof CreateKioskAssignmentSchema>;
 export type CreateKioskAssignmentOutput = z.output<typeof CreateKioskAssignmentSchema>;
 export type UpdateKioskAssignmentInput = z.input<typeof UpdateKioskAssignmentSchema>;
 export type UpdateKioskAssignmentOutput = z.output<typeof UpdateKioskAssignmentSchema>;
+export type DeviceAssignmentItemInput = z.input<typeof DeviceAssignmentItemSchema>;
+export type BatchDeviceAssignmentsInput = z.input<typeof BatchDeviceAssignmentsSchema>;
+

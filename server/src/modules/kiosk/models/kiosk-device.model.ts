@@ -5,7 +5,7 @@ import { KIOSK_DEVICE_STATUSES } from "../constants/device.constants.js";
 /**
  * Interface representing the KioskDevice document in MongoDB.
  */
-export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId" | "currentJourneyId" | "lastSeen" | "pairedAt" | "lastHeartbeatAt" | "deletedBy" | "deletedAt">, Document {
+export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId" | "currentJourneyId" | "lastSeen" | "pairedAt" | "lastHeartbeatAt" | "deletedBy" | "deletedAt" | "siteId" | "deviceGroupId">, Document {
   organizationId: mongoose.Types.ObjectId;
   deviceId: string;
   hardwareGuid: string;
@@ -13,6 +13,9 @@ export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId"
    * @deprecated Decoupled in favor of KioskDeviceAssignment (ADR-001, DEF-003). Kept for backward compatibility during migration.
    */
   currentJourneyId?: mongoose.Types.ObjectId;
+  siteId?: mongoose.Types.ObjectId | string;
+  deviceGroupId?: mongoose.Types.ObjectId | string;
+  deviceType?: "wall_mount" | "countertop_tablet" | "floor_standing" | "desktop_terminal" | "rugged_handheld";
   lastSeen: Date;
   lastHeartbeatAt?: Date;
   pairedAt?: Date;
@@ -54,6 +57,12 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
     },
     name: { type: String, required: true, trim: true },
     location: { type: String, required: true },
+    siteId: { type: Schema.Types.Mixed, default: null },
+    deviceGroupId: { type: Schema.Types.Mixed, default: null },
+    deviceType: {
+      type: String,
+      enum: ["wall_mount", "countertop_tablet", "floor_standing", "desktop_terminal", "rugged_handheld"]
+    },
     status: {
       type: String,
       required: true,

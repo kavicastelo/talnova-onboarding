@@ -253,14 +253,27 @@ export class KioskController {
   getDeviceManifest = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;
-    const deviceIdentifier = (params.id && params.id !== "me") ? params.id : user.deviceId;
+    const query = request.query as any;
+    const deviceIdentifier = (params.deviceId || (params.id && params.id !== "me"))
+      ? (params.deviceId || params.id)
+      : user?.deviceId;
+
     if (!deviceIdentifier) {
       throw new AppError(400, "BAD_REQUEST", "Device identifier is required");
     }
+
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const refDate = query?.now ? new Date(query.now) : new Date();
     const manifest = await this.kioskService.getDeviceManifest(
       deviceIdentifier,
-      user.organizationId
+      orgId,
+      refDate
     );
+
     return reply.status(200).send({
       success: true,
       message: "Device manifest retrieved successfully",
@@ -440,6 +453,41 @@ export class KioskController {
       data: updated
     });
   };
+
+  setDeviceAssignments = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const assignments = await this.kioskService.setDeviceAssignments(
+      params.id,
+      user.organizationId,
+      user.userId,
+      request.body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device assignments updated successfully",
+      data: assignments
+    });
+  };
+
+  getDeviceAssignments = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const assignments = await this.kioskService.getDeviceAssignments(
+      params.id,
+      user.organizationId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device assignments retrieved successfully",
+      data: assignments
+    });
+  };
+
 
   revokeDevice = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
@@ -644,6 +692,123 @@ export class KioskController {
       success: true,
       message: `Kiosk device maintenance mode ${isMaintenance ? "activated" : "deactivated"}`,
       data: device,
+    });
+  };
+
+  // --- Device Group Management (K-ASN-003) ---
+
+  getDeviceGroups = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query as any) || {};
+
+    const groups = await this.kioskService.getDeviceGroups(user.organizationId, {
+      siteId: query.siteId,
+      search: query.search
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device groups retrieved successfully",
+      data: groups
+    });
+  };
+
+  getDeviceGroupById = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const group = await this.kioskService.getDeviceGroupById(
+      params.id,
+      user.organizationId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device group retrieved successfully",
+      data: group
+    });
+  };
+
+  createDeviceGroup = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+
+    const group = await this.kioskService.createDeviceGroup(
+      user.organizationId,
+      user.userId,
+      request.body
+    );
+
+    return reply.status(201).send({
+      success: true,
+      message: "Device group created successfully",
+      data: group
+    });
+  };
+
+  updateDeviceGroup = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const group = await this.kioskService.updateDeviceGroup(
+      params.id,
+      user.organizationId,
+      request.body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device group updated successfully",
+      data: group
+    });
+  };
+
+  deleteDeviceGroup = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    await this.kioskService.deleteDeviceGroup(
+      params.id,
+      user.organizationId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device group deleted successfully",
+      data: { id: params.id }
+    });
+  };
+
+  getGroupAssignments = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const assignments = await this.kioskService.getGroupAssignments(
+      params.id,
+      user.organizationId
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Group assignments retrieved successfully",
+      data: assignments
+    });
+  };
+
+  setGroupAssignments = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+
+    const assignments = await this.kioskService.setGroupAssignments(
+      params.id,
+      user.organizationId,
+      user.userId,
+      request.body
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Group assignments updated successfully",
+      data: assignments
     });
   };
 }

@@ -54,7 +54,7 @@ import { SuperAdminPackages } from './pages/super-admin/SuperAdminPackages';
 import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
-import { KioskPlayerPage, KioskPairingScreen } from './features/kiosk';
+import { KioskPlayerPage, KioskPairingScreen, KioskTerminalPage } from './features/kiosk';
 import { KioskDashboard } from './pages/KioskDashboard';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { LocalizationProvider } from './context/LocalizationProvider';
@@ -219,9 +219,11 @@ export function App() {
               <Route path="*" element={<NotFoundFallback />} />
             </Route>
             <Route path="/course/:id" element={<CourseViewer />} />
+            {/* Deprecated for physical terminals (ADR-004, DEF-001); retained strictly for administrative preview */}
             <Route path="/kiosk/play/:id" element={<KioskPlayerPage />} />
             <Route path="/kiosk/pair" element={<KioskPairRoute />} />
-            <Route path="/kiosk/terminal" element={<div className="h-screen w-full bg-slate-950 text-white flex items-center justify-center"><p className="text-slate-400">Kiosk Terminal Ready</p></div>} />
+            <Route path="/kiosk/terminal" element={<KioskTerminalPage />} />
+            <Route path="/kiosk/device/:deviceId" element={<KioskTerminalPage />} />
           </Routes>
           </SuperAdminFilterProvider>
         </BrowserRouter>
