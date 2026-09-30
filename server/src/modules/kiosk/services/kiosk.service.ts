@@ -16,12 +16,15 @@ import { Organization } from "../../organizations/models/organization.model.js";
 import { PackageModel } from "../../super-admin/models/package.model.js";
 import { KioskJourneyVersionRepository } from "../repositories/kiosk-journey-version.repository.js";
 import { IKioskJourneyVersion } from "../models/kiosk-journey-version.model.js";
+import { KioskDeviceGroupModel, IKioskDeviceGroup } from "../models/kiosk-device-group.model.js";
+import { KioskDeviceGroupRepository } from "../repositories/kiosk-device-group.repository.js";
 import { computeCanonicalStepsChecksum } from "../utils/checksum.util.js";
 import { validateJourneyForPublish } from "../validation/journey-publish.validator.js";
 import { ValidationReport } from "../types/validation.types.js";
 
 export class KioskService {
   private readonly journeyVersionRepo: KioskJourneyVersionRepository;
+  private readonly deviceGroupRepo: KioskDeviceGroupRepository;
 
   constructor(
     private readonly journeyRepo: KioskJourneyRepository,
@@ -31,9 +34,11 @@ export class KioskService {
     private readonly jwt?: {
       sign: (payload: any, options?: any) => string;
     },
-    journeyVersionRepo?: KioskJourneyVersionRepository
+    journeyVersionRepo?: KioskJourneyVersionRepository,
+    deviceGroupRepo?: KioskDeviceGroupRepository
   ) {
     this.journeyVersionRepo = journeyVersionRepo || new KioskJourneyVersionRepository();
+    this.deviceGroupRepo = deviceGroupRepo || new KioskDeviceGroupRepository();
   }
 
   getDeviceRepo(): KioskDeviceRepository {
@@ -265,6 +270,56 @@ export class KioskService {
     return updated;
   }
 
+  private isAssignmentInSchedulingWindow(assignment: any, now: Date): boolean {
+    const scheduling = assignment.scheduling;
+  if (!scheduling || !scheduling.enabled) {
+    return true;
+  }
+
+  if (scheduling.startDate && new Date(scheduling.startDate) > now) {
+    return false;
+  }
+
+  if (scheduling.endDate && new Date(scheduling.endDate) < now) {
+    return false;
+  }
+
+  if (Array.isArray(scheduling.daysOfWeek) && scheduling.daysOfWeek.length > 0) {
+    const dayOfWeek = now.getUTCDay();
+    if (!scheduling.daysOfWeek.includes(dayOfWeek)) {
+      return false;
+    }
+  }
+
+  if (scheduling.startTimeUtc || scheduling.endTimeUtc) {
+    const hours = now.getUTCHours().toString().padStart(2, "0");
+    const minutes = now.getUTCMinutes().toString().padStart(2, "0");
+    const currentUtcTime = `${hours}:${minutes}`;
+
+    const start = scheduling.startTimeUtc;
+    const end = scheduling.endTimeUtc;
+
+    if (start && end) {
+      if (start <= end) {
+        if (currentUtcTime < start || currentUtcTime >= end) {
+          return false;
+        }
+      } else {
+        // Overnight window (e.g. 22:00 to 06:00)
+        if (currentUtcTime < start && currentUtcTime >= end) {
+          return false;
+        }
+      }
+    } else if (start && currentUtcTime < start) {
+      return false;
+    } else if (end && currentUtcTime >= end) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
   async getDeviceManifest(
     deviceIdOrGuid: string,
     orgId: string,
@@ -272,7 +327,10 @@ export class KioskService {
   ): Promise<{
     deviceId: string;
     organizationId: string;
-    journeys: IKioskJourney[];
+    device: any;
+    launchMode: "launcher" | "autoplay";
+    journeys: any[];
+    settings: any;
   }> {
     const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrGuid) && deviceIdOrGuid.length === 24;
     const device = isObjectId
@@ -291,45 +349,140 @@ export class KioskService {
       throw new AppError(403, "FORBIDDEN", `Device is ${device.status}. Manifest access denied.`);
     }
 
-    const candidateJourneyIds = new Set<string>();
-
-    if (device.currentJourneyId) {
-      candidateJourneyIds.add(device.currentJourneyId.toString());
+    // Step 1: Query explicit assignments for device, device_group, and site (ADR-005, K-ASN-003)
+    // Find all device groups this device belongs to (both direct membership in group.deviceIds and device.deviceGroupId)
+    const groupOrConditions: any[] = [{ deviceIds: device._id }];
+    if (device.deviceGroupId) {
+      const groupIdStr = device.deviceGroupId.toString();
+      if (mongoose.Types.ObjectId.isValid(groupIdStr) && groupIdStr.length === 24) {
+        groupOrConditions.push({ _id: new mongoose.Types.ObjectId(groupIdStr) });
+      }
     }
 
-    // Include multi-journey assignments if present
-    const assignments = await KioskDeviceAssignmentModel.find({
+    const matchingGroups = await KioskDeviceGroupModel.find({
       organizationId: new mongoose.Types.ObjectId(orgId),
-      targetId: device._id,
-      isActive: true
-    }).sort({ priority: 1 });
-
-    for (const a of assignments) {
-      candidateJourneyIds.add(a.journeyId.toString());
-    }
-
-    if (candidateJourneyIds.size === 0) {
-      return {
-        deviceId: device.deviceId,
-        organizationId: orgId,
-        journeys: []
-      };
-    }
-
-    const candidateJourneys = await KioskJourneyModel.find({
-      _id: { $in: Array.from(candidateJourneyIds).map((id) => new mongoose.Types.ObjectId(id)) },
-      organizationId: new mongoose.Types.ObjectId(orgId),
-      isDeleted: false
+      isDeleted: false,
+      $or: groupOrConditions
     });
 
-    // Filter eligible journeys:
-    // - Must be published (not draft, not archived, not scheduled before its time)
-    // - Must not be expired (scheduling.expiresAt must be > now)
+    const groupIds = new Set<string>();
+    const siteIds = new Set<string>();
+
+    if (device.deviceGroupId) {
+      groupIds.add(device.deviceGroupId.toString());
+    }
+    if (device.siteId) {
+      siteIds.add(device.siteId.toString());
+    }
+
+    for (const group of matchingGroups) {
+      groupIds.add(group._id.toString());
+      if (group.siteId) {
+        siteIds.add(group.siteId.toString());
+      }
+    }
+
+    const targetConditions: any[] = [
+      { targetType: "device", targetId: device._id }
+    ];
+
+    for (const gId of groupIds) {
+      const isObj = mongoose.Types.ObjectId.isValid(gId) && gId.length === 24;
+      targetConditions.push({
+        targetType: "device_group",
+        targetId: isObj ? new mongoose.Types.ObjectId(gId) : gId
+      });
+    }
+
+    for (const sId of siteIds) {
+      const isObj = mongoose.Types.ObjectId.isValid(sId) && sId.length === 24;
+      targetConditions.push({
+        targetType: "site",
+        targetId: isObj ? new mongoose.Types.ObjectId(sId) : sId
+      });
+    }
+
+    const explicitAssignments = await KioskDeviceAssignmentModel.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isActive: true,
+      $or: targetConditions
+    }).sort({ priority: 1, createdAt: 1 });
+
+    const hasExplicitAssignments = explicitAssignments.length > 0 || !!device.currentJourneyId;
+
+    let candidateJourneys: any[] = [];
+    const assignmentMetaByJourneyId = new Map<string, { priority: number; isMandatory: boolean; scheduling?: any }>();
+
+    if (hasExplicitAssignments) {
+      // Filter explicit assignments by active status & scheduling window
+      const activeScheduledAssignments = explicitAssignments.filter((a) =>
+        this.isAssignmentInSchedulingWindow(a, now)
+      );
+
+      const candidateJourneyIds = new Set<string>();
+
+      // Target type ranking: device (0) > device_group (100) > site (200)
+      for (const a of activeScheduledAssignments) {
+        const jId = a.journeyId.toString();
+        candidateJourneyIds.add(jId);
+
+        const rankOffset = a.targetType === "device" ? 0 : a.targetType === "device_group" ? 100 : 200;
+        const computedPriority = (a.priority ?? 0) + rankOffset;
+
+        if (!assignmentMetaByJourneyId.has(jId)) {
+          assignmentMetaByJourneyId.set(jId, {
+            priority: computedPriority,
+            isMandatory: !!a.isMandatory,
+            scheduling: a.scheduling
+          });
+        } else {
+          // If the journey is assigned at multiple levels (e.g. site and device), the lower priority number (higher priority rank) wins
+          const existing = assignmentMetaByJourneyId.get(jId)!;
+          if (computedPriority < existing.priority) {
+            assignmentMetaByJourneyId.set(jId, {
+              priority: computedPriority,
+              isMandatory: existing.isMandatory || !!a.isMandatory,
+              scheduling: a.scheduling || existing.scheduling
+            });
+          }
+        }
+      }
+
+      // Legacy fallback if no explicit assignment records exist but currentJourneyId is set
+      if (device.currentJourneyId && candidateJourneyIds.size === 0 && explicitAssignments.length === 0) {
+        const legacyId = device.currentJourneyId.toString();
+        candidateJourneyIds.add(legacyId);
+        if (!assignmentMetaByJourneyId.has(legacyId)) {
+          assignmentMetaByJourneyId.set(legacyId, {
+            priority: 0,
+            isMandatory: false
+          });
+        }
+      }
+
+      if (candidateJourneyIds.size > 0) {
+        candidateJourneys = await KioskJourneyModel.find({
+          _id: { $in: Array.from(candidateJourneyIds).map((id) => new mongoose.Types.ObjectId(id)) },
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false
+        });
+      }
+    } else {
+      // Step 2 & 3: Fallback rule (ADR-005) - When zero explicit assignments exist,
+      // query all published journeys belonging to the organization or site.
+      candidateJourneys = await KioskJourneyModel.find({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false,
+        "publishing.status": "published"
+      }).sort({ createdAt: -1 });
+    }
+
+    // Filter candidate journeys by publishing status and journey scheduling rules
     const eligibleJourneys = candidateJourneys.filter((journey) => {
-      if (journey.publishing.status !== "published") {
+      if (journey.publishing?.status !== "published") {
         return false;
       }
-      const scheduling = journey.publishing.scheduling;
+      const scheduling = journey.publishing?.scheduling;
       if (scheduling?.publishAt && new Date(scheduling.publishAt) > now) {
         return false;
       }
@@ -339,11 +492,76 @@ export class KioskService {
       return true;
     });
 
+    // Enrich journeys with assignment metadata (priority, isMandatory)
+    const enrichedJourneys = eligibleJourneys.map((journey, index) => {
+      const jObj = journey.toObject ? journey.toObject() : { ...journey };
+      const meta = assignmentMetaByJourneyId.get(journey._id.toString());
+      return {
+        ...jObj,
+        priority: meta ? meta.priority : index,
+        isMandatory: meta ? meta.isMandatory : false,
+        assignmentScheduling: meta?.scheduling
+      };
+    });
+
+    // Sort enriched journeys by priority ascending
+    enrichedJourneys.sort((a, b) => a.priority - b.priority);
+
+    // Determine launchMode: 'autoplay' if exactly 1 journey and autoPlay is true, else 'launcher'
+    const isSingle = enrichedJourneys.length === 1;
+    const isAutoPlay = isSingle && (
+      enrichedJourneys[0].settings?.autoPlay === true ||
+      (device as any).autoPlay === true ||
+      (device as any).settings?.autoPlay === true
+    );
+    const launchMode: "launcher" | "autoplay" = isAutoPlay ? "autoplay" : "launcher";
+
+    // Standard kiosk defaults merged with journey settings if single journey
+    const defaultKioskSettings = {
+      autoPlay: false,
+      loopForever: false,
+      idleTimeoutSeconds: 60,
+      autoReturnHome: true,
+      hideNavigation: false,
+      disableExit: true,
+      security: { protectionType: "none" }
+    };
+
+    const resolvedSettings = isSingle && enrichedJourneys[0].settings
+      ? { ...defaultKioskSettings, ...enrichedJourneys[0].settings }
+      : defaultKioskSettings;
+
+    const deviceSummary = {
+      _id: device._id,
+      deviceId: device.deviceId,
+      name: device.name,
+      location: device.location,
+      status: device.status,
+      siteId: device.siteId,
+      deviceGroupId: device.deviceGroupId,
+      paired: device.paired,
+      pairedAt: device.pairedAt,
+      lastSeen: device.lastSeen,
+      telemetry: device.telemetry,
+      currentContentVersion: device.currentContentVersion
+    };
+
     return {
       deviceId: device.deviceId,
       organizationId: orgId,
-      journeys: eligibleJourneys
+      device: deviceSummary,
+      launchMode,
+      journeys: enrichedJourneys,
+      settings: resolvedSettings
     };
+  }
+
+  async resolveManifest(
+    deviceIdOrGuid: string,
+    orgId: string,
+    now: Date = new Date()
+  ) {
+    return this.getDeviceManifest(deviceIdOrGuid, orgId, now);
   }
 
   async processScheduledPublishing(now = new Date()): Promise<{
@@ -672,7 +890,37 @@ export class KioskService {
   }
 
   async listDevices(filter: any, pagination: any) {
-    return this.deviceRepo.find(filter, pagination);
+    const result = await this.deviceRepo.find(filter, pagination);
+    if (!result.devices || result.devices.length === 0) {
+      return result;
+    }
+
+    const deviceIds = result.devices.map((d) => d._id);
+    const assignments = await KioskDeviceAssignmentModel.find({
+      targetId: { $in: deviceIds },
+      targetType: "device",
+      isActive: true,
+    }).sort({ priority: 1, createdAt: 1 });
+
+    const assignmentsByDeviceId = new Map<string, any[]>();
+    for (const a of assignments) {
+      const key = a.targetId.toString();
+      if (!assignmentsByDeviceId.has(key)) {
+        assignmentsByDeviceId.set(key, []);
+      }
+      assignmentsByDeviceId.get(key)!.push(a);
+    }
+
+    const enrichedDevices = result.devices.map((device: any) => {
+      const devObj = device.toObject ? device.toObject() : { ...device };
+      devObj.assignments = assignmentsByDeviceId.get(device._id.toString()) || [];
+      return devObj;
+    });
+
+    return {
+      devices: enrichedDevices,
+      total: result.total,
+    };
   }
 
   async updateDeviceStatus(id: string, orgId: string, status: KioskDeviceStatus) {
@@ -693,8 +941,224 @@ export class KioskService {
       if (!journey) {
         throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
       }
+      // Keep KioskDeviceAssignmentModel synchronized
+      await KioskDeviceAssignmentModel.deleteMany({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        targetType: "device",
+        targetId: device._id,
+      });
+      await KioskDeviceAssignmentModel.create({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        targetType: "device",
+        targetId: device._id,
+        journeyId: new mongoose.Types.ObjectId(journeyId),
+        priority: 0,
+        isMandatory: false,
+        scheduling: { enabled: false },
+        isActive: true,
+        assignedBy: (device as any).registeredBy || device._id,
+      });
+    } else {
+      await KioskDeviceAssignmentModel.deleteMany({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        targetType: "device",
+        targetId: device._id,
+      });
     }
     return this.deviceRepo.pairJourney(id, journeyId);
+  }
+
+  async getDeviceAssignments(deviceIdOrGuid: string, orgId: string) {
+    const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrGuid) && deviceIdOrGuid.length === 24;
+    const device = isObjectId
+      ? await KioskDeviceModel.findOne({
+          _id: new mongoose.Types.ObjectId(deviceIdOrGuid),
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false,
+        })
+      : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+    if (!device || device.organizationId.toString() !== orgId.toString() || device.isDeleted) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    const assignments = await KioskDeviceAssignmentModel.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetType: "device",
+      targetId: device._id,
+      isActive: true,
+    }).sort({ priority: 1, createdAt: 1 });
+
+    const journeyIds = assignments.map((a) => a.journeyId);
+    const journeys = await KioskJourneyModel.find({
+      _id: { $in: journeyIds },
+      organizationId: new mongoose.Types.ObjectId(orgId),
+    });
+    const journeyMap = new Map(journeys.map((j) => [j._id.toString(), j]));
+
+    return assignments.map((assignment) => {
+      const journey = journeyMap.get(assignment.journeyId.toString());
+      const plain = assignment.toObject ? assignment.toObject() : assignment;
+      return {
+        ...plain,
+        journey: journey ? (journey.toObject ? journey.toObject() : journey) : null,
+        title: journey?.title || "",
+        journeyTitle: journey?.title || "",
+      };
+    });
+  }
+
+  async setDeviceAssignments(
+    deviceIdOrGuid: string,
+    orgId: string,
+    userId: string,
+    payload: any
+  ) {
+    const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrGuid) && deviceIdOrGuid.length === 24;
+    const device = isObjectId
+      ? await KioskDeviceModel.findOne({
+          _id: new mongoose.Types.ObjectId(deviceIdOrGuid),
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false,
+        })
+      : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+    if (!device || device.organizationId.toString() !== orgId.toString() || device.isDeleted) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    // Normalize raw payload into structured items
+    let rawItems: any[] = [];
+    if (Array.isArray(payload)) {
+      rawItems = payload;
+    } else if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.assignments)) {
+        rawItems = payload.assignments;
+      } else if (Array.isArray(payload.journeyIds)) {
+        rawItems = payload.journeyIds.map((id: string, index: number) => ({
+          journeyId: id,
+          priority: index,
+        }));
+      } else if (Array.isArray(payload.items)) {
+        rawItems = payload.items;
+      }
+    }
+
+    const items = rawItems.map((item, index) => {
+      if (typeof item === "string") {
+        return {
+          journeyId: item,
+          priority: index,
+          isMandatory: false,
+          scheduling: { enabled: false },
+          isActive: true,
+        };
+      }
+      return {
+        journeyId: item.journeyId?.toString() || item.id?.toString() || "",
+        priority: typeof item.priority === "number" ? item.priority : index,
+        isMandatory: typeof item.isMandatory === "boolean" ? item.isMandatory : false,
+        scheduling: item.scheduling || { enabled: false },
+        isActive: item.isActive !== undefined ? !!item.isActive : true,
+      };
+    });
+
+    // Validate that all specified journey IDs belong to the same organizationId
+    if (items.length > 0) {
+      for (const item of items) {
+        if (!item.journeyId || !mongoose.Types.ObjectId.isValid(item.journeyId)) {
+          throw new AppError(400, "BAD_REQUEST", `Invalid journey ID format: ${item.journeyId}`);
+        }
+      }
+
+      const distinctJourneyIds = Array.from(new Set(items.map((i) => i.journeyId)));
+      const foundJourneys = await KioskJourneyModel.find({
+        _id: { $in: distinctJourneyIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false,
+      });
+
+      if (foundJourneys.length !== distinctJourneyIds.length) {
+        throw new AppError(
+          400,
+          "BAD_REQUEST",
+          "One or more journeys are invalid or belong to another organization"
+        );
+      }
+    }
+
+    // Prepare documents to insert
+    const assignedBy = userId && mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : ((device as any).registeredBy || device._id);
+
+    const docsToInsert = items.map((item, idx) => ({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetType: "device" as const,
+      targetId: device._id,
+      journeyId: new mongoose.Types.ObjectId(item.journeyId),
+      priority: typeof item.priority === "number" ? item.priority : idx,
+      isMandatory: !!item.isMandatory,
+      scheduling: item.scheduling || { enabled: false },
+      isActive: item.isActive !== undefined ? item.isActive : true,
+      assignedBy,
+    }));
+
+    // Atomically synchronize assignment documents for the target device
+    const session = await mongoose.startSession().catch(() => null);
+    if (session) {
+      try {
+        await session.withTransaction(async () => {
+          await KioskDeviceAssignmentModel.deleteMany(
+            {
+              organizationId: new mongoose.Types.ObjectId(orgId),
+              targetType: "device",
+              targetId: device._id,
+            },
+            { session }
+          );
+          if (docsToInsert.length > 0) {
+            await KioskDeviceAssignmentModel.insertMany(docsToInsert, { session });
+          }
+        });
+      } catch {
+        await KioskDeviceAssignmentModel.deleteMany({
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          targetType: "device",
+          targetId: device._id,
+        });
+        if (docsToInsert.length > 0) {
+          await KioskDeviceAssignmentModel.insertMany(docsToInsert);
+        }
+      } finally {
+        await session.endSession();
+      }
+    } else {
+      await KioskDeviceAssignmentModel.deleteMany({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        targetType: "device",
+        targetId: device._id,
+      });
+      if (docsToInsert.length > 0) {
+        await KioskDeviceAssignmentModel.insertMany(docsToInsert);
+      }
+    }
+
+    // Maintain backward compatibility on device.currentJourneyId
+    if (docsToInsert.length > 0) {
+      const sortedByPriority = [...docsToInsert].sort((a, b) => a.priority - b.priority);
+      await KioskDeviceModel.updateOne(
+        { _id: device._id },
+        { $set: { currentJourneyId: sortedByPriority[0].journeyId } }
+      );
+    } else {
+      await KioskDeviceModel.updateOne(
+        { _id: device._id },
+        { $unset: { currentJourneyId: 1 } }
+      );
+    }
+
+    return this.getDeviceAssignments(deviceIdOrGuid, orgId);
   }
 
   async revokeDevice(id: string, orgId: string, userId?: string) {
@@ -703,6 +1167,285 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk device not found");
     }
     return revoked;
+  }
+
+  // --- Device Group Management (K-ASN-003) ---
+
+  async createDeviceGroup(orgId: string, userId: string, data: any) {
+    if (!data || !data.name || typeof data.name !== "string" || !data.name.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Device group name is required");
+    }
+
+    let validDeviceIds: mongoose.Types.ObjectId[] = [];
+    if (Array.isArray(data.deviceIds) && data.deviceIds.length > 0) {
+      for (const devId of data.deviceIds) {
+        if (!mongoose.Types.ObjectId.isValid(devId.toString())) {
+          throw new AppError(400, "BAD_REQUEST", `Invalid device ID: ${devId}`);
+        }
+      }
+      const deviceObjectIds = data.deviceIds.map((id: string) => new mongoose.Types.ObjectId(id.toString()));
+      const count = await KioskDeviceModel.countDocuments({
+        _id: { $in: deviceObjectIds },
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false
+      });
+      if (count !== deviceObjectIds.length) {
+        throw new AppError(400, "BAD_REQUEST", "One or more devices do not exist or belong to another organization");
+      }
+      validDeviceIds = deviceObjectIds;
+    }
+
+    const group = await this.deviceGroupRepo.create({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      name: data.name.trim(),
+      description: data.description ? data.description.trim() : undefined,
+      siteId: data.siteId ? data.siteId.trim() : null,
+      deviceIds: validDeviceIds,
+      createdBy: userId && mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : undefined,
+      isDeleted: false
+    });
+
+    return group;
+  }
+
+  async getDeviceGroups(orgId: string, filter?: { siteId?: string; search?: string }) {
+    const groups = await this.deviceGroupRepo.findByOrg(orgId, filter);
+    const groupIds = groups.map((g) => g._id);
+
+    const assignmentCounts = await KioskDeviceAssignmentModel.aggregate([
+      {
+        $match: {
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          targetType: "device_group",
+          targetId: { $in: groupIds },
+          isActive: true
+        }
+      },
+      {
+        $group: {
+          _id: "$targetId",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    const countMap = new Map(assignmentCounts.map((c) => [c._id.toString(), c.count]));
+
+    return groups.map((g) => {
+      const plain = g.toObject ? g.toObject() : g;
+      return {
+        ...plain,
+        deviceCount: plain.deviceIds?.length || 0,
+        assignmentCount: countMap.get(g._id.toString()) || 0
+      };
+    });
+  }
+
+  async getDeviceGroupById(id: string, orgId: string) {
+    const group = await this.deviceGroupRepo.findById(id, orgId);
+    if (!group) {
+      throw new AppError(404, "NOT_FOUND", "Device group not found");
+    }
+
+    const devices = await KioskDeviceModel.find({
+      _id: { $in: group.deviceIds },
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false
+    });
+
+    const assignments = await this.getGroupAssignments(id, orgId);
+    const plain = group.toObject ? group.toObject() : group;
+
+    return {
+      ...plain,
+      devices,
+      deviceCount: group.deviceIds.length,
+      assignments
+    };
+  }
+
+  async updateDeviceGroup(id: string, orgId: string, data: any) {
+    const group = await this.deviceGroupRepo.findById(id, orgId);
+    if (!group) {
+      throw new AppError(404, "NOT_FOUND", "Device group not found");
+    }
+
+    const updates: any = {};
+    if (data.name !== undefined) {
+      if (typeof data.name !== "string" || !data.name.trim()) {
+        throw new AppError(400, "BAD_REQUEST", "Device group name cannot be empty");
+      }
+      updates.name = data.name.trim();
+    }
+    if (data.description !== undefined) {
+      updates.description = data.description ? data.description.trim() : "";
+    }
+    if (data.siteId !== undefined) {
+      updates.siteId = data.siteId ? data.siteId.trim() : null;
+    }
+    if (data.deviceIds !== undefined) {
+      if (!Array.isArray(data.deviceIds)) {
+        throw new AppError(400, "BAD_REQUEST", "deviceIds must be an array");
+      }
+      for (const devId of data.deviceIds) {
+        if (!mongoose.Types.ObjectId.isValid(devId.toString())) {
+          throw new AppError(400, "BAD_REQUEST", `Invalid device ID: ${devId}`);
+        }
+      }
+      const deviceObjectIds = data.deviceIds.map((devId: string) => new mongoose.Types.ObjectId(devId.toString()));
+      if (deviceObjectIds.length > 0) {
+        const count = await KioskDeviceModel.countDocuments({
+          _id: { $in: deviceObjectIds },
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false
+        });
+        if (count !== deviceObjectIds.length) {
+          throw new AppError(400, "BAD_REQUEST", "One or more devices do not exist or belong to another organization");
+        }
+      }
+      updates.deviceIds = deviceObjectIds;
+    }
+
+    const updated = await this.deviceGroupRepo.update(id, orgId, updates);
+    return updated;
+  }
+
+  async deleteDeviceGroup(id: string, orgId: string) {
+    const group = await this.deviceGroupRepo.findById(id, orgId);
+    if (!group) {
+      throw new AppError(404, "NOT_FOUND", "Device group not found");
+    }
+    await this.deviceGroupRepo.delete(id, orgId);
+    await KioskDeviceAssignmentModel.deleteMany({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetType: "device_group",
+      targetId: group._id
+    });
+    return { success: true };
+  }
+
+  async getGroupAssignments(groupId: string, orgId: string) {
+    const group = await this.deviceGroupRepo.findById(groupId, orgId);
+    if (!group) {
+      throw new AppError(404, "NOT_FOUND", "Device group not found");
+    }
+
+    const assignments = await KioskDeviceAssignmentModel.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetType: "device_group",
+      targetId: group._id,
+      isActive: true
+    }).sort({ priority: 1, createdAt: 1 });
+
+    const journeyIds = assignments.map((a) => a.journeyId);
+    const journeys = await KioskJourneyModel.find({
+      _id: { $in: journeyIds },
+      organizationId: new mongoose.Types.ObjectId(orgId)
+    });
+    const journeyMap = new Map(journeys.map((j) => [j._id.toString(), j]));
+
+    return assignments.map((assignment) => {
+      const journey = journeyMap.get(assignment.journeyId.toString());
+      const plain = assignment.toObject ? assignment.toObject() : assignment;
+      return {
+        ...plain,
+        journey: journey ? (journey.toObject ? journey.toObject() : journey) : null,
+        title: journey?.title || "",
+        journeyTitle: journey?.title || ""
+      };
+    });
+  }
+
+  async setGroupAssignments(groupId: string, orgId: string, userId: string, payload: any) {
+    const group = await this.deviceGroupRepo.findById(groupId, orgId);
+    if (!group) {
+      throw new AppError(404, "NOT_FOUND", "Device group not found");
+    }
+
+    let rawItems: any[] = [];
+    if (Array.isArray(payload)) {
+      rawItems = payload;
+    } else if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.assignments)) {
+        rawItems = payload.assignments;
+      } else if (Array.isArray(payload.journeyIds)) {
+        rawItems = payload.journeyIds.map((id: string, index: number) => ({
+          journeyId: id,
+          priority: index
+        }));
+      } else if (Array.isArray(payload.items)) {
+        rawItems = payload.items;
+      }
+    }
+
+    const items = rawItems.map((item, index) => {
+      if (typeof item === "string") {
+        return {
+          journeyId: item,
+          priority: index,
+          isMandatory: false,
+          scheduling: { enabled: false },
+          isActive: true
+        };
+      }
+      return {
+        journeyId: item.journeyId?.toString() || item.id?.toString() || "",
+        priority: typeof item.priority === "number" ? item.priority : index,
+        isMandatory: typeof item.isMandatory === "boolean" ? item.isMandatory : false,
+        scheduling: item.scheduling || { enabled: false },
+        isActive: item.isActive !== undefined ? !!item.isActive : true
+      };
+    });
+
+    if (items.length > 0) {
+      for (const item of items) {
+        if (!item.journeyId || !mongoose.Types.ObjectId.isValid(item.journeyId)) {
+          throw new AppError(400, "BAD_REQUEST", `Invalid journey ID format: ${item.journeyId}`);
+        }
+      }
+
+      const distinctJourneyIds = Array.from(new Set(items.map((i) => i.journeyId)));
+      const foundJourneys = await KioskJourneyModel.find({
+        _id: { $in: distinctJourneyIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false
+      });
+
+      if (foundJourneys.length !== distinctJourneyIds.length) {
+        throw new AppError(
+          400,
+          "BAD_REQUEST",
+          "One or more journeys are invalid or belong to another organization"
+        );
+      }
+    }
+
+    const assignedBy = userId && mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : group._id;
+
+    const docsToInsert = items.map((item, idx) => ({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetType: "device_group" as const,
+      targetId: group._id,
+      journeyId: new mongoose.Types.ObjectId(item.journeyId),
+      priority: typeof item.priority === "number" ? item.priority : idx,
+      isMandatory: !!item.isMandatory,
+      scheduling: item.scheduling || { enabled: false },
+      isActive: item.isActive !== undefined ? item.isActive : true,
+      assignedBy
+    }));
+
+    await KioskDeviceAssignmentModel.deleteMany({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      targetType: "device_group",
+      targetId: group._id
+    });
+
+    if (docsToInsert.length > 0) {
+      await KioskDeviceAssignmentModel.insertMany(docsToInsert);
+    }
+
+    return this.getGroupAssignments(groupId, orgId);
   }
 
   // --- Analytics Sync ---

@@ -42,6 +42,7 @@ export interface KioskDevice {
    * @deprecated Decoupled in favor of KioskDeviceAssignment (ADR-001, DEF-003). Kept for backward compatibility during migration.
    */
   readonly currentJourneyId?: JourneyId;
+  readonly assignments?: any[];
   readonly currentContentVersion: VersionNumber;
   readonly isDeleted?: boolean;
   readonly deletedAt?: Timestamp;
@@ -50,10 +51,33 @@ export interface KioskDevice {
 }
 
 import { KIOSK_COMMAND_TYPES } from "../../constants/kiosk/device.constants.js";
+import { KioskJourney } from "./journey.types.js";
 
 export type KioskCommandType = typeof KIOSK_COMMAND_TYPES[number];
 
 export interface KioskCommand {
   readonly command: KioskCommandType;
   readonly payload?: Readonly<Record<string, unknown>>;
+}
+
+export interface KioskDeviceManifest {
+  deviceId: string;
+  organizationId: string;
+  device?: {
+    _id: string;
+    deviceId: string;
+    name: string;
+    location: string;
+    status: KioskDeviceStatus;
+    siteId?: string;
+    deviceGroupId?: string;
+    paired?: boolean;
+    pairedAt?: Timestamp;
+    lastSeen?: Timestamp;
+    telemetry?: KioskTelemetry;
+    currentContentVersion?: number;
+  };
+  launchMode: "launcher" | "autoplay";
+  journeys: (KioskJourney & { priority: number; isMandatory: boolean })[];
+  settings?: Record<string, any>;
 }
