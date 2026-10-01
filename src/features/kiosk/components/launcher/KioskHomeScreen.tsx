@@ -11,7 +11,6 @@ import {
   X,
   UserCheck,
   Languages,
-  Eye,
   AlertTriangle,
   ArrowRight,
   Sparkles,
@@ -33,6 +32,9 @@ import {
 import { Button } from '../../../../components/Button';
 import { FrontlineIdentifyModal } from '../auth/FrontlineIdentifyModal';
 import { PrivacyTimeoutModal } from '../privacy/PrivacyTimeoutModal';
+import { AccessibilityToolbar, FontScale } from '../accessibility/AccessibilityToolbar';
+import { KioskLiveAnnouncer } from '../accessibility/KioskLiveAnnouncer';
+import { useKioskKeyboardNavigation } from '../../hooks/useKioskKeyboardNavigation';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { privacyResetService } from '../../services/privacy-reset.service';
 import { deviceIdentityService } from '../../services/device-identity.service';
@@ -59,9 +61,37 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilterType>('all');
 
-  // Accessibility state
-  const [highContrast, setHighContrast] = useState(false);
-  const [largeFont, setLargeFont] = useState(false);
+  // Accessibility state (K-ACC-002)
+  const [highContrast, setHighContrast] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kiosk_high_contrast') === 'true';
+    }
+    return false;
+  });
+  const [fontScale, setFontScale] = useState<FontScale>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kiosk_font_scale');
+      return (saved ? parseInt(saved, 10) : 100) as FontScale;
+    }
+    return 100;
+  });
+
+  const handleToggleHighContrast = useCallback(() => {
+    setHighContrast((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kiosk_high_contrast', String(next));
+      }
+      return next;
+    });
+  }, []);
+
+  const handleFontScaleChange = useCallback((scale: FontScale) => {
+    setFontScale(scale);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kiosk_font_scale', String(scale));
+    }
+  }, []);
 
   // Modals state
   const [identifyModalOpen, setIdentifyModalOpen] = useState(false);
@@ -244,16 +274,41 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
   const device = manifest.device;
   const terminalName = device?.name || 'Frontline Terminal';
   const terminalLocation = device?.location || 'Operational Floor';
+  useKioskKeyboardNavigation({
+    enabled: true,
+    onOptionSelect: (optionIdx) => {
+      const journey = filteredJourneys[optionIdx];
+      if (journey) {
+        handleJourneyCardClick(journey);
+      }
+    },
+    onCancelModal: () => {
+      if (identifyModalOpen) setIdentifyModalOpen(false);
+      if (emergencyModalOpen) setEmergencyModalOpen(false);
+      if (searchQuery) setSearchQuery('');
+    },
+    isModalOpen: identifyModalOpen || emergencyModalOpen
+  });
 
   return (
     <div
       data-testid="kiosk-home-launcher"
-      className={`flex min-h-screen w-full flex-col select-none relative transition-colors duration-200 ${
+      id="kiosk-home-launcher"
+      data-font-scale={fontScale}
+      style={{ '--kiosk-font-scale': fontScale / 100 } as React.CSSProperties}
+      className={`flex min-h-screen w-full flex-col select-none relative overflow-x-hidden transition-colors duration-200 ${
         highContrast
-          ? 'bg-black text-white'
-          : 'bg-slate-950 text-white'
-      } ${largeFont ? 'text-lg' : 'text-base'} ${className}`}
+          ? 'high-contrast-mode bg-black text-white'
+          : 'bg-slate-950 text-white font-sans'
+      } kiosk-font-scale-${fontScale} ${className}`}
     >
+      {/* Universal Screen Reader Live Region (K-ACC-003) */}
+      <KioskLiveAnnouncer
+        customPoliteMessage={`Terminal Launcher: ${filteredJourneys.length} safety briefings available.`}
+        isEmergency={emergencyModalOpen}
+        emergencyTitle="Emergency Assistance Requested at Terminal"
+      />
+
       {/* Ambient Radial Highlights */}
       {!highContrast && (
         <>
@@ -264,6 +319,8 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
 
       {/* 1. PERSISTENT HEADER BAR */}
       <header
+        role="banner"
+        aria-label="Terminal Launcher Header"
         className={`h-22 px-6 lg:px-12 border-b flex items-center justify-between sticky top-0 z-30 ${
           highContrast
             ? 'bg-black border-amber-400'
@@ -330,46 +387,27 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
             data-testid="language-switcher"
             onClick={handleToggleLanguage}
             title={t('launcher.changeLanguage', { defaultValue: 'Switch Language' })}
-            className="h-10 px-3 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center space-x-1.5 transition active:scale-95"
+            className="min-h-[48px] min-w-[48px] h-12 px-3.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center space-x-1.5 transition active:scale-95"
           >
             <Languages className="w-4 h-4 text-indigo-400" />
             <span className="uppercase">{i18n.language || 'en'}</span>
           </button>
 
-          {/* High Contrast Mode Toggle */}
-          <button
-            data-testid="toggle-high-contrast"
-            onClick={() => setHighContrast(!highContrast)}
-            title={t('launcher.toggleHighContrast', { defaultValue: 'Toggle High Contrast' })}
-            className={`h-10 w-10 rounded-xl border flex items-center justify-center transition active:scale-95 ${
-              highContrast
-                ? 'bg-amber-400 border-amber-400 text-black'
-                : 'border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300'
-            }`}
-          >
-            <Eye className="w-4 h-4" />
-          </button>
-
-          {/* Font Size Scale Toggle */}
-          <button
-            data-testid="toggle-font-scale"
-            onClick={() => setLargeFont(!largeFont)}
-            title={t('launcher.toggleFontScale', { defaultValue: 'Toggle Larger Font' })}
-            className={`h-10 w-10 rounded-xl border flex items-center justify-center font-bold text-xs transition active:scale-95 ${
-              largeFont
-                ? 'bg-indigo-600 border-indigo-500 text-white'
-                : 'border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300'
-            }`}
-          >
-            A+
-          </button>
+          {/* Universal Accessibility Toolbar (ADR-010 / K-ACC-002) */}
+          <AccessibilityToolbar
+            highContrast={highContrast}
+            onToggleHighContrast={handleToggleHighContrast}
+            fontScale={fontScale}
+            onFontScaleChange={handleFontScaleChange}
+            showSubtitlesToggle={false}
+          />
 
           {/* Refresh / Sync Button */}
           {onRefreshManifest && (
             <button
               onClick={onRefreshManifest}
               title={t('launcher.sync', { defaultValue: 'Sync Assigned Journeys' })}
-              className="h-10 w-10 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95"
+              className="min-h-[48px] min-w-[48px] h-12 w-12 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -378,7 +416,11 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
       </header>
 
       {/* 2. MAIN CATALOG WORKSPACE */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6 relative z-10 flex flex-col">
+      <main
+        role="main"
+        aria-label="Assigned Safety Journeys Catalog"
+        className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6 relative z-10 flex flex-col"
+      >
         {/* Identified Worker Greeting Banner (if authenticated) */}
         {workerConfirmed && identifiedWorker && (
           <div className="p-4 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 flex items-center justify-between">
@@ -398,7 +440,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
                 setWorkerConfirmed(false);
                 setIdentifiedWorker(null);
               }}
-              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500"
+              className="min-h-[48px] min-w-[48px] px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 font-semibold text-xs text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95"
             >
               Sign Out
             </button>
@@ -431,7 +473,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('launcher.searchPlaceholder', { defaultValue: 'Search journeys by title or topic...' })}
-              className={`w-full h-12 pl-10 pr-10 rounded-xl text-sm border focus:outline-hidden transition ${
+              className={`w-full min-h-[48px] h-12 pl-10 pr-12 rounded-xl text-sm border focus:outline-hidden transition ${
                 highContrast
                   ? 'bg-black border-white text-white focus:border-amber-400'
                   : 'bg-slate-900/80 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500'
@@ -440,7 +482,8 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                aria-label="Clear Search"
+                className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[48px] min-w-[48px] flex items-center justify-center text-slate-400 hover:text-white transition active:scale-95"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -449,7 +492,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2 border-b border-slate-800">
+        <div className="flex items-center space-x-2.5 overflow-x-auto pb-2 border-b border-slate-800">
           {(
             [
               { key: 'all', label: 'All', icon: Layers, count: categoryCounts.all },
@@ -466,7 +509,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
                 key={tab.key}
                 data-testid={`category-tab-${tab.key}`}
                 onClick={() => setSelectedCategory(tab.key)}
-                className={`h-11 px-4 rounded-xl text-xs font-bold transition flex items-center space-x-2 shrink-0 ${
+                className={`min-h-[48px] min-w-[48px] h-12 px-4 rounded-xl text-xs font-bold transition active:scale-95 flex items-center space-x-2 shrink-0 ${
                   isActive
                     ? highContrast
                       ? 'bg-amber-400 text-black'
@@ -518,7 +561,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
             {debouncedSearch && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-white transition"
+                className="min-h-[48px] min-w-[48px] px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-white transition active:scale-95 flex items-center justify-center"
               >
                 Clear Search
               </button>
@@ -602,20 +645,20 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
                     </div>
                   </div>
 
-                  {/* Large Touch Target Launch Button */}
+                  {/* Large Touch Target Launch Button (Minimum 64x64px Primary Control) */}
                   <div className="pt-5 mt-4 border-t border-slate-800/60">
                     <button
                       data-testid={`launch-journey-${journey._id}`}
                       onClick={() => handleJourneyCardClick(journey)}
-                      className={`w-full min-h-[48px] py-3.5 px-4 rounded-xl font-bold text-sm shadow-lg active:scale-[0.98] transition flex items-center justify-center space-x-2 ${
+                      className={`w-full min-h-[64px] min-w-[64px] py-4 px-6 rounded-2xl font-black text-base shadow-xl active:scale-[0.98] transition flex items-center justify-center space-x-2.5 ${
                         highContrast
                           ? 'bg-amber-400 hover:bg-amber-300 text-black'
-                          : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-indigo-600/20'
+                          : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-indigo-600/30'
                       }`}
                     >
-                      <Play className="w-4 h-4 fill-current" />
+                      <Play className="w-5 h-5 fill-current" />
                       <span>{t('launcher.startJourney', { defaultValue: 'Start Journey' })}</span>
-                      <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 transition" />
+                      <ArrowRight className="w-5 h-5 opacity-80 group-hover:translate-x-1 transition" />
                     </button>
                   </div>
                 </div>
@@ -627,6 +670,8 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
 
       {/* 4. FOOTER ACTIONS BAR */}
       <footer
+        role="contentinfo"
+        aria-label="Terminal Actions"
         className={`py-4 px-6 lg:px-12 border-t flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-0 z-20 ${
           highContrast
             ? 'bg-black border-amber-400'
@@ -757,9 +802,9 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
             <Button
               data-testid="close-emergency-modal"
               variant="outline"
-              size="sm"
+              size="lg"
               onClick={() => setEmergencyModalOpen(false)}
-              className="border-slate-700 text-slate-300"
+              className="border-slate-700 text-slate-300 min-h-[48px] min-w-[48px] px-6 py-3 font-semibold transition active:scale-95"
             >
               Close Emergency Guide
             </Button>

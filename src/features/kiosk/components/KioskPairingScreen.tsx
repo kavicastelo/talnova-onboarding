@@ -164,7 +164,7 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
+                  className="w-full min-h-[48px] h-12 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
                   placeholder={t('pairing.deviceNamePlaceholder', 'e.g. Factory Entrance Gate A')}
                   required
                 />
@@ -178,7 +178,7 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
+                  className="w-full min-h-[48px] h-12 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
                   placeholder={t('pairing.locationPlaceholder', 'e.g. Ground Floor Main Lobby')}
                   required
                 />
@@ -194,10 +194,10 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-emerald-500 p-3 font-bold text-slate-950 hover:bg-emerald-400 transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/10 active:scale-95"
+              className="w-full min-h-[64px] min-w-[64px] rounded-xl bg-emerald-500 p-4 font-black text-base text-slate-950 hover:bg-emerald-400 transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/10 active:scale-95"
             >
               <span>{t('pairing.continueSetup', 'Continue Setup')}</span>
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-5 w-5" />
             </button>
           </form>
         ) : (
@@ -237,7 +237,7 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                   key={num}
                   disabled={isLoading}
                   onClick={() => handleKeyPress(num)}
-                  className="h-14 rounded-lg bg-slate-900/80 border border-slate-850 hover:bg-slate-800 text-lg font-semibold active:scale-95 transition"
+                  className="min-h-[48px] min-w-[48px] h-14 rounded-xl bg-slate-900/80 border border-slate-850 hover:bg-slate-800 text-lg font-semibold active:scale-95 transition flex items-center justify-center"
                 >
                   {num}
                 </button>
@@ -245,28 +245,32 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
               <button
                 disabled={isLoading}
                 onClick={handleClear}
-                className="h-14 rounded-lg bg-slate-950/50 border border-slate-900 hover:bg-slate-900 text-xs font-semibold tracking-wider text-slate-400 transition"
+                className="min-h-[48px] min-w-[48px] h-14 rounded-xl bg-slate-950/50 border border-slate-900 hover:bg-slate-900 text-xs font-semibold tracking-wider text-slate-400 active:scale-95 transition flex items-center justify-center"
               >
                 {t('pairing.clear', 'CLEAR')}
               </button>
               <button
                 disabled={isLoading}
                 onClick={() => handleKeyPress('0')}
-                className="h-14 rounded-lg bg-slate-900/80 border border-slate-850 hover:bg-slate-800 text-lg font-semibold active:scale-95 transition"
+                className="min-h-[48px] min-w-[48px] h-14 rounded-xl bg-slate-900/80 border border-slate-850 hover:bg-slate-800 text-lg font-semibold active:scale-95 transition flex items-center justify-center"
               >
                 0
               </button>
               <button
                 disabled={isLoading}
                 onClick={handleBackspace}
-                className="h-14 rounded-lg bg-slate-950/50 border border-slate-900 hover:bg-slate-900 text-xs font-semibold tracking-wider text-slate-400 transition"
+                className="min-h-[48px] min-w-[48px] h-14 rounded-xl bg-slate-950/50 border border-slate-900 hover:bg-slate-900 text-xs font-semibold tracking-wider text-slate-400 active:scale-95 transition flex items-center justify-center"
               >
                 {t('pairing.back', 'BACK')}
               </button>
             </div>
 
             <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-900">
-              <button onClick={() => setStep(1)} className="hover:text-slate-400 transition">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg hover:text-slate-300 active:scale-95 transition flex items-center justify-center"
+              >
                 {t('pairing.changeDetails', 'Change details')}
               </button>
               <span className="flex items-center space-x-1">

@@ -59,11 +59,9 @@ export const KioskAnalyticsEventItemSchema = z
   })
   .passthrough();
 
-/**
- * Payload validator for bulk synchronizing offline session tracking logs.
- */
 export const KioskAnalyticsBulkSyncSchema = z
   .object({
+    organizationId: z.string().optional(),
     events: z.array(KioskAnalyticsEventItemSchema).min(1).optional(),
     sessions: z.array(
       KioskAnalyticsSchema.omit({
@@ -72,6 +70,7 @@ export const KioskAnalyticsBulkSyncSchema = z
       }).passthrough()
     ).optional()
   })
+  .passthrough()
   .refine((data) => (data.events && data.events.length > 0) || (data.sessions && data.sessions.length > 0), {
     message: "Either events or sessions array is required and must not be empty"
   })

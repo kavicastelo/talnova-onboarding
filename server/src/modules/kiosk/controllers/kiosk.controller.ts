@@ -5,6 +5,7 @@ import AppError from "../../../common/errors/app-error.js";
 import { KioskJourneyModel } from "../models/kiosk-journey.model.js";
 import { KioskSessionModel } from "../models/kiosk-session.model.js";
 import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
+import kioskEmergencyStream from "../services/kiosk-emergency-stream.js";
 
 export class KioskController {
   constructor(private readonly kioskService: KioskService) {}
@@ -370,7 +371,8 @@ export class KioskController {
   getDeviceManifest = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;
-    const query = request.query as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
     const deviceIdentifier = (params.deviceId || (params.id && params.id !== "me"))
       ? (params.deviceId || params.id)
       : user?.deviceId;
@@ -384,11 +386,22 @@ export class KioskController {
       throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
     }
 
+    // Check for explicit cross-tenant request via query or header
+    const requestedOrgId = query?.organizationId || query?.o || headers["x-organization-id"];
+    if (requestedOrgId && requestedOrgId.toString() !== orgId.toString()) {
+      throw new AppError(
+        403,
+        "TENANT_MISMATCH",
+        "Cross-tenant access forbidden. Target organization does not match authenticated tenant."
+      );
+    }
+
     const refDate = query?.now ? new Date(query.now) : new Date();
     const manifest = await this.kioskService.getDeviceManifest(
       deviceIdentifier,
       orgId,
-      refDate
+      refDate,
+      user
     );
 
     return reply.status(200).send({
@@ -496,6 +509,22 @@ export class KioskController {
   heartbeat = async (request: FastifyRequest, reply: FastifyReply) => {
     const devicePayload = request.user as any;
     const body = (request.body || {}) as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
+
+    const authOrgId = devicePayload?.organizationId || request.kioskContext?.organizationId;
+    if (!authOrgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const requestedOrgId = body.organizationId || query.organizationId || query.o || headers["x-organization-id"];
+    if (requestedOrgId && requestedOrgId.toString() !== authOrgId.toString()) {
+      throw new AppError(
+        403,
+        "TENANT_MISMATCH",
+        "Cross-tenant access forbidden. Target organization does not match authenticated device tenant."
+      );
+    }
 
     const telemetry = {
       ...(body.telemetry || {}),
@@ -511,17 +540,42 @@ export class KioskController {
 
     const updated = await this.kioskService.heartbeat(
       devicePayload.deviceId,
-      devicePayload.organizationId,
+      authOrgId,
       body.currentContentVersion || body.contentVersion || 0,
       telemetry
     );
 
-    return reply.status(200).send({
+    const activeEmergency = await this.kioskService.getActiveEmergency(authOrgId);
+
+    const updatedObj = typeof updated === "object" && updated !== null
+      ? (typeof (updated as any).toObject === "function" ? (updated as any).toObject() : updated)
+      : { device: updated };
+
+    const emergencyCommands = activeEmergency
+      ? [
+          {
+            id: `cmd-emergency-${activeEmergency._id}`,
+            type: "emergency_override",
+            createdAt: activeEmergency.triggeredAt,
+            payload: activeEmergency
+          }
+        ]
+      : [];
+
+    const responsePayload: any = {
       success: true,
       status: "ok",
       message: "Heartbeat logged successfully",
-      data: updated
-    });
+      data: {
+        ...updatedObj,
+        commands: emergencyCommands,
+        ...(activeEmergency ? { activeEmergency, emergencyActive: true } : {})
+      },
+      commands: emergencyCommands,
+      ...(activeEmergency ? { activeEmergency, emergencyActive: true } : { activeEmergency: null, emergencyActive: false })
+    };
+
+    return reply.status(200).send(responsePayload);
   };
 
   listDevices = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -647,7 +701,9 @@ export class KioskController {
 
   syncAnalytics = async (request: FastifyRequest, reply: FastifyReply) => {
     const userPayload = request.user as any;
-    const body = request.body as any;
+    const body = (request.body || {}) as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
 
     const items = body?.events || body?.sessions;
     if (!Array.isArray(items) || items.length === 0) {
@@ -657,6 +713,16 @@ export class KioskController {
     const orgId = userPayload?.organizationId || request.kioskContext?.organizationId;
     if (!orgId) {
       throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    // Check for explicit cross-tenant request via body, query, or header
+    const requestedOrgId = body.organizationId || query.organizationId || query.o || headers["x-organization-id"];
+    if (requestedOrgId && requestedOrgId.toString() !== orgId.toString()) {
+      throw new AppError(
+        403,
+        "TENANT_MISMATCH",
+        "Cross-tenant access forbidden. Target organization does not match authenticated device tenant."
+      );
     }
 
     const result = await this.kioskService.syncAnalytics(orgId, body, userPayload?.deviceId);
@@ -943,6 +1009,163 @@ export class KioskController {
       message: "Group assignments updated successfully",
       data: assignments
     });
+  };
+
+  getDeviceCommands = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
+
+    const deviceIdentifier = (params.deviceId || (params.id && params.id !== "me"))
+      ? (params.deviceId || params.id)
+      : user?.deviceId;
+
+    if (!deviceIdentifier) {
+      throw new AppError(400, "BAD_REQUEST", "Device identifier is required");
+    }
+
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const requestedOrgId = query?.organizationId || query?.o || headers["x-organization-id"];
+    if (requestedOrgId && requestedOrgId.toString() !== orgId.toString()) {
+      throw new AppError(
+        403,
+        "TENANT_MISMATCH",
+        "Cross-tenant access forbidden. Target organization does not match authenticated tenant."
+      );
+    }
+
+    const commands = await this.kioskService.getDeviceCommands(
+      deviceIdentifier,
+      orgId,
+      user
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device commands retrieved successfully",
+      data: commands,
+      commands
+    });
+  };
+
+  // --- K-SEC-004: Emergency Override & Broadcast Handlers ---
+
+  private resolveEmergencyAuth(request: FastifyRequest): { orgId: string; actorId?: string; isWebhook: boolean } {
+    const headers = request.headers as any;
+    const body = (request.body || {}) as any;
+    const query = (request.query || {}) as any;
+    const user = request.user as any;
+
+    const webhookKey = headers["x-emergency-webhook-key"] || headers["x-safety-webhook-secret"];
+    const configuredSecret = process.env.EMERGENCY_WEBHOOK_KEY || "talnova_safety_webhook_secret";
+
+    if (webhookKey && webhookKey === configuredSecret) {
+      const orgId = body.organizationId || headers["x-organization-id"] || query.organizationId;
+      if (!orgId) {
+        throw new AppError(400, "BAD_REQUEST", "organizationId is required when triggering via safety webhook");
+      }
+      return { orgId: orgId.toString(), actorId: "safety_webhook", isWebhook: true };
+    }
+
+    if (!user || !user.organizationId) {
+      throw new AppError(401, "UNAUTHORIZED", "Authentication required for emergency broadcast");
+    }
+
+    const allowedRoles = ["owner", "admin", "safety_officer", "super_admin"];
+    if (user.role && !allowedRoles.includes(user.role)) {
+      throw new AppError(403, "FORBIDDEN", "Only administrators or safety officers may trigger emergency broadcasts");
+    }
+
+    const requestedOrgId = body.organizationId || headers["x-organization-id"] || query.organizationId;
+    if (requestedOrgId && requestedOrgId.toString() !== user.organizationId.toString()) {
+      throw new AppError(
+        403,
+        "TENANT_MISMATCH",
+        "Cross-tenant access forbidden. Target organization does not match authenticated tenant."
+      );
+    }
+
+    return { orgId: user.organizationId.toString(), actorId: user.userId || user.id, isWebhook: false };
+  }
+
+  broadcastEmergency = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { orgId, actorId } = this.resolveEmergencyAuth(request);
+    const body = request.body as any;
+
+    const emergency = await this.kioskService.broadcastEmergency(orgId, body, actorId);
+
+    return reply.status(201).send({
+      success: true,
+      message: "Emergency broadcast activated across all physical terminals",
+      data: emergency,
+      emergency
+    });
+  };
+
+  clearEmergency = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { orgId, actorId } = this.resolveEmergencyAuth(request);
+    const body = (request.body || {}) as any;
+
+    const result = await this.kioskService.clearEmergency(orgId, actorId, body?.reason);
+
+    return reply.status(200).send({
+      success: true,
+      message: result.message
+    });
+  };
+
+  getEmergencyStatus = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
+
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || query?.organizationId || query?.o || headers["x-organization-id"];
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const emergency = await this.kioskService.getActiveEmergency(orgId.toString());
+
+    return reply.status(200).send({
+      success: true,
+      active: Boolean(emergency),
+      data: emergency || null,
+      emergency: emergency || null
+    });
+  };
+
+  streamEmergency = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
+
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || query?.organizationId || query?.o || headers["x-organization-id"];
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing for emergency stream");
+    }
+
+    reply.raw.setHeader("Content-Type", "text/event-stream");
+    reply.raw.setHeader("Cache-Control", "no-cache");
+    reply.raw.setHeader("Connection", "keep-alive");
+    reply.raw.setHeader("Access-Control-Allow-Origin", "*");
+    if (typeof (reply.raw as any).flushHeaders === "function") {
+      (reply.raw as any).flushHeaders();
+    }
+
+    const subscriberId = user?.deviceId || `client-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    kioskEmergencyStream.addSubscriber(orgId.toString(), subscriberId, reply);
+
+    const activeEmergency = await this.kioskService.getActiveEmergency(orgId.toString());
+    if (activeEmergency) {
+      reply.raw.write(`event: emergency_broadcast\ndata: ${JSON.stringify(activeEmergency)}\n\n`);
+    }
+
+    return new Promise(() => {});
   };
 }
 

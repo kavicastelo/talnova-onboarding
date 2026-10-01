@@ -4,6 +4,7 @@ import { KioskDevice, KioskTelemetry, KioskCommand, KioskDeviceManifest } from '
 import { KioskDeviceGroup } from '../../../types/kiosk/group.types';
 import { KioskAnalytics, KioskAnalyticsSummary } from '../../../types/kiosk/analytics.types';
 import { KioskSession } from '../../../types/kiosk/session.types';
+import { KioskEmergency, EmergencyBroadcastPayload, EmergencyClearPayload } from '../../../types/kiosk/emergency.types';
 import { deviceIdentityService } from './device-identity.service';
 
 export const kioskService = {
@@ -278,6 +279,10 @@ export const kioskService = {
       durationIncrement?: number;
       durationSeconds?: number;
       ppeItemsVerified?: string[];
+      timestamp?: number;
+      sessionStartTime?: number;
+      monotonicElapsedMs?: number;
+      hmacSignature?: string;
     }
   ): Promise<KioskSession> => {
     const headers: Record<string, string> = {};
@@ -368,5 +373,22 @@ export const kioskService = {
       { headers }
     );
     return response.data.data;
+  },
+
+  // --- Emergency Kiosk Mode Override (K-SEC-004) ---
+  broadcastEmergency: async (payload: EmergencyBroadcastPayload): Promise<KioskEmergency> => {
+    const response = await apiClient.post<{ success: boolean; data: KioskEmergency }>('/kiosk/emergency/broadcast', payload);
+    return response.data.data;
+  },
+
+  clearEmergency: async (payload?: EmergencyClearPayload): Promise<void> => {
+    await apiClient.post('/kiosk/emergency/clear', payload || {});
+  },
+
+  getEmergencyStatus: async (organizationId?: string): Promise<KioskEmergency | null> => {
+    const response = await apiClient.get<{ success: boolean; data: KioskEmergency | null; emergency: KioskEmergency | null }>('/kiosk/emergency/status', {
+      params: organizationId ? { organizationId } : undefined
+    });
+    return response.data.emergency || response.data.data || null;
   }
 };

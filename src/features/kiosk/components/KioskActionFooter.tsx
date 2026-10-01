@@ -68,6 +68,8 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
     <footer
       id="kiosk-action-footer"
       data-testid="kiosk-action-footer"
+      role="contentinfo"
+      aria-label={t('player.navigationControls', { defaultValue: 'Step Navigation Controls' })}
       className={`h-24 min-h-[96px] max-h-[96px] shrink-0 sticky bottom-0 z-30 w-full px-4 sm:px-8 lg:px-12 flex items-center justify-between gap-4 transition-colors select-none ${
         highContrast
           ? 'bg-black border-t-2 border-amber-400 text-white'
@@ -83,9 +85,9 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
             data-testid="kiosk-btn-restart"
             onClick={onRestart}
             title={t('player.restartJourney', { defaultValue: 'Restart Journey' })}
-            className={`min-h-[56px] px-4 sm:px-6 py-3 rounded-2xl border text-sm font-semibold flex items-center space-x-2.5 transition active:scale-95 ${
+            className={`min-h-[56px] min-w-[56px] px-4 sm:px-6 py-3.5 rounded-2xl border text-sm font-semibold flex items-center justify-center space-x-2.5 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
               highContrast
-                ? 'bg-black border-amber-400 text-amber-300 hover:bg-amber-400/20 active:bg-amber-400/30'
+                ? 'bg-black border-amber-400 text-amber-300 hover:bg-amber-400/20 active:bg-amber-400/30 focus-visible:outline-amber-400'
                 : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-850 hover:text-white'
             }`}
           >
@@ -111,18 +113,18 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
         <span className={highContrast ? 'text-amber-200' : 'text-slate-300'}>{totalSteps}</span>
       </div>
 
-      {/* Right: Back, Next, Hold-to-Confirm, Finish */}
+      {/* Right: Back, Next, Hold-to-Confirm, Finish (Critical Controls: Min 64x64px) */}
       <div className="flex items-center space-x-3 sm:space-x-4 shrink-0">
-        {/* Back Button */}
+        {/* Back Button (Critical: Min 64x64 CSS px) */}
         {showBackButton && (
           <button
             type="button"
             id="kiosk-btn-prev"
             data-testid="kiosk-btn-prev"
             onClick={onPrev}
-            className={`min-h-[56px] min-w-[90px] sm:min-w-[120px] px-5 sm:px-6 py-3 rounded-2xl border font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 ${
+            className={`min-h-[64px] min-w-[64px] sm:min-w-[120px] px-6 py-4 rounded-2xl border font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
               highContrast
-                ? 'bg-black border-white text-white hover:bg-white/20 active:bg-white/30'
+                ? 'bg-black border-white text-white hover:bg-white/20 active:bg-white/30 focus-visible:outline-amber-400'
                 : 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800 hover:text-white'
             }`}
           >
@@ -131,7 +133,7 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
           </button>
         )}
 
-        {/* Hold-to-Confirm Button (if required by current step) */}
+        {/* Hold-to-Confirm Button (Critical: Min 64x64 CSS px) */}
         {isHoldToConfirm && (
           <button
             type="button"
@@ -142,9 +144,9 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
             onMouseLeave={onHoldEnd}
             onTouchStart={onHoldStart}
             onTouchEnd={onHoldEnd}
-            className={`relative min-h-[56px] min-w-[140px] sm:min-w-[180px] px-6 py-3 rounded-2xl border overflow-hidden font-bold text-sm sm:text-base flex items-center justify-center space-x-2.5 transition active:scale-95 ${
+            className={`relative min-h-[64px] min-w-[64px] sm:min-w-[180px] px-7 py-4 rounded-2xl border overflow-hidden font-bold text-sm sm:text-base flex items-center justify-center space-x-2.5 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
               highContrast
-                ? 'bg-amber-400 text-black border-amber-300'
+                ? 'bg-amber-400 text-black border-amber-300 focus-visible:outline-white'
                 : 'bg-slate-900 border-emerald-500/40 text-emerald-400 hover:border-emerald-400'
             }`}
           >
@@ -160,19 +162,21 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
           </button>
         )}
 
-        {/* Next Button */}
+        {/* Next Button (Critical: Min 64x64 CSS px) */}
         {showNextButton && !isHoldToConfirm && (
           <button
             type="button"
             id="kiosk-btn-next"
             data-testid="kiosk-btn-next"
+            data-tamper-guard="progression"
             disabled={!canGoNext}
+            aria-disabled={!canGoNext}
             onClick={onNext}
-            className={`min-h-[56px] min-w-[110px] sm:min-w-[140px] px-6 sm:px-8 py-3 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 ${
+            className={`min-h-[64px] min-w-[64px] sm:min-w-[140px] px-8 py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
               !canGoNext
                 ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
                 : highContrast
-                ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300 active:bg-amber-200 shadow-xl'
+                ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300 active:bg-amber-200 shadow-xl focus-visible:outline-white'
                 : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
             }`}
           >
@@ -181,16 +185,21 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
           </button>
         )}
 
-        {/* Finish Button (Final Step) */}
+        {/* Finish Button (Critical: Min 64x64 CSS px) */}
         {showFinishButton && !isHoldToConfirm && (
           <button
             type="button"
             id="kiosk-btn-finish"
             data-testid="kiosk-btn-finish"
+            data-tamper-guard="progression"
+            disabled={!canGoNext}
+            aria-disabled={!canGoNext}
             onClick={onFinish}
-            className={`min-h-[56px] min-w-[110px] sm:min-w-[140px] px-6 sm:px-8 py-3 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 ${
-              highContrast
-                ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300 active:bg-amber-200 shadow-xl'
+            className={`min-h-[64px] min-w-[64px] sm:min-w-[140px] px-8 py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+              !canGoNext
+                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
+                : highContrast
+                ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300 active:bg-amber-200 shadow-xl focus-visible:outline-white'
                 : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
             }`}
           >

@@ -4,6 +4,7 @@ import { KioskAnalytics, KioskUserInteraction, KioskSessionMetrics } from '../..
 import { KioskSession, KioskSessionStatus } from '../../../types/kiosk/session.types';
 import { kioskService } from '../services/kiosk.service';
 import { deviceIdentityService } from '../services/device-identity.service';
+import { antiTamperingService } from '../services/anti-tampering.service';
 
 export interface KioskPlayerContextProps {
   journey: KioskJourney | null;
@@ -169,13 +170,17 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
     lastProgressUpdateRef.current = now;
     const durationSeconds = Math.max(0, Math.round((now - sessionStartTimeRef.current) / 1000));
 
+    // K-SEC-003: Attach HMAC payload signature verifying monotonic client timers
+    const signedPayload = antiTamperingService.signStepProgressionPayload({
+      sessionId,
+      currentStepId: nextStepId,
+      completedStepId,
+      completedStepIds: Array.from(completedStepIdsRef.current),
+      durationSeconds
+    });
+
     try {
-      const updated = await kioskService.updateSessionProgress(sessionId, {
-        currentStepId: nextStepId,
-        completedStepId,
-        completedStepIds: Array.from(completedStepIdsRef.current),
-        durationSeconds
-      });
+      const updated = await kioskService.updateSessionProgress(sessionId, signedPayload);
       setActiveSession(updated);
       setSessionStatus(updated.status);
     } catch (err) {
@@ -289,6 +294,7 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
       });
 
       activeSessionIdRef.current = session._id;
+      antiTamperingService.initSessionMonotonicTimer(session._id);
       setActiveSession(session);
       setSessionStatus(session.status);
       return session;

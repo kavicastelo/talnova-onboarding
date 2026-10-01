@@ -7,6 +7,7 @@ export * from "./models/kiosk-device-group.model.js";
 export * from "./models/kiosk-session.model.js";
 export * from "./models/kiosk-pairing-code.model.js";
 export * from "./models/kiosk-analytics.model.js";
+export * from "./models/kiosk-emergency.model.js";
 export * from "./repositories/kiosk-journey.repository.js";
 export * from "./repositories/kiosk-journey-version.repository.js";
 export * from "./repositories/kiosk-device.repository.js";

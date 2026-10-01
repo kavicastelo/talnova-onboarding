@@ -67,39 +67,95 @@ export async function verifySignedUrl(request: FastifyRequest, reply: FastifyRep
  * Middleware hook to verify registered device connection JWTs for diagnostics, heartbeats, and token rotation.
  */
 export async function verifyDeviceToken(request: FastifyRequest, reply: FastifyReply) {
+  const authHeader = request.headers.authorization;
+  if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+    throw new AppError(401, "UNAUTHORIZED", "Device authorization credentials required");
+  }
+
+  const rawToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!rawToken) {
+    throw new AppError(401, "UNAUTHORIZED", "Device authorization token is required");
+  }
+
+  let payload: any;
   try {
-    // 1. Verify standard JWT bearer token on authorization header
+    // 1. Verify standard cryptographic JWT bearer token
     await request.jwtVerify();
-    const payload = request.user as any;
+    payload = request.user as any;
+  } catch (jwtErr: any) {
+    if (jwtErr instanceof AppError) {
+      throw jwtErr;
+    }
+    const isExpired =
+      jwtErr.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED" ||
+      jwtErr.name === "TokenExpiredError" ||
+      jwtErr.message?.toLowerCase().includes("expired");
 
-    if (!payload || payload.role !== "kiosk_device") {
-      throw new AppError(403, "FORBIDDEN", "Unauthorized. Device token signature required.");
+    if (isExpired) {
+      throw new AppError(401, "TOKEN_EXPIRED", "Device authentication token has expired");
     }
 
-    const authHeader = request.headers.authorization;
-    if (!authHeader) {
-      throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
-    }
+    // Forged token, arbitrary secret, invalid signature, or malformed structure
+    throw new AppError(401, "UNAUTHORIZED", "Invalid device token signature");
+  }
 
-    const rawToken = authHeader.replace(/^Bearer\s+/i, "");
-    const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  // 2. Enforce strict device role check
+  if (!payload || payload.role !== "kiosk_device") {
+    throw new AppError(403, "FORBIDDEN", "Unauthorized. Device token signature required.");
+  }
 
-    // 2. Query device strictly asserting status, paired, isDeleted, and tenant
-    const device = await KioskDeviceModel.findOne({
+  // 3. Validate essential payload identity
+  if (!payload.deviceId || !payload.organizationId) {
+    throw new AppError(401, "UNAUTHORIZED", "Malformed device token payload: missing device or tenant identity");
+  }
+
+  const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  // 4. Query device strictly asserting status, paired, isDeleted, and tenant
+  const device = await KioskDeviceModel.findOne({
+    deviceId: payload.deviceId,
+    organizationId: payload.organizationId,
+    isDeleted: false,
+    paired: true,
+    status: { $in: ["online", "maintenance"] }
+  });
+
+  if (!device || !device.tokenRef || device.tokenRef !== hash) {
+    // Check if device belongs to another organization
+    const foreignDevice = await KioskDeviceModel.findOne({
       deviceId: payload.deviceId,
-      organizationId: payload.organizationId,
-      isDeleted: false,
-      paired: true,
-      status: { $in: ["online", "maintenance"] }
+      isDeleted: false
     });
+    if (foreignDevice && foreignDevice.organizationId.toString() !== payload.organizationId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Device belongs to another organization");
+    }
 
-    if (!device || !device.tokenRef || device.tokenRef !== hash) {
-      throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
-    }
-  } catch (error: any) {
-    if (error instanceof AppError) {
-      throw error;
-    }
     throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
   }
+
+  // 5. Check if token expiration date recorded in DB has passed
+  if (device.tokenExpiresAt && device.tokenExpiresAt.getTime() < Date.now()) {
+    throw new AppError(401, "TOKEN_EXPIRED", "Device authentication token has expired");
+  }
+
+  // 6. Verify tenant is active (not suspended or deleted)
+  const isOrgObjectId =
+    typeof payload.organizationId === "string" &&
+    mongoose.Types.ObjectId.isValid(payload.organizationId) &&
+    payload.organizationId.length === 24;
+  const orgQuery = isOrgObjectId ? { _id: payload.organizationId } : { slug: payload.organizationId };
+  const org = await Organization.findOne(orgQuery);
+  if (!org) {
+    throw new AppError(404, "NOT_FOUND", "Organization not found");
+  }
+  if (org.status === "Suspended") {
+    throw new AppError(403, "ORGANIZATION_SUSPENDED", "Your organization has been suspended. Access denied.");
+  }
+
+  // Attach kiosk context to request
+  request.kioskContext = {
+    organizationId: payload.organizationId.toString(),
+    deviceId: payload.deviceId,
+    device
+  };
 }

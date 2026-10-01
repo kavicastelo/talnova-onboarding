@@ -12,12 +12,16 @@ import { KioskStep } from '../../../types/kiosk/step.types';
 import { KioskBlock } from '../../../types/kiosk/block.types';
 import { KnowledgeQuizEngine } from './interactions/KnowledgeQuizEngine';
 
+import { antiTamperingService } from '../services/anti-tampering.service';
+import { FontScale } from './accessibility/AccessibilityToolbar';
+
 export interface KioskStepContainerProps {
   step: KioskStep | null;
   stepIndex: number;
   direction?: 'forward' | 'backward';
   selectedLanguage: string;
   highContrast?: boolean;
+  fontScale?: FontScale;
   videoCompleted?: boolean;
   onVideoComplete?: () => void;
   // Interaction handlers
@@ -49,6 +53,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
   direction = 'forward',
   selectedLanguage,
   highContrast = false,
+  fontScale = 100,
   videoCompleted = false,
   onVideoComplete,
   onYesNoSelection,
@@ -86,11 +91,35 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
     if (!ref) return null;
 
     switch (block.type) {
-      case 'text':
-        return (
+      case 'text': {
+        const rawContent = ref.textValue || '';
+        const sanitizedContent = antiTamperingService.sanitizeHtml(rawContent);
+        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(sanitizedContent);
+
+        return hasHtmlTags ? (
+          <div
+            key={block.id}
+            data-testid={`kiosk-block-text-${block.id}`}
+            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+            className={`leading-relaxed font-normal break-words ${
+              block.settings?.size === 'large'
+                ? 'text-2xl sm:text-3xl'
+                : block.settings?.size === 'small'
+                ? 'text-base sm:text-lg'
+                : 'text-lg sm:text-xl'
+            } ${
+              highContrast
+                ? 'text-white bg-black/60 p-4 rounded-xl border border-white/20'
+                : block.settings?.contrastMode
+                ? 'text-slate-100 bg-black/40 p-4 rounded-xl'
+                : 'text-slate-200'
+            }`}
+          />
+        ) : (
           <p
             key={block.id}
-            className={`leading-relaxed font-normal ${
+            data-testid={`kiosk-block-text-${block.id}`}
+            className={`leading-relaxed font-normal break-words ${
               block.settings?.size === 'large'
                 ? 'text-2xl sm:text-3xl'
                 : block.settings?.size === 'small'
@@ -104,9 +133,10 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 : 'text-slate-200'
             }`}
           >
-            {ref.textValue}
+            {sanitizedContent}
           </p>
         );
+      }
 
       case 'image': {
         const imageUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
@@ -209,11 +239,14 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       data-testid="kiosk-step-container"
       data-step-index={stepIndex}
       data-direction={direction}
-      className={`relative flex-1 overflow-y-auto w-full flex flex-col justify-start px-4 sm:px-8 lg:px-12 py-6 transition-all duration-300 ease-out ${
+      data-font-scale={fontScale}
+      role="main"
+      aria-label={step.title || t('player.stepCanvas', { defaultValue: 'Instructional Step Canvas' })}
+      className={`relative flex-1 overflow-y-auto overflow-x-hidden max-w-full w-full flex flex-col justify-start px-4 sm:px-8 lg:px-12 py-6 transition-all duration-300 ease-out break-words ${
         direction === 'forward' ? 'animate-slide-in-right' : 'animate-slide-in-left'
       } ${className}`}
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 flex-1 flex flex-col justify-center">
+      <div className="w-full max-w-5xl mx-auto space-y-6 flex-1 flex flex-col justify-center min-w-0 break-words">
         {/* Step-specific warning or emergency protocol header */}
         {(isEmergency || isWarning) && (
           <div
@@ -269,7 +302,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 type="button"
                 data-testid="yes-btn"
                 onClick={() => onYesNoSelection(true)}
-                className="w-full sm:w-60 min-h-[64px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition"
+                className="w-full sm:w-60 min-h-[64px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
               >
                 <Check className="w-6 h-6 stroke-[3]" />
                 <span>Yes / Confirmed</span>
@@ -278,7 +311,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 type="button"
                 data-testid="no-btn"
                 onClick={() => onYesNoSelection(false)}
-                className="w-full sm:w-60 min-h-[64px] rounded-2xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition"
+                className="w-full sm:w-60 min-h-[64px] rounded-2xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
               >
                 <span>No / Unsafe</span>
               </button>
@@ -296,7 +329,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 onMouseLeave={onHoldEnd}
                 onTouchStart={onHoldStart}
                 onTouchEnd={onHoldEnd}
-                className="relative h-28 w-28 rounded-full bg-slate-900 border-2 border-slate-800 hover:border-emerald-500/50 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-2xl"
+                className="relative h-28 w-28 rounded-full bg-slate-900 border-2 border-slate-800 hover:border-emerald-500/50 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-2xl focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
               >
                 {/* SVG circular progress ring */}
                 <svg className="absolute inset-0 h-full w-full -rotate-90">
@@ -339,7 +372,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                   <button
                     type="button"
                     onClick={onSelectAllPpe}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
+                    className="min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center justify-center active:scale-95 transition"
                   >
                     Select All
                   </button>
@@ -358,7 +391,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                         id={`ppe-check-${itemId}`}
                         data-testid={`ppe-check-${itemId}`}
                         onClick={() => onTogglePpeItem?.(item)}
-                        className={`min-h-[52px] p-3.5 rounded-xl border text-left flex items-center justify-between font-semibold text-sm transition active:scale-98 ${
+                        className={`min-h-[52px] min-w-[48px] p-3.5 rounded-xl border text-left flex items-center justify-between font-semibold text-sm transition active:scale-98 ${
                           isChecked
                             ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-200'
                             : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700'
@@ -366,13 +399,13 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                       >
                         <span>{item}</span>
                         <div
-                          className={`w-5 h-5 rounded-md border flex items-center justify-center ${
+                          className={`w-6 h-6 rounded-md border flex items-center justify-center ${
                             isChecked
                               ? 'bg-emerald-500 border-emerald-500 text-slate-950'
                               : 'border-slate-700 bg-slate-900'
                           }`}
                         >
-                          {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          {isChecked && <Check className="w-4 h-4 stroke-[3]" />}
                         </div>
                       </button>
                     );
@@ -387,7 +420,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                     id="ppe-confirm-btn"
                     data-testid="ppe-confirm-btn"
                     onClick={onSubmitPpe}
-                    className="min-h-[48px] px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition active:scale-95"
+                    className="min-h-[64px] min-w-[64px] px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base transition active:scale-95 shadow-xl flex items-center justify-center focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
                   >
                     Verify & Record PPE Compliance
                   </button>

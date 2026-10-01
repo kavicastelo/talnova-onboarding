@@ -24,6 +24,8 @@ import { computeCanonicalStepsChecksum } from "../utils/checksum.util.js";
 import { validateJourneyForPublish } from "../validation/journey-publish.validator.js";
 import { ValidationReport } from "../types/validation.types.js";
 import AuditLog from "../../audit-logs/models/audit-log.model.js";
+import { KioskEmergencyModel, IKioskEmergency } from "../models/kiosk-emergency.model.js";
+import kioskEmergencyStream from "./kiosk-emergency-stream.js";
 
 export class KioskService {
   private readonly journeyVersionRepo: KioskJourneyVersionRepository;
@@ -329,7 +331,8 @@ export class KioskService {
   async getDeviceManifest(
     deviceIdOrGuid: string,
     orgId: string,
-    now = new Date()
+    now = new Date(),
+    requestUser?: any
   ): Promise<{
     deviceId: string;
     organizationId: string;
@@ -348,7 +351,38 @@ export class KioskService {
       : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
 
     if (!device || device.organizationId.toString() !== orgId.toString() || device.isDeleted) {
+      // Check if this device belongs to a different organization (Zero Trust tenant boundary)
+      const foreignDevice = isObjectId
+        ? await KioskDeviceModel.findById(deviceIdOrGuid)
+        : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+      if (foreignDevice && foreignDevice.organizationId.toString() !== orgId.toString()) {
+        if (requestUser?.role === "kiosk_device") {
+          throw new AppError(
+            403,
+            "TENANT_MISMATCH",
+            "Cross-tenant access forbidden: Device belongs to another organization."
+          );
+        }
+      }
+
       throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    // Zero Trust device identity assertion: device token cannot request manifest of a different terminal
+    if (requestUser?.role === "kiosk_device") {
+      const isSelf =
+        device.deviceId === requestUser.deviceId ||
+        device.hardwareGuid === requestUser.deviceId ||
+        device._id.toString() === requestUser.deviceId;
+
+      if (!isSelf) {
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Zero Trust violation: Device token cannot request manifest of a different terminal."
+        );
+      }
     }
 
     if (device.status === "suspended" || device.status === "decommissioned") {
@@ -888,11 +922,71 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Device registration not found");
     }
 
-    if (device.organizationId.toString() !== orgId) {
-      throw new AppError(403, "FORBIDDEN", "Tenant mismatch for device");
+    if (device.organizationId.toString() !== orgId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Cross-tenant access forbidden: Tenant mismatch for device");
     }
 
     return this.deviceRepo.heartbeat(device._id as mongoose.Types.ObjectId, contentVersion, telemetry);
+  }
+
+  async getDeviceCommands(deviceIdOrGuid: string, orgId: string, requestUser?: any) {
+    const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrGuid) && deviceIdOrGuid.length === 24;
+    const device = isObjectId
+      ? await KioskDeviceModel.findOne({
+          _id: new mongoose.Types.ObjectId(deviceIdOrGuid),
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false
+        })
+      : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+    if (!device || device.organizationId.toString() !== orgId.toString() || device.isDeleted) {
+      const foreignDevice = isObjectId
+        ? await KioskDeviceModel.findById(deviceIdOrGuid)
+        : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+      if (foreignDevice && foreignDevice.organizationId.toString() !== orgId.toString()) {
+        throw new AppError(
+          403,
+          "TENANT_MISMATCH",
+          "Cross-tenant access forbidden: Device belongs to another organization."
+        );
+      }
+
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    if (requestUser?.role === "kiosk_device") {
+      const isSelf =
+        device.deviceId === requestUser.deviceId ||
+        device.hardwareGuid === requestUser.deviceId ||
+        device._id.toString() === requestUser.deviceId;
+
+      if (!isSelf) {
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Zero Trust violation: Device token cannot request commands of a different terminal."
+        );
+      }
+    }
+
+    if (device.status === "suspended" || device.status === "decommissioned") {
+      throw new AppError(403, "FORBIDDEN", `Device is ${device.status}. Command access denied.`);
+    }
+
+    const activeEmergency = await this.getActiveEmergency(orgId);
+    if (activeEmergency) {
+      return [
+        {
+          id: `cmd-emergency-${activeEmergency._id}`,
+          type: "emergency_override",
+          createdAt: activeEmergency.triggeredAt,
+          payload: activeEmergency
+        }
+      ];
+    }
+
+    return [];
   }
 
   async listDevices(filter: any, pagination: any) {
@@ -1474,6 +1568,17 @@ export class KioskService {
       }
     }
 
+    // Check if any individual event payload has an organizationId that doesn't match
+    for (const item of rawItems) {
+      if (item.organizationId && item.organizationId.toString() !== orgId.toString()) {
+        throw new AppError(
+          403,
+          "TENANT_MISMATCH",
+          "Cross-tenant access forbidden: Analytics payload item specifies a different organization."
+        );
+      }
+    }
+
     // Extract journey identifiers (can be ObjectId or journeyCode)
     const rawJourneyIds: string[] = Array.from(
       new Set(
@@ -1484,12 +1589,30 @@ export class KioskService {
     );
     const validObjectIds = rawJourneyIds.filter((id: string) => mongoose.Types.ObjectId.isValid(id) && id.length === 24);
 
-    const journeys = await KioskJourneyModel.find({
+    // Assert that none of the specified journeys belong to a different organization (Zero Trust tenant boundary)
+    const crossTenantJourneys = await KioskJourneyModel.find({
       $or: [
-        { _id: { $in: validObjectIds } },
+        { _id: { $in: validObjectIds.map((id) => new mongoose.Types.ObjectId(id)) } },
         { journeyCode: { $in: rawJourneyIds } }
       ],
-      organizationId: orgId,
+      organizationId: { $ne: new mongoose.Types.ObjectId(orgId) },
+      isDeleted: false
+    });
+
+    if (crossTenantJourneys.length > 0) {
+      throw new AppError(
+        403,
+        "TENANT_MISMATCH",
+        `Cross-tenant access forbidden: Journey ${crossTenantJourneys[0]._id} belongs to another organization.`
+      );
+    }
+
+    const journeys = await KioskJourneyModel.find({
+      $or: [
+        { _id: { $in: validObjectIds.map((id) => new mongoose.Types.ObjectId(id)) } },
+        { journeyCode: { $in: rawJourneyIds } }
+      ],
+      organizationId: new mongoose.Types.ObjectId(orgId),
       isDeleted: false
     });
 
@@ -1504,7 +1627,7 @@ export class KioskService {
         (j) => j._id.toString() === item.journeyId || j.journeyCode === item.journeyId
       );
       if (!matchedJourney) {
-        throw new AppError(400, "BAD_REQUEST", `Tenant crossover or invalid journey detected: ${item.journeyId}`);
+        throw new AppError(403, "TENANT_MISMATCH", `Cross-tenant access forbidden or invalid journey detected: ${item.journeyId}`);
       }
 
       const journeyId = matchedJourney._id as mongoose.Types.ObjectId;
@@ -2277,6 +2400,152 @@ export class KioskService {
     }
 
     return (await this.sessionRepo.findById(session._id)) || updated!;
+  }
+
+  /**
+   * =========================================================================
+   * K-SEC-004: Emergency Kiosk Mode Override & Broadcast Engine
+   * =========================================================================
+   */
+
+  /**
+   * Broadcast an emergency evacuation override across all online terminals of an organization
+   */
+  async broadcastEmergency(
+    orgId: string,
+    data: {
+      type: "fire" | "gas_leak" | "toxic_spill" | "weather" | "security_threat" | "general";
+      severity?: "warning" | "critical" | "evacuate";
+      title: string;
+      message: string;
+      evacuationMapUrl?: string;
+      primaryExit?: string;
+      secondaryExit?: string;
+      assemblyZone?: string;
+      emergencyContacts?: Array<{ name: string; phone: string; role?: string }>;
+      soundSiren?: boolean;
+      siteId?: string;
+      deviceIds?: string[];
+    },
+    triggeredBy?: string
+  ): Promise<IKioskEmergency> {
+    if (!orgId) {
+      throw new AppError(400, "BAD_REQUEST", "Organization ID is required for emergency broadcast");
+    }
+
+    // 1. Deactivate existing active emergency broadcasts for this organization
+    await KioskEmergencyModel.updateMany(
+      { organizationId: new mongoose.Types.ObjectId(orgId), isActive: true },
+      { $set: { isActive: false, clearedAt: new Date(), clearedBy: triggeredBy || "SYSTEM_OVERRIDE" } }
+    );
+
+    // 2. Persist new active emergency record
+    const emergency = await KioskEmergencyModel.create({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      type: data.type,
+      severity: data.severity || "evacuate",
+      title: data.title,
+      message: data.message,
+      evacuationMapUrl: data.evacuationMapUrl,
+      primaryExit: data.primaryExit || "North Emergency Stairwell A",
+      secondaryExit: data.secondaryExit || "East Ground Level Exit 2",
+      assemblyZone: data.assemblyZone || "Muster Point B - Main Parking Lot",
+      emergencyContacts: data.emergencyContacts || [],
+      soundSiren: data.soundSiren !== false,
+      siteId: data.siteId,
+      deviceIds: data.deviceIds || [],
+      isActive: true,
+      triggeredBy: triggeredBy || "safety_officer",
+      triggeredAt: new Date()
+    });
+
+    // 3. Dispatch real-time SSE broadcast to online terminals
+    kioskEmergencyStream.broadcastEmergency(orgId, emergency);
+
+    // 4. Log immutable security audit event
+    await AuditLog.create({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      actorUserId: triggeredBy && mongoose.Types.ObjectId.isValid(triggeredBy) ? new mongoose.Types.ObjectId(triggeredBy) : undefined,
+      actorType: "user",
+      eventCategory: "security",
+      eventType: "EMERGENCY_BROADCAST_TRIGGERED",
+      resourceType: "kiosk_emergency",
+      resourceId: emergency._id,
+      action: "create",
+      description: `Active ${emergency.severity.toUpperCase()} Emergency Broadcast: ${emergency.title} triggered. All physical terminals overridden.`,
+      metadata: {
+        emergencyId: emergency._id.toString(),
+        type: emergency.type,
+        severity: emergency.severity,
+        title: emergency.title,
+        triggeredBy
+      },
+      severity: "critical"
+    });
+
+    return emergency;
+  }
+
+  /**
+   * Cancel and clear an active emergency broadcast
+   */
+  async clearEmergency(orgId: string, clearedBy?: string, reason?: string) {
+    if (!orgId) {
+      throw new AppError(400, "BAD_REQUEST", "Organization ID is required");
+    }
+
+    const activeEmergencies = await KioskEmergencyModel.find({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isActive: true
+    });
+
+    if (activeEmergencies.length === 0) {
+      return { success: true, message: "No active emergency found for this organization" };
+    }
+
+    const now = new Date();
+    await KioskEmergencyModel.updateMany(
+      { organizationId: new mongoose.Types.ObjectId(orgId), isActive: true },
+      { $set: { isActive: false, clearedAt: now, clearedBy: clearedBy || "admin" } }
+    );
+
+    // Dispatch real-time SSE clear event to online terminals
+    kioskEmergencyStream.broadcastClear(orgId, {
+      clearedBy: clearedBy || "admin",
+      reason: reason || "All clear signaled by emergency responder",
+      timestamp: now.toISOString()
+    });
+
+    // Log audit log
+    await AuditLog.create({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      actorUserId: clearedBy && mongoose.Types.ObjectId.isValid(clearedBy) ? new mongoose.Types.ObjectId(clearedBy) : undefined,
+      actorType: "user",
+      eventCategory: "security",
+      eventType: "EMERGENCY_BROADCAST_CLEARED",
+      resourceType: "kiosk_emergency",
+      action: "update",
+      description: `Emergency Broadcast cleared for organization ${orgId}. Reason: ${reason || "All clear"}`,
+      metadata: {
+        clearedBy,
+        reason,
+        clearedAt: now
+      },
+      severity: "info"
+    });
+
+    return { success: true, message: "Emergency broadcast cleared successfully" };
+  }
+
+  /**
+   * Retrieve currently active emergency for an organization
+   */
+  async getActiveEmergency(orgId: string): Promise<IKioskEmergency | null> {
+    if (!orgId) return null;
+    return await KioskEmergencyModel.findOne({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isActive: true
+    }).sort({ triggeredAt: -1 });
   }
 }
 
