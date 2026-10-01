@@ -17,7 +17,9 @@ import {
   CompleteKioskSessionSchema,
   AbortKioskSessionSchema,
   TimeoutKioskSessionSchema,
-  VerifySupervisorPinSchema
+  VerifySupervisorPinSchema,
+  EmergencyBroadcastSchema,
+  EmergencyClearSchema
 } from "../validation/index.js";
 import { z } from "zod";
 import mongoose from "mongoose";
@@ -210,6 +212,91 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.verifySupervisorPin
   );
 
+  // --- EMERGENCY KIOSK OVERRIDE ENDPOINTS (K-SEC-004) ---
+
+  const emergencyAuthPreHandler = async (request: any, reply: any) => {
+    const headers = request.headers as any;
+    const webhookKey = headers["x-emergency-webhook-key"] || headers["x-safety-webhook-secret"];
+    const configuredSecret = process.env.EMERGENCY_WEBHOOK_KEY || "talnova_safety_webhook_secret";
+    if (webhookKey && webhookKey === configuredSecret) {
+      return;
+    }
+    await authenticate(request, reply);
+  };
+
+  const emergencyReadPreHandler = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      try {
+        const decoded = app.jwt.decode<any>(authHeader.substring(7));
+        if (decoded?.role === "kiosk_device") {
+          await verifyDeviceToken(request, reply);
+          return;
+        }
+        await authenticate(request, reply);
+        return;
+      } catch {
+        // Fall-through to query / header check
+      }
+    }
+    const query = request.query as any;
+    const headers = request.headers as any;
+    if (!query?.organizationId && !query?.o && !headers["x-organization-id"]) {
+      await authenticate(request, reply);
+    }
+  };
+
+  // POST /api/v1/kiosk/emergency/broadcast (Admin or Safety Webhook)
+  app.post(
+    "/emergency/broadcast",
+    {
+      preHandler: [emergencyAuthPreHandler],
+      schema: {
+        body: EmergencyBroadcastSchema
+      }
+    },
+    controller.broadcastEmergency
+  );
+
+  // POST /api/v1/kiosk/emergency/clear (Deactivate emergency broadcast)
+  app.post(
+    "/emergency/clear",
+    {
+      preHandler: [emergencyAuthPreHandler],
+      schema: {
+        body: EmergencyClearSchema
+      }
+    },
+    controller.clearEmergency
+  );
+
+  // DELETE /api/v1/kiosk/emergency/broadcast (Alias to clear)
+  app.delete(
+    "/emergency/broadcast",
+    {
+      preHandler: [emergencyAuthPreHandler]
+    },
+    controller.clearEmergency
+  );
+
+  // GET /api/v1/kiosk/emergency/status (Query active emergency for tenant)
+  app.get(
+    "/emergency/status",
+    {
+      preHandler: [emergencyReadPreHandler]
+    },
+    controller.getEmergencyStatus
+  );
+
+  // GET /api/v1/kiosk/emergency/stream (SSE Stream for real-time terminal override)
+  app.get(
+    "/emergency/stream",
+    {
+      preHandler: [emergencyReadPreHandler]
+    },
+    controller.streamEmergency
+  );
+
   // --- DEVICE AUTHORIZED ENDPOINTS ---
 
   // POST /api/v1/kiosk/devices/refresh-token (Device credential rotation, K-DEV-003)
@@ -221,7 +308,7 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.refreshDeviceToken
   );
 
-  // POST /api/v1/kiosk/devices/heartbeat (Device token heartbeat ping)
+  // POST /api/v1/kiosk/devices/heartbeat & /heartbeat (Device token heartbeat ping)
   app.post(
     "/devices/heartbeat",
     {
@@ -233,32 +320,45 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.heartbeat
   );
 
-  // POST /api/v1/kiosk/analytics/sync (Offline analytics bulk upload)
+  app.post(
+    "/heartbeat",
+    {
+      preHandler: [verifyDeviceToken],
+      schema: {
+        body: KioskDeviceHeartbeatSchema
+      }
+    },
+    controller.heartbeat
+  );
+
+  // Reusable preHandler for sync endpoints (supports device token, signed URL, or admin JWT)
+  const syncAuthPreHandler = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      let decoded: any = null;
+      try {
+        decoded = app.jwt.decode<any>(authHeader.substring(7));
+      } catch {
+        // Fall-through if malformed
+      }
+      if (decoded?.role === "kiosk_device") {
+        await verifyDeviceToken(request, reply);
+        return;
+      }
+    }
+    const query = request.query as any;
+    if (query?.sig && query?.exp && query?.o) {
+      await verifySignedUrl(request, reply);
+      return;
+    }
+    await authenticate(request, reply);
+  };
+
+  // POST /api/v1/kiosk/analytics/sync & /sync (Offline analytics bulk upload)
   app.post(
     "/analytics/sync",
     {
-      preHandler: [
-        async (request, reply) => {
-          const authHeader = request.headers.authorization;
-          if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-            try {
-              const decoded = app.jwt.decode<any>(authHeader.substring(7));
-              if (decoded?.role === "kiosk_device") {
-                await verifyDeviceToken(request, reply);
-                return;
-              }
-            } catch (err) {
-              // Fail-through to standard authenticate
-            }
-          }
-          const query = request.query as any;
-          if (query?.sig && query?.exp && query?.o) {
-            await verifySignedUrl(request, reply);
-            return;
-          }
-          await authenticate(request, reply);
-        }
-      ],
+      preHandler: [syncAuthPreHandler],
       schema: {
         body: KioskAnalyticsBulkSyncSchema
       }
@@ -266,27 +366,48 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.syncAnalytics
   );
 
-  // GET /api/v1/kiosk/devices/manifest (Device manifest for requesting terminal)
+  app.post(
+    "/sync",
+    {
+      preHandler: [syncAuthPreHandler],
+      schema: {
+        body: KioskAnalyticsBulkSyncSchema
+      }
+    },
+    controller.syncAnalytics
+  );
+
+  // Reusable preHandler for manifest endpoints (supports device token or admin JWT)
+  const manifestAuthPreHandler = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      let decoded: any = null;
+      try {
+        decoded = app.jwt.decode<any>(authHeader.substring(7));
+      } catch {
+        // Fall-through if malformed
+      }
+      if (decoded?.role === "kiosk_device") {
+        await verifyDeviceToken(request, reply);
+        return;
+      }
+    }
+    await authenticate(request, reply);
+  };
+
+  // GET /api/v1/kiosk/devices/manifest & /manifest (Device manifest for requesting terminal)
   app.get(
     "/devices/manifest",
     {
-      preHandler: [
-        async (request, reply) => {
-          const authHeader = request.headers.authorization;
-          if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-            try {
-              const decoded = app.jwt.decode<any>(authHeader.substring(7));
-              if (decoded?.role === "kiosk_device") {
-                await verifyDeviceToken(request, reply);
-                return;
-              }
-            } catch (err) {
-              // Fail-through
-            }
-          }
-          await authenticate(request, reply);
-        }
-      ]
+      preHandler: [manifestAuthPreHandler]
+    },
+    controller.getDeviceManifest
+  );
+
+  app.get(
+    "/manifest",
+    {
+      preHandler: [manifestAuthPreHandler]
     },
     controller.getDeviceManifest
   );
@@ -295,25 +416,34 @@ export async function kioskRoutes(app: FastifyInstance) {
   app.get(
     "/devices/:deviceId/manifest",
     {
-      preHandler: [
-        async (request, reply) => {
-          const authHeader = request.headers.authorization;
-          if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-            try {
-              const decoded = app.jwt.decode<any>(authHeader.substring(7));
-              if (decoded?.role === "kiosk_device") {
-                await verifyDeviceToken(request, reply);
-                return;
-              }
-            } catch (err) {
-              // Fail-through
-            }
-          }
-          await authenticate(request, reply);
-        }
-      ]
+      preHandler: [manifestAuthPreHandler]
     },
     controller.getDeviceManifest
+  );
+
+  // GET /api/v1/kiosk/devices/commands, /devices/:deviceId/commands & /commands (Remote administration commands)
+  app.get(
+    "/devices/commands",
+    {
+      preHandler: [verifyDeviceToken]
+    },
+    controller.getDeviceCommands
+  );
+
+  app.get(
+    "/devices/:deviceId/commands",
+    {
+      preHandler: [verifyDeviceToken]
+    },
+    controller.getDeviceCommands
+  );
+
+  app.get(
+    "/commands",
+    {
+      preHandler: [verifyDeviceToken]
+    },
+    controller.getDeviceCommands
   );
 
   // --- ADMIN AUTHORIZED ENDPOINTS (Requires Owner/Admin Role) ---

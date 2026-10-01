@@ -8,7 +8,9 @@ declare module "fastify" {
     locale: SupportedLocale;
     kioskContext?: {
       organizationId: string;
-      journeyId: string;
+      journeyId?: string;
+      deviceId?: string;
+      device?: any;
     };
   }
 }

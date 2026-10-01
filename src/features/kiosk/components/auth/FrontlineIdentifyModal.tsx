@@ -223,6 +223,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
+        showCloseButton={false}
         data-testid="frontline-identify-modal"
         className={`sm:max-w-lg p-6 sm:p-8 rounded-3xl border shadow-2xl transition-all ${
           highContrast
@@ -289,12 +290,12 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
             /* ================= Input Modalities ================= */
             <>
               {/* Tab Selector: Keypad & Badge vs Camera QR */}
-              <div className="flex rounded-2xl bg-slate-950/80 p-1 border border-slate-800">
+              <div className="flex rounded-2xl bg-slate-950/80 p-1 border border-slate-800 gap-2">
                 <button
                   type="button"
                   data-testid="tab-keypad"
                   onClick={() => setActiveTab('keypad')}
-                  className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition ${
+                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${
                     activeTab === 'keypad'
                       ? highContrast
                         ? 'bg-amber-400 text-black shadow-md'
@@ -309,7 +310,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                   type="button"
                   data-testid="tab-camera"
                   onClick={() => setActiveTab('camera')}
-                  className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition ${
+                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${
                     activeTab === 'camera'
                       ? highContrast
                         ? 'bg-amber-400 text-black shadow-md'
@@ -352,7 +353,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                         }
                       }}
                       placeholder="Badge ID / Employee #"
-                      className={`h-14 text-center font-mono text-xl font-black tracking-widest ${
+                      className={`h-14 pr-12 text-center font-mono text-xl font-black tracking-widest ${
                         highContrast
                           ? 'bg-black border-amber-400 text-white focus:border-amber-300'
                           : 'bg-slate-950 border-slate-700 text-white focus:border-indigo-500'
@@ -362,7 +363,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       <button
                         type="button"
                         onClick={handleKeypadClear}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white p-1"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[48px] min-w-[48px] w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white active:scale-95 transition"
                         title="Clear input"
                       >
                         <X className="w-5 h-5" />
@@ -382,7 +383,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                   )}
 
                   {/* Touch Keypad Grid */}
-                  <div className="grid grid-cols-3 gap-2 pt-1 select-none">
+                  <div className="grid grid-cols-3 gap-2.5 pt-1 select-none">
                     {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
                       <button
                         key={digit}
@@ -390,7 +391,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                         id={`keypad-digit-${digit}`}
                         data-testid={`keypad-digit-${digit}`}
                         onClick={() => handleKeypadDigit(digit)}
-                        className={`h-14 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+                        className={`min-h-[48px] min-w-[48px] h-14 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
                           highContrast
                             ? 'bg-black border-neutral-700 text-white hover:border-amber-400 hover:bg-neutral-900'
                             : 'bg-slate-950 border-slate-800 text-white hover:bg-slate-850 hover:border-slate-700'
@@ -406,7 +407,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       id="keypad-clear"
                       data-testid="keypad-clear"
                       onClick={handleKeypadClear}
-                      className="h-14 rounded-2xl font-bold text-xs uppercase tracking-wider border border-slate-800 bg-slate-950 text-slate-400 hover:text-white active:scale-95 flex items-center justify-center transition"
+                      className="min-h-[48px] min-w-[48px] h-14 rounded-2xl font-bold text-xs uppercase tracking-wider border border-slate-800 bg-slate-950 text-slate-400 hover:text-white active:scale-95 flex items-center justify-center transition"
                     >
                       Clear
                     </button>
@@ -417,7 +418,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       id="keypad-digit-0"
                       data-testid="keypad-digit-0"
                       onClick={() => handleKeypadDigit('0')}
-                      className={`h-14 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+                      className={`min-h-[48px] min-w-[48px] h-14 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
                         highContrast
                           ? 'bg-black border-neutral-700 text-white hover:border-amber-400 hover:bg-neutral-900'
                           : 'bg-slate-950 border-slate-800 text-white hover:bg-slate-850 hover:border-slate-700'
@@ -432,7 +433,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       id="keypad-delete"
                       data-testid="keypad-delete"
                       onClick={handleKeypadDelete}
-                      className="h-14 rounded-2xl border border-slate-800 bg-slate-950 text-slate-400 hover:text-white active:scale-95 flex items-center justify-center transition"
+                      className="min-h-[48px] min-w-[48px] h-14 rounded-2xl border border-slate-800 bg-slate-950 text-slate-400 hover:text-white active:scale-95 flex items-center justify-center transition"
                     >
                       <Delete className="w-5 h-5" />
                     </button>
@@ -471,7 +472,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       setBadgeInput('EMP-8021');
                       performIdentification('EMP-8021');
                     }}
-                    className="text-xs text-indigo-400 hover:underline"
+                    className="min-h-[48px] min-w-[48px] px-3 py-2 text-xs text-indigo-400 hover:underline flex items-center justify-center active:scale-95"
                   >
                     Simulate QR Scan (Test Bench)
                   </button>
@@ -481,16 +482,16 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
           )}
         </DialogBody>
 
-        <DialogFooter className="border-t border-slate-800 pt-4 flex items-center justify-between gap-3">
+        <DialogFooter className="border-t border-slate-800 pt-4 flex items-center justify-between gap-3 sm:gap-4">
           {identifiedSession ? (
             /* Confirmation Actions */
-            <div className="flex items-center justify-between w-full gap-3">
+            <div className="flex items-center justify-between w-full gap-3 sm:gap-4">
               <Button
                 data-testid="cancel-worker-button"
                 variant="outline"
                 size="lg"
                 onClick={handleCancelWorker}
-                className="flex-1 min-h-[56px] rounded-2xl border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="flex-1 min-h-[56px] min-w-[64px] rounded-2xl border-slate-700 text-slate-300 hover:bg-slate-800 active:scale-95"
               >
                 Wrong Person / Cancel
               </Button>
@@ -499,24 +500,24 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                 variant="default"
                 size="lg"
                 onClick={handleConfirmWorker}
-                className={`flex-1 min-h-[56px] rounded-2xl font-black text-base shadow-xl flex items-center justify-center space-x-2 ${
+                className={`flex-1 min-h-[64px] min-w-[64px] rounded-2xl font-black text-base shadow-xl flex items-center justify-center space-x-2 active:scale-95 ${
                   highContrast
                     ? 'bg-amber-400 text-black border-amber-300 hover:bg-amber-300'
                     : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
                 }`}
               >
-                <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
                 <span>Confirm & Start</span>
               </Button>
             </div>
           ) : (
             /* Input Actions */
-            <div className="flex items-center justify-between w-full gap-3">
+            <div className="flex items-center justify-between w-full gap-3 sm:gap-4">
               <Button
                 variant="outline"
                 size="lg"
                 onClick={onClose}
-                className="flex-1 min-h-[52px] rounded-2xl border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="flex-1 min-h-[56px] min-w-[64px] rounded-2xl border-slate-700 text-slate-300 hover:bg-slate-800 active:scale-95"
               >
                 Cancel
               </Button>
@@ -526,7 +527,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                 size="lg"
                 disabled={isIdentifying || !badgeInput.trim()}
                 onClick={() => performIdentification(badgeInput)}
-                className={`flex-1 min-h-[52px] rounded-2xl font-bold text-base shadow-lg ${
+                className={`flex-1 min-h-[64px] min-w-[64px] rounded-2xl font-bold text-base shadow-lg active:scale-95 ${
                   highContrast
                     ? 'bg-amber-400 text-black hover:bg-amber-300'
                     : 'bg-indigo-600 hover:bg-indigo-500 text-white'

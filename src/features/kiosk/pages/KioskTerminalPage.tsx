@@ -13,6 +13,9 @@ import { KioskPlayer } from '../components/KioskPlayer';
 import { KioskMaintenanceOverlay } from '../components/KioskMaintenanceOverlay';
 import { KioskRevokedOverlay } from '../components/KioskRevokedOverlay';
 import { KioskHomeScreen } from '../components/launcher/KioskHomeScreen';
+import { EmergencyEvacuationOverlay } from '../components/emergency/EmergencyEvacuationOverlay';
+import { emergencyService } from '../services/emergency.service';
+import { KioskEmergency } from '../../../types/kiosk/emergency.types';
 
 export const KioskTerminalPage: React.FC = () => {
   const { t } = useTranslation('kiosk');
@@ -26,6 +29,40 @@ export const KioskTerminalPage: React.FC = () => {
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
   const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
+  const [activeEmergency, setActiveEmergency] = useState<KioskEmergency | null>(() => emergencyService.getActiveEmergency());
+
+  // Listen for emergency broadcast and clear events (K-SEC-004)
+  useEffect(() => {
+    const orgId = manifest?.organizationId || deviceIdentityService.getStoredDevice()?.organizationId;
+    if (orgId) {
+      emergencyService.startStream(orgId);
+    }
+
+    const unsubscribe = emergencyService.subscribe((emergency) => {
+      setActiveEmergency(emergency);
+    });
+
+    const handleEmergency = (e: any) => {
+      if (e?.detail) {
+        setActiveEmergency(e.detail);
+      }
+    };
+
+    const handleCleared = () => {
+      setActiveEmergency(null);
+      // Dismiss overlay and resume home screen launcher
+      setActiveJourneyId(null);
+    };
+
+    window.addEventListener('talnova:kiosk:emergency', handleEmergency);
+    window.addEventListener('talnova:kiosk:emergency_cleared', handleCleared);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('talnova:kiosk:emergency', handleEmergency);
+      window.removeEventListener('talnova:kiosk:emergency_cleared', handleCleared);
+    };
+  }, [manifest?.organizationId]);
 
   // Listen for instantaneous revocation events (DEF-005)
   useEffect(() => {
@@ -114,6 +151,15 @@ export const KioskTerminalPage: React.FC = () => {
     // 2. Fetch manifest
     fetchManifest();
   }, [routeDeviceId, navigate, fetchManifest]);
+
+  // 0. Active Emergency Evacuation Overlay (Highest Priority K-SEC-004)
+  if (activeEmergency && activeEmergency.isActive) {
+    return (
+      <EmergencyEvacuationOverlay
+        emergency={activeEmergency}
+      />
+    );
+  }
 
   // 1. Revoked / Lockdown Screen
   if (isRevoked) {

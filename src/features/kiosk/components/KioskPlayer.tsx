@@ -11,7 +11,16 @@ import { SupervisorWitnessGateModal } from './auth/SupervisorWitnessGateModal';
 import { PrivacyTimeoutModal } from './privacy/PrivacyTimeoutModal';
 import { deviceIdentityService } from '../services/device-identity.service';
 import { privacyResetService } from '../services/privacy-reset.service';
+import { kioskLockdownService } from '../services/kiosk-lockdown.service';
+import { KioskReenterModal } from './lockdown/KioskReenterModal';
+import { EmergencyEvacuationOverlay } from './emergency/EmergencyEvacuationOverlay';
+import { emergencyService } from '../services/emergency.service';
+import { KioskEmergency } from '../../../types/kiosk/emergency.types';
+import { useAntiTamperingGuard } from '../hooks/useAntiTamperingGuard';
 import { useTranslation } from 'react-i18next';
+import { FontScale } from './accessibility/AccessibilityToolbar';
+import { KioskLiveAnnouncer } from './accessibility/KioskLiveAnnouncer';
+import { useKioskKeyboardNavigation } from '../hooks/useKioskKeyboardNavigation';
 
 export interface KioskPlayerProps {
   journeyId: string;
@@ -66,8 +75,37 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   // Directional step transition animation ('forward' | 'backward')
   const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
 
-  // Accessibility: High-contrast mode toggle
-  const [highContrast, setHighContrast] = useState(false);
+  // Accessibility: High-contrast mode toggle & dynamic font scaling (ADR-010 / K-ACC-002)
+  const [highContrast, setHighContrast] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kiosk_high_contrast') === 'true';
+    }
+    return false;
+  });
+  const [fontScale, setFontScale] = useState<FontScale>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kiosk_font_scale');
+      return (saved ? parseInt(saved, 10) : 100) as FontScale;
+    }
+    return 100;
+  });
+
+  const handleToggleHighContrast = () => {
+    setHighContrast((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kiosk_high_contrast', String(next));
+      }
+      return next;
+    });
+  };
+
+  const handleFontScaleChange = (scale: FontScale) => {
+    setFontScale(scale);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kiosk_font_scale', String(scale));
+    }
+  };
 
   // Hold-to-confirm interaction state
   const [holdProgress, setHoldProgress] = useState(0);
@@ -85,6 +123,44 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const [showPinOverlay, setShowPinOverlay] = useState(false);
   const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
   const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
+  const [activeEmergency, setActiveEmergency] = useState<KioskEmergency | null>(() => emergencyService.getActiveEmergency());
+
+  // K-SEC-004: Emergency Kiosk Mode Override & Broadcast Propagation
+  useEffect(() => {
+    const unsubscribe = emergencyService.subscribe((emergency) => {
+      setActiveEmergency(emergency);
+      if (emergency && emergency.isActive) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      }
+    });
+
+    const handleEmergency = (e: any) => {
+      if (e?.detail) {
+        setActiveEmergency(e.detail);
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      }
+    };
+
+    const handleCleared = () => {
+      setActiveEmergency(null);
+      if (onExit) {
+        onExit(); // Acceptance criteria: resume home screen launcher
+      }
+    };
+
+    window.addEventListener('talnova:kiosk:emergency', handleEmergency);
+    window.addEventListener('talnova:kiosk:emergency_cleared', handleCleared);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('talnova:kiosk:emergency', handleEmergency);
+      window.removeEventListener('talnova:kiosk:emergency_cleared', handleCleared);
+    };
+  }, [onExit]);
 
   // Instantaneous device revocation event listener (DEF-005 / K-DEV-004)
   useEffect(() => {
@@ -104,6 +180,29 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const [showIdentifyModal, setShowIdentifyModal] = useState(false);
   const [workerIdentified, setWorkerIdentified] = useState(false);
   const [, setEphemeralWorkerToken] = useState<string | null>(null);
+
+  // K-SEC-002: Browser Kiosk Lockdown & Fullscreen Enforcement
+  const [isReenterPromptVisible, setIsReenterPromptVisible] = useState(false);
+
+  useEffect(() => {
+    if (isAdminPreview) return;
+
+    kioskLockdownService.startLockdown({
+      autoPromptReenter: true,
+      onStateChange: (state) => {
+        setIsReenterPromptVisible(state.isReenterPromptVisible);
+      }
+    });
+
+    const unsubscribe = kioskLockdownService.subscribe((state) => {
+      setIsReenterPromptVisible(state.isReenterPromptVisible);
+    });
+
+    return () => {
+      unsubscribe();
+      kioskLockdownService.stopLockdown();
+    };
+  }, [isAdminPreview]);
 
   // Supervisor Witness Requirement & Gate State (DEF-009 / K-SUP-002)
   const [showSupervisorGateModal, setShowSupervisorGateModal] = useState(false);
@@ -128,11 +227,12 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   }, [journey, workerIdentified, isAdminPreview]);
 
   const handleExitClick = () => {
-    if (journey?.settings?.security?.protectionType === 'pin' && !isAdminPreview) {
-      setShowPinOverlay(true);
-    } else {
+    if (isAdminPreview) {
       if (onExit) onExit();
+      return;
     }
+    // K-SEC-002: Require 6-digit Exit PIN to leave kiosk mode
+    setShowPinOverlay(true);
   };
 
   // Load journey when ID changes and reset completion state
@@ -497,7 +597,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           <button
             id="kiosk-error-exit-btn"
             onClick={handleExitClick}
-            className="mt-6 rounded-lg bg-slate-800 px-6 py-2 font-semibold text-white hover:bg-slate-700 transition min-h-[48px]"
+            className="mt-6 rounded-xl bg-slate-800 px-6 py-3 font-semibold text-white hover:bg-slate-700 active:scale-95 transition min-h-[48px] min-w-[48px] inline-flex items-center justify-center"
           >
             {isAdminPreview
               ? t('player.exitPreview', { defaultValue: 'Exit Preview' })
@@ -600,7 +700,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                 handleResetJourney();
                 if (onExit) onExit();
               }}
-              className={`w-full min-h-[56px] px-6 py-3.5 rounded-2xl font-bold text-base transition active:scale-95 shadow-xl ${
+              className={`w-full min-h-[64px] min-w-[64px] px-6 py-4 rounded-2xl font-black text-base transition active:scale-95 shadow-xl flex items-center justify-center ${
                 highContrast
                   ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300'
                   : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-emerald-500/25'
@@ -634,15 +734,87 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const showFinishInFooter = !isYesNoStep && isLastStep;
   const canGoNext = isPpeStep ? ppeSubmitted : true;
 
+  // K-ACC-003: Screen Reader ARIA & Keyboard Navigation
+  const [tamperingDetected, setTamperingDetected] = useState(false);
+
+  // K-SEC-003: Client-Side Anti-Tampering DOM Guard
+  useAntiTamperingGuard({
+    containerRef,
+    canProgress: canGoNext,
+    onTamperDetected: (event) => {
+      console.warn('[KioskSecurity] Unauthorized DOM mutation detected on progression button:', event);
+      setTamperingDetected(true);
+    },
+    onResetStepState: () => {
+      if (isPpeStep) {
+        setPpeSubmitted(false);
+        setCheckedPpe(new Set());
+      }
+      setHoldProgress(0);
+      setVideoCompleted(false);
+    },
+    enabled: !isAdminPreview
+  });
+
+  const isAnyModalOpen =
+    showPinOverlay ||
+    showIdentifyModal ||
+    showSupervisorGateModal ||
+    isPrivacyWarningOpen ||
+    isReenterPromptVisible;
+
+  const handleCancelActiveModal = () => {
+    if (showPinOverlay) {
+      setShowPinOverlay(false);
+    } else if (showIdentifyModal) {
+      setShowIdentifyModal(false);
+      if (!workerIdentified && onExit) onExit();
+    } else if (showSupervisorGateModal) {
+      setShowSupervisorGateModal(false);
+    } else if (isPrivacyWarningOpen) {
+      handlePrivacyStay();
+    }
+  };
+
+  useKioskKeyboardNavigation({
+    enabled: true,
+    canGoNext: canGoNext,
+    canGoBack: currentStepIndex > 0 && !isYesNoStep,
+    onNext: () => {
+      if (isLastStep) {
+        handleFinish();
+      } else {
+        handleNextStep();
+      }
+    },
+    onPrev: handlePrevStep,
+    onYesNo: isYesNoStep ? handleYesNoSelection : undefined,
+    onCancelModal: handleCancelActiveModal,
+    isModalOpen: isAnyModalOpen
+  });
+
   return (
     <div
       ref={containerRef}
       id="kiosk-player-shell"
       data-testid="kiosk-player-shell"
+      data-font-scale={fontScale}
+      style={{ '--kiosk-font-scale': fontScale / 100 } as React.CSSProperties}
       className={`flex h-screen w-full flex-col justify-between overflow-hidden select-none transition-colors ${
-        highContrast ? 'bg-black text-white' : 'bg-slate-950 text-white font-sans'
-      }`}
+        highContrast ? 'high-contrast-mode bg-black text-white' : 'bg-slate-950 text-white font-sans'
+      } kiosk-font-scale-${fontScale}`}
     >
+      {/* Universal Screen Reader ARIA Live Region Architecture (K-ACC-003) */}
+      <KioskLiveAnnouncer
+        currentStepIndex={currentStepIndex}
+        totalSteps={totalSteps}
+        stepTitle={activeStep?.title || ''}
+        isEmergency={Boolean(activeEmergency && activeEmergency.isActive) || activeStep?.type === 'emergency_step'}
+        isWarning={activeStep?.type === 'warning_step'}
+        emergencyTitle={activeEmergency?.title}
+        tamperingDetected={tamperingDetected}
+      />
+
       {/* 1. Modular Pinned Header */}
       <KioskPlayerHeader
         title={journey.title}
@@ -656,7 +828,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         showSubtitles={showSubtitles}
         onToggleSubtitles={toggleSubtitles}
         highContrast={highContrast}
-        onToggleHighContrast={() => setHighContrast((prev) => !prev)}
+        onToggleHighContrast={handleToggleHighContrast}
+        fontScale={fontScale}
+        onFontScaleChange={handleFontScaleChange}
         canExit={
           isAdminPreview || journey?.settings?.security?.protectionType === 'pin' || Boolean(onExit)
         }
@@ -671,6 +845,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         direction={stepDirection}
         selectedLanguage={selectedLanguage}
         highContrast={highContrast}
+        fontScale={fontScale}
         videoCompleted={videoCompleted}
         onVideoComplete={() => setVideoCompleted(true)}
         onYesNoSelection={handleYesNoSelection}
@@ -733,10 +908,16 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         onHoldEnd={handleHoldEnd}
       />
 
-      {/* Administrative / Operator PIN Overlay */}
+      {/* Administrative / Operator Exit PIN Overlay (K-SEC-002: 6-digit Exit PIN) */}
       {showPinOverlay && (
         <KioskPinOverlay
           journeyId={journeyId}
+          pinLength={6}
+          expectedPin={journey?.settings?.security?.pinCode}
+          title={t('lockdown.exitPinTitle', { defaultValue: 'Enter Exit PIN' })}
+          description={t('lockdown.exitPinDescription', {
+            defaultValue: 'Administrative Exit. Enter 6-digit Exit PIN to leave kiosk mode.'
+          })}
           onSuccess={() => {
             setShowPinOverlay(false);
             if (onExit) onExit();
@@ -744,6 +925,15 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           onCancel={() => setShowPinOverlay(false)}
         />
       )}
+
+      {/* Fullscreen Kiosk Lockdown Re-enter Modal (K-SEC-002) */}
+      <KioskReenterModal
+        isOpen={isReenterPromptVisible}
+        highContrast={highContrast}
+        onReenter={async () => {
+          await kioskLockdownService.requestFullscreen(containerRef.current || (typeof document !== 'undefined' ? document.documentElement : null));
+        }}
+      />
 
       {/* Frontline Worker Identification Modal (DEF-008 / K-EMP-001) */}
       <FrontlineIdentifyModal
@@ -787,6 +977,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         onSuccess={handleSupervisorWitnessSuccess}
         highContrast={highContrast}
       />
+
+      {/* Emergency Evacuation Overlay (Highest Priority K-SEC-004) */}
+      {activeEmergency && activeEmergency.isActive && (
+        <EmergencyEvacuationOverlay
+          emergency={activeEmergency}
+        />
+      )}
     </div>
   );
 };

@@ -8,3 +8,4 @@ export * from "./session.types.js";
 export * from "./analytics.types.js";
 export * from "./player.types.js";
 export * from "./builder.types.js";
+export * from "./emergency.types.js";

@@ -302,7 +302,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
             type="button"
             data-testid="supervisor-modal-close-btn"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="min-h-[48px] min-w-[48px] w-12 h-12 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95 flex items-center justify-center"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -486,7 +486,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
         </div>
 
         {/* Modal Actions */}
-        <div className="mt-6 flex flex-col-reverse sm:flex-row items-center gap-3 pt-4 border-t border-slate-800">
+        <div className="mt-6 flex flex-col-reverse sm:flex-row items-center gap-3 sm:gap-4 pt-4 border-t border-slate-800">
           {/* Requirement 2: Cancel Button */}
           <button
             type="button"
@@ -494,7 +494,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
             data-testid="supervisor-cancel-btn"
             disabled={isSubmitting}
             onClick={onClose}
-            className={`w-full sm:w-1/2 min-h-[52px] px-4 rounded-xl border text-sm font-semibold transition active:scale-95 ${
+            className={`w-full sm:w-1/2 min-h-[56px] min-w-[64px] px-4 rounded-xl border text-sm font-semibold transition active:scale-95 ${
               highContrast
                 ? 'border-white text-white hover:bg-white/20'
                 : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -510,7 +510,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
             data-testid="supervisor-submit-btn"
             disabled={isSubmitting || pin.length < 4 || !identifier.trim()}
             onClick={() => handleSubmit()}
-            className={`w-full sm:w-1/2 min-h-[52px] px-4 rounded-xl font-bold text-sm flex items-center justify-center space-x-2 transition active:scale-95 shadow-lg ${
+            className={`w-full sm:w-1/2 min-h-[64px] min-w-[64px] px-4 rounded-xl font-bold text-sm flex items-center justify-center space-x-2 transition active:scale-95 shadow-lg ${
               pin.length < 4 || !identifier.trim() || isSubmitting
                 ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
                 : highContrast
@@ -522,7 +522,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
               <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
                 <span>{t('supervisor.authorize', { defaultValue: 'Authorize & Sign Off' })}</span>
               </>
             )}

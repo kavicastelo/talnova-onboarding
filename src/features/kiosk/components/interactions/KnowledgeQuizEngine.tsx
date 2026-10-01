@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   HelpCircle,
@@ -89,6 +89,37 @@ export const KnowledgeQuizEngine: React.FC<KnowledgeQuizEngineProps> = ({
     setIsAnswerRevealed(false);
     setIsFinished(false);
   };
+
+  // Keyboard navigation for assistive keypads & switches (K-ACC-003)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key >= '1' && e.key <= '9') {
+        const optionIdx = parseInt(e.key, 10) - 1;
+        if (currentQuestion && optionIdx < currentQuestion.options.length) {
+          e.preventDefault();
+          handleSelectOption(optionIdx);
+        }
+      } else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+        if (isAnswerRevealed) {
+          e.preventDefault();
+          handleNextQuestion();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentQuestion, isAnswerRevealed, currentQuestionIndex, totalQuestions]);
 
   // If no questions defined
   if (!currentQuestion) {
@@ -202,14 +233,14 @@ export const KnowledgeQuizEngine: React.FC<KnowledgeQuizEngineProps> = ({
               type="button"
               data-testid="quiz-continue-btn"
               onClick={() => onPass(percentage)}
-              className={`w-full min-h-[56px] px-8 py-3.5 rounded-2xl font-extrabold text-base flex items-center justify-center space-x-2 transition active:scale-95 ${
+              className={`w-full min-h-[64px] min-w-[64px] px-8 py-4 rounded-2xl font-black text-base flex items-center justify-center space-x-2 transition active:scale-95 ${
                 highContrast
                   ? 'bg-amber-400 text-black border-2 border-amber-300 shadow-xl'
                   : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-xl shadow-emerald-500/20'
               }`}
             >
               <span>{t('quiz.continue', { defaultValue: 'Continue Briefing' })}</span>
-              <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+              <ArrowRight className="w-6 h-6 stroke-[2.5]" />
             </button>
           )}
         </div>
@@ -302,7 +333,7 @@ export const KnowledgeQuizEngine: React.FC<KnowledgeQuizEngineProps> = ({
               data-testid={`quiz-option-${optIdx}`}
               disabled={isAnswerRevealed}
               onClick={() => handleSelectOption(optIdx)}
-              className={`w-full min-h-[58px] p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all active:scale-[0.99] select-none ${optionStyle}`}
+              className={`w-full min-h-[58px] p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all active:scale-[0.99] select-none focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${optionStyle}`}
             >
               <div className="flex items-center space-x-3.5 min-w-0 pr-2">
                 <span
@@ -375,7 +406,7 @@ export const KnowledgeQuizEngine: React.FC<KnowledgeQuizEngineProps> = ({
             id="quiz-next-btn"
             data-testid="quiz-next-btn"
             onClick={handleNextQuestion}
-            className={`min-h-[56px] px-8 py-3.5 rounded-2xl font-black text-sm sm:text-base flex items-center space-x-2 transition active:scale-95 shadow-xl ${
+            className={`min-h-[64px] min-w-[64px] px-8 py-4 rounded-2xl font-black text-sm sm:text-base flex items-center space-x-2 transition active:scale-95 shadow-xl ${
               highContrast
                 ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300'
                 : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'

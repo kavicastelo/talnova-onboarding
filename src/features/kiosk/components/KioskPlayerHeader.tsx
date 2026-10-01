@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import {
   Volume2,
   VolumeX,
-  Type,
   Languages,
-  Eye,
   LogOut,
   Sparkles
 } from 'lucide-react';
+import { AccessibilityToolbar, FontScale } from './accessibility/AccessibilityToolbar';
 
 export interface KioskPlayerHeaderProps {
   title: string;
@@ -23,6 +22,8 @@ export interface KioskPlayerHeaderProps {
   onToggleSubtitles: () => void;
   highContrast?: boolean;
   onToggleHighContrast?: () => void;
+  fontScale?: FontScale;
+  onFontScaleChange?: (scale: FontScale) => void;
   canExit?: boolean;
   onExit?: () => void;
   isAdminPreview?: boolean;
@@ -42,6 +43,8 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
   onToggleSubtitles,
   highContrast = false,
   onToggleHighContrast,
+  fontScale = 100,
+  onFontScaleChange,
   canExit = false,
   onExit,
   isAdminPreview = false,
@@ -56,9 +59,11 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
   return (
     <header
       data-testid="kiosk-player-header"
+      role="banner"
+      aria-label={t('player.headerLabel', { defaultValue: 'Kiosk Terminal Header' })}
       className={`sticky top-0 z-30 w-full border-b transition-colors select-none ${
         highContrast
-          ? 'bg-black border-amber-400 text-white'
+          ? 'high-contrast-mode bg-black border-amber-400 text-white'
           : 'bg-slate-950/85 border-slate-900 text-white backdrop-blur-md'
       } ${className}`}
     >
@@ -88,23 +93,18 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
         </div>
 
         {/* Right: Accessibility Controls & Exit Trigger */}
-        <div className="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
-          {/* Subtitles Toggle */}
-          <button
-            type="button"
-            data-testid="toggle-subtitles-btn"
-            onClick={onToggleSubtitles}
-            title={t('player.toggleSubtitles', { defaultValue: 'Toggle Subtitles' })}
-            className={`p-2.5 rounded-xl border text-xs transition active:scale-95 flex items-center justify-center ${
-              showSubtitles
-                ? highContrast
-                  ? 'bg-amber-400 text-black border-amber-400'
-                  : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-850'
-            }`}
-          >
-            <Type className="w-4 h-4" />
-          </button>
+        <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
+          {/* Universal Accessibility Toolbar (K-ACC-002) */}
+          <AccessibilityToolbar
+            highContrast={highContrast}
+            onToggleHighContrast={onToggleHighContrast || (() => {})}
+            contrastBtnTestId="toggle-contrast-btn"
+            fontScale={fontScale}
+            onFontScaleChange={onFontScaleChange}
+            showSubtitles={showSubtitles}
+            onToggleSubtitles={onToggleSubtitles}
+            showSubtitlesToggle={true}
+          />
 
           {/* Audio Volume Mute Toggle */}
           <button
@@ -112,39 +112,22 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
             data-testid="toggle-mute-btn"
             onClick={onToggleMuted}
             title={isMuted ? t('player.unmute', { defaultValue: 'Unmute Audio' }) : t('player.mute', { defaultValue: 'Mute Audio' })}
-            className={`p-2.5 rounded-xl border text-xs transition active:scale-95 flex items-center justify-center ${
+            className={`min-h-[48px] min-w-[48px] w-12 h-12 rounded-xl border text-xs transition active:scale-95 flex items-center justify-center ${
               isMuted
                 ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
                 : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850'
             }`}
           >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
           </button>
-
-          {/* High Contrast Mode Toggle */}
-          {onToggleHighContrast && (
-            <button
-              type="button"
-              data-testid="toggle-contrast-btn"
-              onClick={onToggleHighContrast}
-              title={t('player.toggleHighContrast', { defaultValue: 'High Contrast Mode' })}
-              className={`p-2.5 rounded-xl border text-xs transition active:scale-95 flex items-center justify-center ${
-                highContrast
-                  ? 'bg-amber-400 text-black border-amber-400'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-850'
-              }`}
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-          )}
 
           {/* Language Switcher */}
           {languages && languages.length > 1 && onLanguageChange && (
             <div
               data-testid="player-language-switcher"
-              className="flex items-center space-x-1 bg-slate-900/80 border border-slate-800 rounded-xl p-0.5"
+              className="flex items-center space-x-2 bg-slate-900/80 border border-slate-800 rounded-xl p-1"
             >
-              <Languages className="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-0.5 hidden sm:inline" />
+              <Languages className="w-4 h-4 text-slate-400 ml-1.5 mr-0.5 hidden sm:inline" />
               {languages.map((lang) => (
                 <button
                   key={lang}
@@ -152,7 +135,7 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
                   id={`lang-btn-${lang}`}
                   data-testid={`lang-btn-${lang}`}
                   onClick={() => onLanguageChange(lang)}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold transition uppercase ${
+                  className={`min-h-[48px] min-w-[48px] px-3.5 py-2.5 rounded-lg text-xs font-bold transition uppercase active:scale-95 flex items-center justify-center ${
                     selectedLanguage === lang
                       ? highContrast
                         ? 'bg-amber-400 text-black'
@@ -173,13 +156,13 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
               id="kiosk-btn-exit"
               data-testid="kiosk-btn-exit"
               onClick={onExit}
-              className={`h-9 px-3 rounded-xl font-bold text-xs border transition flex items-center space-x-1.5 active:scale-95 ${
+              className={`min-h-[48px] min-w-[48px] h-12 px-4 rounded-xl font-bold text-xs border transition flex items-center space-x-2 active:scale-95 ${
                 highContrast
                   ? 'bg-black border-white text-white hover:border-amber-400'
                   : 'bg-rose-950/40 border-rose-900/60 text-rose-300 hover:bg-rose-900/60 hover:text-white'
               }`}
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
               <span>{isAdminPreview ? t('player.exitPreview', { defaultValue: 'Exit Preview' }) : t('player.exit', { defaultValue: 'Exit' })}</span>
             </button>
           )}
