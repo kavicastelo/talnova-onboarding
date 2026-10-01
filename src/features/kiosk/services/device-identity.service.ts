@@ -488,6 +488,33 @@ export class DeviceIdentityService {
 
     return null;
   }
+
+  /**
+   * =========================================================================
+   * K-EMP-001 / K-EMP-002: Ephemeral Frontline Employee Session Management
+   * Stored strictly in React/memory singleton to preserve worker privacy.
+   * =========================================================================
+   */
+  private ephemeralEmployeeToken: string | null = null;
+  private ephemeralEmployeeUser: any = null;
+
+  setEmployeeSession(token: string | null, user?: any): void {
+    this.ephemeralEmployeeToken = token;
+    this.ephemeralEmployeeUser = user || null;
+  }
+
+  getEmployeeToken(): string | null {
+    return this.ephemeralEmployeeToken;
+  }
+
+  getEmployeeUser(): any {
+    return this.ephemeralEmployeeUser;
+  }
+
+  clearEmployeeSession(): void {
+    this.ephemeralEmployeeToken = null;
+    this.ephemeralEmployeeUser = null;
+  }
 }
 
 export const deviceIdentityService = new DeviceIdentityService();

@@ -11,7 +11,13 @@ import {
   CreateKioskJourneySchema,
   UpdateKioskJourneySchema,
   KioskDeviceHeartbeatSchema,
-  KioskAnalyticsBulkSyncSchema
+  KioskAnalyticsBulkSyncSchema,
+  CreateKioskSessionSchema,
+  UpdateKioskSessionProgressSchema,
+  CompleteKioskSessionSchema,
+  AbortKioskSessionSchema,
+  TimeoutKioskSessionSchema,
+  VerifySupervisorPinSchema
 } from "../validation/index.js";
 import { z } from "zod";
 import mongoose from "mongoose";
@@ -49,6 +55,61 @@ export async function kioskRoutes(app: FastifyInstance) {
   app.get(
     "/sessions/:id",
     controller.getSession as any
+  );
+
+  // POST /api/v1/kiosk/sessions (Start/create new formal kiosk session, K-EMP-002)
+  app.post(
+    "/sessions",
+    {
+      schema: {
+        body: CreateKioskSessionSchema
+      }
+    },
+    controller.createSession
+  );
+
+  // PATCH /api/v1/kiosk/sessions/:id/progress (Step progress & dwell time heartbeat)
+  app.patch(
+    "/sessions/:id/progress",
+    {
+      schema: {
+        body: UpdateKioskSessionProgressSchema
+      }
+    },
+    controller.updateSessionProgress
+  );
+
+  // POST /api/v1/kiosk/sessions/:id/complete (Server-authoritative completion check)
+  app.post(
+    "/sessions/:id/complete",
+    {
+      schema: {
+        body: CompleteKioskSessionSchema
+      }
+    },
+    controller.completeSession
+  );
+
+  // POST /api/v1/kiosk/sessions/:id/abort (Session abandonment or manual exit)
+  app.post(
+    "/sessions/:id/abort",
+    {
+      schema: {
+        body: AbortKioskSessionSchema
+      }
+    },
+    controller.abortSession
+  );
+
+  // POST /api/v1/kiosk/sessions/:id/timeout (Session idle timeout or privacy reset)
+  app.post(
+    "/sessions/:id/timeout",
+    {
+      schema: {
+        body: TimeoutKioskSessionSchema
+      }
+    },
+    controller.timeoutSession
   );
 
   // GET /api/v1/kiosk/uploads/:id (Retrieve/stream public kiosk uploads via redirect)
@@ -138,15 +199,12 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.identifyFrontlineWorker
   );
 
-  // POST /api/v1/kiosk/supervisor/verify-pin (Verify supervisor 4-digit PIN for co-signature / touch override)
+  // POST /api/v1/kiosk/supervisor/verify-pin (Verify supervisor 4-digit PIN for co-signature / touch override, K-SUP-001)
   app.post(
     "/supervisor/verify-pin",
     {
       schema: {
-        body: z.object({
-          supervisorIdentifier: z.string().min(1, "Supervisor email, badgeId, or userId is required"),
-          pin: z.string().length(4, "PIN must be exactly 4 digits"),
-        }),
+        body: VerifySupervisorPinSchema,
       },
     },
     controller.verifySupervisorPin

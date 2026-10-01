@@ -18,9 +18,7 @@ import {
   Layers,
   FileCheck,
   Wrench,
-  PhoneCall,
-  CheckCircle2,
-  Delete
+  PhoneCall
 } from 'lucide-react';
 import { KioskDeviceManifest } from '../../../../types/kiosk/device.types';
 import { KioskJourney } from '../../../../types/kiosk/journey.types';
@@ -33,7 +31,11 @@ import {
   DialogFooter
 } from '../../../../components/Dialog';
 import { Button } from '../../../../components/Button';
-import { Input } from '../../../../components/Input';
+import { FrontlineIdentifyModal } from '../auth/FrontlineIdentifyModal';
+import { PrivacyTimeoutModal } from '../privacy/PrivacyTimeoutModal';
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
+import { privacyResetService } from '../../services/privacy-reset.service';
+import { deviceIdentityService } from '../../services/device-identity.service';
 
 export interface KioskHomeScreenProps {
   manifest: KioskDeviceManifest;
@@ -67,10 +69,53 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
   const [pendingJourneyId, setPendingJourneyId] = useState<string | null>(null);
 
   // Frontline worker identification state
-  const [badgeInput, setBadgeInput] = useState('');
+  const [scannedInitialId, setScannedInitialId] = useState('');
+  const [, setEphemeralToken] = useState<string | null>(null);
   const [identifiedWorker, setIdentifiedWorker] = useState<{ id: string; name: string; department: string } | null>(null);
   const [workerConfirmed, setWorkerConfirmed] = useState(false);
-  const [identifyingError, setIdentifyingError] = useState<string | null>(null);
+
+  // K-EMP-003: Privacy reset on Home Launcher if employee is identified but idle
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
+  const [privacySeconds, setPrivacySeconds] = useState(15);
+
+  useEffect(() => {
+    if (!workerConfirmed) return;
+
+    privacyResetService.startMonitoring({
+      idleTimeoutSeconds: 60,
+      warningDurationSeconds: 15,
+      onWarningStart: (remaining) => {
+        setPrivacyModalOpen(true);
+        setPrivacySeconds(remaining);
+      },
+      onWarningTick: (remaining) => {
+        setPrivacySeconds(remaining);
+      },
+      onWarningDismissed: () => {
+        setPrivacyModalOpen(false);
+      },
+      onTimeoutExpired: () => {
+        setPrivacyModalOpen(false);
+        setWorkerConfirmed(false);
+        setIdentifiedWorker(null);
+        setEphemeralToken(null);
+        deviceIdentityService.clearEmployeeSession();
+      }
+    });
+
+    return () => {
+      privacyResetService.stopMonitoring();
+    };
+  }, [workerConfirmed]);
+
+  // USB / Bluetooth Barcode & RFID Scanner on Home Screen (Acceptance Criteria 1)
+  useBarcodeScanner({
+    enabled: !identifyModalOpen && !emergencyModalOpen,
+    onScan: (scannedCode) => {
+      setScannedInitialId(scannedCode);
+      setIdentifyModalOpen(true);
+    }
+  });
 
   // Live terminal clock
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -188,67 +233,6 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
     } else {
       onLaunchJourney(journey._id);
     }
-  };
-
-  // Virtual Keypad Handlers
-  const handleKeypadPress = (key: string) => {
-    if (badgeInput.length < 12) {
-      setBadgeInput((prev) => prev + key);
-      setIdentifyingError(null);
-    }
-  };
-
-  const handleKeypadBackspace = () => {
-    setBadgeInput((prev) => prev.slice(0, -1));
-    setIdentifyingError(null);
-  };
-
-  const handleKeypadClear = () => {
-    setBadgeInput('');
-    setIdentifyingError(null);
-  };
-
-  const handleIdentifySubmit = () => {
-    if (!badgeInput.trim()) {
-      setIdentifyingError(t('identify.emptyInput', { defaultValue: 'Please enter or scan a valid badge/employee ID' }));
-      return;
-    }
-
-    // Mock verification for frontline workers
-    if (badgeInput.trim().toUpperCase() === 'INVALID') {
-      setIdentifyingError(t('identify.notFound', { defaultValue: 'Badge ID not recognized. Please re-scan or enter your employee number.' }));
-      return;
-    }
-
-    // Success confirmation preview
-    const sampleNames = ['Alex Morgan', 'Marcus Vance', 'Sarah Jenkins', 'David Chen'];
-    const sampleDepartments = ['Operations', 'Logistics Bay', 'Assembly Line A', 'Warehouse Facility'];
-    const hash = badgeInput.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const chosenName = sampleNames[hash % sampleNames.length];
-    const chosenDept = sampleDepartments[hash % sampleDepartments.length];
-
-    setIdentifiedWorker({
-      id: badgeInput.trim(),
-      name: chosenName,
-      department: chosenDept
-    });
-  };
-
-  const handleConfirmWorker = () => {
-    setWorkerConfirmed(true);
-    setIdentifyModalOpen(false);
-
-    if (pendingJourneyId) {
-      const target = pendingJourneyId;
-      setPendingJourneyId(null);
-      onLaunchJourney(target);
-    }
-  };
-
-  const handleCancelWorker = () => {
-    setIdentifiedWorker(null);
-    setBadgeInput('');
-    setIdentifyingError(null);
   };
 
   const handleToggleLanguage = () => {
@@ -658,21 +642,31 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
         {/* Footer Action Triggers */}
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           {/* Identify as Employee Button (Requirement Scope & Acceptance Criteria 2) */}
-          <button
-            data-testid="identify-employee-button"
-            onClick={() => {
-              setPendingJourneyId(null);
-              setIdentifyModalOpen(true);
-            }}
-            className={`flex-1 sm:flex-initial h-12 px-5 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 border transition active:scale-95 ${
-              highContrast
-                ? 'bg-black border-white text-white hover:border-amber-400'
-                : 'bg-slate-900 border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/40 hover:text-white'
-            }`}
-          >
-            <UserCheck className="w-4 h-4 text-indigo-400" />
-            <span>{t('launcher.identifyAsEmployee', { defaultValue: 'Identify as Employee' })}</span>
-          </button>
+          {identifiedWorker ? (
+            <div
+              data-testid="identified-worker-badge"
+              className="flex-1 sm:flex-initial h-12 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 border border-emerald-500/40 bg-emerald-950/40 text-emerald-300"
+            >
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <span>{identifiedWorker.name} ({identifiedWorker.department})</span>
+            </div>
+          ) : (
+            <button
+              data-testid="identify-employee-button"
+              onClick={() => {
+                setPendingJourneyId(null);
+                setIdentifyModalOpen(true);
+              }}
+              className={`flex-1 sm:flex-initial h-12 px-5 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 border transition active:scale-95 ${
+                highContrast
+                  ? 'bg-black border-white text-white hover:border-amber-400'
+                  : 'bg-slate-900 border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/40 hover:text-white'
+              }`}
+            >
+              <UserCheck className="w-4 h-4 text-indigo-400" />
+              <span>{t('launcher.identifyAsEmployee', { defaultValue: 'Identify as Employee' })}</span>
+            </button>
+          )}
 
           {/* Emergency Protocol Button (Requirement Scope) */}
           <button
@@ -687,154 +681,33 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
       </footer>
 
       {/* 5. FRONTLINE WORKER IDENTIFICATION MODAL (DEF-008, K-EMP-001) */}
-      <Dialog
-        open={identifyModalOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIdentifyModalOpen(false);
+      <FrontlineIdentifyModal
+        isOpen={identifyModalOpen}
+        onClose={() => {
+          setIdentifyModalOpen(false);
+          setPendingJourneyId(null);
+          setScannedInitialId('');
+        }}
+        onSuccess={({ token, worker }) => {
+          setEphemeralToken(token);
+          setIdentifiedWorker({
+            id: worker.id,
+            name: worker.fullName,
+            department: worker.department || 'Operations'
+          });
+          setWorkerConfirmed(true);
+          setIdentifyModalOpen(false);
+
+          if (pendingJourneyId) {
+            const target = pendingJourneyId;
             setPendingJourneyId(null);
-            handleCancelWorker();
+            onLaunchJourney(target);
           }
         }}
-      >
-        <DialogContent
-          data-testid="frontline-identify-modal"
-          className="sm:max-w-md bg-slate-900 border border-slate-800 text-white p-6 rounded-3xl"
-        >
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-white flex items-center space-x-2">
-              <UserCheck className="w-5 h-5 text-indigo-400" />
-              <span>{t('identify.title', { defaultValue: 'Frontline Worker Identification' })}</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <DialogBody className="space-y-4">
-            {!identifiedWorker ? (
-              <>
-                <p className="text-xs text-slate-400">
-                  {t('identify.instructions', {
-                    defaultValue: 'Scan your barcode / RFID badge or enter your 6-digit Employee Number.'
-                  })}
-                </p>
-
-                {/* Input Display */}
-                <div className="space-y-1">
-                  <Input
-                    data-testid="employee-id-input"
-                    value={badgeInput}
-                    onChange={(e) => {
-                      setBadgeInput(e.target.value);
-                      setIdentifyingError(null);
-                    }}
-                    placeholder="Badge ID / Employee #"
-                    className="h-12 bg-slate-950 border-slate-700 text-center font-mono text-lg font-bold tracking-widest text-white"
-                  />
-                  {identifyingError && (
-                    <p className="text-xs text-rose-400 mt-1">{identifyingError}</p>
-                  )}
-                </div>
-
-                {/* Virtual Touch Keypad for Frontline Terminals */}
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
-                    <button
-                      key={digit}
-                      type="button"
-                      onClick={() => handleKeypadPress(digit)}
-                      className="h-12 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 font-bold text-base text-white border border-slate-700/60 transition"
-                    >
-                      {digit}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={handleKeypadClear}
-                    className="h-12 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 font-semibold text-xs text-slate-400 border border-slate-700/60 transition uppercase"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleKeypadPress('0')}
-                    className="h-12 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 font-bold text-base text-white border border-slate-700/60 transition"
-                  >
-                    0
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleKeypadBackspace}
-                    className="h-12 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 font-semibold text-xs text-slate-400 border border-slate-700/60 transition flex items-center justify-center"
-                  >
-                    <Delete className="w-4 h-4" />
-                  </button>
-                </div>
-              </>
-            ) : (
-              /* Confirmation Prompt Screen */
-              <div className="text-center space-y-4 py-3">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-7 h-7" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-lg font-bold text-white">
-                    Welcome, {identifiedWorker.name}
-                  </h4>
-                  <p className="text-xs text-slate-400">
-                    Department: {identifiedWorker.department}
-                  </p>
-                  <p className="text-xs font-semibold text-indigo-300 pt-2">
-                    Is this you? Please confirm to start your training session.
-                  </p>
-                </div>
-              </div>
-            )}
-          </DialogBody>
-
-          <DialogFooter className="flex justify-end gap-2 border-t border-slate-800 pt-3">
-            {!identifiedWorker ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIdentifyModalOpen(false)}
-                  className="border-slate-700 text-slate-300"
-                >
-                  {t('common:cancel', { defaultValue: 'Cancel' })}
-                </Button>
-                <Button
-                  data-testid="submit-identify-button"
-                  variant="default"
-                  size="sm"
-                  onClick={handleIdentifySubmit}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white"
-                >
-                  Verify ID
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancelWorker}
-                  className="border-slate-700 text-slate-300"
-                >
-                  Wrong Person / Cancel
-                </Button>
-                <Button
-                  data-testid="confirm-worker-button"
-                  variant="default"
-                  size="sm"
-                  onClick={handleConfirmWorker}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white"
-                >
-                  Confirm & Start
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        deviceId={manifest.deviceId}
+        highContrast={highContrast}
+        initialIdentifier={scannedInitialId}
+      />
 
       {/* 6. EMERGENCY PROTOCOL MODAL */}
       <Dialog open={emergencyModalOpen} onOpenChange={setEmergencyModalOpen}>
@@ -893,6 +766,14 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Automatic Privacy Reset Warning Modal on Launcher */}
+      <PrivacyTimeoutModal
+        isOpen={privacyModalOpen}
+        remainingSeconds={privacySeconds}
+        onStay={() => privacyResetService.dismissWarning()}
+        onExit={() => privacyResetService.executePrivacyWipe()}
+      />
     </div>
   );
 };

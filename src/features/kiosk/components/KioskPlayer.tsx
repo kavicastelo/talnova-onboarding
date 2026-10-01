@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useKioskPlayer } from '../context/KioskPlayerContext';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { KioskPlayerHeader } from './KioskPlayerHeader';
 import { KioskStepContainer } from './KioskStepContainer';
 import { KioskActionFooter } from './KioskActionFooter';
 import { KioskPinOverlay } from './KioskPinOverlay';
 import { KioskRevokedScreen } from './KioskRevokedScreen';
+import { FrontlineIdentifyModal } from './auth/FrontlineIdentifyModal';
+import { SupervisorWitnessGateModal } from './auth/SupervisorWitnessGateModal';
+import { PrivacyTimeoutModal } from './privacy/PrivacyTimeoutModal';
 import { deviceIdentityService } from '../services/device-identity.service';
+import { privacyResetService } from '../services/privacy-reset.service';
 import { useTranslation } from 'react-i18next';
 
 export interface KioskPlayerProps {
@@ -47,12 +51,17 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     recordInteraction,
     completeSession,
     abortSession,
+    timeoutSession,
+    activeSession,
     recordPpeCompliance
   } = useKioskPlayer();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // K-EMP-003: Automatic Privacy Reset & Countdown Warning State
+  const [isPrivacyWarningOpen, setIsPrivacyWarningOpen] = useState(false);
+  const [privacyCountdownSeconds, setPrivacyCountdownSeconds] = useState(15);
 
   // Directional step transition animation ('forward' | 'backward')
   const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
@@ -91,6 +100,33 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     };
   }, []);
 
+  // Frontline worker identification (DEF-008 / K-EMP-001)
+  const [showIdentifyModal, setShowIdentifyModal] = useState(false);
+  const [workerIdentified, setWorkerIdentified] = useState(false);
+  const [, setEphemeralWorkerToken] = useState<string | null>(null);
+
+  // Supervisor Witness Requirement & Gate State (DEF-009 / K-SUP-002)
+  const [showSupervisorGateModal, setShowSupervisorGateModal] = useState(false);
+  const [supervisorWitness, setSupervisorWitness] = useState<any | null>(null);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [completionCountdown, setCompletionCountdown] = useState(15);
+
+  // Trigger frontline worker identification if journey requires it
+  useEffect(() => {
+    if (journey) {
+      const isEmployeeRestricted = Boolean(
+        (journey as any).requireEmployeeId ||
+        (journey as any).employeeRestricted ||
+        (journey.settings as any)?.requireEmployeeId ||
+        (journey.settings as any)?.requireAuth ||
+        (journey.settings?.security?.protectionType as any) === 'employee_id'
+      );
+      if (isEmployeeRestricted && !workerIdentified && !isAdminPreview) {
+        setShowIdentifyModal(true);
+      }
+    }
+  }, [journey, workerIdentified, isAdminPreview]);
+
   const handleExitClick = () => {
     if (journey?.settings?.security?.protectionType === 'pin' && !isAdminPreview) {
       setShowPinOverlay(true);
@@ -99,9 +135,12 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     }
   };
 
-  // Load journey when ID changes
+  // Load journey when ID changes and reset completion state
   useEffect(() => {
     loadJourney(journeyId, signedParams);
+    setShowSupervisorGateModal(false);
+    setSupervisorWitness(null);
+    setIsCompleted(false);
   }, [journeyId, signedParams]);
 
   // Start analytics session when journey is loaded
@@ -111,47 +150,54 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     }
   }, [journey]);
 
-  // Handle Idle Timeout
-  const resetIdleTimer = () => {
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+  // K-EMP-003: Handle Idle Timeout & Automatic Privacy Reset
+  useEffect(() => {
     if (!journey) return;
 
     const idleSeconds = journey.settings?.idleTimeoutSeconds || 60;
 
-    idleTimerRef.current = setTimeout(() => {
-      console.log('Kiosk Idle Timeout triggered.');
-      if (currentStepIndex > 0) {
-        abortSession(journey.steps[currentStepIndex]?.id || 'unknown');
-        setStepDirection('backward');
-        setStepIndex(0);
-        startSession();
+    privacyResetService.startMonitoring({
+      idleTimeoutSeconds: idleSeconds,
+      warningDurationSeconds: 15,
+      targetElement: containerRef.current || (typeof window !== 'undefined' ? window : null),
+      activeSessionId: () => activeSession?._id || null,
+      currentStepId: () => journey.steps[currentStepIndex]?.id || null,
+      onWarningStart: (remaining) => {
+        setIsPrivacyWarningOpen(true);
+        setPrivacyCountdownSeconds(remaining);
+      },
+      onWarningTick: (remaining) => {
+        setPrivacyCountdownSeconds(remaining);
+      },
+      onWarningDismissed: () => {
+        setIsPrivacyWarningOpen(false);
+      },
+      onTimeoutExpired: async () => {
+        setIsPrivacyWarningOpen(false);
+        const currentStep = journey.steps[currentStepIndex]?.id;
+        await timeoutSession(currentStep, 'Idle timeout exceeded (Automatic Privacy Reset)');
+      },
+      onNavigateHome: () => {
+        if (onExit) {
+          onExit();
+        } else if (typeof window !== 'undefined' && window.location) {
+          window.location.href = '/kiosk/terminal';
+        }
       }
-    }, idleSeconds * 1000);
-  };
-
-  useEffect(() => {
-    const handleActivity = () => {
-      resetIdleTimer();
-    };
-
-    const element = containerRef.current;
-    if (element) {
-      element.addEventListener('click', handleActivity);
-      element.addEventListener('mousemove', handleActivity);
-      element.addEventListener('touchstart', handleActivity);
-    }
-
-    resetIdleTimer();
+    });
 
     return () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      if (element) {
-        element.removeEventListener('click', handleActivity);
-        element.removeEventListener('mousemove', handleActivity);
-        element.removeEventListener('touchstart', handleActivity);
-      }
+      privacyResetService.stopMonitoring();
     };
-  }, [journey, currentStepIndex]);
+  }, [journey, currentStepIndex, activeSession, onExit]);
+
+  const handlePrivacyStay = () => {
+    privacyResetService.dismissWarning();
+  };
+
+  const handlePrivacyExitNow = async () => {
+    await privacyResetService.executePrivacyWipe();
+  };
 
   // Active step details
   const activeStep = journey?.steps[currentStepIndex];
@@ -211,12 +257,68 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     }
   }, [isMuted]);
 
+  // Supervisor Witness Requirement calculation (DEF-009 / K-SUP-002)
+  const isSupervisorWitnessRequired = Boolean(
+    (journey?.settings as any)?.supervisor_witness_required ||
+    (journey?.settings as any)?.requireSupervisorWitness ||
+    (journey?.settings?.security?.protectionType as string) === 'supervisor' ||
+    (activeStep as any)?.supervisor_witness_required ||
+    activeStep?.requireSupervisorWitness ||
+    (activeStep?.interaction as any)?.supervisor_witness_required ||
+    activeStep?.interaction?.requireSupervisorWitness ||
+    (activeStep?.interaction?.type as any) === 'supervisor_witness' ||
+    (activeStep as any)?.type === 'supervisor_witness'
+  );
+
+  // Completion screen countdown effect (auto-resets after 15 seconds)
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isCompleted && completionCountdown > 0) {
+      timer = setTimeout(() => {
+        setCompletionCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (isCompleted && completionCountdown <= 0) {
+      setIsCompleted(false);
+      setSupervisorWitness(null);
+      handleResetJourney();
+      if (onExit) onExit();
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isCompleted, completionCountdown, onExit]);
+
+  // Supervisor witness verification success callback
+  const handleSupervisorWitnessSuccess = async (witnessData: {
+    verified: boolean;
+    supervisor: any;
+    witnessToken?: string;
+    session?: any;
+  }) => {
+    setSupervisorWitness(witnessData.supervisor);
+    setShowSupervisorGateModal(false);
+    await completeSession();
+    setIsCompleted(true);
+    setCompletionCountdown(15);
+  };
+
+  // Intercept Finish button click (DEF-009 / K-SUP-002)
+  const handleFinish = async () => {
+    if (isSupervisorWitnessRequired && !supervisorWitness) {
+      setShowSupervisorGateModal(true);
+      return;
+    }
+
+    await completeSession();
+    setIsCompleted(true);
+    setCompletionCountdown(15);
+  };
+
   // Navigation handlers with directional animation
   const handleNextStep = () => {
     setStepDirection('forward');
     if (currentStepIndex === (journey?.steps?.length || 0) - 1) {
-      completeSession();
-      handleResetJourney();
+      handleFinish();
     } else {
       nextStep();
     }
@@ -233,11 +335,6 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     setStepDirection('backward');
     setStepIndex(0);
     startSession();
-  };
-
-  const handleFinish = () => {
-    completeSession();
-    handleResetJourney();
   };
 
   // PPE Step effect
@@ -411,6 +508,119 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     );
   }
 
+  // Completion Confirmation Screen (DEF-009 / K-SUP-002)
+  if (isCompleted) {
+    const identifiedEmployee = deviceIdentityService.getEmployeeUser?.();
+    const workerName =
+      identifiedEmployee?.fullName ||
+      (identifiedEmployee?.firstName && identifiedEmployee?.lastName
+        ? `${identifiedEmployee.firstName} ${identifiedEmployee.lastName}`
+        : null);
+
+    return (
+      <div
+        id="kiosk-completion-screen"
+        data-testid="kiosk-completion-screen"
+        className={`flex h-screen w-full flex-col items-center justify-center p-6 text-center select-none transition-colors ${
+          highContrast ? 'bg-black text-white' : 'bg-slate-950 text-white'
+        }`}
+      >
+        <div
+          className={`relative max-w-lg w-full rounded-3xl border p-8 shadow-2xl overflow-hidden ${
+            highContrast
+              ? 'bg-black border-2 border-amber-400 text-white'
+              : 'bg-slate-900/90 border-slate-800 text-white backdrop-blur-md'
+          }`}
+        >
+          {/* Success Icon */}
+          <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 shadow-xl shadow-emerald-500/20 mb-6">
+            <ShieldCheck className="w-10 h-10 stroke-[2.5]" />
+          </div>
+
+          <h2
+            id="completion-screen-title"
+            data-testid="completion-screen-title"
+            className="text-2xl sm:text-3xl font-extrabold tracking-tight"
+          >
+            {t('player.completedTitle', { defaultValue: 'Briefing Successfully Completed' })}
+          </h2>
+
+          <p className="mt-2 text-sm sm:text-base text-slate-300 font-medium">
+            {journey?.title || 'Safety Briefing'}
+          </p>
+
+          {workerName && (
+            <div className="mt-4 p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs sm:text-sm text-slate-300">
+              <span className="text-slate-400">{t('player.worker', { defaultValue: 'Worker' })}: </span>
+              <strong className="text-white font-semibold">{workerName}</strong>
+            </div>
+          )}
+
+          {/* Supervisor Witness Attestation Banner */}
+          {supervisorWitness && (
+            <div
+              id="supervisor-attestation-badge"
+              data-testid="supervisor-attestation-badge"
+              className="mt-4 p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 text-left text-xs sm:text-sm space-y-1.5"
+            >
+              <div className="flex items-center space-x-2 text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{t('supervisor.attestationVerified', { defaultValue: 'Supervisor Attestation Verified' })}</span>
+              </div>
+              <div className="text-slate-200">
+                <span className="text-slate-400">{t('supervisor.witnessedBy', { defaultValue: 'Witnessed by' })}: </span>
+                <strong
+                  id="completion-supervisor-name"
+                  data-testid="completion-supervisor-name"
+                  className="text-white font-semibold"
+                >
+                  {supervisorWitness.fullName || supervisorWitness.name || supervisorWitness.email}
+                </strong>
+                {supervisorWitness.role && (
+                  <span className="text-slate-400 text-xs ml-1.5 capitalize">({supervisorWitness.role})</span>
+                )}
+              </div>
+              <p className="text-[11px] text-emerald-300/80">
+                {t('supervisor.auditFactRecorded', {
+                  defaultValue: 'Official dual-custody audit fact logged in immutable ledger.'
+                })}
+              </p>
+            </div>
+          )}
+
+          {/* Return / Exit Button & Countdown */}
+          <div className="mt-8 space-y-3">
+            <button
+              type="button"
+              id="completion-exit-btn"
+              data-testid="completion-exit-btn"
+              onClick={() => {
+                setIsCompleted(false);
+                setSupervisorWitness(null);
+                handleResetJourney();
+                if (onExit) onExit();
+              }}
+              className={`w-full min-h-[56px] px-6 py-3.5 rounded-2xl font-bold text-base transition active:scale-95 shadow-xl ${
+                highContrast
+                  ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300'
+                  : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-emerald-500/25'
+              }`}
+            >
+              {t('player.returnHome', { defaultValue: 'Finish & Return Home' })}
+            </button>
+
+            <p className="text-xs text-slate-500 font-medium">
+              {t('player.autoResetIn', {
+                defaultValue: `Terminal resets automatically in ${completionCountdown}s`,
+                seconds: completionCountdown
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Interaction mode determinations
   const isPpeStep =
     activeStep?.interaction?.type === 'ppe_checklist' || activeStep?.id === 'step-sop-01';
@@ -508,6 +718,11 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         onNext={handleNextStep}
         onRestart={handleResetJourney}
         onFinish={handleFinish}
+        finishButtonLabel={
+          isSupervisorWitnessRequired && !supervisorWitness
+            ? t('supervisor.finishWitnessRequired', { defaultValue: 'Finish (Witness Required)' })
+            : undefined
+        }
         highContrast={highContrast}
         showBack={currentStepIndex > 0 && !isYesNoStep}
         showNext={showNextInFooter}
@@ -529,6 +744,49 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
           onCancel={() => setShowPinOverlay(false)}
         />
       )}
+
+      {/* Frontline Worker Identification Modal (DEF-008 / K-EMP-001) */}
+      <FrontlineIdentifyModal
+        isOpen={showIdentifyModal}
+        onClose={() => {
+          setShowIdentifyModal(false);
+          if (!workerIdentified && onExit) {
+            onExit();
+          }
+        }}
+        onSuccess={({ token, worker }) => {
+          deviceIdentityService.setEmployeeSession(token, worker);
+          setEphemeralWorkerToken(token);
+          setWorkerIdentified(true);
+          setShowIdentifyModal(false);
+          startSession();
+        }}
+        highContrast={highContrast}
+      />
+
+      {/* Automatic Privacy Reset 15s Countdown Warning Modal (K-EMP-003) */}
+      <PrivacyTimeoutModal
+        isOpen={isPrivacyWarningOpen}
+        remainingSeconds={privacyCountdownSeconds}
+        onStay={handlePrivacyStay}
+        onExit={handlePrivacyExitNow}
+      />
+
+      {/* Supervisor Witness Attestation Completion Gate Modal (DEF-009 / K-SUP-002) */}
+      <SupervisorWitnessGateModal
+        isOpen={showSupervisorGateModal}
+        sessionId={activeSession?._id}
+        workerName={
+          deviceIdentityService.getEmployeeUser?.()?.fullName ||
+          (deviceIdentityService.getEmployeeUser?.()?.firstName && deviceIdentityService.getEmployeeUser?.()?.lastName
+            ? `${deviceIdentityService.getEmployeeUser?.()?.firstName} ${deviceIdentityService.getEmployeeUser?.()?.lastName}`
+            : undefined)
+        }
+        journeyTitle={journey.title}
+        onClose={() => setShowSupervisorGateModal(false)}
+        onSuccess={handleSupervisorWitnessSuccess}
+        highContrast={highContrast}
+      />
     </div>
   );
 };

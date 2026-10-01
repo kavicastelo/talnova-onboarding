@@ -77,6 +77,9 @@ export function errorHandler(
 
   // 2. Handle AppError (custom operational errors)
   if (error instanceof AppError) {
+    if (error.statusCode === 429 && (error.details as any)?.retryAfter) {
+      reply.header("Retry-After", String((error.details as any).retryAfter));
+    }
     return reply.status(error.statusCode).send({
       success: false,
       message: error.message,
