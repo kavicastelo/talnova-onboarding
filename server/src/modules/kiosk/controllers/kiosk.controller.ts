@@ -705,7 +705,9 @@ export class KioskController {
     const query = (request.query || {}) as any;
     const headers = request.headers as any;
 
-    const items = body?.events || body?.sessions;
+    const items = Array.isArray(body)
+      ? body
+      : (body?.events || body?.sessions || body?.completedSessions);
     if (!Array.isArray(items) || items.length === 0) {
       throw new AppError(400, "BAD_REQUEST", "events or sessions must be a non-empty array");
     }
@@ -716,7 +718,7 @@ export class KioskController {
     }
 
     // Check for explicit cross-tenant request via body, query, or header
-    const requestedOrgId = body.organizationId || query.organizationId || query.o || headers["x-organization-id"];
+    const requestedOrgId = (!Array.isArray(body) && body.organizationId) || query.organizationId || query.o || headers["x-organization-id"];
     if (requestedOrgId && requestedOrgId.toString() !== orgId.toString()) {
       throw new AppError(
         403,
@@ -726,13 +728,21 @@ export class KioskController {
     }
 
     const result = await this.kioskService.syncAnalytics(orgId, body, userPayload?.deviceId);
+    const syncedCount = result.syncedCount ?? (Array.isArray(result) ? result.length : 0);
+    const duplicateCount = result.duplicateCount ?? 0;
+    const failedCount = result.failedCount ?? 0;
+
     return reply.status(200).send({
       success: true,
       message: "Analytics synced successfully",
-      syncedCount: result.length,
+      syncedCount,
+      duplicateCount,
+      failedCount,
       data: {
-        syncedCount: result.length,
-        items: result
+        syncedCount,
+        duplicateCount,
+        failedCount,
+        items: result.sessions || result.items || (Array.isArray(result) ? result : [])
       }
     });
   };

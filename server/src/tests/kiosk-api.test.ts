@@ -131,6 +131,16 @@ describe("Kiosk API Layer Integration Tests (Phase 6)", () => {
               }
             }
           ]
+        },
+        {
+          id: "step-2",
+          type: "completion",
+          title: "Completion",
+          order: 2,
+          interaction: {
+            type: "tap_to_continue"
+          },
+          blocks: []
         }
       ],
       settings: {
@@ -196,6 +206,36 @@ describe("Kiosk API Layer Integration Tests (Phase 6)", () => {
       const body = JSON.parse(response.payload);
       expect(body.success).toBe(true);
       expect(body.data.title).toBe("Updated Machine Safety Guide");
+    });
+
+    it("PUT /api/v1/kiosk/journeys/:id - should successfully save journey settings with requireSupervisorWitness and tolerate security.requireSupervisorWitness", async () => {
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/v1/kiosk/journeys/${createdJourneyId}`,
+        headers: { authorization: `Bearer ${adminAToken}` },
+        payload: {
+          settings: {
+            autoPlay: false,
+            loopForever: false,
+            idleTimeoutSeconds: 45,
+            autoReturnHome: true,
+            hideNavigation: false,
+            disableExit: true,
+            requireSupervisorWitness: false,
+            security: {
+              protectionType: "none",
+              pinCode: "",
+              requireSupervisorWitness: false
+            }
+          }
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.payload);
+      expect(body.success).toBe(true);
+      expect(body.data.settings.requireSupervisorWitness).toBe(false);
+      expect(body.data.settings.idleTimeoutSeconds).toBe(45);
     });
 
     it("GET /api/v1/kiosk/journeys/:id - should prevent tenant crossover", async () => {

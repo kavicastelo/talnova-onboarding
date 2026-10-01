@@ -5,6 +5,7 @@ import { KioskSession, KioskSessionStatus } from '../../../types/kiosk/session.t
 import { kioskService } from '../services/kiosk.service';
 import { deviceIdentityService } from '../services/device-identity.service';
 import { antiTamperingService } from '../services/anti-tampering.service';
+import { offlineStorageService } from '../services/offline-storage.service';
 
 export interface KioskPlayerContextProps {
   journey: KioskJourney | null;
@@ -12,6 +13,7 @@ export interface KioskPlayerContextProps {
   selectedLanguage: string;
   isPlayingAudio: boolean;
   isMuted: boolean;
+  volume: number;
   showSubtitles: boolean;
   isLoading: boolean;
   error: string | null;
@@ -28,6 +30,7 @@ export interface KioskPlayerContextProps {
   changeLanguage: (lang: string) => void;
   setPlayingAudio: (playing: boolean) => void;
   toggleMuted: () => void;
+  setVolume: (volume: number) => void;
   toggleSubtitles: () => void;
   
   signedParams?: { o: string; exp: string; sig: string };
@@ -70,6 +73,13 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
   );
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [volume, setVolumeState] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kiosk_volume');
+      return saved !== null ? Math.max(0, Math.min(1, parseFloat(saved))) : 0.8;
+    }
+    return 0.8;
+  });
   const [showSubtitles, setShowSubtitles] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,7 +253,29 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
   };
 
   const toggleMuted = () => {
-    setIsMuted((prev) => !prev);
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (!next && volume === 0) {
+        setVolumeState(0.8);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('kiosk_volume', '0.8');
+        }
+      }
+      return next;
+    });
+  };
+
+  const setVolume = (vol: number) => {
+    const clamped = Math.max(0, Math.min(1, vol));
+    setVolumeState(clamped);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kiosk_volume', String(clamped));
+    }
+    if (clamped === 0) {
+      setIsMuted(true);
+    } else if (isMuted && clamped > 0) {
+      setIsMuted(false);
+    }
   };
 
   const toggleSubtitles = () => {
@@ -345,11 +377,44 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
         setActiveSession(updated);
         setSessionStatus(updated.status);
       } catch (err) {
-        console.warn('Failed to complete session on server:', err);
+        console.warn('Failed to complete session on server (buffering offline):', err);
         setSessionStatus('completed');
+        try {
+          await offlineStorageService.savePendingSession({
+            sessionId,
+            deviceId: deviceIdentityService.getHardwareGuidSync() || 'standalone-kiosk',
+            journeyId: journey?._id || 'unknown',
+            journeyVersionId: (journey?.publishing as any)?.activeVersionId,
+            versionNumber: journey?.publishing?.version || 1,
+            userId: deviceIdentityService.getEmployeeUser()?.id || null,
+            durationSeconds: currentDuration,
+            quizScore: completionData?.quizScore,
+            ppeItemsVerified: completionData?.ppeItemsVerified,
+            verificationChecksum: completionData?.verificationChecksum,
+            completedStepIds: Array.from(completedStepIdsRef.current)
+          });
+        } catch (storageErr) {
+          console.error('Failed to buffer completed offline session:', storageErr);
+        }
       }
     } else {
       setSessionStatus('completed');
+      try {
+        await offlineStorageService.savePendingSession({
+          deviceId: deviceIdentityService.getHardwareGuidSync() || 'standalone-kiosk',
+          journeyId: journey?._id || 'unknown',
+          journeyVersionId: (journey?.publishing as any)?.activeVersionId,
+          versionNumber: journey?.publishing?.version || 1,
+          userId: deviceIdentityService.getEmployeeUser()?.id || null,
+          durationSeconds: currentDuration,
+          quizScore: completionData?.quizScore,
+          ppeItemsVerified: completionData?.ppeItemsVerified,
+          verificationChecksum: completionData?.verificationChecksum,
+          completedStepIds: Array.from(completedStepIdsRef.current)
+        });
+      } catch (storageErr) {
+        console.error('Failed to buffer completed offline session:', storageErr);
+      }
     }
 
     // Legacy analytics sync
@@ -575,6 +640,7 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
         selectedLanguage,
         isPlayingAudio,
         isMuted,
+        volume,
         showSubtitles,
         isLoading,
         error,
@@ -589,6 +655,7 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
         changeLanguage,
         setPlayingAudio,
         toggleMuted,
+        setVolume,
         toggleSubtitles,
         startSession,
         recordInteraction,

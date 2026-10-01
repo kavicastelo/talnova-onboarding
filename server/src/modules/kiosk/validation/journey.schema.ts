@@ -10,7 +10,8 @@ export const KioskJourneySecuritySettingsSchema = z
   .object({
     protectionType: KioskSecurityProtectionTypeSchema,
     pinCode: z.string().optional(),
-    expiresAt: z.union([z.date(), z.string().datetime()]).nullable().optional()
+    expiresAt: z.union([z.date(), z.string().datetime()]).nullable().optional(),
+    requireSupervisorWitness: z.boolean().optional()
   })
   .strict()
   .superRefine((data, ctx) => {

@@ -6,6 +6,7 @@ import { KioskStepContainer } from './KioskStepContainer';
 import { KioskActionFooter } from './KioskActionFooter';
 import { KioskPinOverlay } from './KioskPinOverlay';
 import { KioskRevokedScreen } from './KioskRevokedScreen';
+import { KioskAudioNarrator } from './player/KioskAudioNarrator';
 import { FrontlineIdentifyModal } from './auth/FrontlineIdentifyModal';
 import { SupervisorWitnessGateModal } from './auth/SupervisorWitnessGateModal';
 import { PrivacyTimeoutModal } from './privacy/PrivacyTimeoutModal';
@@ -21,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { FontScale } from './accessibility/AccessibilityToolbar';
 import { KioskLiveAnnouncer } from './accessibility/KioskLiveAnnouncer';
 import { useKioskKeyboardNavigation } from '../hooks/useKioskKeyboardNavigation';
+import { isRtlLanguage } from '../constants/language.constants';
 
 export interface KioskPlayerProps {
   journeyId: string;
@@ -39,12 +41,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   onExit,
   isAdminPreview = false
 }) => {
-  const { t } = useTranslation('kiosk');
+  const { t, i18n } = useTranslation('kiosk');
   const {
     journey,
     currentStepIndex,
     selectedLanguage,
     isMuted,
+    volume,
     showSubtitles,
     isLoading,
     error,
@@ -55,6 +58,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     changeLanguage,
     setPlayingAudio,
     toggleMuted,
+    setVolume,
     toggleSubtitles,
     startSession,
     recordInteraction,
@@ -66,7 +70,6 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   } = useKioskPlayer();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // K-EMP-003: Automatic Privacy Reset & Countdown Warning State
   const [isPrivacyWarningOpen, setIsPrivacyWarningOpen] = useState(false);
@@ -74,6 +77,26 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
   // Directional step transition animation ('forward' | 'backward')
   const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
+
+  // K-LOC-002: Dynamic Right-To-Left (RTL) Layout Engine
+  const isRtl = isRtlLanguage(selectedLanguage);
+
+  // K-LOC-003: Autoplay Narration Setting
+  const [autoPlayNarration, setAutoPlayNarration] = useState<boolean>(() => {
+    return journey?.settings?.autoPlay ?? true;
+  });
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = selectedLanguage;
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.documentElement.dir = 'ltr';
+      }
+    };
+  }, [isRtl, selectedLanguage]);
 
   // Accessibility: High-contrast mode toggle & dynamic font scaling (ADR-010 / K-ACC-002)
   const [highContrast, setHighContrast] = useState(() => {
@@ -130,8 +153,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     const unsubscribe = emergencyService.subscribe((emergency) => {
       setActiveEmergency(emergency);
       if (emergency && emergency.isActive) {
-        if (audioRef.current) {
-          audioRef.current.pause();
+        setPlayingAudio(false);
+        if (typeof document !== 'undefined') {
+          document.querySelectorAll('audio').forEach((a) => a.pause());
         }
       }
     });
@@ -139,8 +163,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     const handleEmergency = (e: any) => {
       if (e?.detail) {
         setActiveEmergency(e.detail);
-        if (audioRef.current) {
-          audioRef.current.pause();
+        setPlayingAudio(false);
+        if (typeof document !== 'undefined') {
+          document.querySelectorAll('audio').forEach((a) => a.pause());
         }
       }
     };
@@ -302,60 +327,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   // Active step details
   const activeStep = journey?.steps[currentStepIndex];
 
-  // Handle Audio Narration for active step / language
-  useEffect(() => {
-    if (!activeStep) return;
-
-    const audioBlock = activeStep.blocks.find((b) => b.type === 'audio');
-    const firstBlockWithAudio = activeStep.blocks.find(
-      (b) => b.mediaReferences?.[selectedLanguage]?.audioUploadId
-    );
-
-    let audioUrl = '';
-    if (audioBlock?.mediaReferences?.[selectedLanguage]?.embedUrl) {
-      audioUrl = audioBlock.mediaReferences[selectedLanguage].embedUrl || '';
-    } else if (firstBlockWithAudio?.mediaReferences?.[selectedLanguage]?.audioUploadId) {
-      const uploadId = firstBlockWithAudio.mediaReferences[selectedLanguage].audioUploadId;
-      audioUrl = `/api/v1/kiosk/uploads/${uploadId}`;
+  const handleLanguageChange = (lang: string) => {
+    changeLanguage(lang);
+    i18n.changeLanguage(lang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('talnova_lang', lang);
     }
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    }
-
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.muted = isMuted;
-      audio.loop = false;
-
-      audio.onended = () => {
-        setPlayingAudio(false);
-      };
-
-      audioRef.current = audio;
-
-      if (journey?.settings?.autoPlay) {
-        audio
-          .play()
-          .then(() => setPlayingAudio(true))
-          .catch((e) => console.warn('Autoplay audio blocked by browser policy:', e));
-      }
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, [activeStep, selectedLanguage]);
-
-  // Sync mute state with audio element
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = isMuted;
-    }
-  }, [isMuted]);
+  };
 
   // Supervisor Witness Requirement calculation (DEF-009 / K-SUP-002)
   const isSupervisorWitnessRequired = Boolean(
@@ -553,6 +531,78 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     setHoldProgress(0);
   };
 
+  // Interaction mode determinations
+  const isPpeStep =
+    activeStep?.interaction?.type === 'ppe_checklist' || activeStep?.id === 'step-sop-01';
+  const isYesNoStep = activeStep?.interaction?.type === 'yes_no';
+  const isHoldStep = activeStep?.interaction?.type === 'hold_to_confirm';
+  const totalSteps = journey?.steps?.length || 0;
+  const isLastStep = currentStepIndex === totalSteps - 1;
+
+  // Next button visibility in footer
+  const showNextInFooter = !isYesNoStep && !isLastStep;
+  const showFinishInFooter = !isYesNoStep && isLastStep;
+  const canGoNext = isPpeStep ? ppeSubmitted : true;
+
+  // K-ACC-003: Screen Reader ARIA & Keyboard Navigation
+  const [tamperingDetected, setTamperingDetected] = useState(false);
+
+  // K-SEC-003: Client-Side Anti-Tampering DOM Guard
+  useAntiTamperingGuard({
+    containerRef,
+    canProgress: canGoNext,
+    onTamperDetected: (event) => {
+      console.warn('[KioskSecurity] Unauthorized DOM mutation detected on progression button:', event);
+      setTamperingDetected(true);
+    },
+    onResetStepState: () => {
+      if (isPpeStep) {
+        setPpeSubmitted(false);
+        setCheckedPpe(new Set());
+      }
+      setHoldProgress(0);
+      setVideoCompleted(false);
+    },
+    enabled: !isAdminPreview && !isRevoked && !isLoading && !error && Boolean(journey) && !isCompleted
+  });
+
+  const isAnyModalOpen =
+    showPinOverlay ||
+    showIdentifyModal ||
+    showSupervisorGateModal ||
+    isPrivacyWarningOpen ||
+    isReenterPromptVisible;
+
+  const handleCancelActiveModal = () => {
+    if (showPinOverlay) {
+      setShowPinOverlay(false);
+    } else if (showIdentifyModal) {
+      setShowIdentifyModal(false);
+      if (!workerIdentified && onExit) onExit();
+    } else if (showSupervisorGateModal) {
+      setShowSupervisorGateModal(false);
+    } else if (isPrivacyWarningOpen) {
+      handlePrivacyStay();
+    }
+  };
+
+  useKioskKeyboardNavigation({
+    enabled: !isRevoked && !isLoading && !error && Boolean(journey) && !isCompleted,
+    canGoNext: canGoNext,
+    canGoBack: currentStepIndex > 0 && !isYesNoStep,
+    onNext: () => {
+      if (isLastStep) {
+        handleFinish();
+      } else {
+        handleNextStep();
+      }
+    },
+    onPrev: handlePrevStep,
+    onYesNo: isYesNoStep ? handleYesNoSelection : undefined,
+    onCancelModal: handleCancelActiveModal,
+    isModalOpen: isAnyModalOpen
+  });
+
   // Revocation state
   if (isRevoked) {
     return (
@@ -721,83 +771,14 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     );
   }
 
-  // Interaction mode determinations
-  const isPpeStep =
-    activeStep?.interaction?.type === 'ppe_checklist' || activeStep?.id === 'step-sop-01';
-  const isYesNoStep = activeStep?.interaction?.type === 'yes_no';
-  const isHoldStep = activeStep?.interaction?.type === 'hold_to_confirm';
-  const totalSteps = journey.steps?.length || 0;
-  const isLastStep = currentStepIndex === totalSteps - 1;
-
-  // Next button visibility in footer
-  const showNextInFooter = !isYesNoStep && !isLastStep;
-  const showFinishInFooter = !isYesNoStep && isLastStep;
-  const canGoNext = isPpeStep ? ppeSubmitted : true;
-
-  // K-ACC-003: Screen Reader ARIA & Keyboard Navigation
-  const [tamperingDetected, setTamperingDetected] = useState(false);
-
-  // K-SEC-003: Client-Side Anti-Tampering DOM Guard
-  useAntiTamperingGuard({
-    containerRef,
-    canProgress: canGoNext,
-    onTamperDetected: (event) => {
-      console.warn('[KioskSecurity] Unauthorized DOM mutation detected on progression button:', event);
-      setTamperingDetected(true);
-    },
-    onResetStepState: () => {
-      if (isPpeStep) {
-        setPpeSubmitted(false);
-        setCheckedPpe(new Set());
-      }
-      setHoldProgress(0);
-      setVideoCompleted(false);
-    },
-    enabled: !isAdminPreview
-  });
-
-  const isAnyModalOpen =
-    showPinOverlay ||
-    showIdentifyModal ||
-    showSupervisorGateModal ||
-    isPrivacyWarningOpen ||
-    isReenterPromptVisible;
-
-  const handleCancelActiveModal = () => {
-    if (showPinOverlay) {
-      setShowPinOverlay(false);
-    } else if (showIdentifyModal) {
-      setShowIdentifyModal(false);
-      if (!workerIdentified && onExit) onExit();
-    } else if (showSupervisorGateModal) {
-      setShowSupervisorGateModal(false);
-    } else if (isPrivacyWarningOpen) {
-      handlePrivacyStay();
-    }
-  };
-
-  useKioskKeyboardNavigation({
-    enabled: true,
-    canGoNext: canGoNext,
-    canGoBack: currentStepIndex > 0 && !isYesNoStep,
-    onNext: () => {
-      if (isLastStep) {
-        handleFinish();
-      } else {
-        handleNextStep();
-      }
-    },
-    onPrev: handlePrevStep,
-    onYesNo: isYesNoStep ? handleYesNoSelection : undefined,
-    onCancelModal: handleCancelActiveModal,
-    isModalOpen: isAnyModalOpen
-  });
-
   return (
     <div
       ref={containerRef}
       id="kiosk-player-shell"
       data-testid="kiosk-player-shell"
+      dir={isRtl ? 'rtl' : 'ltr'}
+      data-dir={isRtl ? 'rtl' : 'ltr'}
+      data-rtl={isRtl ? 'true' : 'false'}
       data-font-scale={fontScale}
       style={{ '--kiosk-font-scale': fontScale / 100 } as React.CSSProperties}
       className={`flex h-screen w-full flex-col justify-between overflow-hidden select-none transition-colors ${
@@ -822,9 +803,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         totalSteps={totalSteps}
         languages={journey.languages}
         selectedLanguage={selectedLanguage}
-        onLanguageChange={changeLanguage}
+        onLanguageChange={handleLanguageChange}
         isMuted={isMuted}
         onToggleMuted={toggleMuted}
+        volume={volume}
+        onVolumeChange={setVolume}
+        autoPlay={autoPlayNarration}
+        onToggleAutoPlay={() => setAutoPlayNarration((prev) => !prev)}
         showSubtitles={showSubtitles}
         onToggleSubtitles={toggleSubtitles}
         highContrast={highContrast}
@@ -836,7 +821,26 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         }
         onExit={handleExitClick}
         isAdminPreview={isAdminPreview}
+        isRtl={isRtl}
       />
+
+      {/* Synchronized Localized Audio Narration (K-LOC-003) */}
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 pt-2 shrink-0">
+        <KioskAudioNarrator
+          step={activeStep || null}
+          selectedLanguage={selectedLanguage}
+          defaultLanguage={(journey as any)?.defaultLanguage || journey?.languages?.[0] || 'en'}
+          autoPlay={autoPlayNarration}
+          isMuted={isMuted}
+          volume={volume}
+          onToggleMute={toggleMuted}
+          onVolumeChange={setVolume}
+          onAudioStart={() => setPlayingAudio(true)}
+          onAudioEnd={() => setPlayingAudio(false)}
+          highContrast={highContrast}
+          isRtl={isRtl}
+        />
+      </div>
 
       {/* 2. Responsive Active Step Canvas with Directional Transitions */}
       <KioskStepContainer
@@ -844,6 +848,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         stepIndex={currentStepIndex}
         direction={stepDirection}
         selectedLanguage={selectedLanguage}
+        defaultLanguage={(journey as any)?.defaultLanguage || journey?.languages?.[0] || 'en'}
         highContrast={highContrast}
         fontScale={fontScale}
         videoCompleted={videoCompleted}
@@ -880,6 +885,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         ppeResetCountdown={ppeResetCountdown}
         ppeSubmitError={ppeSubmitError}
         showSubtitles={showSubtitles}
+        isRtl={isRtl}
       />
 
       {/* 3. Fixed Bottom Action Footer Pinned to 96px */}
@@ -906,6 +912,8 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         holdProgress={holdProgress}
         onHoldStart={handleHoldStart}
         onHoldEnd={handleHoldEnd}
+        isRtl={isRtl}
+        selectedLanguage={selectedLanguage}
       />
 
       {/* Administrative / Operator Exit PIN Overlay (K-SEC-002: 6-digit Exit PIN) */}

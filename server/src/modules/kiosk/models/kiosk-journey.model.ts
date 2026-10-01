@@ -99,8 +99,7 @@ export const KioskJourneySecuritySettingsMongooseSchema = new Schema(
   {
     protectionType: { type: String, required: true, default: "none" },
     pinCode: { type: String },
-    expiresAt: { type: Date },
-    requireSupervisorWitness: { type: Boolean, default: false }
+    expiresAt: { type: Date }
   },
   { _id: false }
 );

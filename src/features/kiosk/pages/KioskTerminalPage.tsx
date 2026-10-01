@@ -16,11 +16,42 @@ import { KioskHomeScreen } from '../components/launcher/KioskHomeScreen';
 import { EmergencyEvacuationOverlay } from '../components/emergency/EmergencyEvacuationOverlay';
 import { emergencyService } from '../services/emergency.service';
 import { KioskEmergency } from '../../../types/kiosk/emergency.types';
+import { registerKioskServiceWorker } from '../services/kiosk-service-worker';
+import { offlineStorageService } from '../services/offline-storage.service';
 
 export const KioskTerminalPage: React.FC = () => {
   const { t } = useTranslation('kiosk');
   const { deviceId: routeDeviceId } = useParams<{ deviceId?: string }>();
   const navigate = useNavigate();
+
+  // K-OFF-001: Register dedicated Kiosk Service Worker strictly scoped to /kiosk/
+  useEffect(() => {
+    registerKioskServiceWorker();
+  }, []);
+
+  // K-OFF-003: Automatically synchronize pending offline sessions on network reconnection
+  useEffect(() => {
+    const handleOnline = async () => {
+      try {
+        const stats = await offlineStorageService.getStorageStats();
+        if (stats.pendingSessionsCount > 0) {
+          console.info(`[KioskTerminalPage] Online detected: Flushing ${stats.pendingSessionsCount} queued offline sessions...`);
+          const res = await offlineStorageService.syncPendingSessions();
+          console.info(`[KioskTerminalPage] Offline sync completed: synced=${res.syncedCount}, duplicates=${res.duplicateCount}, failed=${res.failedCount}`);
+        }
+      } catch (err) {
+        console.warn('[KioskTerminalPage] Offline sessions automatic flush failed:', err);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      handleOnline();
+    }
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,15 +112,20 @@ export const KioskTerminalPage: React.FC = () => {
   const fetchManifest = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const targetId =
-        routeDeviceId ||
-        deviceIdentityService.getHardwareGuidSync() ||
-        deviceIdentityService.getStoredDevice()?.deviceId ||
-        undefined;
+    const targetId =
+      routeDeviceId ||
+      deviceIdentityService.getHardwareGuidSync() ||
+      deviceIdentityService.getStoredDevice()?.deviceId ||
+      undefined;
 
+    try {
       const data = await kioskService.getDeviceManifest(targetId);
       setManifest(data);
+
+      // Automatically cache assigned journeys and media into IndexedDB when online (K-OFF-002)
+      offlineStorageService.cacheAssignedJourneys(data).catch((cacheErr) => {
+        console.warn('[KioskTerminalPage] Background offline caching error:', cacheErr);
+      });
 
       // Check device operational status from manifest
       if (data.device?.status === 'maintenance') {
@@ -109,6 +145,22 @@ export const KioskTerminalPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('[KioskTerminalPage] Manifest fetch failed:', err);
+
+      // Attempt to recover from offline IndexedDB cache if network disconnected
+      try {
+        const cachedManifest = await offlineStorageService.getManifest(targetId);
+        if (cachedManifest && cachedManifest.journeys && cachedManifest.journeys.length > 0) {
+          console.info('[KioskTerminalPage] Network offline: Loaded cached terminal manifest from IndexedDB.');
+          setManifest(cachedManifest);
+          if (cachedManifest.launchMode === 'autoplay' && cachedManifest.journeys.length > 0) {
+            setActiveJourneyId(cachedManifest.journeys[0]._id);
+          }
+          setError(null);
+          return;
+        }
+      } catch (dbErr) {
+        console.warn('[KioskTerminalPage] Failed to inspect offline manifest cache:', dbErr);
+      }
 
       const status = err?.response?.status;
       const respData = err?.response?.data;

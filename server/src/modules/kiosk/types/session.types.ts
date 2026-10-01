@@ -58,6 +58,7 @@ export interface KioskSession {
   readonly supervisorWitness?: KioskSupervisorWitness;
   readonly verificationChecksum?: string; // SHA-256 HMAC of session completion facts
   readonly isOfflineSync: boolean;
+  readonly clientSessionId?: string; // Idempotent offline sync identifier (UUIDv4)
   readonly createdAt: Timestamp;
   readonly updatedAt: Timestamp;
 }

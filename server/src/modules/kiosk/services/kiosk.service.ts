@@ -54,6 +54,12 @@ export class KioskService {
   }
 
   async createJourney(orgId: string, data: any, userId: string): Promise<IKioskJourney> {
+    if (data.settings?.security?.requireSupervisorWitness !== undefined) {
+      if (data.settings.requireSupervisorWitness === undefined) {
+        data.settings.requireSupervisorWitness = data.settings.security.requireSupervisorWitness;
+      }
+      delete data.settings.security.requireSupervisorWitness;
+    }
     const journeyData = {
       ...data,
       organizationId: new mongoose.Types.ObjectId(orgId),
@@ -71,6 +77,12 @@ export class KioskService {
     const journey = await this.journeyRepo.findByIdAndOrg(id, orgId);
     if (!journey) {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    if (data.settings?.security?.requireSupervisorWitness !== undefined) {
+      if (data.settings.requireSupervisorWitness === undefined) {
+        data.settings.requireSupervisorWitness = data.settings.security.requireSupervisorWitness;
+      }
+      delete data.settings.security.requireSupervisorWitness;
     }
     const updated = await this.journeyRepo.update(id, data, userId);
     if (!updated) {
@@ -1553,7 +1565,13 @@ export class KioskService {
   async syncAnalytics(orgId: string, payload: any, hardwareDeviceId?: string) {
     const rawItems = Array.isArray(payload)
       ? payload
-      : (Array.isArray(payload?.events) ? payload.events : (Array.isArray(payload?.sessions) ? payload.sessions : []));
+      : (Array.isArray(payload?.events)
+          ? payload.events
+          : (Array.isArray(payload?.sessions)
+              ? payload.sessions
+              : (Array.isArray(payload?.completedSessions)
+                  ? payload.completedSessions
+                  : [])));
 
     if (!rawItems || rawItems.length === 0) {
       throw new AppError(400, "BAD_REQUEST", "No events or sessions provided for sync");
@@ -1620,23 +1638,159 @@ export class KioskService {
       throw new AppError(400, "BAD_REQUEST", "No matching active journeys found for specified journey identifiers");
     }
 
-    // Map each item to a standardized KioskAnalytics document
+    let syncedCount = 0;
+    let duplicateCount = 0;
+    let failedCount = 0;
+    const syncedSessions: any[] = [];
+    const normalizedDocs: any[] = [];
+
     const dateKey = new Date().toISOString().split("T")[0];
-    const normalizedDocs = rawItems.map((item: any) => {
+
+    for (const item of rawItems) {
       const matchedJourney = journeys.find(
         (j) => j._id.toString() === item.journeyId || j.journeyCode === item.journeyId
       );
+
       if (!matchedJourney) {
-        throw new AppError(403, "TENANT_MISMATCH", `Cross-tenant access forbidden or invalid journey detected: ${item.journeyId}`);
+        failedCount++;
+        continue;
       }
 
       const journeyId = matchedJourney._id as mongoose.Types.ObjectId;
       const journeyVersion = matchedJourney.publishing?.version || 1;
       const languageUsed = item.languageUsed || matchedJourney.languages?.[0] || (matchedJourney.settings as any)?.defaultLanguage || "en";
-      const eventType = item.eventType || item.interactions?.[0]?.eventType || "STEP_VIEWED";
-      const stepId = item.stepId || item.interactions?.[0]?.stepId || "step-01";
+      const eventType = item.eventType || item.interactions?.[0]?.eventType || "COMPLETED";
+      const stepId = item.stepId || item.currentStepId || item.interactions?.[0]?.stepId || "step-finish";
       const durationSeconds = item.durationSeconds || item.metrics?.durationSeconds || 0;
-      const completedCount = (eventType && eventType.toUpperCase().includes("COMPLETED")) ? 1 : (item.metrics?.completedCount || 0);
+      const completedCount = (eventType && eventType.toUpperCase().includes("COMPLETED")) ? 1 : (item.metrics?.completedCount || 1);
+
+      // K-OFF-003: Idempotent session sync handling for offline completed sessions
+      if (item.clientSessionId) {
+        // 1. Check if clientSessionId already exists in KioskSessionModel
+        const existingSession = await KioskSessionModel.findOne({
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          clientSessionId: item.clientSessionId
+        });
+
+        if (existingSession) {
+          // 2. If exists: skip insertion (idempotent no-op)
+          duplicateCount++;
+          continue;
+        }
+
+        try {
+          // 3. If new: insert KioskSession
+          const sessionDeviceId =
+            deviceObjectId ||
+            (item.deviceId && mongoose.Types.ObjectId.isValid(item.deviceId)
+              ? new mongoose.Types.ObjectId(item.deviceId)
+              : matchedJourney.organizationId);
+
+          const newSession = await KioskSessionModel.create({
+            organizationId: new mongoose.Types.ObjectId(orgId),
+            deviceId: sessionDeviceId,
+            journeyId: matchedJourney._id,
+            journeyVersionId:
+              item.journeyVersionId && mongoose.Types.ObjectId.isValid(item.journeyVersionId)
+                ? new mongoose.Types.ObjectId(item.journeyVersionId)
+                : undefined,
+            versionNumber: item.versionNumber || matchedJourney.publishing?.version || 1,
+            userId:
+              item.userId && mongoose.Types.ObjectId.isValid(item.userId)
+                ? new mongoose.Types.ObjectId(item.userId)
+                : undefined,
+            clientSessionId: item.clientSessionId,
+            sessionToken: item.sessionToken || `offline_${item.clientSessionId}`,
+            status: item.status || "completed",
+            startedAt: item.startedAt ? new Date(item.startedAt) : new Date(),
+            completedAt: item.completedAt ? new Date(item.completedAt) : new Date(),
+            durationSeconds,
+            currentStepId: item.currentStepId || stepId,
+            completedStepIds: Array.isArray(item.completedStepIds) ? item.completedStepIds : [],
+            ppeItemsVerified: Array.isArray(item.ppeItemsVerified) ? item.ppeItemsVerified : [],
+            quizScore: typeof item.quizScore === "number" ? item.quizScore : undefined,
+            supervisorWitness: item.supervisorWitness,
+            verificationChecksum: item.verificationChecksum,
+            isOfflineSync: true
+          });
+
+          // 3b. Create completion audit record
+          try {
+            await AuditLog.create({
+              organizationId: new mongoose.Types.ObjectId(orgId),
+              actorUserId: newSession.userId,
+              actorType: "api",
+              eventCategory: "journey",
+              eventType: "KIOSK_OFFLINE_SESSION_SYNCED",
+              resourceType: "KioskSession",
+              resourceId: newSession._id,
+              action: "complete",
+              description: `Synchronized offline completed kiosk session for journey "${matchedJourney.title}"`,
+              metadata: {
+                clientSessionId: item.clientSessionId,
+                journeyId: matchedJourney._id,
+                durationSeconds: newSession.durationSeconds,
+                quizScore: newSession.quizScore,
+                ppeItemsVerified: newSession.ppeItemsVerified,
+                isOfflineSync: true
+              },
+              severity: "info"
+            });
+          } catch (auditErr) {
+            console.warn("[KioskService] Failed to create audit log for offline sync:", auditErr);
+          }
+
+          // 3c. Update employee onboarding roadmap progress
+          if (newSession.userId) {
+            try {
+              const UserModel = mongoose.models.User || (mongoose.modelNames().includes("User") ? mongoose.model("User") : null);
+              if (UserModel) {
+                await UserModel.updateOne(
+                  { _id: newSession.userId },
+                  {
+                    $inc: { "statistics.completedJourneys": 1 },
+                    $set: { "statistics.lastActiveAt": new Date() },
+                    $addToSet: { completedKioskJourneys: matchedJourney._id }
+                  }
+                );
+              }
+
+              const AssignmentModel =
+                mongoose.models.Assignment ||
+                (mongoose.modelNames().includes("Assignment") ? mongoose.model("Assignment") : null);
+              if (AssignmentModel) {
+                await AssignmentModel.updateMany(
+                  {
+                    employeeId: newSession.userId,
+                    journeyId: matchedJourney._id,
+                    status: { $ne: "completed" }
+                  },
+                  {
+                    $set: {
+                      status: "completed",
+                      completedAt: new Date(),
+                      "progress.completionPercentage": 100,
+                      "progress.status": "completed"
+                    }
+                  }
+                );
+              }
+            } catch (userErr) {
+              console.warn("[KioskService] Failed to update employee roadmap progress for offline sync:", userErr);
+            }
+          }
+
+          syncedCount++;
+          syncedSessions.push(newSession);
+        } catch (insertErr) {
+          console.error("[KioskService] Failed to insert offline session:", insertErr);
+          failedCount++;
+          continue;
+        }
+      } else {
+        // Legacy event without clientSessionId
+        syncedCount++;
+      }
 
       const metrics = item.metrics || {
         launchesCount: 1,
@@ -1656,7 +1810,7 @@ export class KioskService {
             }
           ];
 
-      return {
+      normalizedDocs.push({
         organizationId: new mongoose.Types.ObjectId(orgId),
         deviceId: deviceObjectId || (item.deviceId && mongoose.Types.ObjectId.isValid(item.deviceId) ? new mongoose.Types.ObjectId(item.deviceId) : undefined),
         journeyId,
@@ -1667,10 +1821,24 @@ export class KioskService {
         metrics,
         interactions,
         dateKey: item.dateKey || dateKey
-      };
-    });
+      });
+    }
 
-    return this.analyticsRepo.bulkSync(normalizedDocs);
+    if (normalizedDocs.length > 0) {
+      try {
+        await this.analyticsRepo.bulkSync(normalizedDocs);
+      } catch (err) {
+        console.warn("[KioskService] Analytics bulkSync aggregate warning:", err);
+      }
+    }
+
+    return {
+      syncedCount,
+      duplicateCount,
+      failedCount,
+      sessions: syncedSessions,
+      items: syncedSessions
+    };
   }
 
   async getJourneyAnalyticsSummary(journeyId: string, orgId: string, startDate?: string, endDate?: string) {

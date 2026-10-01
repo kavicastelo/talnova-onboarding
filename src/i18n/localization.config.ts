@@ -14,21 +14,52 @@
  *   6. No other code changes.
  */
 
-export const SUPPORTED_LOCALES = ['en', 'si', 'ta', 'fi'] as const;
+export const SUPPORTED_LOCALES = [
+  'en',
+  'es',
+  'fr',
+  'de',
+  'ar',
+  'he',
+  'ur',
+  'vi',
+  'hi',
+  'si',
+  'ta',
+  'fi',
+  'pt',
+  'zh',
+  'tl',
+  'pl',
+  'uk',
+] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 export const DEFAULT_LOCALE: SupportedLocale = 'en';
 export const FALLBACK_LOCALE: SupportedLocale = 'en';
 
 /** Locales whose scripts are written right-to-left */
-export const RTL_LOCALES: ReadonlySet<string> = new Set<string>([]);
+export const RTL_LOCALES: ReadonlySet<string> = new Set<string>(['ar', 'he', 'ur']);
 
 /** Human-readable display names for the language switcher */
 export const LOCALE_DISPLAY_NAMES: Record<SupportedLocale, string> = {
   en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+  ar: 'العربية',
+  he: 'עברית',
+  ur: 'اردو',
+  vi: 'Tiếng Việt',
+  hi: 'हिन्दी',
   si: 'සිංහල',
   ta: 'தமிழ்',
   fi: 'Suomi',
+  pt: 'Português',
+  zh: '中文',
+  tl: 'Tagalog',
+  pl: 'Polski',
+  uk: 'Українська',
 };
 
 /**

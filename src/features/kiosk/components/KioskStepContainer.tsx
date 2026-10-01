@@ -6,7 +6,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Hand,
-  Check
+  Check,
+  Info
 } from 'lucide-react';
 import { KioskStep } from '../../../types/kiosk/step.types';
 import { KioskBlock } from '../../../types/kiosk/block.types';
@@ -14,12 +15,14 @@ import { KnowledgeQuizEngine } from './interactions/KnowledgeQuizEngine';
 
 import { antiTamperingService } from '../services/anti-tampering.service';
 import { FontScale } from './accessibility/AccessibilityToolbar';
+import { getLanguageDisplayName, isRtlLanguage } from '../constants/language.constants';
 
 export interface KioskStepContainerProps {
   step: KioskStep | null;
   stepIndex: number;
   direction?: 'forward' | 'backward';
   selectedLanguage: string;
+  defaultLanguage?: string;
   highContrast?: boolean;
   fontScale?: FontScale;
   videoCompleted?: boolean;
@@ -44,6 +47,7 @@ export interface KioskStepContainerProps {
   onQuizFail?: (score: number) => void;
   // Subtitles
   showSubtitles?: boolean;
+  isRtl?: boolean;
   className?: string;
 }
 
@@ -52,6 +56,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
   stepIndex,
   direction = 'forward',
   selectedLanguage,
+  defaultLanguage = 'en',
   highContrast = false,
   fontScale = 100,
   videoCompleted = false,
@@ -71,9 +76,11 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
   onQuizPass,
   onQuizFail,
   showSubtitles = false,
+  isRtl,
   className = ''
 }) => {
   const { t } = useTranslation('kiosk');
+  const isRtlMode = isRtl ?? isRtlLanguage(selectedLanguage);
 
   if (!step) {
     return (
@@ -86,9 +93,93 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
     );
   }
 
+  // Resolve localized text, uploadId, embedUrl, audioUploadId for a block and language
+  const resolveBlockLangData = (b: KioskBlock, lang: string) => {
+    const mediaRef = b.mediaReferences?.[lang];
+    const settingsTrans = (b.settings as any)?.translations?.[lang];
+    const settingsText =
+      typeof settingsTrans === 'string'
+        ? settingsTrans
+        : typeof settingsTrans === 'object'
+        ? settingsTrans?.textValue
+        : undefined;
+
+    const blockTrans = (b as any).translations?.[lang];
+    const blockText =
+      typeof blockTrans === 'string'
+        ? blockTrans
+        : typeof blockTrans === 'object'
+        ? blockTrans?.textValue
+        : undefined;
+
+    const textValue = mediaRef?.textValue ?? settingsText ?? blockText;
+    const uploadId =
+      mediaRef?.uploadId ??
+      (typeof settingsTrans === 'object' ? settingsTrans?.uploadId : undefined) ??
+      (typeof blockTrans === 'object' ? blockTrans?.uploadId : undefined);
+    const embedUrl =
+      mediaRef?.embedUrl ??
+      (typeof settingsTrans === 'object' ? settingsTrans?.embedUrl : undefined) ??
+      (typeof blockTrans === 'object' ? blockTrans?.embedUrl : undefined);
+    const audioUploadId =
+      mediaRef?.audioUploadId ??
+      (typeof settingsTrans === 'object' ? settingsTrans?.audioUploadId : undefined) ??
+      (typeof blockTrans === 'object' ? blockTrans?.audioUploadId : undefined);
+
+    const hasContent = Boolean(
+      (textValue !== undefined && textValue !== null && textValue !== '') ||
+      uploadId ||
+      embedUrl ||
+      audioUploadId
+    );
+
+    return {
+      hasContent,
+      textValue,
+      uploadId,
+      embedUrl,
+      audioUploadId,
+    };
+  };
+
   const renderContentBlock = (block: KioskBlock) => {
-    const ref = block.mediaReferences?.[selectedLanguage] || block.mediaReferences?.['en'];
-    if (!ref) return null;
+    const targetData = resolveBlockLangData(block, selectedLanguage);
+    const defaultData = resolveBlockLangData(block, defaultLanguage);
+
+    const isFallback =
+      selectedLanguage !== defaultLanguage &&
+      !targetData.hasContent &&
+      defaultData.hasContent;
+
+    const ref = isFallback
+      ? defaultData
+      : targetData.hasContent
+      ? targetData
+      : defaultData;
+
+    if (!ref.hasContent && !ref.textValue && !ref.uploadId && !ref.embedUrl) {
+      return null;
+    }
+
+    const fallbackNotice = isFallback ? (
+      <div
+        data-testid={`translation-fallback-notice-${block.id}`}
+        role="status"
+        aria-live="polite"
+        className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-300 mb-2"
+      >
+        <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+        <span>
+          {t('player.untranslatedFallbackNotice', {
+            defaultValue: `Translation unavailable for ${getLanguageDisplayName(selectedLanguage)}. Displaying ${getLanguageDisplayName(defaultLanguage)} default.`,
+            selectedLang: getLanguageDisplayName(selectedLanguage),
+            defaultLang: getLanguageDisplayName(defaultLanguage)
+          })}
+        </span>
+      </div>
+    ) : null;
+
+    let content: React.ReactNode = null;
 
     switch (block.type) {
       case 'text': {
@@ -96,7 +187,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
         const sanitizedContent = antiTamperingService.sanitizeHtml(rawContent);
         const hasHtmlTags = /<[a-z][\s\S]*>/i.test(sanitizedContent);
 
-        return hasHtmlTags ? (
+        content = hasHtmlTags ? (
           <div
             key={block.id}
             data-testid={`kiosk-block-text-${block.id}`}
@@ -136,11 +227,12 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             {sanitizedContent}
           </p>
         );
+        break;
       }
 
       case 'image': {
         const imageUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
-        return (
+        content = (
           <div
             key={block.id}
             className={`relative overflow-hidden rounded-2xl border flex items-center justify-center ${
@@ -162,11 +254,11 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             )}
           </div>
         );
+        break;
       }
-
       case 'video': {
         const videoUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
-        return (
+        content = (
           <div
             key={block.id}
             className="aspect-video w-full max-h-[50vh] overflow-hidden rounded-2xl bg-black border border-slate-900 relative shadow-2xl"
@@ -193,10 +285,11 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             )}
           </div>
         );
+        break;
       }
 
-      case 'icon':
-        return (
+      case 'icon': {
+        content = (
           <div key={block.id} className="flex justify-center p-4">
             <div
               className={`p-6 rounded-full border-2 ${
@@ -213,9 +306,11 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             </div>
           </div>
         );
+        break;
+      }
 
-      case 'animation':
-        return (
+      case 'animation': {
+        content = (
           <div
             key={block.id}
             className="flex justify-center rounded-2xl bg-slate-900/50 p-8 border border-slate-800"
@@ -225,14 +320,27 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             </div>
           </div>
         );
+        break;
+      }
 
       default:
         return null;
     }
+
+    return (
+      <div key={block.id} className="w-full space-y-2">
+        {fallbackNotice}
+        {content}
+      </div>
+    );
   };
 
   const isEmergency = step.type === 'emergency_step';
   const isWarning = step.type === 'warning_step';
+  const translatedTitle =
+    (step as any).translations?.[selectedLanguage]?.title ||
+    (step as any).settings?.translations?.[selectedLanguage]?.title ||
+    step.title;
 
   return (
     <main
@@ -240,10 +348,19 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       data-step-index={stepIndex}
       data-direction={direction}
       data-font-scale={fontScale}
+      dir={isRtlMode ? 'rtl' : 'ltr'}
+      data-dir={isRtlMode ? 'rtl' : 'ltr'}
+      data-rtl={isRtlMode ? 'true' : 'false'}
       role="main"
-      aria-label={step.title || t('player.stepCanvas', { defaultValue: 'Instructional Step Canvas' })}
+      aria-label={translatedTitle || t('player.stepCanvas', { defaultValue: 'Instructional Step Canvas' })}
       className={`relative flex-1 overflow-y-auto overflow-x-hidden max-w-full w-full flex flex-col justify-start px-4 sm:px-8 lg:px-12 py-6 transition-all duration-300 ease-out break-words ${
-        direction === 'forward' ? 'animate-slide-in-right' : 'animate-slide-in-left'
+        isRtlMode
+          ? direction === 'forward'
+            ? 'animate-slide-in-left'
+            : 'animate-slide-in-right'
+          : direction === 'forward'
+          ? 'animate-slide-in-right'
+          : 'animate-slide-in-left'
       } ${className}`}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 flex-1 flex flex-col justify-center min-w-0 break-words">
@@ -275,13 +392,13 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
         )}
 
         {/* Step Title */}
-        {step.title && (
+        {translatedTitle && (
           <div className="space-y-1">
             <h2
               data-testid="kiosk-step-title"
               className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white"
             >
-              {step.title}
+              {translatedTitle}
             </h2>
           </div>
         )}
@@ -481,7 +598,8 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       {showSubtitles && (
         <div className="w-full max-w-2xl mx-auto pt-4 flex justify-center text-center">
           {step.blocks.map((b) => {
-            const ref = b.mediaReferences?.[selectedLanguage] || b.mediaReferences?.['en'];
+            const targetData = resolveBlockLangData(b, selectedLanguage);
+            const ref = targetData.hasContent ? targetData : resolveBlockLangData(b, defaultLanguage);
             if (b.type === 'text' || !ref?.textValue) return null;
             return (
               <div

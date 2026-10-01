@@ -11,6 +11,13 @@ export const kioskService = {
   // --- Journey Builder API ---
   createJourney: async (payload: Partial<KioskJourney>): Promise<KioskJourney> => {
     const { _id, organizationId, createdAt, updatedAt, createdBy, updatedBy, isDeleted, deletedAt, __v, ...cleanPayload } = payload as any;
+    if (cleanPayload.settings?.security?.requireSupervisorWitness !== undefined) {
+      if (cleanPayload.settings.requireSupervisorWitness === undefined) {
+        cleanPayload.settings.requireSupervisorWitness = cleanPayload.settings.security.requireSupervisorWitness;
+      }
+      const { requireSupervisorWitness, ...cleanSecurity } = cleanPayload.settings.security;
+      cleanPayload.settings = { ...cleanPayload.settings, security: cleanSecurity };
+    }
     const response = await apiClient.post<{ success: boolean; data: KioskJourney }>('/kiosk/journeys', cleanPayload);
     return response.data.data;
   },
@@ -27,6 +34,13 @@ export const kioskService = {
 
   updateJourney: async (id: string, payload: Partial<KioskJourney>): Promise<KioskJourney> => {
     const { _id, organizationId, createdAt, updatedAt, createdBy, updatedBy, isDeleted, deletedAt, __v, ...cleanPayload } = payload as any;
+    if (cleanPayload.settings?.security?.requireSupervisorWitness !== undefined) {
+      if (cleanPayload.settings.requireSupervisorWitness === undefined) {
+        cleanPayload.settings.requireSupervisorWitness = cleanPayload.settings.security.requireSupervisorWitness;
+      }
+      const { requireSupervisorWitness, ...cleanSecurity } = cleanPayload.settings.security;
+      cleanPayload.settings = { ...cleanPayload.settings, security: cleanSecurity };
+    }
     const response = await apiClient.put<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}`, cleanPayload);
     return response.data.data;
   },

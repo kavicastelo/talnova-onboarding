@@ -31,3 +31,5 @@ export * from './services/emergency.service';
 export * from './components/emergency/EmergencyEvacuationOverlay';
 export * from './components/accessibility/AccessibilityToolbar';
 export * from './components/accessibility/KioskLiveAnnouncer';
+export * from './services/kiosk-service-worker';
+export * from './services/offline-storage.service';

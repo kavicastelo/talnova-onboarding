@@ -59,19 +59,55 @@ export const KioskAnalyticsEventItemSchema = z
   })
   .passthrough();
 
-export const KioskAnalyticsBulkSyncSchema = z
+/**
+ * Single offline completed KioskSession payload (K-OFF-003).
+ */
+export const CompletedKioskSessionSyncItemSchema = z
+  .object({
+    clientSessionId: z.string().optional(),
+    sessionId: z.string().optional(),
+    deviceId: z.string().optional(),
+    journeyId: z.string().min(1, { message: "journeyId is required" }),
+    journeyVersionId: z.string().optional(),
+    versionNumber: z.number().int().positive().optional(),
+    userId: z.string().optional().nullable(),
+    sessionToken: z.string().optional(),
+    status: z.string().optional(),
+    startedAt: z.union([z.date(), z.string(), z.number()]).optional(),
+    completedAt: z.union([z.date(), z.string(), z.number()]).optional(),
+    durationSeconds: z.number().nonnegative().optional(),
+    currentStepId: z.string().optional(),
+    completedStepIds: z.array(z.string()).optional(),
+    ppeItemsVerified: z.array(z.string()).optional(),
+    quizScore: z.number().optional(),
+    supervisorWitness: z.any().optional(),
+    verificationChecksum: z.string().optional(),
+    isOfflineSync: z.boolean().optional()
+  })
+  .passthrough();
+
+export const KioskAnalyticsBulkSyncObjectSchema = z
   .object({
     organizationId: z.string().optional(),
     events: z.array(KioskAnalyticsEventItemSchema).min(1).optional(),
-    sessions: z.array(
-      KioskAnalyticsSchema.omit({
-        _id: true,
-        organizationId: true
-      }).passthrough()
-    ).optional()
+    sessions: z.array(z.union([CompletedKioskSessionSyncItemSchema, z.record(z.any())])).min(1).optional(),
+    completedSessions: z.array(CompletedKioskSessionSyncItemSchema).min(1).optional()
   })
   .passthrough()
-  .refine((data) => (data.events && data.events.length > 0) || (data.sessions && data.sessions.length > 0), {
-    message: "Either events or sessions array is required and must not be empty"
-  })
+  .refine(
+    (data) =>
+      (data.events && data.events.length > 0) ||
+      (data.sessions && data.sessions.length > 0) ||
+      (data.completedSessions && data.completedSessions.length > 0),
+    {
+      message: "Either events or sessions array is required and must not be empty"
+    }
+  );
+
+export const KioskAnalyticsBulkSyncSchema = z
+  .union([
+    KioskAnalyticsBulkSyncObjectSchema,
+    z.array(z.union([CompletedKioskSessionSyncItemSchema, z.record(z.any())])).min(1)
+  ])
   .describe("Bulk synced offline sessions package");
+

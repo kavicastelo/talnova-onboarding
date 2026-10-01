@@ -1,0 +1,68 @@
+{
+  "title": "عمليات أجهزة الخدمة الذاتية ومحطات الخطوط الأمامية",
+  "subtitle": "إدارة محطات التوجيه الفعلية والجولات غير المتصلة بالإنترنت والقياس عن بعد ورموز PIN للمشرفين.",
+  "launcher": {
+    "portalBadge": "بوابة السلامة والتوجيه التفاعلية",
+    "portalHeadline": "جولات السلامة المعينة",
+    "portalSubheadline": "المس أي بطاقة لبدء التعليمات التفاعلية أو التحقق من معدات الوقاية أو قوائم الامتثال.",
+    "searchPlaceholder": "ابحث عن الجولات بالعنوان أو الموضوع...",
+    "changeLanguage": "تغيير اللغة",
+    "sync": "مزامنة الجولات المعينة",
+    "mandatory": "إلزامي",
+    "startJourney": "بدء الجولة",
+    "identifyAsEmployee": "التعريف بالموظف",
+    "emergencyProtocol": "بروتوكول الطوارئ",
+    "noJourneysTitle": "وضع الاستعداد للمحطة",
+    "noJourneysDesc": "لا توجد جولات سلامة معينة أو مجدولة حالياً لهذه المحطة.",
+    "noSearchResultsTitle": "لم يتم العثور على جولات تطابق بحثك",
+    "noSearchResultsDesc": "حاول البحث بكلمات أخرى أو امسح استعلام البحث.",
+    "noCategoryJourneysTitle": "لا توجد جولات في هذه الفئة",
+    "noCategoryJourneysDesc": "لم يتم العثور على خطط سلامة نشطة لعلامة التبويب هذه."
+  },
+  "player": {
+    "kioskMode": "وضع المحطة",
+    "loadingScreen": "جارٍ تحميل شاشة المحطة...",
+    "accessError": "خطأ في الوصول إلى المحطة",
+    "unableToLoad": "تعذر تحميل محتوى المحطة.",
+    "exitPreview": "الخروج من المعاينة",
+    "exit": "خروج",
+    "next": "التالي",
+    "back": "السابق",
+    "finish": "إنهاء",
+    "restart": "إعادة التشغيل",
+    "screen": "شاشة",
+    "of": "من",
+    "beginBriefing": "بدء التعليمات",
+    "holdToConfirm": "المس مع الاستمرار للتأكيد",
+    "videoFinished": "اكتمل الفيديو",
+    "animation": "عرض توضيحي متحرك",
+    "confirmVideoCompleted": "تأكيد اكتمال الفيديو",
+    "checklistWarning": "يجب تأكيد جميع العناصر قبل إكمال التعليمات.",
+    "confirmCompleteBriefing": "تأكيد وإكمال تعليمات الوردية",
+    "yes": "نعم",
+    "noContentAvailable": "لا يوجد محتوى متاح لهذه الخطوة.",
+    "stepCanvas": "مساحة خطوة التعليمات",
+    "headerLabel": "شريط عنوان المحطة",
+    "switchLanguage": "تغيير اللغة",
+    "unmute": "تشغيل الصوت",
+    "mute": "كتم الصوت",
+    "completedTitle": "تم إكمال التعليمات بنجاح",
+    "worker": "العامل",
+    "untranslatedFallbackNotice": "الترجمة غير متوفرة لـ {{selectedLang}}. يتم عرض النسخة باللغة {{defaultLang}}."
+  },
+  "emergency": {
+    "title": "بروتوكولات الطوارئ في المنشأة"
+  },
+  "supervisor": {
+    "finishWitnessRequired": "إنهاء (مطلوب شاهد)",
+    "attestationVerified": "تم التحقق من إقرار المشرف",
+    "witnessedBy": "شهد عليه",
+    "auditFactRecorded": "تم تسجيل حقيقة التدقيق المزدوج في دفتر السجلات غير القابل للتغيير."
+  },
+  "modal": {
+    "languageTitle": "تحديد لغة المحطة",
+    "languageSubtitle": "اختر لغتك المفضلة لتعليمات السلامة وقوائم التحقق والسرد الصوتي.",
+    "searchPlaceholder": "ابحث باللغة أو الرمز (مثل العربية أو ar)...",
+    "fallbackNotice": "ستعرض جولات السلامة التعليمات تلقائياً باللغة الإنجليزية في حال عدم توفر ترجمة الخطوة."
+  }
+}
