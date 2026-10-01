@@ -112,6 +112,123 @@ export class KioskController {
     });
   };
 
+  createSession = async (request: FastifyRequest, reply: FastifyReply) => {
+    let user = request.user as any;
+    if (!user && request.headers.authorization) {
+      try {
+        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
+        user = (request.server as any).jwt.decode(token);
+      } catch {
+        // ignore
+      }
+    }
+
+    const body = request.body as any;
+    const session = await this.kioskService.createSession(body, user);
+
+    return reply.status(201).send({
+      success: true,
+      message: "Kiosk session created successfully",
+      data: session
+    });
+  };
+
+  updateSessionProgress = async (request: FastifyRequest, reply: FastifyReply) => {
+    let user = request.user as any;
+    if (!user && request.headers.authorization) {
+      try {
+        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
+        user = (request.server as any).jwt.decode(token);
+      } catch {
+        // ignore
+      }
+    }
+
+    const params = request.params as any;
+    const body = request.body as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+
+    const session = await this.kioskService.updateSessionProgress(params.id, body, orgId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk session progress updated successfully",
+      data: session
+    });
+  };
+
+  completeSession = async (request: FastifyRequest, reply: FastifyReply) => {
+    let user = request.user as any;
+    if (!user && request.headers.authorization) {
+      try {
+        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
+        user = (request.server as any).jwt.decode(token);
+      } catch {
+        // ignore
+      }
+    }
+
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+
+    const session = await this.kioskService.completeSession(params.id, body, orgId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk session completed successfully",
+      data: session
+    });
+  };
+
+  abortSession = async (request: FastifyRequest, reply: FastifyReply) => {
+    let user = request.user as any;
+    if (!user && request.headers.authorization) {
+      try {
+        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
+        user = (request.server as any).jwt.decode(token);
+      } catch {
+        // ignore
+      }
+    }
+
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+
+    const session = await this.kioskService.abortSession(params.id, body, orgId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk session aborted successfully",
+      data: session
+    });
+  };
+
+  timeoutSession = async (request: FastifyRequest, reply: FastifyReply) => {
+    let user = request.user as any;
+    if (!user && request.headers.authorization) {
+      try {
+        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
+        user = (request.server as any).jwt.decode(token);
+      } catch {
+        // ignore
+      }
+    }
+
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+
+    const session = await this.kioskService.timeoutSession(params.id, body, orgId);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk session timed out successfully",
+      data: session
+    });
+  };
+
   listJourneys = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const query = request.query as any;
@@ -625,6 +742,17 @@ export class KioskController {
     const body = (request.body as any) || {};
     let orgId = body.organizationId || (request.user as any)?.organizationId || (request.headers["x-organization-id"] as string);
     const supId = body.supervisorIdentifier || body.supervisorId || body.email || body.employeeId || body.badgeId;
+    const sessionId = body.sessionId;
+
+    if (!orgId && sessionId) {
+      const isHexSess = typeof sessionId === "string" && /^[0-9a-fA-F]{24}$/.test(sessionId);
+      const sess = await mongoose.model("KioskSession").findOne(
+        isHexSess ? { _id: new mongoose.Types.ObjectId(sessionId) } : { sessionToken: sessionId }
+      );
+      if (sess?.organizationId) {
+        orgId = sess.organizationId.toString();
+      }
+    }
 
     if (!orgId && supId) {
       const isHexSup = typeof supId === "string" && /^[0-9a-fA-F]{24}$/.test(supId);
@@ -648,12 +776,17 @@ export class KioskController {
     const result = await this.kioskService.verifySupervisorPin(
       orgId,
       supId,
-      body.pin
+      body.pin,
+      sessionId
     );
 
     return reply.status(200).send({
       success: true,
       message: "Supervisor PIN verified successfully",
+      verified: result.verified,
+      witnessToken: result.witnessToken,
+      supervisor: result.supervisor,
+      session: result.session,
       data: result,
     });
   };

@@ -12,7 +12,13 @@ import { PaginationOptions } from "./kiosk-journey.repository.js";
 
 export class KioskDeviceRepository {
   async findById(id: string | mongoose.Types.ObjectId): Promise<IKioskDevice | null> {
-    return KioskDeviceModel.findById(id);
+    if (mongoose.Types.ObjectId.isValid(id.toString())) {
+      const byId = await KioskDeviceModel.findById(id);
+      if (byId) return byId;
+    }
+    return KioskDeviceModel.findOne({
+      $or: [{ deviceId: id.toString() }, { hardwareGuid: id.toString() }]
+    });
   }
 
   async findByFingerprint(deviceId: string): Promise<IKioskDevice | null> {

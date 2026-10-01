@@ -18,6 +18,9 @@ export * from './components/KioskMaintenanceOverlay';
 export * from './components/KioskRevokedOverlay';
 export * from './components/launcher/KioskHomeScreen';
 export * from './components/interactions';
+export * from './components/auth';
+export * from './hooks';
 export * from './pages/KioskTerminalPage';
 export * from './validation/journey-publish.validator';
-
+export * from './services/privacy-reset.service';
+export * from './components/privacy/PrivacyTimeoutModal';

@@ -18,13 +18,17 @@ import { KioskJourneyVersionRepository } from "../repositories/kiosk-journey-ver
 import { IKioskJourneyVersion } from "../models/kiosk-journey-version.model.js";
 import { KioskDeviceGroupModel, IKioskDeviceGroup } from "../models/kiosk-device-group.model.js";
 import { KioskDeviceGroupRepository } from "../repositories/kiosk-device-group.repository.js";
+import { KioskSessionRepository } from "../repositories/kiosk-session.repository.js";
+import { KioskSessionModel, IKioskSession } from "../models/kiosk-session.model.js";
 import { computeCanonicalStepsChecksum } from "../utils/checksum.util.js";
 import { validateJourneyForPublish } from "../validation/journey-publish.validator.js";
 import { ValidationReport } from "../types/validation.types.js";
+import AuditLog from "../../audit-logs/models/audit-log.model.js";
 
 export class KioskService {
   private readonly journeyVersionRepo: KioskJourneyVersionRepository;
   private readonly deviceGroupRepo: KioskDeviceGroupRepository;
+  private readonly sessionRepo: KioskSessionRepository;
 
   constructor(
     private readonly journeyRepo: KioskJourneyRepository,
@@ -35,10 +39,12 @@ export class KioskService {
       sign: (payload: any, options?: any) => string;
     },
     journeyVersionRepo?: KioskJourneyVersionRepository,
-    deviceGroupRepo?: KioskDeviceGroupRepository
+    deviceGroupRepo?: KioskDeviceGroupRepository,
+    sessionRepo?: KioskSessionRepository
   ) {
     this.journeyVersionRepo = journeyVersionRepo || new KioskJourneyVersionRepository();
     this.deviceGroupRepo = deviceGroupRepo || new KioskDeviceGroupRepository();
+    this.sessionRepo = sessionRepo || new KioskSessionRepository();
   }
 
   getDeviceRepo(): KioskDeviceRepository {
@@ -1629,20 +1635,45 @@ export class KioskService {
   }
 
   /**
-   * Frontline supervisor PIN authorization verification (UQ-01 Resolution)
+   * Frontline supervisor PIN authorization verification (UQ-01 Resolution, K-SUP-001)
    */
-  async verifySupervisorPin(orgId: string, supervisorIdentifier: string, pin: string) {
+  async verifySupervisorPin(
+    orgId: string | undefined,
+    supervisorIdentifier: string,
+    pin: string,
+    sessionId?: string
+  ) {
     if (!supervisorIdentifier || !pin) {
       throw new AppError(400, "BAD_REQUEST", "Supervisor identifier and 4-digit PIN are required");
+    }
+
+    // If orgId wasn't passed directly, attempt resolution via sessionId
+    let targetOrgId = orgId;
+    let session: IKioskSession | null = null;
+    if (sessionId) {
+      session = await this.sessionRepo.findById(sessionId);
+      if (!session) {
+        throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+      }
+      if (!targetOrgId && session.organizationId) {
+        targetOrgId = session.organizationId.toString();
+      }
+    }
+
+    if (!targetOrgId) {
+      throw new AppError(400, "BAD_REQUEST", "organizationId is required for supervisor authorization");
     }
 
     const cleanId = supervisorIdentifier.trim();
     const isHexObjectId = /^[0-9a-fA-F]{24}$/.test(cleanId);
 
+    // Requirement 1: Assert supervisor has role in ['owner', 'admin', 'manager', 'supervisor', 'super_admin']
+    const allowedRoles = ["owner", "admin", "manager", "supervisor", "super_admin"];
+
     const supervisor = await User.findOne({
-      organizationId: new mongoose.Types.ObjectId(orgId),
+      organizationId: new mongoose.Types.ObjectId(targetOrgId),
       isDeleted: false,
-      "permissions.role": { $in: ["manager", "admin", "owner", "super_admin"] },
+      "permissions.role": { $in: allowedRoles },
       $or: [
         ...(isHexObjectId ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : []),
         { "auth.email": cleanId.toLowerCase() },
@@ -1655,23 +1686,195 @@ export class KioskService {
       throw new AppError(404, "SUPERVISOR_NOT_FOUND", "Authorized frontline supervisor record not found");
     }
 
-    const pinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+    const now = new Date();
+
+    // K-SUP-003: Rate Limiting & Account Lockout Enforcement
+    const lockedUntil = supervisor.security?.supervisorPinLockedUntil;
+    if (lockedUntil && lockedUntil > now) {
+      const remainingMs = lockedUntil.getTime() - now.getTime();
+      const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+      throw new AppError(
+        429,
+        "TOO_MANY_REQUESTS",
+        `Supervisor witness capability is locked due to excessive failed attempts. Please retry in ${remainingSeconds} seconds.`,
+        { remainingSeconds, retryAfter: remainingSeconds, lockedUntil: lockedUntil.toISOString() }
+      );
+    }
+
+    // Auto-clear expired lockout window
+    if (lockedUntil && lockedUntil <= now && (supervisor.security?.failedSupervisorPinAttempts || 0) > 0) {
+      await User.findByIdAndUpdate(supervisor._id, {
+        $set: {
+          "security.failedSupervisorPinAttempts": 0,
+          "security.supervisorPinLockedUntil": null,
+        },
+      });
+    }
+
+    // Requirement 2: Timing-safe PIN hash comparison using crypto.timingSafeEqual
+    const pinStr = pin.trim();
+    const pinHashHex = crypto.createHash("sha256").update(pinStr).digest("hex");
     const stored = supervisor.security?.supervisorPinHash;
-    const isMatch = stored ? (stored === pinHash || stored === pin.trim()) : false;
+
+    let isMatch = false;
+    if (stored) {
+      if (/^[0-9a-fA-F]{64}$/.test(stored)) {
+        const storedBuf = Buffer.from(stored.toLowerCase(), "hex");
+        const pinBuf = Buffer.from(pinHashHex.toLowerCase(), "hex");
+        if (storedBuf.length === pinBuf.length && crypto.timingSafeEqual(storedBuf, pinBuf)) {
+          isMatch = true;
+        }
+      } else {
+        const storedBuf = Buffer.from(stored);
+        const pinBuf = Buffer.from(pinStr);
+        if (storedBuf.length === pinBuf.length && crypto.timingSafeEqual(storedBuf, pinBuf)) {
+          isMatch = true;
+        }
+      }
+    }
 
     if (!isMatch) {
+      // Calculate consecutive failed PIN attempts
+      const previousFailures = supervisor.security?.failedSupervisorPinAttempts || 0;
+      const newFailures = previousFailures + 1;
+
+      // If 3 consecutive incorrect PINs are reached: lock account for 5 minutes (300s) and log audit alert
+      if (newFailures >= 3) {
+        const lockoutDurationMs = 5 * 60 * 1000;
+        const newLockedUntil = new Date(Date.now() + lockoutDurationMs);
+
+        await User.findByIdAndUpdate(supervisor._id, {
+          $set: {
+            "security.supervisorPinLockedUntil": newLockedUntil,
+            "security.failedSupervisorPinAttempts": newFailures,
+          },
+          $inc: { "security.failedLoginAttempts": 1 },
+        });
+
+        // Log security alert in audit log (SUPERVISOR_PIN_LOCKOUT)
+        await AuditLog.create({
+          organizationId: supervisor.organizationId,
+          actorUserId: supervisor._id,
+          actorType: "user",
+          eventCategory: "security",
+          eventType: "SUPERVISOR_PIN_LOCKOUT",
+          resourceType: "user",
+          resourceId: supervisor._id,
+          action: "status_change",
+          description: `Supervisor witness capability locked for 5 minutes after ${newFailures} consecutive failed PIN attempts`,
+          metadata: {
+            supervisorId: supervisor._id.toString(),
+            failedAttempts: newFailures,
+            lockedUntil: newLockedUntil.toISOString(),
+            lockoutDurationSeconds: 300,
+            sessionId: sessionId || session?._id?.toString() || null,
+          },
+          severity: "critical",
+        });
+
+        throw new AppError(
+          401,
+          "INVALID_SUPERVISOR_PIN",
+          "Invalid supervisor authorization PIN. Account has been locked for 5 minutes due to 3 consecutive failed attempts."
+        );
+      }
+
+      // Less than 3 failures: atomically increment failure counters
+      await User.findByIdAndUpdate(supervisor._id, {
+        $set: { "security.failedSupervisorPinAttempts": newFailures },
+        $inc: { "security.failedLoginAttempts": 1 },
+      });
       throw new AppError(401, "INVALID_SUPERVISOR_PIN", "Invalid supervisor authorization PIN");
     }
+
+    // Reset failed attempts and clear lockout on successful PIN verification
+    await User.findByIdAndUpdate(supervisor._id, {
+      $set: {
+        "security.failedSupervisorPinAttempts": 0,
+        "security.failedLoginAttempts": 0,
+        "security.supervisorPinLockedUntil": null,
+      },
+    });
+
+    let updatedSession: IKioskSession | null = null;
+
+    // When sessionId is provided:
+    // 1. Bind supervisorWitness attestation to KioskSession
+    // 2. Transition session status from 'awaiting_supervisor' back to 'active' or unlock completion
+    // 3. Log audit event KIOSK_SUPERVISOR_WITNESS_CONFIRMED
+    if (session) {
+      const supervisorWitness = {
+        supervisorId: supervisor._id,
+        witnessedAt: now,
+        method: "pin" as const,
+      };
+
+      const updateSet: Record<string, any> = {
+        supervisorWitness,
+      };
+
+      if (session.status === "awaiting_supervisor") {
+        updateSet.status = "active";
+      }
+
+      updatedSession = await KioskSessionModel.findByIdAndUpdate(
+        session._id,
+        { $set: updateSet },
+        { new: true }
+      );
+
+      // Audit event KIOSK_SUPERVISOR_WITNESS_CONFIRMED
+      await AuditLog.create({
+        organizationId: supervisor.organizationId,
+        actorUserId: supervisor._id,
+        actorType: "user",
+        eventCategory: "security",
+        eventType: "KIOSK_SUPERVISOR_WITNESS_CONFIRMED",
+        resourceType: "kiosk_session",
+        resourceId: session._id,
+        action: "update",
+        description: `Supervisor ${supervisor.profile?.fullName || supervisor.auth?.email} confirmed witness attestation for kiosk session ${session._id}`,
+        metadata: {
+          sessionId: session._id.toString(),
+          supervisorId: supervisor._id.toString(),
+          supervisorRole: supervisor.permissions.role,
+          method: "pin",
+          witnessedAt: now,
+          previousStatus: session.status,
+          newStatus: updateSet.status || session.status,
+        },
+        severity: "info",
+      });
+    }
+
+    // Requirement 3: Return signed witness verification token or session update confirmation
+    const witnessToken = this.jwt ? this.jwt.sign({
+      sub: supervisor._id.toString(),
+      sessionId: session ? session._id.toString() : undefined,
+      supervisorId: supervisor._id.toString(),
+      role: supervisor.permissions.role,
+      method: "pin",
+      type: "kiosk_supervisor_witness",
+      witnessedAt: now.toISOString(),
+    }, { expiresIn: "15m" }) : undefined;
 
     return {
       success: true,
       verified: true,
+      witnessToken,
       supervisor: {
         id: supervisor._id.toString(),
         fullName: supervisor.profile.fullName || `${supervisor.profile.firstName} ${supervisor.profile.lastName}`.trim(),
         role: supervisor.permissions.role,
         department: supervisor.employment?.department || "Operations",
       },
+      session: updatedSession ? {
+        _id: updatedSession._id.toString(),
+        status: updatedSession.status,
+        supervisorWitness: updatedSession.supervisorWitness,
+        currentStepId: updatedSession.currentStepId,
+        completedStepIds: updatedSession.completedStepIds,
+      } : undefined,
     };
   }
 
@@ -1776,6 +1979,304 @@ export class KioskService {
     }
     const newStatus = maintenance ? "maintenance" : "online";
     return this.deviceRepo.updateStatus(id, newStatus as any);
+  }
+
+  /**
+   * =========================================================================
+   * K-EMP-002: Ephemeral Session Lifecycle State Machine Methods
+   * =========================================================================
+   */
+
+  /**
+   * Start / instantiate a new formal KioskSession entity (ADR-001, ADR-007).
+   */
+  async createSession(
+    data: {
+      deviceId: string;
+      journeyId: string;
+      journeyVersionId?: string | null;
+      versionNumber?: number;
+      userId?: string | null;
+      organizationId?: string;
+      currentStepId?: string;
+      sessionToken?: string;
+      isOfflineSync?: boolean;
+    },
+    callerUser?: any
+  ): Promise<IKioskSession> {
+    const journey = await this.journeyRepo.findById(data.journeyId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+
+    const orgId = data.organizationId || callerUser?.organizationId || journey.organizationId.toString();
+
+    // Resolve userId:
+    // If callerUser has a userId (e.g. from verified frontline worker token), bind to that verified userId
+    // Else if data.userId is passed, use that
+    // Else null / undefined (anonymous mode)
+    let resolvedUserId: mongoose.Types.ObjectId | undefined = undefined;
+    const rawUserId = callerUser?.userId || callerUser?.id || data.userId;
+    if (rawUserId && rawUserId !== "null" && rawUserId !== "anonymous" && mongoose.Types.ObjectId.isValid(rawUserId)) {
+      resolvedUserId = new mongoose.Types.ObjectId(rawUserId);
+    }
+
+    // Resolve deviceId:
+    let resolvedDeviceId: mongoose.Types.ObjectId;
+    const rawDeviceId = data.deviceId;
+    if (mongoose.Types.ObjectId.isValid(rawDeviceId)) {
+      resolvedDeviceId = new mongoose.Types.ObjectId(rawDeviceId);
+    } else {
+      const device = await KioskDeviceModel.findOne({
+        $or: [{ deviceId: rawDeviceId }, { hardwareGuid: rawDeviceId }],
+      });
+      if (device) {
+        resolvedDeviceId = device._id;
+      } else {
+        resolvedDeviceId = new mongoose.Types.ObjectId();
+      }
+    }
+
+    // Resolve journeyVersionId:
+    let resolvedVersionId: mongoose.Types.ObjectId | undefined = undefined;
+    if (data.journeyVersionId && mongoose.Types.ObjectId.isValid(data.journeyVersionId)) {
+      resolvedVersionId = new mongoose.Types.ObjectId(data.journeyVersionId);
+    } else if ((journey.publishing as any)?.activeVersionId) {
+      resolvedVersionId = new mongoose.Types.ObjectId(String((journey.publishing as any).activeVersionId));
+    } else {
+      try {
+        const latestVer = await this.journeyVersionRepo.findByJourneyAndVersion(
+          data.journeyId,
+          journey.publishing?.version || 1
+        );
+        if (latestVer) {
+          resolvedVersionId = latestVer._id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const sessionToken = data.sessionToken || crypto.randomUUID();
+    const versionNumber = data.versionNumber || journey.publishing?.version || 1;
+    const currentStepId = data.currentStepId || journey.steps?.[0]?.id || "s1";
+
+    const session = await this.sessionRepo.createSession({
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      deviceId: resolvedDeviceId,
+      journeyId: new mongoose.Types.ObjectId(data.journeyId),
+      journeyVersionId: resolvedVersionId,
+      versionNumber,
+      userId: resolvedUserId,
+      sessionToken,
+      status: "active",
+      currentStepId,
+      completedStepIds: [],
+      ppeItemsVerified: [],
+      durationSeconds: 0,
+      isOfflineSync: Boolean(data.isOfflineSync),
+      startedAt: new Date(),
+    });
+
+    return session;
+  }
+
+  /**
+   * Update active session progress: completed step IDs and dwell times.
+   */
+  async updateSessionProgress(
+    sessionId: string,
+    data: {
+      stepId?: string;
+      currentStepId?: string;
+      completedStepId?: string;
+      completedStepIds?: string[];
+      durationIncrement?: number;
+      durationSeconds?: number;
+      ppeItemsVerified?: string[];
+    },
+    orgId?: string
+  ): Promise<IKioskSession> {
+    const session = await this.sessionRepo.findById(sessionId);
+    if (!session) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+    }
+
+    const currentStepId = data.currentStepId || data.stepId;
+    const completedSteps: string[] = [];
+    if (data.completedStepId) completedSteps.push(data.completedStepId);
+    if (Array.isArray(data.completedStepIds)) completedSteps.push(...data.completedStepIds);
+
+    const updated = await this.sessionRepo.updateStepProgress(
+      session._id,
+      currentStepId,
+      data.durationIncrement || 0,
+      orgId,
+      completedSteps,
+      data.durationSeconds
+    );
+
+    if (data.ppeItemsVerified && data.ppeItemsVerified.length > 0) {
+      await KioskSessionModel.findByIdAndUpdate(session._id, {
+        $addToSet: { ppeItemsVerified: { $each: data.ppeItemsVerified } },
+      });
+    }
+
+    return (await this.sessionRepo.findById(session._id)) || updated!;
+  }
+
+  /**
+   * Complete session with server-authoritative completion check.
+   */
+  async completeSession(
+    sessionId: string,
+    data?: {
+      durationSeconds?: number;
+      quizScore?: number;
+      ppeItemsVerified?: string[];
+      verificationChecksum?: string;
+    },
+    orgId?: string
+  ): Promise<IKioskSession> {
+    const session = await this.sessionRepo.findById(sessionId);
+    if (!session) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+    }
+
+    if (session.status === "completed") {
+      return session;
+    }
+
+    // Server-authoritative check: does journey require supervisor co-signature?
+    const journey = await this.journeyRepo.findById(session.journeyId.toString());
+    const requiresWitness = Boolean(
+      (journey as any)?.requireSupervisorWitness ||
+      (journey?.settings as any)?.requireSupervisorWitness ||
+      (journey?.settings?.security as any)?.requireSupervisorWitness ||
+      journey?.steps?.some((s: any) => s.requireSupervisorWitness || s.interaction?.requireSupervisorWitness)
+    );
+
+    const targetStatus = requiresWitness && !session.supervisorWitness
+      ? "awaiting_supervisor"
+      : "completed";
+
+    const metadata: any = {
+      completedAt: targetStatus === "completed" ? new Date() : undefined,
+      durationIncrement: 0,
+    };
+    if (typeof data?.durationSeconds === "number") {
+      metadata.durationSeconds = data.durationSeconds;
+    }
+    if (typeof data?.quizScore === "number") {
+      metadata.quizScore = data.quizScore;
+    }
+    if (data?.ppeItemsVerified) {
+      metadata.ppeItemsVerified = data.ppeItemsVerified;
+    }
+    if (data?.verificationChecksum) {
+      metadata.verificationChecksum = data.verificationChecksum;
+    }
+
+    const updated = await this.sessionRepo.transitionStatus(
+      session._id,
+      targetStatus,
+      metadata,
+      orgId
+    );
+
+    if (typeof data?.durationSeconds === "number") {
+      await KioskSessionModel.findByIdAndUpdate(session._id, {
+        $set: { durationSeconds: data.durationSeconds },
+      });
+    }
+
+    return (await this.sessionRepo.findById(session._id)) || updated!;
+  }
+
+  /**
+   * Abort session upon manual restart or exit.
+   */
+  async abortSession(
+    sessionId: string,
+    data?: {
+      abortedStepId?: string;
+      reason?: string;
+      durationSeconds?: number;
+    },
+    orgId?: string
+  ): Promise<IKioskSession> {
+    const session = await this.sessionRepo.findById(sessionId);
+    if (!session) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+    }
+
+    const metadata: any = {};
+    if (typeof data?.durationSeconds === "number") {
+      metadata.durationSeconds = data.durationSeconds;
+    }
+
+    const updated = await this.sessionRepo.transitionStatus(
+      session._id,
+      "aborted",
+      metadata,
+      orgId
+    );
+
+    const setFields: Record<string, any> = {};
+    if (data?.abortedStepId) {
+      setFields.currentStepId = data.abortedStepId;
+    }
+    if (typeof data?.durationSeconds === "number") {
+      setFields.durationSeconds = data.durationSeconds;
+    }
+    if (Object.keys(setFields).length > 0) {
+      await KioskSessionModel.findByIdAndUpdate(session._id, { $set: setFields });
+    }
+
+    return (await this.sessionRepo.findById(session._id)) || updated!;
+  }
+
+  /**
+   * Timeout session upon idle expiration or privacy reset.
+   */
+  async timeoutSession(
+    sessionId: string,
+    data?: {
+      abortedStepId?: string;
+      reason?: string;
+      durationSeconds?: number;
+    },
+    orgId?: string
+  ): Promise<IKioskSession> {
+    const session = await this.sessionRepo.findById(sessionId);
+    if (!session) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+    }
+
+    const metadata: any = {};
+    if (typeof data?.durationSeconds === "number") {
+      metadata.durationSeconds = data.durationSeconds;
+    }
+
+    const updated = await this.sessionRepo.transitionStatus(
+      session._id,
+      "timed_out",
+      metadata,
+      orgId
+    );
+
+    const setFields: Record<string, any> = {};
+    if (data?.abortedStepId) {
+      setFields.currentStepId = data.abortedStepId;
+    }
+    if (typeof data?.durationSeconds === "number") {
+      setFields.durationSeconds = data.durationSeconds;
+    }
+    if (Object.keys(setFields).length > 0) {
+      await KioskSessionModel.findByIdAndUpdate(session._id, { $set: setFields });
+    }
+
+    return (await this.sessionRepo.findById(session._id)) || updated!;
   }
 }
 

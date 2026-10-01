@@ -3,6 +3,8 @@ import { KioskJourney, KioskJourneyVersion, ValidationReport } from '../../../ty
 import { KioskDevice, KioskTelemetry, KioskCommand, KioskDeviceManifest } from '../../../types/kiosk/device.types';
 import { KioskDeviceGroup } from '../../../types/kiosk/group.types';
 import { KioskAnalytics, KioskAnalyticsSummary } from '../../../types/kiosk/analytics.types';
+import { KioskSession } from '../../../types/kiosk/session.types';
+import { deviceIdentityService } from './device-identity.service';
 
 export const kioskService = {
   // --- Journey Builder API ---
@@ -189,8 +191,16 @@ export const kioskService = {
     return response.data.data;
   },
 
-  verifySupervisorPin: async (supervisorIdentifier: string, pin: string): Promise<{ verified: boolean; supervisor: any }> => {
-    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/supervisor/verify-pin', { supervisorIdentifier, pin });
+  verifySupervisorPin: async (
+    supervisorIdentifier: string,
+    pin: string,
+    sessionId?: string
+  ): Promise<{ verified: boolean; supervisor: any; session?: any; witnessToken?: string }> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/supervisor/verify-pin', {
+      supervisorIdentifier,
+      pin,
+      sessionId
+    });
     return response.data.data;
   },
 
@@ -231,6 +241,132 @@ export const kioskService = {
 
   setGroupAssignments: async (id: string, payload: any): Promise<any[]> => {
     const response = await apiClient.post<{ success: boolean; data: any[] }>(`/kiosk/groups/${id}/assignments`, payload);
+    return response.data.data;
+  },
+
+  // --- Ephemeral Session Lifecycle API (K-EMP-002) ---
+
+  createSession: async (data: {
+    deviceId: string;
+    journeyId: string;
+    journeyVersionId?: string | null;
+    versionNumber?: number;
+    userId?: string | null;
+    organizationId?: string;
+    currentStepId?: string;
+  }): Promise<KioskSession> => {
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.post<{ success: boolean; data: KioskSession }>(
+      '/kiosk/sessions',
+      data,
+      { headers }
+    );
+    return response.data.data;
+  },
+
+  updateSessionProgress: async (
+    sessionId: string,
+    data: {
+      stepId?: string;
+      currentStepId?: string;
+      completedStepId?: string;
+      completedStepIds?: string[];
+      durationIncrement?: number;
+      durationSeconds?: number;
+      ppeItemsVerified?: string[];
+    }
+  ): Promise<KioskSession> => {
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.patch<{ success: boolean; data: KioskSession }>(
+      `/kiosk/sessions/${sessionId}/progress`,
+      data,
+      { headers }
+    );
+    return response.data.data;
+  },
+
+  completeSession: async (
+    sessionId: string,
+    data?: {
+      durationSeconds?: number;
+      quizScore?: number;
+      ppeItemsVerified?: string[];
+      verificationChecksum?: string;
+    }
+  ): Promise<KioskSession> => {
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.post<{ success: boolean; data: KioskSession }>(
+      `/kiosk/sessions/${sessionId}/complete`,
+      data || {},
+      { headers }
+    );
+    return response.data.data;
+  },
+
+  abortSession: async (
+    sessionId: string,
+    data?: {
+      abortedStepId?: string;
+      reason?: string;
+      durationSeconds?: number;
+    }
+  ): Promise<KioskSession> => {
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.post<{ success: boolean; data: KioskSession }>(
+      `/kiosk/sessions/${sessionId}/abort`,
+      data || {},
+      { headers }
+    );
+    return response.data.data;
+  },
+
+  timeoutSession: async (
+    sessionId: string,
+    data?: {
+      abortedStepId?: string;
+      reason?: string;
+      durationSeconds?: number;
+    }
+  ): Promise<KioskSession> => {
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.post<{ success: boolean; data: KioskSession }>(
+      `/kiosk/sessions/${sessionId}/timeout`,
+      data || {},
+      { headers }
+    );
+    return response.data.data;
+  },
+
+  getSession: async (sessionId: string): Promise<KioskSession> => {
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.get<{ success: boolean; data: KioskSession }>(
+      `/kiosk/sessions/${sessionId}`,
+      { headers }
+    );
     return response.data.data;
   }
 };

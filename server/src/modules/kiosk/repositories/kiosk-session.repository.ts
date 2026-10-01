@@ -38,26 +38,50 @@ export class KioskSessionRepository {
    */
   async updateStepProgress(
     sessionId: string | mongoose.Types.ObjectId,
-    stepId: string,
+    stepId?: string,
     durationIncrement: number = 0,
-    orgId?: string | mongoose.Types.ObjectId
+    orgId?: string | mongoose.Types.ObjectId,
+    completedStepIds?: string[],
+    durationSeconds?: number
   ): Promise<IKioskSession | null> {
-    const query: Record<string, any> = {
-      _id: new mongoose.Types.ObjectId(sessionId.toString()),
-    };
+    const isObjectId = mongoose.Types.ObjectId.isValid(sessionId.toString());
+    const query: Record<string, any> = isObjectId
+      ? { _id: new mongoose.Types.ObjectId(sessionId.toString()) }
+      : { sessionToken: sessionId.toString() };
     if (orgId) {
       query.organizationId = new mongoose.Types.ObjectId(orgId.toString());
     }
 
     const incValue = Math.max(0, Number(durationIncrement) || 0);
 
+    const updateDoc: Record<string, any> = {};
+    const setFields: Record<string, any> = {};
+
+    if (stepId) {
+      setFields.currentStepId = stepId;
+    }
+    if (typeof durationSeconds === "number" && durationSeconds >= 0) {
+      setFields.durationSeconds = durationSeconds;
+    }
+    if (Object.keys(setFields).length > 0) {
+      updateDoc.$set = setFields;
+    }
+
+    const stepsToAdd = [
+      ...(stepId ? [stepId] : []),
+      ...(completedStepIds || [])
+    ];
+    if (stepsToAdd.length > 0) {
+      updateDoc.$addToSet = { completedStepIds: { $each: stepsToAdd } };
+    }
+
+    if (incValue > 0 && typeof durationSeconds !== "number") {
+      updateDoc.$inc = { durationSeconds: incValue };
+    }
+
     return KioskSessionModel.findOneAndUpdate(
       query,
-      {
-        $set: { currentStepId: stepId },
-        $addToSet: { completedStepIds: stepId },
-        ...(incValue > 0 ? { $inc: { durationSeconds: incValue } } : {}),
-      },
+      updateDoc,
       { new: true, runValidators: true }
     );
   }
@@ -72,9 +96,10 @@ export class KioskSessionRepository {
     metadata?: KioskSessionTransitionMetadata,
     orgId?: string | mongoose.Types.ObjectId
   ): Promise<IKioskSession | null> {
-    const query: Record<string, any> = {
-      _id: new mongoose.Types.ObjectId(sessionId.toString()),
-    };
+    const isObjectId = mongoose.Types.ObjectId.isValid(sessionId.toString());
+    const query: Record<string, any> = isObjectId
+      ? { _id: new mongoose.Types.ObjectId(sessionId.toString()) }
+      : { sessionToken: sessionId.toString() };
     if (orgId) {
       query.organizationId = new mongoose.Types.ObjectId(orgId.toString());
     }
@@ -143,6 +168,17 @@ export class KioskSessionRepository {
    */
   async findByToken(sessionToken: string): Promise<IKioskSession | null> {
     return KioskSessionModel.findOne({ sessionToken });
+  }
+
+  /**
+   * Find a session by ID or sessionToken.
+   */
+  async findById(sessionId: string | mongoose.Types.ObjectId): Promise<IKioskSession | null> {
+    const isObjectId = mongoose.Types.ObjectId.isValid(sessionId.toString());
+    if (isObjectId) {
+      return KioskSessionModel.findById(sessionId);
+    }
+    return KioskSessionModel.findOne({ sessionToken: sessionId.toString() });
   }
 
   /**

@@ -61,6 +61,8 @@ export interface IUser extends Document {
   security: {
     mfaEnabled: boolean;
     failedLoginAttempts: number;
+    failedSupervisorPinAttempts?: number;
+    supervisorPinLockedUntil?: Date;
     lockedUntil?: Date;
     lastPasswordReset?: Date;
     passwordResetToken?: string;
@@ -165,6 +167,8 @@ const UserSchema = new Schema<IUser>(
     security: {
       mfaEnabled: { type: Boolean, default: false },
       failedLoginAttempts: { type: Number, default: 0 },
+      failedSupervisorPinAttempts: { type: Number, default: 0 },
+      supervisorPinLockedUntil: { type: Date },
       lockedUntil: { type: Date },
       lastPasswordReset: { type: Date },
       passwordResetToken: { type: String },

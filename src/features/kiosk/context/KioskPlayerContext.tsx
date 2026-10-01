@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { KioskJourney } from '../../../types/kiosk/journey.types';
 import { KioskAnalytics, KioskUserInteraction, KioskSessionMetrics } from '../../../types/kiosk/analytics.types';
+import { KioskSession, KioskSessionStatus } from '../../../types/kiosk/session.types';
 import { kioskService } from '../services/kiosk.service';
+import { deviceIdentityService } from '../services/device-identity.service';
 
-interface KioskPlayerContextProps {
+export interface KioskPlayerContextProps {
   journey: KioskJourney | null;
   currentStepIndex: number;
   selectedLanguage: string;
@@ -13,6 +15,10 @@ interface KioskPlayerContextProps {
   isLoading: boolean;
   error: string | null;
   offlineQueueCount: number;
+  
+  // K-EMP-002: Formal Backend KioskSession State Machine
+  activeSession: KioskSession | null;
+  sessionStatus: KioskSessionStatus | 'idle';
   
   loadJourney: (journeyId: string, signedParams?: { o: string; exp: string; sig: string }) => Promise<void>;
   setStepIndex: (index: number) => void;
@@ -26,20 +32,41 @@ interface KioskPlayerContextProps {
   signedParams?: { o: string; exp: string; sig: string };
   recordPpeCompliance: (stepId: string, itemsChecked: string[]) => Promise<void>;
 
-  // Analytics session triggers
-  startSession: () => void;
+  // Session triggers & state machine
+  startSession: (options?: { journeyVersionId?: string; versionNumber?: number }) => Promise<KioskSession | null>;
   recordInteraction: (elementClicked: string) => void;
-  completeSession: () => void;
-  abortSession: (abortedStepId: string) => void;
+  completeSession: (completionData?: {
+    quizScore?: number;
+    ppeItemsVerified?: string[];
+    verificationChecksum?: string;
+  }) => Promise<void>;
+  abortSession: (abortedStepId: string, reason?: string) => Promise<void>;
+  timeoutSession: (abortedStepId?: string, reason?: string) => Promise<void>;
   syncOfflineAnalytics: () => Promise<void>;
+}
+
+export interface KioskPlayerProviderProps {
+  children: React.ReactNode;
+  initialJourney?: KioskJourney | null;
+  initialStepIndex?: number;
+  initialSession?: KioskSession | null;
+  initialStatus?: KioskSessionStatus | 'idle';
 }
 
 const KioskPlayerContext = createContext<KioskPlayerContextProps | undefined>(undefined);
 
-export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [journey, setJourney] = useState<KioskJourney | null>(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
+  children,
+  initialJourney = null,
+  initialStepIndex = 0,
+  initialSession = null,
+  initialStatus = 'idle'
+}) => {
+  const [journey, setJourney] = useState<KioskJourney | null>(initialJourney);
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(initialStepIndex);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    initialJourney?.languages?.[0] || 'en'
+  );
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [showSubtitles, setShowSubtitles] = useState<boolean>(true);
@@ -48,8 +75,23 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
   const [signedParamsState, setSignedParamsState] = useState<{ o: string; exp: string; sig: string } | undefined>(undefined);
 
-  // Track session details using refs to avoid stale closures in event handlers
-  const activeSessionRef = useRef<{
+  // K-EMP-002: Backend KioskSession entity and lifecycle status
+  const [activeSession, setActiveSession] = useState<KioskSession | null>(initialSession);
+  const [sessionStatus, setSessionStatus] = useState<KioskSessionStatus | 'idle'>(initialStatus);
+
+  // Internal tracking refs for high-frequency events and avoiding stale closures
+  const activeSessionIdRef = useRef<string | null>(initialSession?._id || null);
+  const completedStepIdsRef = useRef<Set<string>>(new Set(initialSession?.completedStepIds || []));
+  const lastProgressUpdateRef = useRef<number>(0);
+  const sessionStartTimeRef = useRef<number>(Date.now());
+  const currentStepIndexRef = useRef<number>(initialStepIndex);
+
+  // Synchronize currentStepIndexRef
+  useEffect(() => {
+    currentStepIndexRef.current = currentStepIndex;
+  }, [currentStepIndex]);
+
+  const activeAnalyticsRef = useRef<{
     journeyId: string;
     journeyVersion: number;
     languageUsed: string;
@@ -107,26 +149,86 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
+  // Helper to send throttled step progress updates to backend (Requirement 4)
+  const sendProgressUpdate = async (nextStepId: string, completedStepId?: string, force = false) => {
+    if (completedStepId) {
+      completedStepIdsRef.current.add(completedStepId);
+    }
+
+    const sessionId = activeSessionIdRef.current;
+    if (!sessionId) return;
+
+    const now = Date.now();
+    const timeSinceLast = now - lastProgressUpdateRef.current;
+
+    // Requirement 4: Throttle progress updates to step change boundaries or minimum 10-second intervals
+    if (!force && timeSinceLast < 10000 && !completedStepId) {
+      return;
+    }
+
+    lastProgressUpdateRef.current = now;
+    const durationSeconds = Math.max(0, Math.round((now - sessionStartTimeRef.current) / 1000));
+
+    try {
+      const updated = await kioskService.updateSessionProgress(sessionId, {
+        currentStepId: nextStepId,
+        completedStepId,
+        completedStepIds: Array.from(completedStepIdsRef.current),
+        durationSeconds
+      });
+      setActiveSession(updated);
+      setSessionStatus(updated.status);
+    } catch (err) {
+      console.warn('Failed to update session progress:', err);
+    }
+  };
+
   const setStepIndex = (index: number) => {
     if (!journey) return;
     if (index >= 0 && index < journey.steps.length) {
+      const currentIndex = currentStepIndexRef.current;
+      const prevStepId = journey.steps[currentIndex]?.id;
+      const targetStepId = journey.steps[index]?.id;
+      currentStepIndexRef.current = index;
       setCurrentStepIndex(index);
       setIsPlayingAudio(false); // Reset audio state for new step
+
+      if (index > currentIndex && prevStepId && targetStepId) {
+        sendProgressUpdate(targetStepId, prevStepId, true);
+      } else if (targetStepId) {
+        sendProgressUpdate(targetStepId, undefined, true);
+      }
     }
   };
 
   const nextStep = () => {
     if (!journey) return;
-    if (currentStepIndex < journey.steps.length - 1) {
+    const currentIndex = currentStepIndexRef.current;
+    if (currentIndex < journey.steps.length - 1) {
+      const prevStepId = journey.steps[currentIndex]?.id;
+      const nextIndex = currentIndex + 1;
+      const nextStepId = journey.steps[nextIndex]?.id || 'unknown';
+
+      currentStepIndexRef.current = nextIndex;
       recordInteraction('next');
-      setStepIndex(currentStepIndex + 1);
+      setCurrentStepIndex(nextIndex);
+      setIsPlayingAudio(false);
+
+      // Acceptance Criteria 2: Step 1 is recorded in completedStepIds on server
+      sendProgressUpdate(nextStepId, prevStepId, true);
     }
   };
 
   const prevStep = () => {
-    if (currentStepIndex > 0) {
+    const currentIndex = currentStepIndexRef.current;
+    if (currentIndex > 0) {
+      const prevIndex = currentIndex - 1;
+      const targetStepId = journey?.steps[prevIndex]?.id || 'unknown';
+      currentStepIndexRef.current = prevIndex;
       recordInteraction('prev');
-      setStepIndex(currentStepIndex - 1);
+      setCurrentStepIndex(prevIndex);
+      setIsPlayingAudio(false);
+      sendProgressUpdate(targetStepId, undefined, true);
     }
   };
 
@@ -147,28 +249,65 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsPlayingAudio(playing);
   };
 
-  // --- Analytics Session Management ---
+  // --- K-EMP-002: Ephemeral Session Lifecycle State Machine ---
 
-  const startSession = () => {
-    if (!journey) return;
-    activeSessionRef.current = {
+  const startSession = async (options?: {
+    journeyVersionId?: string;
+    versionNumber?: number;
+  }): Promise<KioskSession | null> => {
+    if (!journey) return null;
+
+    // Reset session trackers
+    completedStepIdsRef.current = new Set();
+    sessionStartTimeRef.current = Date.now();
+    lastProgressUpdateRef.current = Date.now();
+
+    activeAnalyticsRef.current = {
       journeyId: journey._id,
       journeyVersion: journey.publishing.version || 1,
       languageUsed: selectedLanguage,
       startTime: Date.now(),
       interactions: []
     };
+
+    const deviceId = deviceIdentityService.getHardwareGuidSync() || 'standalone-kiosk';
+    const journeyVersionId = options?.journeyVersionId || (journey.publishing as any)?.activeVersionId || null;
+    const versionNumber = options?.versionNumber || journey.publishing?.version || 1;
+
+    // Frontline worker identification / anonymous check (Requirements 2 & 3)
+    const employeeUser = deviceIdentityService.getEmployeeUser();
+    const userId = employeeUser?.id || employeeUser?._id || null;
+
+    try {
+      const session = await kioskService.createSession({
+        deviceId,
+        journeyId: journey._id,
+        journeyVersionId,
+        versionNumber,
+        userId,
+        currentStepId: journey.steps[0]?.id || 's1'
+      });
+
+      activeSessionIdRef.current = session._id;
+      setActiveSession(session);
+      setSessionStatus(session.status);
+      return session;
+    } catch (err) {
+      console.warn('Backend KioskSession creation failed (falling back to local memory):', err);
+      setSessionStatus('active');
+      return null;
+    }
   };
 
   const recordInteraction = (elementClicked: string) => {
-    if (!activeSessionRef.current || !journey) return;
+    if (!activeAnalyticsRef.current || !journey) return;
     const stepId = journey.steps[currentStepIndex]?.id || 'unknown';
     const newInteraction: KioskUserInteraction = {
       stepId,
       elementClicked,
       timestamp: new Date().toISOString()
     };
-    activeSessionRef.current.interactions.push(newInteraction);
+    activeAnalyticsRef.current.interactions.push(newInteraction);
   };
 
   const getLocalDateKey = () => {
@@ -179,69 +318,151 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return `${year}-${month}-${day}`;
   };
 
-  const completeSession = async () => {
-    if (!activeSessionRef.current || !journey) return;
-    const session = activeSessionRef.current;
-    activeSessionRef.current = null; // Clear active session immediately
+  const completeSession = async (completionData?: {
+    quizScore?: number;
+    ppeItemsVerified?: string[];
+    verificationChecksum?: string;
+  }) => {
+    const sessionId = activeSessionIdRef.current;
+    const currentDuration = sessionStartTimeRef.current
+      ? Math.max(0, Math.round((Date.now() - sessionStartTimeRef.current) / 1000))
+      : 0;
 
-    const durationSeconds = Math.round((Date.now() - session.startTime) / 1000);
-    const metrics: KioskSessionMetrics = {
-      launchesCount: 1,
-      completedCount: 1,
-      durationSeconds
-    };
-
-    const analyticsRecord: Partial<KioskAnalytics> = {
-      journeyId: session.journeyId,
-      journeyVersion: session.journeyVersion,
-      languageUsed: session.languageUsed,
-      metrics,
-      interactions: session.interactions,
-      dateKey: getLocalDateKey()
-    };
-
-    try {
-      await kioskService.syncAnalytics(
-        [analyticsRecord],
-        signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
-      );
-    } catch (err) {
-      console.warn('Analytics sync failed. Queueing session offline...', err);
-      saveOfflineQueue([...offlineQueue, analyticsRecord]);
+    if (sessionId) {
+      try {
+        const updated = await kioskService.completeSession(sessionId, {
+          durationSeconds: currentDuration,
+          quizScore: completionData?.quizScore,
+          ppeItemsVerified: completionData?.ppeItemsVerified,
+          verificationChecksum: completionData?.verificationChecksum
+        });
+        setActiveSession(updated);
+        setSessionStatus(updated.status);
+      } catch (err) {
+        console.warn('Failed to complete session on server:', err);
+        setSessionStatus('completed');
+      }
+    } else {
+      setSessionStatus('completed');
     }
+
+    // Legacy analytics sync
+    if (activeAnalyticsRef.current && journey) {
+      const session = activeAnalyticsRef.current;
+      const durationSeconds = Math.round((Date.now() - session.startTime) / 1000);
+      const metrics: KioskSessionMetrics = {
+        launchesCount: 1,
+        completedCount: 1,
+        durationSeconds
+      };
+
+      const analyticsRecord: Partial<KioskAnalytics> = {
+        journeyId: session.journeyId,
+        journeyVersion: session.journeyVersion,
+        languageUsed: session.languageUsed,
+        metrics,
+        interactions: session.interactions,
+        dateKey: getLocalDateKey()
+      };
+
+      try {
+        await kioskService.syncAnalytics(
+          [analyticsRecord],
+          signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
+        );
+      } catch (err) {
+        console.warn('Analytics sync failed. Queueing session offline...', err);
+        saveOfflineQueue([...offlineQueue, analyticsRecord]);
+      }
+    }
+
+    activeSessionIdRef.current = null;
+    activeAnalyticsRef.current = null;
   };
 
-  const abortSession = async (abortedStepId: string) => {
-    if (!activeSessionRef.current || !journey) return;
-    const session = activeSessionRef.current;
-    activeSessionRef.current = null; // Clear active session immediately
+  const abortSession = async (abortedStepId: string, reason?: string) => {
+    const sessionId = activeSessionIdRef.current;
+    const currentDuration = sessionStartTimeRef.current
+      ? Math.max(0, Math.round((Date.now() - sessionStartTimeRef.current) / 1000))
+      : 0;
 
-    const durationSeconds = Math.round((Date.now() - session.startTime) / 1000);
-    const metrics: KioskSessionMetrics = {
-      launchesCount: 1,
-      completedCount: 0,
-      durationSeconds,
-      abortedStepId
-    };
-
-    const analyticsRecord: Partial<KioskAnalytics> = {
-      journeyId: session.journeyId,
-      journeyVersion: session.journeyVersion,
-      languageUsed: session.languageUsed,
-      metrics,
-      interactions: session.interactions,
-      dateKey: getLocalDateKey()
-    };
-
-    try {
-      await kioskService.syncAnalytics(
-        [analyticsRecord],
-        signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
-      );
-    } catch (err) {
-      console.warn('Analytics sync failed. Queueing aborted session offline...', err);
-      saveOfflineQueue([...offlineQueue, analyticsRecord]);
+    if (sessionId) {
+      try {
+        const updated = await kioskService.abortSession(sessionId, {
+          abortedStepId,
+          reason,
+          durationSeconds: currentDuration
+        });
+        setActiveSession(updated);
+        setSessionStatus('aborted');
+      } catch (err) {
+        console.warn('Failed to abort session on server:', err);
+        setSessionStatus('aborted');
+      }
+    } else {
+      setSessionStatus('aborted');
     }
+
+    // Legacy analytics sync for abort
+    if (activeAnalyticsRef.current && journey) {
+      const session = activeAnalyticsRef.current;
+      const durationSeconds = Math.round((Date.now() - session.startTime) / 1000);
+      const metrics: KioskSessionMetrics = {
+        launchesCount: 1,
+        completedCount: 0,
+        durationSeconds,
+        abortedStepId
+      };
+
+      const analyticsRecord: Partial<KioskAnalytics> = {
+        journeyId: session.journeyId,
+        journeyVersion: session.journeyVersion,
+        languageUsed: session.languageUsed,
+        metrics,
+        interactions: session.interactions,
+        dateKey: getLocalDateKey()
+      };
+
+      try {
+        await kioskService.syncAnalytics(
+          [analyticsRecord],
+          signedParamsState ? { ...signedParamsState, journeyId: journey._id } : undefined
+        );
+      } catch (err) {
+        console.warn('Analytics sync failed. Queueing aborted session offline...', err);
+        saveOfflineQueue([...offlineQueue, analyticsRecord]);
+      }
+    }
+
+    activeSessionIdRef.current = null;
+    activeAnalyticsRef.current = null;
+  };
+
+  const timeoutSession = async (abortedStepId?: string, reason?: string) => {
+    const sessionId = activeSessionIdRef.current;
+    const currentDuration = sessionStartTimeRef.current
+      ? Math.max(0, Math.round((Date.now() - sessionStartTimeRef.current) / 1000))
+      : 0;
+
+    if (sessionId) {
+      try {
+        const updated = await kioskService.timeoutSession(sessionId, {
+          abortedStepId: abortedStepId || journey?.steps[currentStepIndex]?.id,
+          reason: reason || 'Idle timeout exceeded (privacy reset)',
+          durationSeconds: currentDuration
+        });
+        setActiveSession(updated);
+        setSessionStatus('timed_out');
+      } catch (err) {
+        console.warn('Failed to timeout session on server:', err);
+        setSessionStatus('timed_out');
+      }
+    } else {
+      setSessionStatus('timed_out');
+    }
+
+    activeSessionIdRef.current = null;
+    activeAnalyticsRef.current = null;
   };
 
   const recordPpeCompliance = async (stepId: string, itemsChecked: string[]) => {
@@ -262,8 +483,8 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     ];
 
-    const durationSeconds = activeSessionRef.current 
-      ? Math.max(1, Math.round((Date.now() - activeSessionRef.current.startTime) / 1000))
+    const durationSeconds = activeAnalyticsRef.current 
+      ? Math.max(1, Math.round((Date.now() - activeAnalyticsRef.current.startTime) / 1000))
       : 15;
 
     const metrics: KioskSessionMetrics = {
@@ -301,12 +522,24 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         offlineQueue,
         signedParamsState && journey ? { ...signedParamsState, journeyId: journey._id } : undefined
       );
-      saveOfflineQueue([]); // Success: clear local queue
+      saveOfflineQueue([]);
       console.log('Successfully synchronized offline analytics queue.');
     } catch (err) {
       console.warn('Failed to sync offline queue. Retrying later.', err);
     }
   };
+
+  // Heartbeat progress updates every 10 seconds while session is active (Requirement 4)
+  useEffect(() => {
+    if (!activeSessionIdRef.current || sessionStatus !== 'active' || !journey) return;
+
+    const interval = setInterval(() => {
+      const currentStepId = journey.steps[currentStepIndex]?.id || 'unknown';
+      sendProgressUpdate(currentStepId, undefined, false);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [journey, currentStepIndex, sessionStatus]);
 
   // Auto-retry syncing offline queue periodically when online
   useEffect(() => {
@@ -316,7 +549,6 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     window.addEventListener('online', handleOnline);
     
-    // Interval check every 2 minutes
     const interval = setInterval(() => {
       if (navigator.onLine) {
         syncOfflineAnalytics();
@@ -341,6 +573,8 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isLoading,
         error,
         offlineQueueCount: offlineQueue.length,
+        activeSession,
+        sessionStatus,
         signedParams: signedParamsState,
         loadJourney,
         setStepIndex,
@@ -354,6 +588,7 @@ export const KioskPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         recordInteraction,
         completeSession,
         abortSession,
+        timeoutSession,
         recordPpeCompliance,
         syncOfflineAnalytics
       }}
@@ -370,3 +605,5 @@ export const useKioskPlayer = () => {
   }
   return context;
 };
+
+export default KioskPlayerContext;
