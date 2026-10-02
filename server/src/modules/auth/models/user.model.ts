@@ -226,6 +226,9 @@ UserSchema.index({ organizationId: 1, "auth.email": 1 });
 UserSchema.index({ organizationId: 1, "permissions.role": 1 });
 UserSchema.index({ organizationId: 1, "employment.badgeId": 1 }, { sparse: true });
 UserSchema.index({ organizationId: 1, "employment.nationalId": 1 }, { sparse: true });
+// Single-field indexes for instant sub-10ms kiosk badge and employee lookups (K-ENT-001)
+UserSchema.index({ "employment.badgeId": 1 }, { sparse: true });
+UserSchema.index({ "employment.employeeId": 1 }, { sparse: true });
 
 /**
  * CANONICAL PERSISTENCE MODEL:
@@ -238,7 +241,8 @@ UserSchema.index({ organizationId: 1, "employment.nationalId": 1 }, { sparse: tr
  */
 export const User = mongoose.model<IUser>("User", UserSchema);
 
-// Architectural alias to prevent regression or duplicate collection creation
+// Architectural aliases to prevent regression or duplicate collection creation
+export const UserModel = User;
 export const EmployeeModel = User;
 
 export default User;

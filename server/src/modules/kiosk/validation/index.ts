@@ -12,6 +12,7 @@ export * from "./player.schema.js";
 export * from "./builder.schema.js";
 export * from "./journey-publish.validator.js";
 export * from "./emergency.schema.js";
+export * from "./webhook.schema.js";
 
 import { KioskJourneySchema, CreateKioskJourneySchema } from "./journey.schema.js";
 import { KioskDeviceRegistrationSchema, KioskDeviceHeartbeatSchema } from "./device.schema.js";

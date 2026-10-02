@@ -40,6 +40,7 @@ import { documentRoutes } from "./modules/documents/routes/document.routes.js";
 import { milestoneRoutes } from "./modules/milestones/routes/milestone.routes.js";
 import { ssoRoutes } from "./modules/auth/routes/sso.routes.js";
 import { hrisIntegrationRoutes } from "./modules/integrations/routes/hris-integration.routes.js";
+import { scimRoutes } from "./modules/integrations/routes/scim.routes.js";
 import { organizationIntegrationRoutes } from "./modules/integrations/routes/organization-integration.routes.js";
 import { officeLocationRoutes } from "./modules/locations/routes/office-location.routes.js";
 import { buddyRoutes } from "./modules/buddy/routes/buddy.routes.js";
@@ -63,6 +64,24 @@ export async function buildApp() {
     bodyLimit: 50 * 1024 * 1024, // 50MB body limit for bulk operations
     trustProxy: appConfig.trustProxy ?? true,
   });
+
+  // Support SCIM 2.0 media type (RFC 7644)
+  app.addContentTypeParser(
+    "application/scim+json",
+    { parseAs: "string" },
+    (_req, body: string, done) => {
+      try {
+        if (!body || body.trim() === "") {
+          return done(null, {});
+        }
+        const json = JSON.parse(body);
+        done(null, json);
+      } catch (err: any) {
+        err.statusCode = 400;
+        done(err, undefined);
+      }
+    }
+  );
 
   // Register foundational plugins
   await registerHelmet(app);
@@ -90,6 +109,9 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(ssoRoutes, { prefix: "/api/v1/auth/sso" });
   await app.register(hrisIntegrationRoutes, { prefix: "/api/v1/integrations" });
+  await app.register(scimRoutes, { prefix: "/api/v1/scim/v2" });
+  await app.register(scimRoutes, { prefix: "/api/v1/integrations/scim/v2" });
+  await app.register(scimRoutes, { prefix: "/api/v1/integrations/scim" });
   await app.register(organizationIntegrationRoutes, { prefix: "/api/v1/organizations/integrations" });
   await app.register(officeLocationRoutes, { prefix: "/api/v1/locations" });
   await app.register(organizationRoutes, { prefix: "/api/v1/organizations" });

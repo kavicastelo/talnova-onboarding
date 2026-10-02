@@ -97,3 +97,26 @@ export const KioskRemoteCommandSchema = z
     message: "Either type or command must be provided"
   })
   .describe("Kiosk terminal admin command dispatch schema");
+
+/**
+ * MDM Zero-Touch Managed AppConfig Enrollment Schema (K-ENT-002)
+ */
+export const MdmEnrollmentSchema = z
+  .object({
+    organizationSlug: z.string().min(1, "Organization slug is required"),
+    enrollmentSecret: z.string().min(1, "MDM enrollment secret is required"),
+    deviceId: z.string().optional(),
+    deviceHardwareId: z.string().optional(),
+    name: z.string().optional(),
+    deviceName: z.string().optional(),
+    location: z.string().optional(),
+    siteId: z.string().optional(),
+    deviceModel: z.string().optional(),
+    osVersion: z.string().optional(),
+    appVersion: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.deviceId || data.deviceHardwareId), {
+    message: "Either deviceId or deviceHardwareId is required",
+  })
+  .describe("MDM Zero-Touch bulk enrollment schema");
+

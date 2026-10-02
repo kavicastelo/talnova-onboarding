@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useKioskBuilder, KioskBuilderProvider } from '../context/KioskBuilderContext';
+import { JourneySimulator } from './builder/JourneySimulator';
 import { 
   Plus, Trash2, ArrowUp, ArrowDown, Type, Image as ImageIcon,
   Video, Eye, Save, Globe, Play, Layers, AlertTriangle, ShieldCheck, Sparkles
 } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 import { KioskStepType, KioskInteractionType } from '../../../types/kiosk/step.types';
 import { KioskBlockType } from '../../../types/kiosk/block.types';
 import { toast } from 'sonner';
@@ -44,6 +46,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
   const [showAddStepMenu, setShowAddStepMenu] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [hotspotToolActive, setHotspotToolActive] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
 
   // Load journey data
   useEffect(() => {
@@ -325,7 +328,17 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">{t('builder.activePreviewCanvas', 'Active Preview Canvas')}</span>
           </div>
-          <button
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              data-testid="open-simulator-btn"
+              onClick={() => setShowSimulator(true)}
+              className="px-3 py-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center space-x-1.5 transition"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>QA Simulator</span>
+            </button>
+            <button
             onClick={() => setPreviewMode(!previewMode)}
             className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center space-x-1.5 transition ${
               previewMode 
@@ -336,6 +349,7 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
             <Eye className="w-3.5 h-3.5" />
             <span>{previewMode ? 'Edit Mode' : 'Live Preview'}</span>
           </button>
+          </div>
         </div>
 
         <div className="w-full h-full overflow-y-auto pt-16 pb-8 px-6 flex flex-col items-center justify-start">
@@ -1440,6 +1454,18 @@ const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId, onExit
 
         </div>
       </div>
+      {showSimulator && journey && (
+        <JourneySimulator
+          journey={journey}
+          initialStepIndex={
+            journey.steps && activeStepId
+              ? Math.max(0, journey.steps.findIndex(s => s.id === activeStepId))
+              : 0
+          }
+          isOpen={showSimulator}
+          onClose={() => setShowSimulator(false)}
+        />
+      )}
     </div>
   );
 };

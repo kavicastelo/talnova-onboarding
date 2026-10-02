@@ -18,6 +18,11 @@ import { emergencyService } from '../services/emergency.service';
 import { KioskEmergency } from '../../../types/kiosk/emergency.types';
 import { registerKioskServiceWorker } from '../services/kiosk-service-worker';
 import { offlineStorageService } from '../services/offline-storage.service';
+import { mdmEnrollmentService } from '../services/mdm-enrollment.service';
+import { KioskErrorBoundary } from '../components/KioskErrorBoundary';
+import { powerRecoveryService } from '../services/power-recovery.service';
+import { PowerRecoveryResumeModal } from '../components/recovery/PowerRecoveryResumeModal';
+import { KioskActiveSessionCheckpoint } from '../../../types/kiosk/recovery.types';
 
 export const KioskTerminalPage: React.FC = () => {
   const { t } = useTranslation('kiosk');
@@ -61,6 +66,34 @@ export const KioskTerminalPage: React.FC = () => {
   const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
   const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
   const [activeEmergency, setActiveEmergency] = useState<KioskEmergency | null>(() => emergencyService.getActiveEmergency());
+
+  // K-REL-002: Interrupted briefing session checkpoint and restored step index
+  const [pendingResumeCheckpoint, setPendingResumeCheckpoint] = useState<KioskActiveSessionCheckpoint | null>(null);
+  const [restoredStepIndex, setRestoredStepIndex] = useState<number | undefined>(undefined);
+
+  // K-REL-002: Check for active interrupted briefing checkpoint upon boot (<15 minutes old)
+  useEffect(() => {
+    let isCancelled = false;
+    const inspectRecoveryCheckpoint = async () => {
+      try {
+        const checkpoint = await powerRecoveryService.getActiveCheckpoint();
+        if (isCancelled) return;
+        if (checkpoint && powerRecoveryService.isCheckpointValid(checkpoint)) {
+          console.info('[KioskTerminalPage] Interrupted briefing checkpoint detected on boot:', checkpoint);
+          setPendingResumeCheckpoint(checkpoint);
+        } else if (checkpoint) {
+          await powerRecoveryService.purgeCheckpoint();
+        }
+      } catch (err) {
+        console.warn('[KioskTerminalPage] Failed to inspect power recovery checkpoint:', err);
+      }
+    };
+
+    inspectRecoveryCheckpoint();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   // Listen for emergency broadcast and clear events (K-SEC-004)
   useEffect(() => {
@@ -140,8 +173,11 @@ export const KioskTerminalPage: React.FC = () => {
       }
 
       // If autoplay mode with valid journeys, launch the top priority journey directly
+      // (Bypassed if an interrupted briefing resumption prompt is pending)
       if (data.launchMode === 'autoplay' && data.journeys && data.journeys.length > 0) {
-        setActiveJourneyId(data.journeys[0]._id);
+        if (!pendingResumeCheckpoint) {
+          setActiveJourneyId(data.journeys[0]._id);
+        }
       }
     } catch (err: any) {
       console.error('[KioskTerminalPage] Manifest fetch failed:', err);
@@ -172,6 +208,18 @@ export const KioskTerminalPage: React.FC = () => {
       } else if (msg.toLowerCase().includes('maintenance')) {
         setIsMaintenance(true);
       } else if (status === 401 && !routeDeviceId) {
+        // Unauthenticated or credentials expired; attempt MDM auto-re-enrollment if AppConfig present
+        if (mdmEnrollmentService.hasMdmConfig()) {
+          try {
+            const reEnroll = await mdmEnrollmentService.enrollDevice();
+            if (reEnroll.success && reEnroll.enrolled) {
+              await fetchManifest();
+              return;
+            }
+          } catch {
+            // Fall through to pair navigation
+          }
+        }
         // Unauthenticated or credentials lost; redirect to pair
         navigate('/kiosk/pair', { replace: true });
         return;
@@ -183,25 +231,56 @@ export const KioskTerminalPage: React.FC = () => {
     }
   }, [routeDeviceId, navigate, t]);
 
-  // Initial mount verification
+  // Initial mount verification & zero-touch MDM bulk enrollment (K-ENT-002)
   useEffect(() => {
-    // 1. If not an MDM-fixed route, verify local pairing status
-    if (!routeDeviceId) {
-      if (deviceIdentityService.isRevoked()) {
-        setIsRevoked(true);
-        setLoading(false);
-        return;
+    let isCancelled = false;
+
+    const initTerminal = async () => {
+      // 1. If not an MDM-fixed route, verify local pairing status
+      if (!routeDeviceId) {
+        if (deviceIdentityService.isRevoked()) {
+          setIsRevoked(true);
+          setLoading(false);
+          return;
+        }
+
+        if (!deviceIdentityService.isPaired()) {
+          // Zero-Touch MDM Enrollment: Check for injected Managed AppConfig (Intune/Jamf/Workspace ONE)
+          if (mdmEnrollmentService.hasMdmConfig()) {
+            setLoading(true);
+            try {
+              const enrollRes = await mdmEnrollmentService.enrollDevice();
+              if (isCancelled) return;
+              if (enrollRes.success && enrollRes.enrolled) {
+                // Successfully enrolled! Proceed directly to load manifest and show Home Screen
+                await fetchManifest();
+                return;
+              } else {
+                console.warn('[KioskTerminalPage] MDM zero-touch auto-enrollment failed:', enrollRes.error);
+              }
+            } catch (mdmErr) {
+              console.warn('[KioskTerminalPage] MDM auto-enrollment error:', mdmErr);
+            }
+          }
+
+          if (isCancelled) return;
+          // Redirect automatically to /kiosk/pair if not paired and no MDM AppConfig present
+          navigate('/kiosk/pair', { replace: true });
+          return;
+        }
       }
 
-      if (!deviceIdentityService.isPaired()) {
-        // Redirect automatically to /kiosk/pair
-        navigate('/kiosk/pair', { replace: true });
-        return;
+      // 2. Fetch manifest
+      if (!isCancelled) {
+        fetchManifest();
       }
-    }
+    };
 
-    // 2. Fetch manifest
-    fetchManifest();
+    initTerminal();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [routeDeviceId, navigate, fetchManifest]);
 
   // 0. Active Emergency Evacuation Overlay (Highest Priority K-SEC-004)
@@ -237,19 +316,33 @@ export const KioskTerminalPage: React.FC = () => {
     );
   }
 
-  // 3. Player Shell (active journey playing)
+  // 3. Player Shell (active journey playing with K-REL-001 crash watchdog recovery & K-REL-002 power recovery)
   if (activeJourneyId) {
     return (
-      <KioskPlayerProvider>
-        <KioskPlayer
-          journeyId={activeJourneyId}
-          onExit={() => {
-            setActiveJourneyId(null);
-            // Refresh manifest to catch any assignment or status updates
-            fetchManifest();
-          }}
-        />
-      </KioskPlayerProvider>
+      <KioskErrorBoundary
+        activeJourneyId={activeJourneyId}
+        terminalId={routeDeviceId || deviceIdentityService.getHardwareGuidSync() || undefined}
+        onResetToHome={() => {
+          setActiveJourneyId(null);
+          setRestoredStepIndex(undefined);
+          fetchManifest();
+        }}
+        onRecover={(checkpoint) => {
+          console.info('[KioskTerminalPage] Soft recovery restored for journey:', activeJourneyId, checkpoint);
+        }}
+      >
+        <KioskPlayerProvider initialStepIndex={restoredStepIndex}>
+          <KioskPlayer
+            journeyId={activeJourneyId}
+            onExit={() => {
+              setActiveJourneyId(null);
+              setRestoredStepIndex(undefined);
+              // Refresh manifest to catch any assignment or status updates
+              fetchManifest();
+            }}
+          />
+        </KioskPlayerProvider>
+      </KioskErrorBoundary>
     );
   }
 
@@ -348,13 +441,32 @@ export const KioskTerminalPage: React.FC = () => {
     );
   }
 
-  // 6. Multi-Journey Home Screen / Launcher
+  // 6. Multi-Journey Home Screen / Launcher with Power Failure Recovery Prompt (K-REL-002)
   return (
-    <KioskHomeScreen
-      manifest={manifest}
-      onLaunchJourney={(journeyId) => setActiveJourneyId(journeyId)}
-      onRefreshManifest={fetchManifest}
-    />
+    <>
+      {pendingResumeCheckpoint && (
+        <PowerRecoveryResumeModal
+          checkpoint={pendingResumeCheckpoint}
+          onConfirm={(cp) => {
+            setRestoredStepIndex(cp.stepIndex);
+            setActiveJourneyId(cp.journeyId);
+            setPendingResumeCheckpoint(null);
+          }}
+          onDismiss={async () => {
+            await powerRecoveryService.purgeCheckpoint();
+            setPendingResumeCheckpoint(null);
+          }}
+        />
+      )}
+      <KioskHomeScreen
+        manifest={manifest}
+        onLaunchJourney={(journeyId) => {
+          setRestoredStepIndex(undefined);
+          setActiveJourneyId(journeyId);
+        }}
+        onRefreshManifest={fetchManifest}
+      />
+    </>
   );
 };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Monitor, HelpCircle, ArrowRight, CheckCircle } from 'lucide-react';
 import { kioskService } from '../services/kiosk.service';
 import { deviceIdentityService } from '../services/device-identity.service';
+import { mdmEnrollmentService } from '../services/mdm-enrollment.service';
 import { KioskRevokedScreen } from './KioskRevokedScreen';
 import { useTranslation } from 'react-i18next';
 
@@ -56,6 +57,28 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
       isMounted = false;
     };
   }, []);
+
+  // Zero-Touch MDM Auto-Enrollment (K-ENT-002)
+  useEffect(() => {
+    if (mdmEnrollmentService.hasMdmConfig()) {
+      setIsLoading(true);
+      mdmEnrollmentService
+        .enrollDevice()
+        .then((res) => {
+          if (res.success && res.enrolled && res.device && res.token) {
+            setIsSuccess(true);
+            setTimeout(() => {
+              onPairSuccess(res.device, res.token!);
+            }, 600);
+          } else {
+            setIsLoading(false);
+          }
+        })
+        .catch(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [onPairSuccess]);
 
   const handleKeyPress = (num: string) => {
     if (pairCode.length < 6) {

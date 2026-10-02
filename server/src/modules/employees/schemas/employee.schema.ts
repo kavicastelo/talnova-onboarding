@@ -85,6 +85,8 @@ export const importEmployeeRowSchema = z.object({
   role: z.enum(["owner", "admin", "manager", "employee", "super_admin", "hr_admin", "it_admin"]).optional().nullable(),
   roles: z.array(z.string()).optional().nullable(),
   employeeId: z.string().optional().nullable(),
+  badgeId: z.string().optional().nullable(),
+  nationalId: z.string().optional().nullable(),
   managerEmail: z.string().email("Invalid manager email").optional().nullable(),
   managerEmployeeId: z.string().optional().nullable(),
   designation: z.string().optional().nullable(),

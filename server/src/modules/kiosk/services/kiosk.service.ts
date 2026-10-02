@@ -28,11 +28,13 @@ import { KioskEmergencyModel, IKioskEmergency } from "../models/kiosk-emergency.
 import { KioskDeviceTelemetryModel } from "../models/kiosk-device-telemetry.model.js";
 import kioskEmergencyStream from "./kiosk-emergency-stream.js";
 import Notification from "../../notifications/models/notification.model.js";
+import kioskWebhookService, { KioskWebhookService } from "./kiosk-webhook.service.js";
 
 export class KioskService {
   private readonly journeyVersionRepo: KioskJourneyVersionRepository;
   private readonly deviceGroupRepo: KioskDeviceGroupRepository;
   private readonly sessionRepo: KioskSessionRepository;
+  private readonly webhookService: KioskWebhookService;
 
   constructor(
     private readonly journeyRepo: KioskJourneyRepository,
@@ -49,6 +51,7 @@ export class KioskService {
     this.journeyVersionRepo = journeyVersionRepo || new KioskJourneyVersionRepository();
     this.deviceGroupRepo = deviceGroupRepo || new KioskDeviceGroupRepository();
     this.sessionRepo = sessionRepo || new KioskSessionRepository();
+    this.webhookService = kioskWebhookService;
   }
 
   getDeviceRepo(): KioskDeviceRepository {
@@ -429,6 +432,36 @@ export class KioskService {
 
     if (device.status === "suspended" || device.status === "decommissioned") {
       throw new AppError(403, "FORBIDDEN", `Device is ${device.status}. Manifest access denied.`);
+    }
+
+    // Fast-path for synthetic fleet health probe terminals (K-REL-003)
+    if (device.deviceId.startsWith("SYNTHETIC-PROBE")) {
+      const sampleJourney = await KioskJourneyModel.findOne({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        isDeleted: false
+      }).lean();
+      return {
+        deviceId: device.deviceId,
+        organizationId: orgId,
+        device: {
+          id: device._id,
+          deviceId: device.deviceId,
+          name: device.name,
+          location: device.location,
+          status: device.status,
+          paired: device.paired,
+          pairedAt: device.pairedAt,
+          deviceGroupId: device.deviceGroupId,
+          siteId: device.siteId
+        },
+        launchMode: "autoplay",
+        journeys: sampleJourney ? [sampleJourney] : [],
+        settings: {
+          sessionTimeoutSeconds: 300,
+          allowWorkerSelfRegistration: true,
+          offlineSyncIntervalSeconds: 60
+        }
+      };
     }
 
     // Step 1: Query explicit assignments for device, device_group, and site (ADR-005, K-ASN-003)
@@ -921,6 +954,158 @@ export class KioskService {
       });
     } catch (auditErr) {
       console.warn("[KioskService] Failed to create audit log for device pairing:", auditErr);
+    }
+
+    return { device, token };
+  }
+
+  /**
+   * K-ENT-002: Mobile Device Management (MDM) Zero-Touch Bulk Enrollment
+   * Enrolls tablet/terminal fleets using MDM-injected Managed AppConfig enrollment secrets
+   * without requiring manual 6-digit pairing codes.
+   */
+  async enrollMdmDevice(params: {
+    organizationSlug: string;
+    enrollmentSecret: string;
+    deviceId: string;
+    name?: string;
+    location?: string;
+    deviceModel?: string;
+    osVersion?: string;
+    appVersion?: string;
+  }) {
+    const slug = (params.organizationSlug || "").trim().toLowerCase();
+    const secret = (params.enrollmentSecret || "").trim();
+    const deviceId = (params.deviceId || "").trim();
+
+    if (!slug) {
+      throw new AppError(400, "BAD_REQUEST", "organizationSlug is required for MDM enrollment");
+    }
+    if (!secret) {
+      throw new AppError(400, "BAD_REQUEST", "enrollmentSecret is required for MDM enrollment");
+    }
+    if (!deviceId) {
+      throw new AppError(400, "BAD_REQUEST", "deviceHardwareId or deviceId is required for MDM enrollment");
+    }
+
+    const org = await Organization.findOne({ slug, isDeleted: false });
+    if (!org) {
+      throw new AppError(404, "ORGANIZATION_NOT_FOUND", `Organization with slug '${slug}' not found`);
+    }
+
+    // Verify MDM enrollment secret
+    const configuredSecret =
+      (org.kioskSettings as any)?.mdmEnrollmentSecret ||
+      (org.kioskSettings as any)?.enrollmentSecret ||
+      (org.integrations as any)?.mdmEnrollmentSecret ||
+      (org.integrations as any)?.enrollmentSecret;
+
+    if (!configuredSecret || configuredSecret !== secret) {
+      throw new AppError(401, "INVALID_ENROLLMENT_SECRET", "Invalid or expired MDM enrollment secret");
+    }
+
+    // Sign token for physical device (90 days expiry, K-DEV-003)
+    const token = this.jwt
+      ? this.jwt.sign(
+          {
+            deviceId,
+            organizationId: org._id.toString(),
+            role: "kiosk_device",
+            jti: crypto.randomUUID(),
+            enrollmentType: "mdm_appconfig",
+          },
+          { expiresIn: "90d" }
+        )
+      : "";
+
+    const tokenRef = crypto.createHash("sha256").update(token).digest("hex");
+    const tokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+    let device = await this.deviceRepo.findByFingerprint(deviceId);
+    const deviceName = params.name || device?.name || `MDM Kiosk - ${deviceId.slice(-6).toUpperCase()}`;
+    const location = params.location || device?.location || "Enterprise Facility";
+
+    if (device) {
+      // Re-enroll / update existing device
+      device = await this.deviceRepo.register({
+        _id: device._id,
+        organizationId: org._id,
+        deviceId,
+        hardwareGuid: deviceId,
+        name: deviceName,
+        location,
+        status: "online",
+        paired: true,
+        tokenRef,
+        tokenExpiresAt,
+        pairedAt: new Date(),
+        lastSeen: new Date(),
+        deviceModel: params.deviceModel || (device as any).deviceModel,
+        osVersion: params.osVersion || (device as any).osVersion,
+        appVersion: params.appVersion || (device as any).appVersion,
+      } as any);
+    } else {
+      // Check quota
+      const maxKiosks = await this.resolveMaxKiosks(org);
+      const currentKiosksCount = await KioskDeviceModel.countDocuments({
+        $or: [
+          { organizationId: org._id },
+          { organizationId: org._id.toString() as any },
+        ],
+        status: { $ne: "decommissioned" },
+      });
+
+      if (currentKiosksCount >= maxKiosks) {
+        throw new AppError(
+          403,
+          "KIOSK_LIMIT_REACHED",
+          `Organization kiosk device limit reached (${currentKiosksCount}/${maxKiosks}). Please upgrade your plan to enroll more MDM kiosks.`
+        );
+      }
+
+      device = await this.deviceRepo.register({
+        organizationId: org._id,
+        deviceId,
+        hardwareGuid: deviceId,
+        name: deviceName,
+        location,
+        status: "online",
+        paired: true,
+        tokenRef,
+        tokenExpiresAt,
+        pairedAt: new Date(),
+        lastSeen: new Date(),
+        currentContentVersion: 0,
+        deviceModel: params.deviceModel,
+        osVersion: params.osVersion,
+        appVersion: params.appVersion,
+        telemetry: {},
+      } as any);
+    }
+
+    try {
+      await AuditLog.create({
+        organizationId: org._id,
+        actorType: "system",
+        eventCategory: "kiosk",
+        eventType: "KIOSK_MDM_ZERO_TOUCH_ENROLLED",
+        resourceType: "kiosk_device",
+        resourceId: device._id,
+        action: "pair",
+        description: `Kiosk device ${device.name} auto-enrolled via MDM Managed AppConfig with hardware ID ${deviceId}`,
+        metadata: {
+          deviceId,
+          organizationSlug: slug,
+          hardwareGuid: deviceId,
+          deviceModel: params.deviceModel,
+          name: device.name,
+          location: device.location,
+          pairedAt: device.pairedAt || new Date(),
+        },
+        severity: "info",
+      });
+    } catch (auditErr) {
+      console.warn("[KioskService] Failed to create audit log for MDM enrollment:", auditErr);
     }
 
     return { device, token };
@@ -2197,6 +2382,8 @@ export class KioskService {
     const workerObj = {
       id: worker._id.toString(),
       fullName: worker.profile.fullName || `${worker.profile.firstName} ${worker.profile.lastName}`.trim(),
+      name: worker.profile.fullName || `${worker.profile.firstName} ${worker.profile.lastName}`.trim(),
+      email: worker.auth?.email,
       firstName: worker.profile.firstName,
       lastName: worker.profile.lastName,
       employeeId: worker.employment?.employeeId,
@@ -2221,11 +2408,38 @@ export class KioskService {
    * Frontline supervisor PIN authorization verification (UQ-01 Resolution, K-SUP-001)
    */
   async verifySupervisorPin(
-    orgId: string | undefined,
-    supervisorIdentifier: string,
-    pin: string,
-    sessionId?: string
+    firstArg:
+      | string
+      | undefined
+      | {
+          orgId?: string;
+          organizationId?: string;
+          supervisorIdentifier?: string;
+          supervisorId?: string;
+          pin: string;
+          sessionId?: string;
+        },
+    secondArg?: string,
+    thirdArg?: string,
+    fourthArg?: string
   ) {
+    let orgId: string | undefined;
+    let supervisorIdentifier: string;
+    let pin: string;
+    let sessionId: string | undefined;
+
+    if (typeof firstArg === "object" && firstArg !== null) {
+      orgId = firstArg.orgId || firstArg.organizationId;
+      supervisorIdentifier = (firstArg.supervisorIdentifier || firstArg.supervisorId || "") as string;
+      pin = firstArg.pin;
+      sessionId = firstArg.sessionId;
+    } else {
+      orgId = firstArg;
+      supervisorIdentifier = secondArg || "";
+      pin = thirdArg || "";
+      sessionId = fourthArg;
+    }
+
     if (!supervisorIdentifier || !pin) {
       throw new AppError(400, "BAD_REQUEST", "Supervisor identifier and 4-digit PIN are required");
     }
@@ -2354,6 +2568,23 @@ export class KioskService {
           },
           severity: "critical",
         });
+
+        // K-ENT-003: Dispatch kiosk.device.tampered enterprise webhook
+        try {
+          await this.webhookService.publishEvent(supervisor.organizationId, "kiosk.device.tampered", {
+            tamperType: "pin_lockout",
+            consecutiveFailedAttempts: newFailures,
+            lockedUntil: newLockedUntil.toISOString(),
+            lockoutDurationSeconds: 300,
+            supervisorId: supervisor._id.toString(),
+            sessionId: sessionId || session?._id?.toString() || null,
+            deviceId: session?.deviceId || undefined,
+            description: `Supervisor witness capability locked for 5 minutes after ${newFailures} consecutive failed PIN attempts`,
+            detectedAt: new Date().toISOString(),
+          });
+        } catch (tamperErr) {
+          console.warn("[KioskService] Error dispatching device.tampered webhook:", tamperErr);
+        }
 
         throw new AppError(
           401,
@@ -2576,6 +2807,22 @@ export class KioskService {
         alertType: "terminal_offline",
         lastHeartbeatAt: device.lastHeartbeatAt || device.lastSeen,
       });
+
+      // K-ENT-003: Dispatch kiosk.device.offline enterprise webhook
+      try {
+        await this.webhookService.publishEvent(device.organizationId, "kiosk.device.offline", {
+          deviceId: device.deviceId,
+          name: device.name,
+          location: device.location,
+          deviceType: device.deviceType,
+          status: "offline",
+          lastHeartbeatAt: (device.lastHeartbeatAt || device.lastSeen)?.toISOString?.() || new Date(device.lastHeartbeatAt || device.lastSeen).toISOString(),
+          offlineThresholdMinutes: offlineMins,
+          detectedAt: new Date().toISOString(),
+        });
+      } catch (offlineErr) {
+        console.warn("[KioskService] Error dispatching device.offline webhook:", offlineErr);
+      }
     }
 
     // 2. Detect Tablets with Low Battery (<15%)
@@ -3328,6 +3575,43 @@ export class KioskService {
       }
     }
 
+    // K-ENT-003: Dispatch kiosk.session.completed enterprise webhook
+    try {
+      let workerBadgeId: string | undefined;
+      if (session.userId) {
+        const workerUser = await User.findById(session.userId);
+        workerBadgeId = (workerUser as any)?.employment?.badgeId || (workerUser as any)?.badgeId;
+      }
+
+      await this.webhookService.publishEvent(
+        session.organizationId,
+        "kiosk.session.completed",
+        {
+          sessionId: session._id.toString(),
+          workerId: session.userId ? session.userId.toString() : "anonymous",
+          employeeId: session.userId ? session.userId.toString() : undefined,
+          badgeId: workerBadgeId,
+          journeyId: session.journeyId ? session.journeyId.toString() : "",
+          journeyVersion: session.versionNumber || 1,
+          supervisorWitness: session.supervisorWitness
+            ? {
+                supervisorId: session.supervisorWitness.supervisorId?.toString(),
+                supervisorName: (session.supervisorWitness as any)?.supervisorName,
+                witnessedAt: session.supervisorWitness.witnessedAt,
+                method: session.supervisorWitness.method || "pin",
+              }
+            : null,
+          verificationChecksum,
+          completedAt: completedAt.toISOString(),
+          durationSeconds: data?.durationSeconds ?? session.durationSeconds,
+          quizScore: data?.quizScore ?? session.quizScore,
+          deviceId: session.deviceId,
+        }
+      );
+    } catch (webhookErr) {
+      console.warn("[KioskService] Error dispatching session.completed webhook:", webhookErr);
+    }
+
     return refreshedSession;
   }
 
@@ -3497,6 +3781,25 @@ export class KioskService {
       },
       severity: "critical"
     });
+
+    // K-ENT-003: Dispatch kiosk.emergency.activated enterprise webhook
+    try {
+      await this.webhookService.publishEvent(orgId, "kiosk.emergency.activated", {
+        emergencyId: emergency._id.toString(),
+        type: emergency.type,
+        severity: emergency.severity,
+        title: emergency.title,
+        message: emergency.message,
+        primaryExit: emergency.primaryExit,
+        secondaryExit: emergency.secondaryExit,
+        assemblyPoint: emergency.assemblyZone || emergency.primaryExit,
+        emergencyContacts: emergency.emergencyContacts,
+        triggeredAt: emergency.triggeredAt?.toISOString?.() || new Date().toISOString(),
+        triggeredBy: emergency.triggeredBy?.toString?.(),
+      });
+    } catch (emergencyErr) {
+      console.warn("[KioskService] Error dispatching emergency.activated webhook:", emergencyErr);
+    }
 
     return emergency;
   }
@@ -3925,6 +4228,46 @@ export class KioskService {
     }
 
     return csvRows.join("\r\n");
+  }
+
+  // =========================================================================
+  // K-ENT-003: Enterprise Webhook Management
+  // =========================================================================
+
+  async createWebhookSubscription(orgId: string, input: any) {
+    return this.webhookService.createSubscription(orgId, input);
+  }
+
+  async getWebhookSubscriptions(orgId: string) {
+    return this.webhookService.getSubscriptions(orgId);
+  }
+
+  async getWebhookSubscriptionById(orgId: string, subscriptionId: string) {
+    return this.webhookService.getSubscriptionById(orgId, subscriptionId);
+  }
+
+  async updateWebhookSubscription(orgId: string, subscriptionId: string, input: any) {
+    return this.webhookService.updateSubscription(orgId, subscriptionId, input);
+  }
+
+  async deleteWebhookSubscription(orgId: string, subscriptionId: string) {
+    return this.webhookService.deleteSubscription(orgId, subscriptionId);
+  }
+
+  async getWebhookDeliveries(orgId: string, filter?: any) {
+    return this.webhookService.getDeliveries(orgId, filter);
+  }
+
+  async publishLifecycleWebhook(orgId: string, topic: string, data: any) {
+    return this.webhookService.publishEvent(orgId, topic, data);
+  }
+
+  async testWebhookDispatch(orgId: string, topic: string, customPayload?: any) {
+    return this.webhookService.publishEvent(orgId, topic, customPayload || {
+      test: true,
+      timestamp: new Date().toISOString(),
+      message: "Test webhook dispatch from Talnova Kiosk Platform",
+    });
   }
 }
 
