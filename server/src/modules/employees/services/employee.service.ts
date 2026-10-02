@@ -14,7 +14,7 @@ import OrganizationIntegrationService from "../../integrations/services/organiza
 
 export class EmployeeService {
   private integrationService = new OrganizationIntegrationService();
-  constructor(private readonly employeeRepository: EmployeeRepository) { }
+  constructor(private readonly employeeRepository: EmployeeRepository = new EmployeeRepository()) { }
 
   async getProfile(userId: string | mongoose.Types.ObjectId) {
     const employee = await this.employeeRepository.findById(userId);
@@ -399,6 +399,8 @@ export class EmployeeService {
       phone?: string | null;
       location?: string | null;
       timezone?: string | null;
+      badgeId?: string | null;
+      nationalId?: string | null;
       customAttributes?: Record<string, any> | null;
     }>,
     options?: {
@@ -459,6 +461,7 @@ export class EmployeeService {
     const existingManagerEmpIds = new Set(existingManagers.map((m) => m.employment?.employeeId).filter(Boolean));
 
     const inBatchEmailSet = new Set<string>();
+    const inBatchBadgeSet = new Set<string>();
     let willUpdateCount = 0;
     let willCreateCount = 0;
 
@@ -545,6 +548,23 @@ export class EmployeeService {
           });
         }
       }
+
+      // Frontline Worker Badge ID check (K-ENT-001)
+      if (row.badgeId) {
+        const cleanBadge = String(row.badgeId).trim();
+        if (cleanBadge) {
+          if (inBatchBadgeSet.has(cleanBadge)) {
+            errors.push({
+              row: rowNum,
+              email: rawEmail,
+              field: "badgeId",
+              reason: `Duplicate badge ID "${cleanBadge}" within import batch`,
+            });
+          } else {
+            inBatchBadgeSet.add(cleanBadge);
+          }
+        }
+      }
     });
 
     const fatalRows = new Set(errors.map((e) => e.row));
@@ -611,6 +631,8 @@ export class EmployeeService {
       phone?: string | null;
       location?: string | null;
       timezone?: string | null;
+      badgeId?: string | null;
+      nationalId?: string | null;
       customAttributes?: Record<string, any> | null;
     }>,
     creatorId: string | mongoose.Types.ObjectId,
@@ -777,7 +799,9 @@ export class EmployeeService {
           if (data.phone) updateFields["profile.phone"] = data.phone;
           if (data.location) updateFields["profile.location"] = data.location;
           if (data.timezone) updateFields["profile.timezone"] = data.timezone;
-          if (data.employeeId) updateFields["employment.employeeId"] = data.employeeId;
+          if (data.employeeId) updateFields["employment.employeeId"] = data.employeeId.trim();
+          if (data.badgeId) updateFields["employment.badgeId"] = data.badgeId.trim();
+          if (data.nationalId) updateFields["employment.nationalId"] = data.nationalId.trim();
           if (cleanDeptName) updateFields["employment.department"] = cleanDeptName;
           if (resolvedDeptId) updateFields["employment.departmentId"] = resolvedDeptId;
           if (jobTitle) updateFields["employment.jobTitle"] = jobTitle;
@@ -832,7 +856,9 @@ export class EmployeeService {
           customAttributes: data.customAttributes || undefined,
         },
         employment: {
-          employeeId: data.employeeId || undefined,
+          employeeId: data.employeeId ? data.employeeId.trim() : undefined,
+          badgeId: data.badgeId ? data.badgeId.trim() : undefined,
+          nationalId: data.nationalId ? data.nationalId.trim() : undefined,
           department: cleanDeptName,
           departmentId: resolvedDeptId,
           managerId: resolvedManagerId,
@@ -1065,4 +1091,5 @@ export class EmployeeService {
   }
 }
 
+export const employeeService = new EmployeeService();
 export default EmployeeService;

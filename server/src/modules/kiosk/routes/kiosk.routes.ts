@@ -26,6 +26,7 @@ import mongoose from "mongoose";
 import { storageConfig } from "../../../config/index.js";
 import AppError from "../../../common/errors/app-error.js";
 import { kioskCertificateService } from "../services/kiosk-certificate.service.js";
+import { kioskSyntheticProbeService } from "../services/kiosk-synthetic-probe.service.js";
 
 export async function kioskRoutes(app: FastifyInstance) {
   const journeyRepo = new KioskJourneyRepository();
@@ -44,6 +45,26 @@ export async function kioskRoutes(app: FastifyInstance) {
   const controller = new KioskController(kioskService);
 
   // --- PUBLIC ENDPOINTS (No Admin Auth) ---
+
+  // --- SYNTHETIC MONITORING & FLEET HEALTH PROBES (K-REL-003) ---
+
+  // GET /api/v1/kiosk/health/synthetic (Subsystem latencies: DB, storage, auth)
+  app.get(
+    "/health/synthetic",
+    controller.getSyntheticHealth
+  );
+
+  // POST /api/v1/kiosk/health/synthetic/auth (Authenticate synthetic test terminal)
+  app.post(
+    "/health/synthetic/auth",
+    controller.authenticateSyntheticTerminal
+  );
+
+  // GET /api/v1/kiosk/health/synthetic/sample-asset (Fetch sample step asset for pipeline verification)
+  app.get(
+    "/health/synthetic/sample-asset",
+    controller.getSyntheticSampleAsset
+  );
 
   // GET /api/v1/kiosk/journeys/play/:id (Kiosk Playback via Signed URL)
   app.get(
@@ -149,6 +170,15 @@ export async function kioskRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const params = request.params as any;
       
+      if (params.id === "sample-asset" || params.id === "sample") {
+        const sample = kioskSyntheticProbeService.getSampleStepAsset();
+        return reply
+          .header("Content-Type", sample.contentType)
+          .header("Cache-Control", "public, max-age=3600")
+          .status(200)
+          .send(sample.data);
+      }
+
       let upload;
       try {
         upload = await mongoose.model("Upload").findById(params.id);
@@ -214,6 +244,31 @@ export async function kioskRoutes(app: FastifyInstance) {
       }
     },
     controller.pairDevice
+  );
+
+  // POST /api/v1/kiosk/devices/enroll/mdm (MDM Zero-Touch Enrollment - public to MDM managed devices, K-ENT-002)
+  app.post(
+    "/devices/enroll/mdm",
+    {
+      schema: {
+        body: z.object({
+          organizationSlug: z.string().min(1, "Organization slug is required"),
+          enrollmentSecret: z.string().min(1, "MDM enrollment secret is required"),
+          deviceId: z.string().optional(),
+          deviceHardwareId: z.string().optional(),
+          name: z.string().optional(),
+          deviceName: z.string().optional(),
+          location: z.string().optional(),
+          siteId: z.string().optional(),
+          deviceModel: z.string().optional(),
+          osVersion: z.string().optional(),
+          appVersion: z.string().optional(),
+        }).refine((data) => Boolean(data.deviceId || data.deviceHardwareId), {
+          message: "Either deviceId or deviceHardwareId is required",
+        }),
+      },
+    },
+    controller.enrollMdmDevice
   );
 
   // POST /api/v1/kiosk/identify (Identify frontline worker via badgeId / nationalId and issue ephemeral session token)
@@ -693,6 +748,15 @@ export async function kioskRoutes(app: FastifyInstance) {
     // GET /api/v1/kiosk/compliance/export (Export compliance audit report CSV/JSON)
     adminGroup.get("/compliance/export", controller.exportComplianceReport);
   });
+
+  // --- Direct / Integration Webhook Endpoints (K-ENT-003) ---
+  app.get("/webhooks/subscriptions", controller.getWebhookSubscriptions);
+  app.post("/webhooks/subscriptions", controller.createWebhookSubscription);
+  app.get("/webhooks/subscriptions/:id", controller.getWebhookSubscriptionById);
+  app.patch("/webhooks/subscriptions/:id", controller.updateWebhookSubscription);
+  app.delete("/webhooks/subscriptions/:id", controller.deleteWebhookSubscription);
+  app.get("/webhooks/deliveries", controller.getWebhookDeliveries);
+  app.post("/webhooks/test", controller.testWebhookDispatch);
 }
 
 export default kioskRoutes;

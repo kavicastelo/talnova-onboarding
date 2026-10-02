@@ -54,7 +54,7 @@ import { SuperAdminPackages } from './pages/super-admin/SuperAdminPackages';
 import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
-import { KioskPlayerPage, KioskPairingScreen, KioskTerminalPage } from './features/kiosk';
+import { KioskPlayerPage, KioskPairingScreen, KioskTerminalPage, KioskErrorBoundary } from './features/kiosk';
 import { KioskDashboard } from './pages/KioskDashboard';
 import { KioskComplianceDashboard } from './pages/kiosk/KioskComplianceDashboard';
 import { RoleProvider, useRole } from './context/RoleContext';
@@ -225,8 +225,22 @@ export function App() {
             {/* Deprecated for physical terminals (ADR-004, DEF-001); retained strictly for administrative preview */}
             <Route path="/kiosk/play/:id" element={<KioskPlayerPage />} />
             <Route path="/kiosk/pair" element={<KioskPairRoute />} />
-            <Route path="/kiosk/terminal" element={<KioskTerminalPage />} />
-            <Route path="/kiosk/device/:deviceId" element={<KioskTerminalPage />} />
+            <Route
+              path="/kiosk/terminal"
+              element={
+                <KioskErrorBoundary>
+                  <KioskTerminalPage />
+                </KioskErrorBoundary>
+              }
+            />
+            <Route
+              path="/kiosk/device/:deviceId"
+              element={
+                <KioskErrorBoundary>
+                  <KioskTerminalPage />
+                </KioskErrorBoundary>
+              }
+            />
           </Routes>
           </SuperAdminFilterProvider>
         </BrowserRouter>

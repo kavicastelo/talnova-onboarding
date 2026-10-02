@@ -291,6 +291,10 @@ export class HRISIntegrationService {
           continue;
         }
 
+        const badgeId = mappedData.badgeId || rawRecord.badge_id || rawRecord.badgeId || rawRecord["urn:ietf:params:scim:schemas:extension:talnova:2.0:User:badgeId"] || rawRecord["urn:ietf:params:scim:schemas:extension:talnova:2.0:User"]?.badgeId;
+        const employeeId = mappedData.employeeId || rawRecord.employee_id || rawRecord.employeeId || rawRecord.employeeNumber || rawRecord["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:employeeNumber"] || rawRecord["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]?.employeeNumber;
+        const nationalId = mappedData.nationalId || rawRecord.national_id || rawRecord.nationalId || rawRecord["urn:ietf:params:scim:schemas:extension:talnova:2.0:User:nationalId"] || rawRecord["urn:ietf:params:scim:schemas:extension:talnova:2.0:User"]?.nationalId;
+
         let user = await User.findOne({
           organizationId: orgObjectId,
           "auth.email": email.toLowerCase(),
@@ -311,6 +315,9 @@ export class HRISIntegrationService {
             employment: {
               department: mappedData.department || rawRecord.department || "General",
               jobTitle: mappedData.jobTitle || rawRecord.job_title || "Employee",
+              employeeId: employeeId ? String(employeeId).trim() : undefined,
+              badgeId: badgeId ? String(badgeId).trim() : undefined,
+              nationalId: nationalId ? String(nationalId).trim() : undefined,
               onboardingState: "active",
             },
             permissions: {
@@ -325,6 +332,9 @@ export class HRISIntegrationService {
             if (mappedData.lastName) user.profile.lastName = mappedData.lastName;
             if (mappedData.department) user.employment.department = mappedData.department;
             if (mappedData.jobTitle) user.employment.jobTitle = mappedData.jobTitle;
+            if (badgeId) user.employment.badgeId = String(badgeId).trim();
+            if (employeeId) user.employment.employeeId = String(employeeId).trim();
+            if (nationalId) user.employment.nationalId = String(nationalId).trim();
             await user.save();
           }
           updatedCount++;

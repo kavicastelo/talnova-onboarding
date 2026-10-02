@@ -6,6 +6,8 @@ import { kioskService } from '../services/kiosk.service';
 import { deviceIdentityService } from '../services/device-identity.service';
 import { antiTamperingService } from '../services/anti-tampering.service';
 import { offlineStorageService } from '../services/offline-storage.service';
+import { kioskWatchdogService } from '../services/kiosk-watchdog.service';
+import { powerRecoveryService } from '../services/power-recovery.service';
 
 export interface KioskPlayerContextProps {
   journey: KioskJourney | null;
@@ -97,10 +99,37 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
   const sessionStartTimeRef = useRef<number>(Date.now());
   const currentStepIndexRef = useRef<number>(initialStepIndex);
 
-  // Synchronize currentStepIndexRef
+  // Synchronize currentStepIndexRef and checkpoint mid-session progress (K-REL-001 & K-REL-002)
   useEffect(() => {
     currentStepIndexRef.current = currentStepIndex;
-  }, [currentStepIndex]);
+    if (journey?._id && typeof currentStepIndex === 'number') {
+      kioskWatchdogService.saveCheckpoint({
+        journeyId: journey._id,
+        stepIndex: currentStepIndex,
+        timestamp: Date.now(),
+        completedStepIds: Array.from(completedStepIdsRef.current),
+        sessionToken: activeSession?.sessionToken,
+        userId: activeSession?.userId
+      }).catch((err) => {
+        console.warn('[KioskPlayerContext] Checkpoint auto-save warning:', err);
+      });
+
+      // K-REL-002: Automatic step checkpointing in IndexedDB ('active_session_checkpoint') upon every step transition
+      powerRecoveryService.saveStepCheckpoint({
+        journeyId: journey._id,
+        journeyTitle: journey.title,
+        stepIndex: currentStepIndex,
+        stepTitle: journey.steps?.[currentStepIndex]?.title,
+        totalSteps: journey.steps?.length || 0,
+        completedStepIds: Array.from(completedStepIdsRef.current),
+        sessionToken: activeSession?.sessionToken,
+        sessionId: activeSession?._id,
+        userId: activeSession?.userId
+      }).catch((err) => {
+        console.warn('[KioskPlayerContext] Power recovery checkpoint auto-save warning:', err);
+      });
+    }
+  }, [currentStepIndex, journey, activeSession?.sessionToken, activeSession?._id, activeSession?.userId]);
 
   const activeAnalyticsRef = useRef<{
     journeyId: string;
@@ -144,7 +173,24 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
         data = await kioskService.getJourney(journeyId);
       }
       setJourney(data);
-      setCurrentStepIndex(0);
+      let targetStep = initialStepIndex || 0;
+      if (targetStep === 0) {
+        try {
+          const powerCp = await powerRecoveryService.getActiveCheckpoint();
+          if (powerCp && powerCp.journeyId === journeyId && typeof powerCp.stepIndex === 'number' && powerCp.stepIndex > 0) {
+            targetStep = powerCp.stepIndex;
+          } else {
+            const checkpoint = await kioskWatchdogService.getCheckpoint(journeyId);
+            if (checkpoint && typeof checkpoint.stepIndex === 'number' && checkpoint.stepIndex > 0) {
+              targetStep = checkpoint.stepIndex;
+            }
+          }
+        } catch (cpErr) {
+          console.warn('[KioskPlayerContext] Checkpoint inspection error:', cpErr);
+        }
+      }
+      setCurrentStepIndex(targetStep);
+      currentStepIndexRef.current = targetStep;
       
       // Auto-select first available language
       if (data.languages && data.languages.length > 0) {
@@ -447,6 +493,11 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
       }
     }
 
+    if (journey?._id) {
+      kioskWatchdogService.purgeCheckpoint(journey._id).catch(() => {});
+      powerRecoveryService.purgeCheckpoint().catch(() => {});
+    }
+
     activeSessionIdRef.current = null;
     activeAnalyticsRef.current = null;
   };
@@ -505,6 +556,11 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
       }
     }
 
+    if (journey?._id) {
+      kioskWatchdogService.purgeCheckpoint(journey._id).catch(() => {});
+      powerRecoveryService.purgeCheckpoint().catch(() => {});
+    }
+
     activeSessionIdRef.current = null;
     activeAnalyticsRef.current = null;
   };
@@ -530,6 +586,11 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
       }
     } else {
       setSessionStatus('timed_out');
+    }
+
+    if (journey?._id) {
+      kioskWatchdogService.purgeCheckpoint(journey._id).catch(() => {});
+      powerRecoveryService.purgeCheckpoint().catch(() => {});
     }
 
     activeSessionIdRef.current = null;

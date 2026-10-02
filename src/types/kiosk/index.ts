@@ -10,3 +10,5 @@ export * from "./player.types.js";
 export * from "./builder.types.js";
 export * from "./emergency.types.js";
 export * from "./compliance.types.js";
+export * from "./diagnostic.types.js";
+export * from "./recovery.types.js";

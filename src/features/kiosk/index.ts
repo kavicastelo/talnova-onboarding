@@ -37,3 +37,10 @@ export * from './services/kiosk-heartbeat.service';
 export * from './services/kiosk-command-executor.service';
 export * from './components/fleet/DeviceDetailDrawer';
 export * from './components/fleet/FleetDashboardTab';
+export * from './services/mdm-enrollment.service';
+export * from './services/kiosk-watchdog.service';
+export * from './components/KioskErrorBoundary';
+export * from './services/power-recovery.service';
+export * from './components/recovery/PowerRecoveryResumeModal';
+export * from './components/builder';
+

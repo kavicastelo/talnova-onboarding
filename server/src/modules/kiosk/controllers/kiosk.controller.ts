@@ -6,6 +6,7 @@ import { KioskJourneyModel } from "../models/kiosk-journey.model.js";
 import { KioskSessionModel } from "../models/kiosk-session.model.js";
 import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 import kioskEmergencyStream from "../services/kiosk-emergency-stream.js";
+import { kioskSyntheticProbeService } from "../services/kiosk-synthetic-probe.service.js";
 
 export class KioskController {
   constructor(private readonly kioskService: KioskService) {}
@@ -475,6 +476,53 @@ export class KioskController {
     });
   };
 
+  enrollMdmDevice = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    const deviceId = body.deviceId || body.deviceHardwareId;
+
+    if (!body.organizationSlug || !body.enrollmentSecret || !deviceId) {
+      throw new AppError(
+        400,
+        "BAD_REQUEST",
+        "Missing required MDM enrollment parameters (organizationSlug, enrollmentSecret, deviceId/deviceHardwareId)"
+      );
+    }
+
+    const result = await this.kioskService.enrollMdmDevice({
+      organizationSlug: body.organizationSlug,
+      enrollmentSecret: body.enrollmentSecret,
+      deviceId,
+      name: body.name || body.deviceName,
+      location: body.location || body.siteId,
+      deviceModel: body.deviceModel,
+      osVersion: body.osVersion,
+      appVersion: body.appVersion,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Device successfully enrolled via MDM AppConfig",
+      deviceToken: result.token,
+      token: result.token,
+      device: {
+        id: result.device._id.toString(),
+        _id: result.device._id.toString(),
+        name: result.device.name,
+        deviceId: result.device.deviceId,
+        hardwareGuid: (result.device as any).hardwareGuid || result.device.deviceId,
+        location: result.device.location,
+        status: result.device.status,
+        paired: true,
+      },
+      data: {
+        deviceToken: result.token,
+        token: result.token,
+        device: result.device,
+        enrolled: true,
+      },
+    });
+  };
+
   refreshDeviceToken = async (request: FastifyRequest, reply: FastifyReply) => {
     const devicePayload = request.user as any;
     const authHeader = request.headers.authorization;
@@ -828,6 +876,7 @@ export class KioskController {
       const candidate = await mongoose.model("User").findOne({
         $or: [
           { "employment.badgeId": identifier },
+          { "employment.employeeId": identifier },
           { "employment.nationalId": identifier },
           { "auth.email": identifier.toLowerCase() },
           ...(isHex ? [{ _id: new mongoose.Types.ObjectId(identifier) }] : []),
@@ -1315,6 +1364,157 @@ export class KioskController {
       .status(200)
       .send(result);
   };
+
+  // =========================================================================
+  // K-ENT-003: Enterprise Webhook Management
+  // =========================================================================
+
+  createWebhookSubscription = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = (request.body || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || body?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const subscription = await this.kioskService.createWebhookSubscription(orgId.toString(), body);
+    return reply.status(201).send({
+      success: true,
+      message: "Webhook subscription registered successfully",
+      data: subscription,
+    });
+  };
+
+  getWebhookSubscriptions = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || (request.query as any)?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const subscriptions = await this.kioskService.getWebhookSubscriptions(orgId.toString());
+    return reply.status(200).send({
+      success: true,
+      data: subscriptions,
+    });
+  };
+
+  getWebhookSubscriptionById = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || (request.query as any)?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const subscription = await this.kioskService.getWebhookSubscriptionById(orgId.toString(), params.id);
+    return reply.status(200).send({
+      success: true,
+      data: subscription,
+    });
+  };
+
+  updateWebhookSubscription = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || body?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const updated = await this.kioskService.updateWebhookSubscription(orgId.toString(), params.id, body);
+    return reply.status(200).send({
+      success: true,
+      message: "Webhook subscription updated successfully",
+      data: updated,
+    });
+  };
+
+  deleteWebhookSubscription = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || (request.query as any)?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const result = await this.kioskService.deleteWebhookSubscription(orgId.toString(), params.id);
+    return reply.status(200).send({
+      success: true,
+      message: result.message,
+    });
+  };
+
+  getWebhookDeliveries = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || query?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const deliveries = await this.kioskService.getWebhookDeliveries(orgId.toString(), query);
+    return reply.status(200).send({
+      success: true,
+      data: deliveries,
+    });
+  };
+
+  testWebhookDispatch = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = (request.body || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || request.headers["x-organization-id"] || body?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const topic = body.topic || "kiosk.session.completed";
+    const result = await this.kioskService.testWebhookDispatch(orgId.toString(), topic, body.payload);
+    return reply.status(200).send({
+      success: true,
+      message: `Test webhook dispatched for topic: ${topic}`,
+      data: result,
+    });
+  };
+
+  // --- Synthetic Health & Fleet Monitoring (K-REL-003) ---
+
+  getSyntheticHealth = async (request: FastifyRequest, reply: FastifyReply) => {
+    const jwt = (request.server as any).jwt;
+    const health = await kioskSyntheticProbeService.measureSubsystemHealth(jwt);
+    const statusCode = health.status === "unhealthy" ? 503 : 200;
+    return reply.status(statusCode).send(health);
+  };
+
+  authenticateSyntheticTerminal = async (request: FastifyRequest, reply: FastifyReply) => {
+    const jwt = (request.server as any).jwt;
+    const body = (request.body as any) || {};
+    const result = await kioskSyntheticProbeService.authenticateSyntheticTerminal(
+      jwt,
+      body.organizationId,
+      body.deviceId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Synthetic test terminal authenticated successfully",
+      token: result.token,
+      deviceId: result.deviceId,
+      organizationId: result.organizationId,
+      expiresIn: "24h"
+    });
+  };
+
+  getSyntheticSampleAsset = async (request: FastifyRequest, reply: FastifyReply) => {
+    const asset = kioskSyntheticProbeService.getSampleStepAsset();
+    return reply
+      .header("Content-Type", asset.contentType)
+      .header("Cache-Control", "public, max-age=3600")
+      .status(200)
+      .send(asset.data);
+  };
 }
 
 export default KioskController;
+
+
