@@ -26,6 +26,9 @@ export interface KioskJourneySettings {
   readonly disableExit: boolean; // Forces lockdown mode in wrapper
   readonly security: KioskJourneySecuritySettings;
   readonly requireSupervisorWitness?: boolean;
+  readonly minimumDurationSeconds?: number;
+  readonly enforceMandatorySteps?: boolean;
+  readonly passingScorePercentage?: number;
 }
 
 export interface KioskJourneySchedulingSettings {

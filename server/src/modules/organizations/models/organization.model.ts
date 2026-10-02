@@ -143,6 +143,8 @@ export interface IOrganization extends Document {
     enforceSSO?: boolean;
     status?: "active" | "disabled";
   };
+  integrations?: Record<string, any>;
+  kioskSettings?: Record<string, any>;
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   isDeleted: boolean;
@@ -297,6 +299,8 @@ const OrganizationSchema = new Schema<IOrganization>(
       enforceSSO: { type: Boolean, default: false },
       status: { type: String, enum: ["active", "disabled"], default: "disabled" },
     },
+    integrations: { type: Schema.Types.Mixed, default: {} },
+    kioskSettings: { type: Schema.Types.Mixed, default: {} },
     createdBy: { type: Schema.Types.ObjectId, required: true },
     updatedBy: { type: Schema.Types.ObjectId },
     isDeleted: { type: Boolean, default: false },

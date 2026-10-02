@@ -24,7 +24,8 @@ export class AuditLogService {
       | "ai"
       | "infrastructure"
       | "admin"
-      | "feature_flag";
+      | "feature_flag"
+      | "kiosk";
     eventType: string;
     resourceType: string;
     resourceId?: string | mongoose.Types.ObjectId;
@@ -41,7 +42,11 @@ export class AuditLogService {
       | "export"
       | "status_change"
       | "error"
-      | "execute";
+      | "execute"
+      | "pair"
+      | "revoke"
+      | "publish"
+      | "witness";
     description: string;
     metadata?: {
       previousValue?: any;

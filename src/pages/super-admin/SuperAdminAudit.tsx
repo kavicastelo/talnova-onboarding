@@ -26,6 +26,7 @@ export function SuperAdminAudit() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [severity, setSeverity] = useState('all');
+  const [category, setCategory] = useState('all');
   const [selectedAudit, setSelectedAudit] = useState<any | null>(null);
 
   // Sync with context severity if updated via FilterBar
@@ -39,7 +40,7 @@ export function SuperAdminAudit() {
 
   const { data, isLoading, isError, refetch } = useSuperAdminActivityEvents({
     organizationId: selectedOrgId !== 'all' ? selectedOrgId : undefined,
-    category: 'security',
+    category: category !== 'all' ? category : undefined,
     severity: effectiveSeverity,
     search: search || undefined,
     page,
@@ -155,6 +156,32 @@ export function SuperAdminAudit() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                <span className="text-xs text-slate-500 px-2 font-medium">Category:</span>
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'kiosk', label: 'Kiosk' },
+                  { id: 'security', label: 'Security' },
+                  { id: 'admin', label: 'Admin' }
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    data-testid={`filter-category-${c.id}`}
+                    onClick={() => {
+                      setCategory(c.id);
+                      setPage(1);
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                      category === c.id
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
                 <span className="text-xs text-slate-500 px-2 font-medium">Severity:</span>
                 {(['all', 'critical', 'high', 'warning', 'info'] as const).map((s) => (

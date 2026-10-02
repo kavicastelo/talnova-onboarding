@@ -8,6 +8,7 @@ export async function certificateRoutes(app: FastifyInstance) {
   // Public verification endpoints
   app.get("/public/:id", controller.getPublicCertificate as any);
   app.get("/verify/:id", controller.getPublicCertificate as any);
+  app.get("/:id", controller.getPublicCertificate as any);
 
   // Authenticated employee endpoints
   app.register(async (authApp) => {

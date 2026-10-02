@@ -34,5 +34,7 @@ export interface KioskStep {
   readonly interaction: KioskInteraction;
   readonly quiz?: KioskQuizConfig;
   readonly requireSupervisorWitness?: boolean;
+  readonly isMandatory?: boolean;
+  readonly isOptional?: boolean;
 }
 

@@ -34,6 +34,8 @@ import { FrontlineIdentifyModal } from '../auth/FrontlineIdentifyModal';
 import { PrivacyTimeoutModal } from '../privacy/PrivacyTimeoutModal';
 import { AccessibilityToolbar, FontScale } from '../accessibility/AccessibilityToolbar';
 import { KioskLiveAnnouncer } from '../accessibility/KioskLiveAnnouncer';
+import { LanguageSelectorModal } from '../localization/LanguageSelectorModal';
+import { isRtlLanguage } from '../../constants/language.constants';
 import { useKioskKeyboardNavigation } from '../../hooks/useKioskKeyboardNavigation';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { privacyResetService } from '../../services/privacy-reset.service';
@@ -55,6 +57,15 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
   className = ''
 }) => {
   const { t, i18n } = useTranslation(['kiosk', 'common']);
+  const isRtl = isRtlLanguage(i18n.language);
+
+  // Synchronize document direction with active language (K-LOC-002)
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = i18n.language;
+    }
+  }, [isRtl, i18n.language]);
 
   // Real-time search with 150ms debounce
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,6 +107,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
   // Modals state
   const [identifyModalOpen, setIdentifyModalOpen] = useState(false);
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
+  const [languageModalOpen, setLanguageModalOpen] = useState(false);
   const [pendingJourneyId, setPendingJourneyId] = useState<string | null>(null);
 
   // Frontline worker identification state
@@ -266,9 +278,14 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
   };
 
   const handleToggleLanguage = () => {
-    const current = i18n.language || 'en';
-    const next = current === 'en' ? 'si' : current === 'si' ? 'ta' : 'en';
-    i18n.changeLanguage(next);
+    setLanguageModalOpen(true);
+  };
+
+  const handleSelectLanguage = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('talnova_lang', langCode);
+    }
   };
 
   const device = manifest.device;
@@ -285,15 +302,19 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
     onCancelModal: () => {
       if (identifyModalOpen) setIdentifyModalOpen(false);
       if (emergencyModalOpen) setEmergencyModalOpen(false);
+      if (languageModalOpen) setLanguageModalOpen(false);
       if (searchQuery) setSearchQuery('');
     },
-    isModalOpen: identifyModalOpen || emergencyModalOpen
+    isModalOpen: identifyModalOpen || emergencyModalOpen || languageModalOpen
   });
 
   return (
     <div
       data-testid="kiosk-home-launcher"
       id="kiosk-home-launcher"
+      dir={isRtl ? 'rtl' : 'ltr'}
+      data-dir={isRtl ? 'rtl' : 'ltr'}
+      data-rtl={isRtl ? 'true' : 'false'}
       data-font-scale={fontScale}
       style={{ '--kiosk-font-scale': fontScale / 100 } as React.CSSProperties}
       className={`flex min-h-screen w-full flex-col select-none relative overflow-x-hidden transition-colors duration-200 ${
@@ -466,14 +487,14 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
 
           {/* Real-time Touch Search Input (150ms Debounced) */}
           <div className="w-full md:w-80 relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               data-testid="touch-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('launcher.searchPlaceholder', { defaultValue: 'Search journeys by title or topic...' })}
-              className={`w-full min-h-[48px] h-12 pl-10 pr-12 rounded-xl text-sm border focus:outline-hidden transition ${
+              className={`w-full min-h-[48px] h-12 ps-10 pe-12 rounded-xl text-sm border focus:outline-hidden transition ${
                 highContrast
                   ? 'bg-black border-white text-white focus:border-amber-400'
                   : 'bg-slate-900/80 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500'
@@ -483,7 +504,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
               <button
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear Search"
-                className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[48px] min-w-[48px] flex items-center justify-center text-slate-400 hover:text-white transition active:scale-95"
+                className="absolute end-1 top-1/2 -translate-y-1/2 min-h-[48px] min-w-[48px] flex items-center justify-center text-slate-400 hover:text-white transition active:scale-95"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -818,6 +839,15 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
         remainingSeconds={privacySeconds}
         onStay={() => privacyResetService.dismissWarning()}
         onExit={() => privacyResetService.executePrivacyWipe()}
+      />
+
+      {/* Multi-Language Selector Modal (K-LOC-001) */}
+      <LanguageSelectorModal
+        isOpen={languageModalOpen}
+        onClose={() => setLanguageModalOpen(false)}
+        selectedLanguage={i18n.language || 'en'}
+        onSelectLanguage={handleSelectLanguage}
+        highContrast={highContrast}
       />
     </div>
   );

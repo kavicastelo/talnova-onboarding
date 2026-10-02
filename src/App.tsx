@@ -56,6 +56,7 @@ import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
 import { KioskPlayerPage, KioskPairingScreen, KioskTerminalPage } from './features/kiosk';
 import { KioskDashboard } from './pages/KioskDashboard';
+import { KioskComplianceDashboard } from './pages/kiosk/KioskComplianceDashboard';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { LocalizationProvider } from './context/LocalizationProvider';
 import { SidebarProvider } from './components/Sidebar';
@@ -121,6 +122,7 @@ export function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
             <Route path="/public/certificate/:id" element={<PublicCertificateViewer />} />
+            <Route path="/verify/cert/:id" element={<PublicCertificateViewer />} />
             <Route path="/demo/login" element={<DemoAuthProvider><DemoLogin /></DemoAuthProvider>} />
             <Route path="/demo" element={<DemoAuthProvider><DemoProtectedRoute><DemoAppShell /></DemoProtectedRoute></DemoAuthProvider>}>
               <Route index element={<DemoDashboardRedirect />} />
@@ -187,6 +189,7 @@ export function App() {
               <Route path="journeys" element={<ProtectedRoute featureFlag="journey_templates"><JourneysList /></ProtectedRoute>} />
               <Route path="journeys/:id" element={<ProtectedRoute featureFlag="journey_builder"><JourneyBuilder /></ProtectedRoute>} />
               <Route path="kiosks" element={<ProtectedRoute capability="manage_organization" featureFlag="kiosk_mode"><KioskDashboard /></ProtectedRoute>} />
+              <Route path="kiosks/compliance" element={<ProtectedRoute capability="manage_organization" featureFlag="kiosk_mode"><KioskComplianceDashboard /></ProtectedRoute>} />
               <Route path="directory" element={<ProtectedRoute capability="view_directory" featureFlag="employee_directory"><EmployeeDirectory /></ProtectedRoute>} />
               <Route path="directory/:id" element={<ProtectedRoute capability="view_directory" featureFlag="employee_directory"><EmployeeProfile /></ProtectedRoute>} />
               <Route path="profile" element={<EmployeeProfile />} />

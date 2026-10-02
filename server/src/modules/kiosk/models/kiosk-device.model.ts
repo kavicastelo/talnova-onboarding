@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { KioskDevice } from "../types/device.types.js";
+import { KioskDevice, PendingCommand } from "../types/device.types.js";
 import { KIOSK_DEVICE_STATUSES } from "../constants/device.constants.js";
 
 /**
@@ -25,6 +25,7 @@ export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId"
   isDeleted?: boolean;
   deletedAt?: Date;
   deletedBy?: mongoose.Types.ObjectId;
+  pendingCommands?: PendingCommand[];
   /**
    * @deprecated Relegated to optional diagnostic metadata; not used as security anchor or identity (ADR-003).
    */
@@ -33,12 +34,28 @@ export interface IKioskDevice extends Omit<KioskDevice, "_id" | "organizationId"
 
 const KioskTelemetrySchema = new Schema(
   {
-    batteryLevel: { type: Number, min: 0, max: 1 },
+    batteryLevel: { type: Number, min: 0, max: 100 },
     isCharging: { type: Boolean },
     storageUsedBytes: { type: Number },
     storageFreeBytes: { type: Number },
+    storageTotalBytes: { type: Number },
     appVersion: { type: String },
-    networkLatencyMs: { type: Number }
+    networkLatencyMs: { type: Number },
+    screenResolution: { type: String },
+    orientation: { type: String }
+  },
+  { _id: false }
+);
+
+const PendingCommandSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    type: { type: String, required: true },
+    command: { type: String },
+    payload: { type: Schema.Types.Mixed },
+    status: { type: String, default: "pending" },
+    createdAt: { type: Date, default: Date.now },
+    dispatchedAt: { type: Date }
   },
   { _id: false }
 );
@@ -88,7 +105,8 @@ const KioskDeviceSchema = new Schema<IKioskDevice>(
      */
     currentJourneyId: { type: Schema.Types.ObjectId, ref: "KioskJourney" },
     currentContentVersion: { type: Number, required: true, default: 0 },
-    telemetry: { type: KioskTelemetrySchema, required: true, default: {} }
+    telemetry: { type: KioskTelemetrySchema, required: true, default: {} },
+    pendingCommands: { type: [PendingCommandSchema], default: [] }
   },
   {
     timestamps: true

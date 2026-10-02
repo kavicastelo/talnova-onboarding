@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Volume2,
@@ -8,6 +8,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { AccessibilityToolbar, FontScale } from './accessibility/AccessibilityToolbar';
+import { LanguageSelectorModal } from './localization/LanguageSelectorModal';
+import { isRtlLanguage } from '../constants/language.constants';
 
 export interface KioskPlayerHeaderProps {
   title: string;
@@ -18,6 +20,10 @@ export interface KioskPlayerHeaderProps {
   onLanguageChange?: (lang: string) => void;
   isMuted: boolean;
   onToggleMuted: () => void;
+  volume?: number;
+  onVolumeChange?: (vol: number) => void;
+  autoPlay?: boolean;
+  onToggleAutoPlay?: () => void;
   showSubtitles: boolean;
   onToggleSubtitles: () => void;
   highContrast?: boolean;
@@ -27,6 +33,7 @@ export interface KioskPlayerHeaderProps {
   canExit?: boolean;
   onExit?: () => void;
   isAdminPreview?: boolean;
+  isRtl?: boolean;
   className?: string;
 }
 
@@ -39,6 +46,10 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
   onLanguageChange,
   isMuted,
   onToggleMuted,
+  volume = 0.8,
+  onVolumeChange,
+  autoPlay = true,
+  onToggleAutoPlay,
   showSubtitles,
   onToggleSubtitles,
   highContrast = false,
@@ -48,9 +59,13 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
   canExit = false,
   onExit,
   isAdminPreview = false,
+  isRtl,
   className = ''
 }) => {
   const { t } = useTranslation('kiosk');
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+
+  const isRtlMode = isRtl ?? isRtlLanguage(selectedLanguage);
 
   const progressPercent = totalSteps > 0
     ? Math.min(Math.round(((currentStepIndex + 1) / totalSteps) * 100), 100)
@@ -60,6 +75,9 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
     <header
       data-testid="kiosk-player-header"
       role="banner"
+      dir={isRtlMode ? 'rtl' : 'ltr'}
+      data-dir={isRtlMode ? 'rtl' : 'ltr'}
+      data-rtl={isRtlMode ? 'true' : 'false'}
       aria-label={t('player.headerLabel', { defaultValue: 'Kiosk Terminal Header' })}
       className={`sticky top-0 z-30 w-full border-b transition-colors select-none ${
         highContrast
@@ -106,28 +124,106 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
             showSubtitlesToggle={true}
           />
 
-          {/* Audio Volume Mute Toggle */}
-          <button
-            type="button"
-            data-testid="toggle-mute-btn"
-            onClick={onToggleMuted}
-            title={isMuted ? t('player.unmute', { defaultValue: 'Unmute Audio' }) : t('player.mute', { defaultValue: 'Mute Audio' })}
-            className={`min-h-[48px] min-w-[48px] w-12 h-12 rounded-xl border text-xs transition active:scale-95 flex items-center justify-center ${
-              isMuted
-                ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
-                : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850'
+          {/* Audio Volume & Mute Controls (K-LOC-003) */}
+          <div
+            data-testid="player-volume-control"
+            className={`flex items-center space-x-1 rtl:space-x-reverse rounded-xl border p-0.5 ${
+              highContrast
+                ? 'bg-black border-white'
+                : 'bg-slate-900/60 border-slate-800'
             }`}
           >
-            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-          </button>
+            {/* Audio Volume Mute Toggle */}
+            <button
+              type="button"
+              id="kiosk-toggle-mute-btn"
+              data-testid="toggle-mute-btn"
+              onClick={onToggleMuted}
+              title={isMuted ? t('player.unmute', { defaultValue: 'Unmute Audio' }) : t('player.mute', { defaultValue: 'Mute Audio' })}
+              className={`min-h-[48px] min-w-[48px] w-12 h-12 rounded-lg text-xs transition active:scale-95 flex items-center justify-center ${
+                isMuted
+                  ? 'bg-rose-500/20 text-rose-400'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+            </button>
 
-          {/* Language Switcher */}
+            {/* Volume Slider (0-100%) */}
+            {onVolumeChange && (
+              <div className="hidden sm:flex items-center space-x-2 rtl:space-x-reverse px-2">
+                <input
+                  type="range"
+                  id="kiosk-volume-slider"
+                  data-testid="volume-slider"
+                  min="0"
+                  max="100"
+                  value={isMuted ? 0 : Math.round(volume * 100)}
+                  onChange={(e) => {
+                    const nextVal = parseInt(e.target.value, 10) / 100;
+                    onVolumeChange(nextVal);
+                  }}
+                  aria-label={t('player.volumeSlider', { defaultValue: 'Volume level' })}
+                  title={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                  className="w-16 sm:w-20 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+                <span
+                  data-testid="volume-percentage"
+                  className="text-[11px] font-mono font-semibold text-slate-300 w-8 text-right rtl:text-left"
+                >
+                  {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Autoplay Setting Toggle (K-LOC-003) */}
+          {onToggleAutoPlay && (
+            <button
+              type="button"
+              id="kiosk-toggle-autoplay-btn"
+              data-testid="toggle-autoplay-btn"
+              onClick={onToggleAutoPlay}
+              title={autoPlay ? t('player.autoplayOn', { defaultValue: 'Narration Autoplay: ON' }) : t('player.autoplayOff', { defaultValue: 'Narration Autoplay: OFF' })}
+              className={`min-h-[48px] px-3 h-12 rounded-xl border text-xs font-bold transition active:scale-95 flex items-center space-x-1.5 rtl:space-x-reverse ${
+                autoPlay
+                  ? highContrast
+                    ? 'bg-amber-400 text-black border-amber-300'
+                    : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400'
+              }`}
+            >
+              <span>{t('player.auto', { defaultValue: 'Auto' })}</span>
+              <span className={`w-2 h-2 rounded-full ${autoPlay ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+            </button>
+          )}
+
+          {/* Multi-Language Modal Trigger (K-LOC-001) */}
+          {onLanguageChange && (
+            <button
+              type="button"
+              id="kiosk-language-modal-btn"
+              data-testid="player-language-modal-btn"
+              onClick={() => setIsLanguageModalOpen(true)}
+              title={t('player.switchLanguage', { defaultValue: 'Switch Language' })}
+              className={`min-h-[48px] min-w-[48px] h-12 px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-1.5 transition active:scale-95 ${
+                highContrast
+                  ? 'bg-black border-white text-white hover:border-amber-400'
+                  : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800 text-slate-200'
+              }`}
+            >
+              <Languages className="w-4 h-4 text-emerald-400" />
+              <span className="uppercase">{selectedLanguage}</span>
+            </button>
+          )}
+
+          {/* Inline Quick Language Switcher Pills */}
           {languages && languages.length > 1 && onLanguageChange && (
             <div
               data-testid="player-language-switcher"
               className="flex items-center space-x-2 bg-slate-900/80 border border-slate-800 rounded-xl p-1"
             >
-              <Languages className="w-4 h-4 text-slate-400 ml-1.5 mr-0.5 hidden sm:inline" />
+              <Languages className="w-4 h-4 text-slate-400 ms-1.5 me-0.5 hidden sm:inline" />
               {languages.map((lang) => (
                 <button
                   key={lang}
@@ -169,16 +265,35 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
         </div>
       </div>
 
-      {/* Step Progress Bar with Visual Feedback */}
-      <div className="w-full bg-slate-900/60 h-1.5 relative overflow-hidden">
+      {/* Step Progress Bar with Visual Feedback (RTL-aware fill direction) */}
+      <div
+        className="w-full bg-slate-900/60 h-1.5 relative overflow-hidden"
+        dir={isRtlMode ? 'rtl' : 'ltr'}
+        data-dir={isRtlMode ? 'rtl' : 'ltr'}
+      >
         <div
           data-testid="kiosk-progress-bar"
+          data-rtl={isRtlMode ? 'true' : 'false'}
           className={`h-full transition-all duration-300 ease-out ${
+            isRtlMode ? 'float-right' : 'float-left'
+          } ${
             highContrast ? 'bg-amber-400' : 'bg-emerald-500'
           }`}
           style={{ width: `${progressPercent}%` }}
         />
       </div>
+
+      {/* Multi-Language Selector Modal (K-LOC-001) */}
+      <LanguageSelectorModal
+        isOpen={isLanguageModalOpen}
+        onClose={() => setIsLanguageModalOpen(false)}
+        selectedLanguage={selectedLanguage}
+        onSelectLanguage={(lang) => {
+          onLanguageChange?.(lang);
+        }}
+        supportedLanguages={languages}
+        highContrast={highContrast}
+      />
     </header>
   );
 };

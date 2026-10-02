@@ -1,16 +1,28 @@
 import { apiClient } from '../../../api/client';
 import { KioskJourney, KioskJourneyVersion, ValidationReport } from '../../../types/kiosk/journey.types';
-import { KioskDevice, KioskTelemetry, KioskCommand, KioskDeviceManifest } from '../../../types/kiosk/device.types';
+import { KioskDevice, KioskTelemetry, KioskDeviceManifest, PendingCommand } from '../../../types/kiosk/device.types';
 import { KioskDeviceGroup } from '../../../types/kiosk/group.types';
 import { KioskAnalytics, KioskAnalyticsSummary } from '../../../types/kiosk/analytics.types';
 import { KioskSession } from '../../../types/kiosk/session.types';
 import { KioskEmergency, EmergencyBroadcastPayload, EmergencyClearPayload } from '../../../types/kiosk/emergency.types';
+import {
+  KioskComplianceSummary,
+  DepartmentComplianceResponse,
+  ComplianceFilterParams
+} from '../../../types/kiosk/compliance.types';
 import { deviceIdentityService } from './device-identity.service';
 
 export const kioskService = {
   // --- Journey Builder API ---
   createJourney: async (payload: Partial<KioskJourney>): Promise<KioskJourney> => {
     const { _id, organizationId, createdAt, updatedAt, createdBy, updatedBy, isDeleted, deletedAt, __v, ...cleanPayload } = payload as any;
+    if (cleanPayload.settings?.security?.requireSupervisorWitness !== undefined) {
+      if (cleanPayload.settings.requireSupervisorWitness === undefined) {
+        cleanPayload.settings.requireSupervisorWitness = cleanPayload.settings.security.requireSupervisorWitness;
+      }
+      const { requireSupervisorWitness, ...cleanSecurity } = cleanPayload.settings.security;
+      cleanPayload.settings = { ...cleanPayload.settings, security: cleanSecurity };
+    }
     const response = await apiClient.post<{ success: boolean; data: KioskJourney }>('/kiosk/journeys', cleanPayload);
     return response.data.data;
   },
@@ -27,6 +39,13 @@ export const kioskService = {
 
   updateJourney: async (id: string, payload: Partial<KioskJourney>): Promise<KioskJourney> => {
     const { _id, organizationId, createdAt, updatedAt, createdBy, updatedBy, isDeleted, deletedAt, __v, ...cleanPayload } = payload as any;
+    if (cleanPayload.settings?.security?.requireSupervisorWitness !== undefined) {
+      if (cleanPayload.settings.requireSupervisorWitness === undefined) {
+        cleanPayload.settings.requireSupervisorWitness = cleanPayload.settings.security.requireSupervisorWitness;
+      }
+      const { requireSupervisorWitness, ...cleanSecurity } = cleanPayload.settings.security;
+      cleanPayload.settings = { ...cleanPayload.settings, security: cleanSecurity };
+    }
     const response = await apiClient.put<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}`, cleanPayload);
     return response.data.data;
   },
@@ -110,9 +129,27 @@ export const kioskService = {
     return { device, token, deviceToken: token };
   },
 
-  heartbeat: async (payload: { currentContentVersion: number; telemetry: KioskTelemetry }): Promise<{ status: string; pendingCommands: KioskCommand[] }> => {
-    const response = await apiClient.post<{ success: boolean; data: { status: string; pendingCommands: KioskCommand[] } }>('/kiosk/devices/heartbeat', payload);
-    return response.data.data;
+  heartbeat: async (payload: {
+    currentContentVersion?: number;
+    telemetry?: KioskTelemetry;
+    batteryLevel?: number;
+    isCharging?: boolean;
+    storageUsedBytes?: number;
+    storageFreeBytes?: number;
+    storageTotalBytes?: number;
+    networkLatencyMs?: number;
+    screenResolution?: string;
+    orientation?: string;
+    appVersion?: string;
+  }): Promise<{ success: boolean; serverTime: number; commands: PendingCommand[]; data?: any }> => {
+    const response = await apiClient.post<any>('/kiosk/devices/heartbeat', payload);
+    const data = response.data;
+    return {
+      success: data?.success ?? true,
+      serverTime: data?.serverTime || Date.now(),
+      commands: data?.commands || data?.data?.commands || [],
+      data: data?.data || data
+    };
   },
 
   listDevices: async (params?: { page?: number; limit?: number; status?: string }): Promise<{ devices: KioskDevice[]; total: number }> => {
@@ -305,6 +342,8 @@ export const kioskService = {
       quizScore?: number;
       ppeItemsVerified?: string[];
       verificationChecksum?: string;
+      completedStepIds?: string[];
+      completedStepId?: string;
     }
   ): Promise<KioskSession> => {
     const headers: Record<string, string> = {};
@@ -390,5 +429,27 @@ export const kioskService = {
       params: organizationId ? { organizationId } : undefined
     });
     return response.data.emergency || response.data.data || null;
+  },
+
+  // --- K-ANA-003: Safety Compliance Reporting & Audit Packet ---
+  getComplianceSummary: async (params?: ComplianceFilterParams): Promise<KioskComplianceSummary> => {
+    const response = await apiClient.get<{ success: boolean; data: KioskComplianceSummary }>('/kiosk/compliance/summary', { params });
+    return response.data.data;
+  },
+
+  getComplianceByDepartment: async (params?: ComplianceFilterParams): Promise<DepartmentComplianceResponse> => {
+    const response = await apiClient.get<{ success: boolean; data: DepartmentComplianceResponse }>('/kiosk/compliance/by-department', { params });
+    return response.data.data;
+  },
+
+  exportComplianceReport: async (params?: ComplianceFilterParams): Promise<{ blob: Blob; filename: string }> => {
+    const response = await apiClient.get('/kiosk/compliance/export', {
+      params,
+      responseType: 'blob'
+    });
+    const disposition = (response.headers as any)?.['content-disposition'] || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `compliance-audit-packet-${Date.now()}.csv`;
+    return { blob: response.data, filename };
   }
 };

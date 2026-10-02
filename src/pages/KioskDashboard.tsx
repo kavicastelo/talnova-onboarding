@@ -10,25 +10,17 @@ import {
   Trash2,
   Edit2,
   ExternalLink,
-  Cpu,
-  Battery,
-  HardDrive,
-  Wifi,
-  RotateCcw,
-  Zap,
-  CheckCircle2,
-  XCircle,
   Clock,
   Globe,
   Loader2,
   Copy,
   Check,
   Key,
-  Wrench,
   Folder,
   Building2,
   Layers,
-  Search
+  Search,
+  ShieldCheck
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -51,9 +43,10 @@ import { KioskJourney } from '../types/kiosk/journey.types';
 import { KioskDevice } from '../types/kiosk/device.types';
 import { KioskDeviceGroup } from '../types/kiosk/group.types';
 import { KioskAnalyticsSummary } from '../types/kiosk/analytics.types';
-import { KioskBuilder, DeviceAssignmentModal, DeviceGroupModal } from '../features/kiosk';
+import { KioskBuilder, DeviceAssignmentModal, DeviceGroupModal, FleetDashboardTab } from '../features/kiosk';
+import { KioskComplianceDashboard } from './kiosk/KioskComplianceDashboard';
 
-type TabType = 'journeys' | 'devices' | 'groups' | 'analytics';
+type TabType = 'journeys' | 'devices' | 'groups' | 'analytics' | 'compliance';
 
 export function KioskDashboard() {
   const { t } = useTranslation(['kiosk', 'common']);
@@ -64,7 +57,6 @@ export function KioskDashboard() {
   const [loading, setLoading] = useState<boolean>(true);
 
   const journeysPagination = usePagination({ data: journeys, initialPageSize: 6 });
-  const devicesPagination = usePagination({ data: devices, initialPageSize: 5 });
   
   // Builder integration
   const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
@@ -436,6 +428,18 @@ export function KioskDashboard() {
           <BarChart2 className="w-4 h-4" />
           <span>{t('tabs.analytics', { defaultValue: 'Terminal Telemetry' })}</span>
         </button>
+        <button
+          onClick={() => setActiveTab('compliance')}
+          className={`pb-3 text-sm font-semibold border-b-2 transition flex items-center space-x-2 ${
+            activeTab === 'compliance'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+          data-testid="tab-compliance"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>{t('tabs.compliance', { defaultValue: 'Safety Compliance' })}</span>
+        </button>
       </div>
 
       {/* TAB 1: KIOSK JOURNEYS LIST */}
@@ -542,272 +546,22 @@ export function KioskDashboard() {
         </div>
       )}
 
-      {/* TAB 2: PHYSICAL TERMINALS REGISTRY */}
+      {/* TAB 2: FLEET MANAGEMENT DASHBOARD (K-DEV-006) */}
       {activeTab === 'devices' && (
-        <div className="space-y-6">
-          {/* Summary Badges */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <Card className="p-5 flex items-center space-x-4 border border-slate-200">
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-slate-800">
-                  {devices.filter(d => d.status === 'online').length}
-                </div>
-                <div className="text-xs text-slate-500 font-medium">{t('devicesList.onlineTerminals', { defaultValue: 'Online Terminals' })}</div>
-              </div>
-            </Card>
-            <Card className="p-5 flex items-center space-x-4 border border-slate-200">
-              <div className="p-3 rounded-xl bg-slate-50 text-slate-500">
-                <XCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-slate-800">
-                  {devices.filter(d => d.status === 'offline').length}
-                </div>
-                <div className="text-xs text-slate-500 font-medium">{t('devicesList.offlineTerminals', { defaultValue: 'Offline Terminals' })}</div>
-              </div>
-            </Card>
-            <Card className="p-5 flex items-center space-x-4 border border-slate-200">
-              <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
-                <Tv className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-slate-800">{devices.length}</div>
-                <div className="text-xs text-slate-500 font-medium">{t('devicesList.totalHardware', { defaultValue: 'Total Paired Hardware' })}</div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Devices Grid List */}
-          <Card className="overflow-hidden border border-slate-200">
-            <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">{t('devicesList.registryTitle', { defaultValue: 'Paired Devices Registry' })}</h3>
-                <p className="text-xs text-slate-500">{t('devicesList.registryDesc', { defaultValue: 'Live operational status and paired kiosk journeys for connected hardware.' })}</p>
-              </div>
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => setPairTerminalModalOpen(true)}
-                data-testid="pair-terminal-btn-tab"
-                className="flex items-center space-x-1.5"
-              >
-                <Tv className="w-3.5 h-3.5" />
-                <span>{t('pairTerminal', { defaultValue: 'Pair New Terminal' })}</span>
-              </Button>
-            </div>
-            
-            {loading ? (
-              <div className="p-12 text-center text-slate-400">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                <span>{t('devicesList.loadingTerminals', { defaultValue: 'Loading active terminals...' })}</span>
-              </div>
-            ) : devices.length === 0 ? (
-              <div className="p-16 text-center text-slate-400">
-                <Tv className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                <p className="font-semibold text-slate-500">{t('devicesList.emptyTitle', { defaultValue: 'No paired terminals found' })}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{t('devicesList.emptyDesc', { defaultValue: 'Device registration starts on physical hardware using pairing pins.' })}</p>
-              </div>
-            ) : (
-              <div>
-                <div className="divide-y divide-slate-100">
-                  {devicesPagination.paginatedData.map((device) => {
-                    const linkedJourney = journeys.find(j => j._id === device.currentJourneyId);
-                    const isMaintenance = device.status === 'maintenance';
-                    const isOnline = device.status === 'online';
-                    
-                    return (
-                      <div key={device._id} data-testid="terminal-card" className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-slate-50/50 transition">
-                        
-                        {/* Name & Placement Details */}
-                        <div className="space-y-1.5 max-w-sm">
-                          <div className="flex items-center space-x-2">
-                            <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-md shadow-emerald-400/50' : isMaintenance ? 'bg-amber-500 shadow-md shadow-amber-400/50' : 'bg-slate-300'}`} />
-                            <h4 data-testid="terminal-name" className="font-bold text-slate-800 text-sm">{device.name}</h4>
-                            <Badge
-                              data-testid="device-status-badge"
-                              variant={isOnline ? 'default' : isMaintenance ? 'outline' : 'secondary'}
-                              className={`text-[9px] py-0 px-2 font-semibold ${
-                                isOnline
-                                  ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
-                                  : isMaintenance
-                                  ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
-                                  : 'bg-slate-100 text-slate-600'
-                              }`}
-                            >
-                              {isOnline ? t('devicesList.statusOnline', { defaultValue: 'Online / Paired' }) : isMaintenance ? t('devicesList.statusMaintenance', { defaultValue: 'Maintenance' }) : t('devicesList.statusOffline', { defaultValue: 'Offline' })}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-slate-500 flex items-center">
-                            <span data-testid="terminal-location" className="font-semibold text-slate-600 mr-1.5">{device.location}</span>
-                            <span className="text-slate-300">|</span>
-                            <span data-testid="terminal-guid" className="font-mono text-[10px] ml-1.5 text-slate-400 truncate max-w-[150px]" title={device.deviceId}>
-                              GUID: {device.deviceId}
-                            </span>
-                          </p>
-                        </div>
-
-                        {/* Assigned Content Journeys (Multi-Journey Engine K-ASN-001) */}
-                        <div className="flex flex-col space-y-1.5 min-w-[200px] max-w-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                              {t('devicesList.assignedJourneys', { defaultValue: 'Assigned Journeys' })}
-                              {device.assignments && device.assignments.length > 0 && ` (${device.assignments.length})`}
-                            </span>
-                            <button
-                              onClick={() => {
-                                setSelectedDevice(device);
-                                setAssignmentModalOpen(true);
-                              }}
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition"
-                            >
-                              {t('devicesList.manageAssignments', { defaultValue: 'Manage...' })}
-                            </button>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5 items-center">
-                            {device.assignments && device.assignments.length > 0 ? (
-                              device.assignments.map((a: any, idx: number) => {
-                                const jId = (a.journeyId?._id || a.journeyId || '').toString();
-                                const j = journeys.find((item) => item._id === jId);
-                                const title = j?.title || a.journeyTitle || a.title || `Journey #${idx + 1}`;
-                                return (
-                                  <span
-                                    key={a._id || idx}
-                                    className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-xs"
-                                    title={`Priority ${idx + 1}${a.isMandatory ? ' (Mandatory)' : ''}`}
-                                  >
-                                    <span className="font-bold text-indigo-500 mr-1">#{idx + 1}</span>
-                                    <span className="truncate max-w-[130px]">{title}</span>
-                                    {a.isMandatory && (
-                                      <span className="ml-1 text-[9px] font-bold bg-amber-200 text-amber-900 px-1 rounded">
-                                        Req
-                                      </span>
-                                    )}
-                                  </span>
-                                );
-                              })
-                            ) : linkedJourney ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                <span className="font-bold text-slate-400 mr-1">#1</span>
-                                <span className="truncate max-w-[140px]">{linkedJourney.title}</span>
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400 italic">
-                                {t('devicesList.noJourneyPaired', { defaultValue: 'No journeys assigned' })}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Telemetry metrics dashboard */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
-                          <div className="flex items-center space-x-2">
-                            <Battery className="w-4 h-4 text-slate-500" />
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.battery', { defaultValue: 'Battery' })}</span>
-                              <span className="text-xs font-semibold text-slate-700">
-                                {device.telemetry?.batteryLevel !== undefined ? `${Math.round(device.telemetry.batteryLevel * 100)}%` : 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <HardDrive className="w-4 h-4 text-slate-500" />
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.freeSpace', { defaultValue: 'Free Space' })}</span>
-                              <span className="text-xs font-semibold text-slate-700">
-                                {device.telemetry?.storageFreeBytes !== undefined 
-                                  ? `${(device.telemetry.storageFreeBytes / 1024 / 1024 / 1024).toFixed(1)} GB` 
-                                  : 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Wifi className="w-4 h-4 text-slate-500" />
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.latency', { defaultValue: 'Latency' })}</span>
-                              <span className="text-xs font-semibold text-slate-700">
-                                {device.telemetry?.networkLatencyMs !== undefined ? `${device.telemetry.networkLatencyMs}ms` : 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Cpu className="w-4 h-4 text-slate-500" />
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-450 uppercase font-bold">{t('devicesList.appVersion', { defaultValue: 'App version' })}</span>
-                              <span className="text-xs font-mono font-semibold text-slate-700">
-                                {device.telemetry?.appVersion || 'v1.0.0'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Dispatch panel admin command actions */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                            data-testid={`toggle-maintenance-${device._id}`}
-                            onClick={() => handleToggleMaintenance(device._id, device.status)}
-                            className={`px-2 py-1 bg-white border rounded text-[10px] font-semibold transition flex items-center space-x-1 ${
-                              device.status === 'maintenance'
-                                ? 'border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100'
-                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800'
-                            }`}
-                            title={device.status === 'maintenance' ? t('devicesList.resumeOperation', { defaultValue: 'Resume device operation' }) : t('devicesList.putMaintenance', { defaultValue: 'Put device in Maintenance Mode' })}
-                          >
-                            <Wrench className="w-3 h-3" />
-                            <span>{device.status === 'maintenance' ? t('devicesList.exitMaintenance', { defaultValue: 'Exit Maint.' }) : t('devicesList.maintenance', { defaultValue: 'Maintenance' })}</span>
-                          </button>
-                          <button
-                            onClick={() => handleDispatchCommand(device._id, 'refresh_cache')}
-                            className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
-                            title={t('devicesList.refreshCacheTitle', { defaultValue: 'Refresh cached local content' })}
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>{t('devicesList.syncCache', { defaultValue: 'Sync Cache' })}</span>
-                          </button>
-                          <button
-                            onClick={() => handleDispatchCommand(device._id, 'restart_app')}
-                            className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-semibold hover:border-slate-300 hover:text-slate-800 transition flex items-center space-x-1"
-                            title={t('devicesList.restartAppTitle', { defaultValue: 'Restart physical screen app wrapper' })}
-                          >
-                            <Zap className="w-3 h-3 text-amber-500" />
-                            <span>{t('devicesList.restart', { defaultValue: 'Restart' })}</span>
-                          </button>
-                          <button
-                            data-testid={`revoke-device-${device._id}`}
-                            onClick={() => handleRevokeDevice(device._id, device.name)}
-                            className="px-2 py-1 bg-white border border-rose-200 text-rose-600 rounded text-[10px] font-semibold hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 transition flex items-center space-x-1"
-                            title={t('devicesList.revokeTitle', { defaultValue: 'Instantaneously revoke credentials & decommission terminal' })}
-                          >
-                            <Trash2 className="w-3 h-3 text-rose-500" />
-                            <span>{t('devicesList.revoke', { defaultValue: 'Revoke' })}</span>
-                          </button>
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="p-3 border-t">
-                  <SimplePagination
-                    currentPage={devicesPagination.page}
-                    totalPages={devicesPagination.totalPages}
-                    totalItems={devicesPagination.totalItems}
-                    startIndex={devicesPagination.startIndex}
-                    endIndex={devicesPagination.endIndex}
-                    pageSize={devicesPagination.pageSize}
-                    onPageChange={devicesPagination.setPage}
-                    onPageSizeChange={devicesPagination.setPageSize}
-                    itemLabel={t('devicesList.terminalsLabel', { defaultValue: 'terminals' })}
-                  />
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
+        <FleetDashboardTab
+          devices={devices}
+          journeys={journeys}
+          loading={loading}
+          onRefreshFleet={fetchData}
+          onPairTerminal={() => setPairTerminalModalOpen(true)}
+          onToggleMaintenance={handleToggleMaintenance}
+          onDispatchCommand={handleDispatchCommand}
+          onRevokeDevice={handleRevokeDevice}
+          onManageAssignments={(device) => {
+            setSelectedDevice(device);
+            setAssignmentModalOpen(true);
+          }}
+        />
       )}
 
       {/* TAB: DEVICE GROUPS & SITE HIERARCHY (K-ASN-003) */}
@@ -1190,6 +944,11 @@ export function KioskDashboard() {
             </div>
           )}
         </div>
+      )}
+
+      {/* TAB 5: SAFETY COMPLIANCE REPORTING & AUDIT (K-ANA-003) */}
+      {activeTab === 'compliance' && (
+        <KioskComplianceDashboard isTab={true} />
       )}
 
       {/* CREATE MODAL */}

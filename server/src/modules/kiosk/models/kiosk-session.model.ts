@@ -48,6 +48,7 @@ export interface IKioskSession
   };
   verificationChecksum?: string;
   isOfflineSync: boolean;
+  clientSessionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -154,6 +155,12 @@ const KioskSessionSchema = new Schema<IKioskSession>(
       type: Boolean,
       default: false,
     },
+    clientSessionId: {
+      type: String,
+      trim: true,
+      sparse: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -165,6 +172,7 @@ KioskSessionSchema.index({ organizationId: 1, userId: 1, status: 1 });
 KioskSessionSchema.index({ organizationId: 1, deviceId: 1, startedAt: -1 });
 KioskSessionSchema.index({ organizationId: 1, journeyId: 1, status: 1 });
 KioskSessionSchema.index({ sessionToken: 1 }, { unique: true, sparse: true });
+KioskSessionSchema.index({ organizationId: 1, clientSessionId: 1 }, { unique: true, sparse: true });
 
 export const KioskSessionModel = mongoose.model<IKioskSession>(
   "KioskSession",

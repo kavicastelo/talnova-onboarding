@@ -4,6 +4,7 @@ export interface IKioskPairingCode extends Document {
   code: string;
   organizationId: mongoose.Types.ObjectId;
   deviceId?: string;
+  createdBy?: mongoose.Types.ObjectId;
   expiresAt: Date;
   attemptsCount: number;
   consumed: boolean;
@@ -29,6 +30,11 @@ export const KioskPairingCodeSchema = new Schema<IKioskPairingCode>(
     deviceId: {
       type: String,
       trim: true,
+      index: true
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
       index: true
     },
     expiresAt: {

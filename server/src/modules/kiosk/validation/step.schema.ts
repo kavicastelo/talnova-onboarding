@@ -70,7 +70,9 @@ export const KioskStepSchema = z
     blocks: z.array(KioskBlockSchema).readonly(),
     interaction: KioskInteractionSchema,
     quiz: KioskQuizConfigSchema.optional(),
-    requireSupervisorWitness: z.boolean().optional()
+    requireSupervisorWitness: z.boolean().optional(),
+    isMandatory: z.boolean().optional(),
+    isOptional: z.boolean().optional()
   })
   .strict()
   .superRefine((data, ctx) => {

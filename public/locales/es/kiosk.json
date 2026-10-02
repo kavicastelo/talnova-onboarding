@@ -1,0 +1,63 @@
+{
+  "title": "Operaciones de Quiosco y Terminales de Primera Línea",
+  "subtitle": "Gestione terminales físicos de inducción, jornadas fuera de línea, telemetría y códigos PIN de supervisores.",
+  "launcher": {
+    "portalBadge": "Portal Interactivo de Seguridad e Inducción",
+    "portalHeadline": "Jornadas de Seguridad Asignadas",
+    "portalSubheadline": "Toque cualquier tarjeta para comenzar las instrucciones interactivas, verificaciones de EPP o listas de cumplimiento.",
+    "searchPlaceholder": "Buscar jornadas por título o tema...",
+    "changeLanguage": "Cambiar Idioma",
+    "sync": "Sincronizar Jornadas Asignadas",
+    "mandatory": "Obligatorio",
+    "startJourney": "Iniciar Jornada",
+    "identifyAsEmployee": "Identificarse como Empleado",
+    "emergencyProtocol": "Protocolo de Emergencia",
+    "noJourneysTitle": "Modo de Espera del Terminal",
+    "noJourneysDesc": "No hay jornadas de seguridad asignadas o programadas actualmente para este terminal.",
+    "noSearchResultsTitle": "No se encontraron jornadas que coincidan con la búsqueda",
+    "noSearchResultsDesc": "Intente buscar con otros términos o limpie la búsqueda.",
+    "noCategoryJourneysTitle": "No Hay Jornadas En Esta Categoría",
+    "noCategoryJourneysDesc": "No se encontraron planes activos de seguridad para esta pestaña de filtro."
+  },
+  "player": {
+    "kioskMode": "Modo Quiosco",
+    "loadingScreen": "Cargando Pantalla del Quiosco...",
+    "accessError": "Error de Acceso al Quiosco",
+    "unableToLoad": "No se pudo cargar el contenido del quiosco.",
+    "exitPreview": "Salir de Vista Previa",
+    "exit": "Salir",
+    "videoFinished": "Video Finalizado",
+    "animation": "Demostración Animada",
+    "confirmVideoCompleted": "Confirmar Video Finalizado",
+    "checklistWarning": "Todos los elementos deben ser confirmados antes de completar la instrucción.",
+    "confirmCompleteBriefing": "Confirmar y Completar Instrucción",
+    "yes": "SÍ",
+    "noContentAvailable": "No hay contenido disponible para este paso.",
+    "restart": "Reiniciar",
+    "back": "Atrás",
+    "finish": "Finalizar",
+    "stepCanvas": "Lienzo de Pasos de Instrucción",
+    "headerLabel": "Encabezado del Terminal de Quiosco",
+    "switchLanguage": "Cambiar Idioma",
+    "unmute": "Activar Audio",
+    "mute": "Silenciar Audio",
+    "completedTitle": "Instrucción Completada con Éxito",
+    "worker": "Trabajador",
+    "untranslatedFallbackNotice": "Traducción no disponible para {{selectedLang}}. Mostrando versión en {{defaultLang}}."
+  },
+  "emergency": {
+    "title": "Protocolos de Emergencia de la Instalación"
+  },
+  "supervisor": {
+    "finishWitnessRequired": "Finalizar (Testigo Requerido)",
+    "attestationVerified": "Atestación de Supervisor Verificada",
+    "witnessedBy": "Presenciado por",
+    "auditFactRecorded": "Hecho oficial de custodia dual registrado en el libro de auditoría inmutable."
+  },
+  "modal": {
+    "languageTitle": "Seleccionar Idioma del Terminal",
+    "languageSubtitle": "Elija su idioma preferido para instrucciones de seguridad, listas de verificación y narración de audio.",
+    "searchPlaceholder": "Buscar por idioma o código (ej. Español, Arabic, es)...",
+    "fallbackNotice": "Las instrucciones de seguridad se mostrarán automáticamente en inglés si la traducción del paso no está disponible."
+  }
+}

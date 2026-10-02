@@ -13,6 +13,11 @@ import {
 import enCommon from './locales/en/common.json';
 import enNav from './locales/en/nav.json';
 import enAuth from './locales/en/auth.json';
+import enKiosk from './locales/en/kiosk.json';
+import esCommon from './locales/es/common.json';
+import esKiosk from './locales/es/kiosk.json';
+import arCommon from './locales/ar/common.json';
+import arKiosk from './locales/ar/kiosk.json';
 
 // Re-export from shared config so existing imports keep working
 export { SUPPORTED_LOCALES, LOCALE_DISPLAY_NAMES, LANG_STORAGE_KEY };
@@ -28,12 +33,21 @@ i18n
     fallbackLng: FALLBACK_LOCALE,
     supportedLngs: SUPPORTED_LOCALES,
 
-    // Core English namespaces are bundled synchronously for zero-latency initial render
+    // Core English, Spanish, and Arabic namespaces are bundled synchronously for zero-latency initial render
     resources: {
       en: {
         common: enCommon,
         nav: enNav,
         auth: enAuth,
+        kiosk: enKiosk,
+      },
+      es: {
+        common: esCommon,
+        kiosk: esKiosk,
+      },
+      ar: {
+        common: arCommon,
+        kiosk: arKiosk,
       },
     },
 

@@ -90,7 +90,9 @@ export const KioskStepMongooseSchema = new Schema(
     blocks: { type: [KioskBlockMongooseSchema], default: [] },
     interaction: { type: KioskInteractionMongooseSchema, required: true },
     quiz: { type: KioskQuizConfigMongooseSchema },
-    requireSupervisorWitness: { type: Boolean, default: false }
+    requireSupervisorWitness: { type: Boolean, default: false },
+    isMandatory: { type: Boolean },
+    isOptional: { type: Boolean }
   },
   { _id: false }
 );
@@ -99,8 +101,7 @@ export const KioskJourneySecuritySettingsMongooseSchema = new Schema(
   {
     protectionType: { type: String, required: true, default: "none" },
     pinCode: { type: String },
-    expiresAt: { type: Date },
-    requireSupervisorWitness: { type: Boolean, default: false }
+    expiresAt: { type: Date }
   },
   { _id: false }
 );
@@ -114,7 +115,10 @@ export const KioskJourneySettingsMongooseSchema = new Schema(
     hideNavigation: { type: Boolean, required: true, default: false },
     disableExit: { type: Boolean, required: true, default: true },
     security: { type: KioskJourneySecuritySettingsMongooseSchema, required: true },
-    requireSupervisorWitness: { type: Boolean, default: false }
+    requireSupervisorWitness: { type: Boolean, default: false },
+    minimumDurationSeconds: { type: Number, default: 0 },
+    enforceMandatorySteps: { type: Boolean, default: false },
+    passingScorePercentage: { type: Number }
   },
   { _id: false }
 );
