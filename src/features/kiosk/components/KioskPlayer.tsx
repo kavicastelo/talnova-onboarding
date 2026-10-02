@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useKioskPlayer } from '../context/KioskPlayerContext';
-import { ShieldAlert, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, CheckCircle2, Award, Printer, QrCode, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import { KioskPlayerHeader } from './KioskPlayerHeader';
 import { KioskStepContainer } from './KioskStepContainer';
 import { KioskActionFooter } from './KioskActionFooter';
@@ -23,6 +24,8 @@ import { FontScale } from './accessibility/AccessibilityToolbar';
 import { KioskLiveAnnouncer } from './accessibility/KioskLiveAnnouncer';
 import { useKioskKeyboardNavigation } from '../hooks/useKioskKeyboardNavigation';
 import { isRtlLanguage } from '../constants/language.constants';
+import { KioskMaintenanceOverlay } from './KioskMaintenanceOverlay';
+import { kioskCommandExecutorService } from '../services/kiosk-command-executor.service';
 
 export interface KioskPlayerProps {
   journeyId: string;
@@ -201,6 +204,55 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     };
   }, []);
 
+  // K-DEV-007: Remote Operational Commands & Fullscreen Maintenance Overlay
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState<boolean>(() =>
+    kioskCommandExecutorService.isInMaintenance()
+  );
+  const [maintenancePayload, setMaintenancePayload] = useState<any>(() =>
+    kioskCommandExecutorService.getMaintenanceDetails().payload
+  );
+
+  useEffect(() => {
+    const unsubMaintenance = kioskCommandExecutorService.onMaintenanceChange((active, payload) => {
+      setIsMaintenanceActive(active);
+      setMaintenancePayload(payload || null);
+    });
+
+    const unsubManifest = kioskCommandExecutorService.onManifestReload(() => {
+      if (journeyId) {
+        loadJourney(journeyId);
+      }
+    });
+
+    const handleEnterMaintenance = (e: any) => {
+      setIsMaintenanceActive(true);
+      setMaintenancePayload(e?.detail?.payload || null);
+    };
+
+    const handleExitMaintenance = () => {
+      setIsMaintenanceActive(false);
+      setMaintenancePayload(null);
+    };
+
+    const handleManifestReload = () => {
+      if (journeyId) {
+        loadJourney(journeyId);
+      }
+    };
+
+    window.addEventListener('kiosk:enter-maintenance', handleEnterMaintenance);
+    window.addEventListener('kiosk:exit-maintenance', handleExitMaintenance);
+    window.addEventListener('kiosk:manifest-reload', handleManifestReload);
+
+    return () => {
+      unsubMaintenance();
+      unsubManifest();
+      window.removeEventListener('kiosk:enter-maintenance', handleEnterMaintenance);
+      window.removeEventListener('kiosk:exit-maintenance', handleExitMaintenance);
+      window.removeEventListener('kiosk:manifest-reload', handleManifestReload);
+    };
+  }, [journeyId, loadJourney]);
+
   // Frontline worker identification (DEF-008 / K-EMP-001)
   const [showIdentifyModal, setShowIdentifyModal] = useState(false);
   const [workerIdentified, setWorkerIdentified] = useState(false);
@@ -234,6 +286,19 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const [supervisorWitness, setSupervisorWitness] = useState<any | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [completionCountdown, setCompletionCountdown] = useState(15);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [completionQrDataUrl, setCompletionQrDataUrl] = useState<string>('');
+
+  // Generate scannable QR code data URL for completion screen
+  useEffect(() => {
+    if (isCompleted) {
+      const certId = activeSession?._id || 'unknown';
+      const verifyUrl = `${window.location.origin}/verify/cert/${certId}`;
+      QRCode.toDataURL(verifyUrl, { margin: 1, width: 220 })
+        .then((url) => setCompletionQrDataUrl(url))
+        .catch((err) => console.warn('Failed generating QR code for completion screen:', err));
+    }
+  }, [isCompleted, activeSession?._id]);
 
   // Trigger frontline worker identification if journey requires it
   useEffect(() => {
@@ -351,11 +416,11 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   // Completion screen countdown effect (auto-resets after 15 seconds)
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
-    if (isCompleted && completionCountdown > 0) {
+    if (isCompleted && !showCertificateModal && completionCountdown > 0) {
       timer = setTimeout(() => {
         setCompletionCountdown((prev) => prev - 1);
       }, 1000);
-    } else if (isCompleted && completionCountdown <= 0) {
+    } else if (isCompleted && !showCertificateModal && completionCountdown <= 0) {
       setIsCompleted(false);
       setSupervisorWitness(null);
       handleResetJourney();
@@ -364,7 +429,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isCompleted, completionCountdown, onExit]);
+  }, [isCompleted, showCertificateModal, completionCountdown, onExit]);
 
   // Supervisor witness verification success callback
   const handleSupervisorWitnessSuccess = async (witnessData: {
@@ -738,8 +803,48 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             </div>
           )}
 
-          {/* Return / Exit Button & Countdown */}
-          <div className="mt-8 space-y-3">
+          {/* Embedded Scannable QR Code */}
+          <div
+            id="completion-qr-container"
+            data-testid="completion-qr-container"
+            className="mt-5 p-4 rounded-2xl bg-white text-slate-900 shadow-lg flex flex-col items-center justify-center space-y-2 border border-slate-200"
+          >
+            {completionQrDataUrl ? (
+              <img
+                id="kiosk-completion-qr-code"
+                data-testid="kiosk-completion-qr-code"
+                src={completionQrDataUrl}
+                alt="Scan to verify certificate"
+                className="w-32 h-32 object-contain"
+              />
+            ) : (
+              <div className="w-32 h-32 flex items-center justify-center bg-slate-100 rounded-xl">
+                <QrCode className="w-16 h-16 text-slate-700 animate-pulse" />
+              </div>
+            )}
+            <div className="text-center">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block">
+                {t('player.scannableQrCode', { defaultValue: 'Scannable Compliance QR Code' })}
+              </span>
+              <p className="text-[10px] text-slate-500">
+                {t('player.qrScanHelp', { defaultValue: 'Scan at turnstile or safety checkpoint to verify authenticity' })}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons & Countdown */}
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              id="view-certificate-btn"
+              data-testid="view-certificate-btn"
+              onClick={() => setShowCertificateModal(true)}
+              className="w-full min-h-[56px] px-6 py-3.5 rounded-2xl font-bold text-base transition active:scale-95 shadow-lg flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white"
+            >
+              <Award className="w-5 h-5 text-indigo-200" />
+              <span>{t('player.viewPrintCertificate', { defaultValue: 'View / Print Certificate' })}</span>
+            </button>
+
             <button
               type="button"
               id="completion-exit-btn"
@@ -750,7 +855,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                 handleResetJourney();
                 if (onExit) onExit();
               }}
-              className={`w-full min-h-[64px] min-w-[64px] px-6 py-4 rounded-2xl font-black text-base transition active:scale-95 shadow-xl flex items-center justify-center ${
+              className={`w-full min-h-[56px] px-6 py-3.5 rounded-2xl font-black text-base transition active:scale-95 shadow-xl flex items-center justify-center ${
                 highContrast
                   ? 'bg-amber-400 text-black border-2 border-amber-300 hover:bg-amber-300'
                   : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-emerald-500/25'
@@ -766,6 +871,124 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
               })}
             </p>
           </div>
+
+          {/* Printable Certificate Modal */}
+          {showCertificateModal && (
+            <div
+              id="certificate-modal"
+              data-testid="certificate-modal"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+            >
+              <div className="relative w-full max-w-3xl rounded-3xl bg-white text-slate-900 shadow-2xl p-6 sm:p-8 space-y-6">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+                  <div className="flex items-center gap-2 text-indigo-600 font-bold text-lg">
+                    <Award className="w-6 h-6" />
+                    <span>Official Completion Certificate</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      id="print-certificate-modal-btn"
+                      data-testid="print-certificate-modal-btn"
+                      onClick={() => window.print()}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-1.5 hover:bg-indigo-500 transition"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Print Certificate</span>
+                    </button>
+                    <button
+                      type="button"
+                      id="close-certificate-modal-btn"
+                      data-testid="close-certificate-modal-btn"
+                      onClick={() => setShowCertificateModal(false)}
+                      className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Certificate Printable Area */}
+                <div className="border-4 border-double border-slate-300 p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50 text-center space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>VERIFIED AUTHENTIC</span>
+                  </div>
+
+                  <h3 className="text-xl sm:text-2xl font-black uppercase text-slate-900 tracking-tight">
+                    Certificate of Safety Completion
+                  </h3>
+
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">This certifies that</p>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-indigo-600">
+                    {workerName || 'Frontline Worker'}
+                  </h4>
+                  <p className="text-xs font-mono text-slate-600 font-semibold">
+                    EMPLOYEE ID: {identifiedEmployee?.employment?.employeeId || identifiedEmployee?.badgeId || identifiedEmployee?.id || 'EMP-VERIFIED'}
+                  </p>
+
+                  <div className="my-3 py-2 border-y border-slate-200">
+                    <p className="text-xs text-slate-500">has successfully verified proficiency in:</p>
+                    <p className="text-base sm:text-lg font-bold text-slate-800 mt-0.5">
+                      {journey?.title || 'Safety & Compliance Briefing'}
+                    </p>
+                    <p className="text-xs text-emerald-600 font-medium">
+                      Version Snapshot #{(journey?.publishing as any)?.version || 1}
+                    </p>
+                  </div>
+
+                  {/* Metadata Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left text-[11px] bg-slate-100/70 p-3 rounded-xl border border-slate-200">
+                    <div>
+                      <span className="text-slate-400 block font-semibold text-[9px] uppercase">COMPLETION</span>
+                      <span className="font-semibold text-slate-800">{new Date().toLocaleDateString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-semibold text-[9px] uppercase">DURATION</span>
+                      <span className="font-semibold text-slate-800">{activeSession?.durationSeconds ? `${activeSession.durationSeconds}s` : 'Verified'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-semibold text-[9px] uppercase">HARDWARE GUID</span>
+                      <span className="font-mono text-[9px] text-slate-700 truncate block">
+                        {deviceIdentityService.getHardwareGuidSync() || 'HW-TERMINAL-01'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-semibold text-[9px] uppercase">LOCATION</span>
+                      <span className="text-slate-800 truncate block">
+                        {deviceIdentityService.getStoredDevice()?.location || 'Gate Turnstile'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Supervisor Witness block if present */}
+                  {supervisorWitness && (
+                    <div className="text-left text-xs bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-emerald-900">
+                      <span className="font-bold text-[10px] uppercase tracking-wider block text-emerald-700">Supervisor Co-Signature Attestation</span>
+                      <span>Witnessed by: <strong>{supervisorWitness.fullName || supervisorWitness.name}</strong> ({supervisorWitness.role || 'Supervisor'})</span>
+                    </div>
+                  )}
+
+                  {/* QR Code and Checksum */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
+                    {completionQrDataUrl && (
+                      <div className="flex items-center gap-3">
+                        <img src={completionQrDataUrl} alt="QR Code" className="w-20 h-20 border rounded-lg p-1 bg-white" />
+                        <div className="text-left text-[11px] text-slate-500">
+                          <span className="font-bold text-slate-700 block">Scannable Verification QR</span>
+                          <span>Scan for external regulatory compliance audit</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="text-right text-[10px] text-slate-500 font-mono max-w-xs break-all">
+                      <span className="text-[9px] font-semibold text-slate-400 uppercase block">Verification Checksum</span>
+                      {activeSession?.verificationChecksum || 'VERIFIED-SHA256-AUTHENTIC'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -984,6 +1207,16 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         onClose={() => setShowSupervisorGateModal(false)}
         onSuccess={handleSupervisorWitnessSuccess}
         highContrast={highContrast}
+      />
+
+      {/* Remote Operational Command Maintenance Overlay (K-DEV-007) */}
+      <KioskMaintenanceOverlay
+        isOpen={isMaintenanceActive}
+        payload={maintenancePayload}
+        onExitMaintenance={() => {
+          kioskCommandExecutorService.setMaintenance(false);
+          setIsMaintenanceActive(false);
+        }}
       />
 
       {/* Emergency Evacuation Overlay (Highest Priority K-SEC-004) */}

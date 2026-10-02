@@ -171,6 +171,7 @@ export function SuperAdminActivity() {
                 <span className="text-xs text-slate-500 px-2 font-medium">Category:</span>
                 {[
                   { id: 'all', label: 'All' },
+                  { id: 'kiosk', label: 'Kiosks' },
                   { id: 'security', label: 'Security' },
                   { id: 'tenant', label: 'Tenants' },
                   { id: 'onboarding', label: 'Journeys' },

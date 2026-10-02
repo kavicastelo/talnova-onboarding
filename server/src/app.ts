@@ -11,6 +11,7 @@ import registerRateLimit from "./plugins/rate-limit.js";
 import registerMultipart from "./plugins/multipart.js";
 import registerJwt from "./plugins/jwt.js";
 import registerSwagger from "./plugins/swagger.js";
+import registerKioskSentinel from "./plugins/kiosk-sentinel.plugin.js";
 
 import registerRequestId from "./middleware/request-id.middleware.js";
 import registerLogging from "./middleware/logging.middleware.js";
@@ -72,6 +73,7 @@ export async function buildApp() {
   await registerMultipart(app);
   await registerJwt(app);
   await registerSwagger(app);
+  await registerKioskSentinel(app);
 
   // Set custom Zod validation compiler
   setupZodValidation(app);
@@ -116,6 +118,7 @@ export async function buildApp() {
   await app.register(gamificationRoutes, { prefix: "/api/v1/gamification" });
   await app.register(aiAssistantRoutes, { prefix: "/api/v1/ai" });
   await app.register(certificateRoutes, { prefix: "/api/v1/certificates" });
+  await app.register(certificateRoutes, { prefix: "/api/v1/public/certificates" });
   await app.register(onboardingRoutes, { prefix: "/api/v1/onboarding" });
   await app.register(demoRoutes, { prefix: "/api/v1/demo" });
   await app.register(demoSuperAdminRoutes, { prefix: "/api/v1/super-admin/demo" });

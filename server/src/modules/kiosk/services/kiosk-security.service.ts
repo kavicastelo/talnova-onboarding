@@ -7,6 +7,7 @@ export interface PairingData {
   orgId: string;
   deviceId: string;
   expiresAt: number;
+  createdBy?: string;
 }
 
 export class KioskSecurityService {
@@ -50,7 +51,7 @@ export class KioskSecurityService {
    * Generates a cryptographically secure, 6-digit numeric pairing code (CSPRNG)
    * stored persistently in MongoDB with TTL auto-expiry index (15 minutes).
    */
-  async generatePairingCode(orgId: string, deviceId?: string, ttlMs = 900000): Promise<string> {
+  async generatePairingCode(orgId: string, deviceId?: string, ttlMs = 900000, createdBy?: string): Promise<string> {
     let code = "";
     let collisionRetries = 0;
 
@@ -73,6 +74,7 @@ export class KioskSecurityService {
       code,
       organizationId: new mongoose.Types.ObjectId(orgId),
       deviceId: deviceId || undefined,
+      createdBy: createdBy && mongoose.Types.ObjectId.isValid(createdBy) ? new mongoose.Types.ObjectId(createdBy) : undefined,
       expiresAt,
       consumed: false,
       attemptsCount: 0
@@ -127,7 +129,8 @@ export class KioskSecurityService {
     return {
       orgId: record.organizationId.toString(),
       deviceId: record.deviceId || "",
-      expiresAt: record.expiresAt.getTime()
+      expiresAt: record.expiresAt.getTime(),
+      createdBy: record.createdBy?.toString()
     };
   }
 

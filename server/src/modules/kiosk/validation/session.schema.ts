@@ -58,6 +58,8 @@ export const CompleteKioskSessionSchema = z
     quizScore: z.number().min(0).max(100).optional(),
     ppeItemsVerified: z.array(z.string()).optional(),
     verificationChecksum: z.string().optional(),
+    completedStepIds: z.array(z.string()).optional(),
+    completedStepId: z.string().optional(),
   })
   .optional()
   .nullable()

@@ -25,6 +25,7 @@ import { z } from "zod";
 import mongoose from "mongoose";
 import { storageConfig } from "../../../config/index.js";
 import AppError from "../../../common/errors/app-error.js";
+import { kioskCertificateService } from "../services/kiosk-certificate.service.js";
 
 export async function kioskRoutes(app: FastifyInstance) {
   const journeyRepo = new KioskJourneyRepository();
@@ -57,6 +58,34 @@ export async function kioskRoutes(app: FastifyInstance) {
   app.get(
     "/sessions/:id",
     controller.getSession as any
+  );
+
+  // GET /api/v1/kiosk/sessions/:id/certificate (Retrieve structured completion certificate)
+  app.get(
+    "/sessions/:id/certificate",
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const certData = await kioskCertificateService.generateCertificateData(id);
+      return reply.status(200).send({
+        success: true,
+        data: certData,
+      });
+    }
+  );
+
+  // GET /api/v1/kiosk/sessions/:id/certificate/svg (Render high-resolution vector SVG certificate)
+  app.get(
+    "/sessions/:id/certificate/svg",
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const certData = await kioskCertificateService.generateCertificateData(id);
+      const svg = await kioskCertificateService.generateSvgCertificate(certData);
+      return reply
+        .header("Content-Type", "image/svg+xml; charset=utf-8")
+        .header("Content-Disposition", `inline; filename="certificate-${id}.svg"`)
+        .status(200)
+        .send(svg);
+    }
   );
 
   // POST /api/v1/kiosk/sessions (Start/create new formal kiosk session, K-EMP-002)
@@ -556,6 +585,25 @@ export async function kioskRoutes(app: FastifyInstance) {
       controller.setDeviceAssignments
     );
 
+    // POST /api/v1/kiosk/devices/:id/commands (Queue administrative command for device)
+    adminGroup.post(
+      "/devices/:id/commands",
+      {
+        schema: {
+          body: z
+            .object({
+              type: z.string().optional(),
+              command: z.string().optional(),
+              payload: z.record(z.string(), z.unknown()).optional()
+            })
+            .refine((data) => Boolean(data.type || data.command), {
+              message: "Either type or command must be provided"
+            })
+        }
+      },
+      controller.queueCommand
+    );
+
     // GET /api/v1/kiosk/devices/:id/assignments (List assigned journeys for device, K-ASN-001)
     adminGroup.get(
       "/devices/:id/assignments",
@@ -587,6 +635,9 @@ export async function kioskRoutes(app: FastifyInstance) {
     // GET /api/v1/kiosk/journeys/:id/analytics
     adminGroup.get("/journeys/:id/analytics", controller.getJourneyAnalyticsSummary);
 
+    // GET /api/v1/kiosk/journeys/:id/analytics/funnel (K-ANA-001 Step Funnel Drop-off)
+    adminGroup.get("/journeys/:id/analytics/funnel", controller.getStepDropOffFunnel);
+
     // POST /api/v1/kiosk/supervisor/pin (Set or update supervisor 4-digit PIN)
     adminGroup.post(
       "/supervisor/pin",
@@ -614,6 +665,12 @@ export async function kioskRoutes(app: FastifyInstance) {
       controller.toggleMaintenanceMode
     );
 
+    // POST /api/v1/kiosk/devices/sentinel/scan (Trigger Fleet Health Sentinel Scan)
+    adminGroup.post(
+      "/devices/sentinel/scan",
+      controller.triggerFleetHealthSentinel
+    );
+
     // POST /api/v1/kiosk/devices/:id/revoke (Revoke device credentials and decommission, K-DEV-004)
     adminGroup.post(
       "/devices/:id/revoke",
@@ -625,6 +682,16 @@ export async function kioskRoutes(app: FastifyInstance) {
       "/devices/:id",
       controller.revokeDevice
     );
+
+    // --- Compliance & Audit Packet Endpoints (K-ANA-003) ---
+    // GET /api/v1/kiosk/compliance/summary (Overall compliance summary)
+    adminGroup.get("/compliance/summary", controller.getComplianceSummary);
+
+    // GET /api/v1/kiosk/compliance/by-department (Departmental breakdown)
+    adminGroup.get("/compliance/by-department", controller.getComplianceByDepartment);
+
+    // GET /api/v1/kiosk/compliance/export (Export compliance audit report CSV/JSON)
+    adminGroup.get("/compliance/export", controller.exportComplianceReport);
   });
 }
 

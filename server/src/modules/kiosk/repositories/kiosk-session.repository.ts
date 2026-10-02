@@ -12,6 +12,8 @@ export interface KioskSessionTransitionMetadata {
   quizScore?: number;
   ppeItemsVerified?: string[];
   durationIncrement?: number;
+  durationSeconds?: number;
+  completedStepIds?: string[];
   [key: string]: any;
 }
 
@@ -68,7 +70,6 @@ export class KioskSessionRepository {
     }
 
     const stepsToAdd = [
-      ...(stepId ? [stepId] : []),
       ...(completedStepIds || [])
     ];
     if (stepsToAdd.length > 0) {
@@ -123,6 +124,12 @@ export class KioskSessionRepository {
     }
     if (metadata?.ppeItemsVerified) {
       setFields.ppeItemsVerified = metadata.ppeItemsVerified;
+    }
+    if (metadata?.completedStepIds && Array.isArray(metadata.completedStepIds)) {
+      setFields.completedStepIds = metadata.completedStepIds;
+    }
+    if (typeof metadata?.durationSeconds === "number") {
+      setFields.durationSeconds = metadata.durationSeconds;
     }
 
     const updateDoc: Record<string, any> = {

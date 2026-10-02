@@ -8,12 +8,25 @@ import {
 } from "./common.types.js";
 
 export interface KioskTelemetry {
-  readonly batteryLevel?: number; // 0.0 to 1.0
+  readonly batteryLevel?: number; // 0.0 to 1.0 or 0 to 100
   readonly isCharging?: boolean;
   readonly storageUsedBytes?: number;
   readonly storageFreeBytes?: number;
+  readonly storageTotalBytes?: number;
   readonly appVersion?: string;
   readonly networkLatencyMs?: number;
+  readonly screenResolution?: string;
+  readonly orientation?: string;
+}
+
+export interface PendingCommand {
+  readonly id: string;
+  readonly type: string;
+  readonly command?: string;
+  readonly payload?: Readonly<Record<string, unknown>> | any;
+  readonly status?: "pending" | "dispatched" | "completed" | "failed";
+  readonly createdAt: Timestamp | Date;
+  readonly dispatchedAt?: Timestamp | Date;
 }
 
 export interface KioskDevice {
@@ -48,6 +61,7 @@ export interface KioskDevice {
   readonly deletedAt?: Timestamp;
   readonly deletedBy?: string;
   readonly telemetry: KioskTelemetry;
+  readonly pendingCommands?: PendingCommand[];
 }
 
 import { KIOSK_COMMAND_TYPES } from "../../constants/kiosk/device.constants.js";

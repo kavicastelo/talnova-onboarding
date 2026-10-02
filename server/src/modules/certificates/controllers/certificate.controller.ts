@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import mongoose from "mongoose";
 import { Certificate } from "../models/certificate.model.js";
+import { kioskCertificateService } from "../../kiosk/services/kiosk-certificate.service.js";
 
 export class CertificateController {
   getMyCertificates = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -62,6 +63,21 @@ export class CertificateController {
     }
 
     try {
+      // 1. Try Kiosk Certificate verification first
+      try {
+        const kioskResult = await kioskCertificateService.verifyCertificate(id);
+        if (kioskResult && kioskResult.verified) {
+          return reply.status(200).send(kioskResult);
+        }
+      } catch (kioskErr: any) {
+        if (kioskErr?.statusCode === 400 || kioskErr?.code === "SESSION_NOT_COMPLETED") {
+          return reply.status(400).send({
+            success: false,
+            message: kioskErr.message,
+          });
+        }
+        // If 404, fall through to check standard certificates & assignments
+      }
       let certificate: any = null;
 
       if (mongoose.Types.ObjectId.isValid(id)) {

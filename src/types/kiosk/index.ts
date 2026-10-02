@@ -9,3 +9,4 @@ export * from "./analytics.types.js";
 export * from "./player.types.js";
 export * from "./builder.types.js";
 export * from "./emergency.types.js";
+export * from "./compliance.types.js";

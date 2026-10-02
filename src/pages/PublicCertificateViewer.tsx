@@ -123,13 +123,97 @@ export function PublicCertificateViewer() {
           organizationName={cert.branding.orgName}
           logoUrl={cert.branding.logoUrl}
           journeyTitle={cert.journeyTitle}
-          issuedAt={cert.issuedAt}
-          certificateId={cert.certificateId}
-          signatoryName={cert.certificate?.signatoryName}
-          signatoryTitle={cert.certificate?.signatoryTitle}
+          issuedAt={cert.completedAt || cert.issuedAt}
+          certificateId={cert.certificateNumber || cert.certificateId}
+          signatoryName={cert.certificate?.signatoryName || cert.supervisorWitness?.name}
+          signatoryTitle={cert.certificate?.signatoryTitle || (cert.supervisorWitness ? 'Supervisor Witness' : undefined)}
           signatureUrl={cert.certificate?.signatureUrl}
           qrCode={true}
         />
+      </div>
+
+      {/* Compliance & Regulatory Audit Inspection Record */}
+      <div
+        id="compliance-audit-record"
+        data-testid="compliance-audit-record"
+        className="max-w-4xl w-full mt-6 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm print:border-none print:shadow-none print:p-0"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              Auditor Compliance &amp; Verification Record
+            </h3>
+            <p className="text-xs text-slate-500">
+              Immutable regulatory proof of training completion for OSHA, ISO 45001, and general contractors.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Active Certified Status
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 text-xs">
+          <div>
+            <span className="text-slate-400 font-medium uppercase text-[10px] block">Worker Name &amp; ID</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm block">{cert.recipientName}</span>
+            <span className="font-mono text-slate-500 text-[11px]">{cert.employeeId || 'N/A'}</span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 font-medium uppercase text-[10px] block">Curriculum Version</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm block">{cert.journeyTitle}</span>
+            <span className="text-slate-500 text-[11px]">Snapshot v{cert.versionNumber || 1}.0</span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 font-medium uppercase text-[10px] block">Terminal &amp; Location</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 block">{cert.terminalName || 'Kiosk Terminal'}</span>
+            <span className="text-slate-500 text-[11px] block">{cert.physicalLocation || cert.location || 'Safety Gate'}</span>
+            <span className="font-mono text-[10px] text-slate-400 block">{cert.hardwareGuid || ''}</span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 font-medium uppercase text-[10px] block">Completion &amp; Duration</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+              {cert.completedAt ? new Date(cert.completedAt).toLocaleString() : cert.issuedAt ? new Date(cert.issuedAt).toLocaleString() : 'Verified'}
+            </span>
+            <span className="text-slate-500 text-[11px] block">
+              {cert.formattedDuration || (cert.durationSeconds ? `${cert.durationSeconds}s` : 'Recorded')}
+            </span>
+          </div>
+        </div>
+
+        {/* Supervisor Witness Row */}
+        {cert.supervisorWitness && (
+          <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
+            <div className="space-y-0.5">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold uppercase text-[10px] tracking-wider block">
+                Supervisor Witness Attestation
+              </span>
+              <p className="text-slate-700 dark:text-slate-300 font-medium">
+                {cert.supervisorWitness.name} &bull; Witnessed via {cert.supervisorWitness.method.toUpperCase()}
+              </p>
+              <p className="text-slate-500 text-[11px]">
+                {cert.supervisorWitness.attestation || 'Co-signed and verified via dual-custody authorization.'}
+              </p>
+            </div>
+            <span className="text-slate-400 font-mono text-[10px] whitespace-nowrap">
+              {new Date(cert.supervisorWitness.witnessedAt).toLocaleTimeString()}
+            </span>
+          </div>
+        )}
+
+        {/* Checksum Row */}
+        {(cert.verificationChecksum || cert.sha256Signature) && (
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
+            <span className="text-slate-400 uppercase font-semibold text-[10px]">SHA-256 Cryptographic Checksum</span>
+            <span className="font-mono text-slate-700 dark:text-slate-300 break-all select-all">
+              {cert.verificationChecksum || cert.sha256Signature}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Share / Actions bar */}

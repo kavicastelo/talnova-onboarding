@@ -432,7 +432,8 @@ export class KioskController {
       throw new AppError(400, "BAD_REQUEST", "deviceId is required to generate pairing code");
     }
 
-    const { code, expiresInSeconds } = await this.kioskService.generatePairingCode(user.organizationId, body.deviceId);
+    const userId = user?.userId || user?.id || user?._id;
+    const { code, expiresInSeconds } = await this.kioskService.generatePairingCode(user.organizationId, body.deviceId, userId);
     return reply.status(200).send({
       success: true,
       message: "Device pairing code generated successfully",
@@ -443,13 +444,15 @@ export class KioskController {
   };
 
   pairDevice = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
     const body = request.body as any;
 
     if (!body?.code || !body?.deviceId || !body?.name || !body?.location) {
       throw new AppError(400, "BAD_REQUEST", "Missing required pairing parameters (code, deviceId, name, location)");
     }
 
-    const result = await this.kioskService.pairDevice(body.code, body.deviceId, body.name, body.location);
+    const pairedByUserId = user?.userId || user?.id || user?._id || body.pairedBy;
+    const result = await this.kioskService.pairDevice(body.code, body.deviceId, body.name, body.location, pairedByUserId);
     return reply.status(200).send({
       success: true,
       message: "Device paired successfully",
@@ -526,19 +529,21 @@ export class KioskController {
       );
     }
 
+    const rawBattery = body.batteryLevel !== undefined ? body.batteryLevel : body.telemetry?.batteryLevel;
     const telemetry = {
       ...(body.telemetry || {}),
-      batteryLevel: body.batteryLevel !== undefined
-        ? (body.batteryLevel > 1 ? body.batteryLevel / 100 : body.batteryLevel)
-        : body.telemetry?.batteryLevel,
+      batteryLevel: rawBattery,
       appVersion: body.appVersion || body.telemetry?.appVersion,
       isCharging: body.isCharging !== undefined ? body.isCharging : body.telemetry?.isCharging,
       networkLatencyMs: body.networkLatencyMs !== undefined ? body.networkLatencyMs : body.telemetry?.networkLatencyMs,
       storageUsedBytes: body.storageUsedBytes !== undefined ? body.storageUsedBytes : body.telemetry?.storageUsedBytes,
       storageFreeBytes: body.storageFreeBytes !== undefined ? body.storageFreeBytes : body.telemetry?.storageFreeBytes,
+      storageTotalBytes: body.storageTotalBytes !== undefined ? body.storageTotalBytes : body.telemetry?.storageTotalBytes,
+      screenResolution: body.screenResolution || body.telemetry?.screenResolution,
+      orientation: body.orientation || body.screenOrientation || body.telemetry?.orientation || body.telemetry?.screenOrientation
     };
 
-    const updated = await this.kioskService.heartbeat(
+    const result = await this.kioskService.heartbeat(
       devicePayload.deviceId,
       authOrgId,
       body.currentContentVersion || body.contentVersion || 0,
@@ -547,35 +552,52 @@ export class KioskController {
 
     const activeEmergency = await this.kioskService.getActiveEmergency(authOrgId);
 
-    const updatedObj = typeof updated === "object" && updated !== null
-      ? (typeof (updated as any).toObject === "function" ? (updated as any).toObject() : updated)
-      : { device: updated };
+    const updatedDevice = (result as any).device || result;
+    const commands = (result as any).commands || [];
 
-    const emergencyCommands = activeEmergency
-      ? [
-          {
-            id: `cmd-emergency-${activeEmergency._id}`,
-            type: "emergency_override",
-            createdAt: activeEmergency.triggeredAt,
-            payload: activeEmergency
-          }
-        ]
-      : [];
+    const updatedObj = typeof updatedDevice === "object" && updatedDevice !== null
+      ? (typeof (updatedDevice as any).toObject === "function" ? (updatedDevice as any).toObject() : updatedDevice)
+      : { device: updatedDevice };
+
+    const serverTime = (result as any).serverTime || Date.now();
 
     const responsePayload: any = {
       success: true,
       status: "ok",
+      serverTime,
       message: "Heartbeat logged successfully",
       data: {
         ...updatedObj,
-        commands: emergencyCommands,
+        commands,
+        serverTime,
         ...(activeEmergency ? { activeEmergency, emergencyActive: true } : {})
       },
-      commands: emergencyCommands,
+      commands,
       ...(activeEmergency ? { activeEmergency, emergencyActive: true } : { activeEmergency: null, emergencyActive: false })
     };
 
     return reply.status(200).send(responsePayload);
+  };
+
+  queueCommand = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+
+    const deviceId = params.id || params.deviceId;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const command = await this.kioskService.queueCommand(deviceId, orgId, body);
+
+    return reply.status(201).send({
+      success: true,
+      message: "Command queued successfully",
+      data: command,
+      command
+    });
   };
 
   listDevices = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -663,11 +685,15 @@ export class KioskController {
   revokeDevice = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const params = request.params as any;
+    const body = (request.body as any) || {};
+    const query = (request.query as any) || {};
+    const reason = body.reason || query.reason;
 
     const device = await this.kioskService.revokeDevice(
       params.id,
       user.organizationId,
-      user.userId
+      user.userId || user.id || user._id,
+      reason
     );
 
     return reply.status(200).send({
@@ -763,6 +789,25 @@ export class KioskController {
       success: true,
       message: "Journey analytics summary retrieved successfully",
       data: summary
+    });
+  };
+
+  getStepDropOffFunnel = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const query = request.query as any;
+
+    const funnel = await this.kioskService.getJourneyDropOffFunnel(
+      params.id,
+      user.organizationId,
+      query.startDate,
+      query.endDate
+    );
+
+    return reply.status(200).send({
+      success: true,
+      message: "Step funnel drop-off analytics retrieved successfully",
+      data: funnel
     });
   };
 
@@ -901,6 +946,18 @@ export class KioskController {
       success: true,
       message: `Kiosk device maintenance mode ${isMaintenance ? "activated" : "deactivated"}`,
       data: device,
+    });
+  };
+
+  triggerFleetHealthSentinel = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const body = (request.body as any) || {};
+    const result = await this.kioskService.scanKioskFleetHealth(user?.organizationId, body);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Kiosk fleet health sentinel scan completed",
+      data: result,
     });
   };
 
@@ -1176,6 +1233,87 @@ export class KioskController {
     }
 
     return new Promise(() => {});
+  };
+
+  // --- K-ANA-003: Safety Compliance Reporting & Audit Packet Endpoints ---
+
+  getComplianceSummary = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const data = await this.kioskService.getComplianceSummary(orgId.toString(), {
+      journeyId: query?.journeyId,
+      startDate: query?.startDate,
+      endDate: query?.endDate,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Compliance summary retrieved successfully",
+      data,
+    });
+  };
+
+  getComplianceByDepartment = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const data = await this.kioskService.getComplianceByDepartment(orgId.toString(), {
+      journeyId: query?.journeyId,
+      startDate: query?.startDate,
+      endDate: query?.endDate,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Department compliance breakdown retrieved successfully",
+      data,
+    });
+  };
+
+  exportComplianceReport = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const query = (request.query || {}) as any;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const format = (query?.format || "csv").toString().toLowerCase() === "json" ? "json" : "csv";
+
+    const result = await this.kioskService.exportComplianceAuditPacket(orgId.toString(), {
+      journeyId: query?.journeyId,
+      startDate: query?.startDate,
+      endDate: query?.endDate,
+      department: query?.department,
+      format,
+    });
+
+    if (format === "json") {
+      return reply.status(200).send({
+        success: true,
+        message: "Compliance audit packet exported successfully",
+        data: result,
+      });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
+    return reply
+      .header("Content-Type", "text/csv; charset=utf-8")
+      .header(
+        "Content-Disposition",
+        `attachment; filename="compliance-audit-packet-${timestamp}.csv"`
+      )
+      .status(200)
+      .send(result);
   };
 }
 

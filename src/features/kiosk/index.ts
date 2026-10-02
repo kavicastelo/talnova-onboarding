@@ -33,3 +33,7 @@ export * from './components/accessibility/AccessibilityToolbar';
 export * from './components/accessibility/KioskLiveAnnouncer';
 export * from './services/kiosk-service-worker';
 export * from './services/offline-storage.service';
+export * from './services/kiosk-heartbeat.service';
+export * from './services/kiosk-command-executor.service';
+export * from './components/fleet/DeviceDetailDrawer';
+export * from './components/fleet/FleetDashboardTab';

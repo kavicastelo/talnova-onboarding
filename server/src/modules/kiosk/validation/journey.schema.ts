@@ -59,7 +59,10 @@ export const KioskJourneySettingsSchema = z
     hideNavigation: z.boolean(),
     disableExit: z.boolean(),
     requireSupervisorWitness: z.boolean().optional(),
-    security: KioskJourneySecuritySettingsSchema
+    security: KioskJourneySecuritySettingsSchema,
+    minimumDurationSeconds: z.number().nonnegative().optional(),
+    enforceMandatorySteps: z.boolean().optional(),
+    passingScorePercentage: z.number().min(0).max(100).optional()
   })
   .strict();
 

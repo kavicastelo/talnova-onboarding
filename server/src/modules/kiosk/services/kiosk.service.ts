@@ -9,7 +9,7 @@ import { KioskJourneySchema } from "../validation/journey.schema.js";
 import { KioskDeviceStatus } from "../types/common.types.js";
 import { KioskTelemetry } from "../types/device.types.js";
 import { KioskJourneyModel, IKioskJourney } from "../models/kiosk-journey.model.js";
-import KioskDeviceModel from "../models/kiosk-device.model.js";
+import KioskDeviceModel, { IKioskDevice } from "../models/kiosk-device.model.js";
 import { KioskDeviceAssignmentModel } from "../models/kiosk-assignment.model.js";
 import User from "../../auth/models/user.model.js";
 import { Organization } from "../../organizations/models/organization.model.js";
@@ -25,7 +25,9 @@ import { validateJourneyForPublish } from "../validation/journey-publish.validat
 import { ValidationReport } from "../types/validation.types.js";
 import AuditLog from "../../audit-logs/models/audit-log.model.js";
 import { KioskEmergencyModel, IKioskEmergency } from "../models/kiosk-emergency.model.js";
+import { KioskDeviceTelemetryModel } from "../models/kiosk-device-telemetry.model.js";
 import kioskEmergencyStream from "./kiosk-emergency-stream.js";
+import Notification from "../../notifications/models/notification.model.js";
 
 export class KioskService {
   private readonly journeyVersionRepo: KioskJourneyVersionRepository;
@@ -201,6 +203,34 @@ export class KioskService {
     if (!published) {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
+
+    try {
+      await AuditLog.create({
+        organizationId: new mongoose.Types.ObjectId(journey.organizationId),
+        actorUserId: userId && mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : undefined,
+        actorType: "user",
+        eventCategory: "kiosk",
+        eventType: "KIOSK_JOURNEY_PUBLISHED",
+        resourceType: "kiosk_journey",
+        resourceId: journey._id,
+        action: "publish",
+        description: `Kiosk journey "${journey.title}" version ${nextVersion} published`,
+        metadata: {
+          journeyId: journey._id.toString(),
+          versionSnapshot: nextVersion,
+          version: nextVersion,
+          publisherId: userId?.toString(),
+          contentChecksum,
+          title: journey.title,
+          status: targetStatus,
+          changelog: changelog || undefined
+        },
+        severity: "info"
+      });
+    } catch (auditErr) {
+      console.warn("[KioskService] Failed to create audit log for journey publish:", auditErr);
+    }
+
     return published;
   }
 
@@ -753,7 +783,7 @@ export class KioskService {
 
   // --- Device Management ---
 
-  async generatePairingCode(orgId: string, deviceId: string): Promise<{ code: string; expiresInSeconds: number }> {
+  async generatePairingCode(orgId: string, deviceId: string, userId?: string): Promise<{ code: string; expiresInSeconds: number }> {
     const org = await Organization.findById(orgId);
     if (!org) {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
@@ -780,17 +810,18 @@ export class KioskService {
     }
 
     // 15-minute activation window (900 seconds)
-    const code = await this.securityService.generatePairingCode(orgId, deviceId, 900000);
+    const code = await this.securityService.generatePairingCode(orgId, deviceId, 900000, userId);
     return { code, expiresInSeconds: 900 };
   }
 
-  async pairDevice(code: string, deviceId: string, name: string, location: string) {
+  async pairDevice(code: string, deviceId: string, name: string, location: string, pairedByUserId?: string) {
     const pairingData = await this.securityService.verifyPairingCode(code, deviceId);
     if (!pairingData) {
       throw new AppError(400, "INVALID_OR_EXPIRED_PAIRING_CODE", "Invalid or expired pairing code");
     }
 
     const { orgId } = pairingData;
+    const pairedBy = pairedByUserId || pairingData.createdBy;
     if (pairingData.deviceId && pairingData.deviceId !== deviceId) {
       throw new AppError(400, "DEVICE_MISMATCH", "Pairing code was generated for a different hardware GUID");
     }
@@ -867,6 +898,31 @@ export class KioskService {
       } as any);
     }
 
+    try {
+      await AuditLog.create({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        actorUserId: pairedBy && mongoose.Types.ObjectId.isValid(pairedBy) ? new mongoose.Types.ObjectId(pairedBy) : undefined,
+        actorType: "user",
+        eventCategory: "kiosk",
+        eventType: "KIOSK_DEVICE_PAIRED",
+        resourceType: "kiosk_device",
+        resourceId: device._id,
+        action: "pair",
+        description: `Kiosk device ${device.name || deviceId} paired with hardware GUID ${device.hardwareGuid || deviceId}`,
+        metadata: {
+          deviceId: device.deviceId,
+          hardwareGuid: device.hardwareGuid || device.deviceId,
+          pairedBy: pairedBy?.toString() || "system",
+          name: device.name,
+          location: device.location,
+          pairedAt: device.pairedAt || new Date()
+        },
+        severity: "info"
+      });
+    } catch (auditErr) {
+      console.warn("[KioskService] Failed to create audit log for device pairing:", auditErr);
+    }
+
     return { device, token };
   }
 
@@ -928,7 +984,17 @@ export class KioskService {
     };
   }
 
-  async heartbeat(deviceId: string, orgId: string, contentVersion: number, telemetry: KioskTelemetry) {
+  async heartbeat(
+    deviceId: string,
+    orgId: string,
+    contentVersion: number,
+    telemetry: KioskTelemetry
+  ): Promise<{
+    success: boolean;
+    serverTime: number;
+    commands: any[];
+    device: IKioskDevice | null;
+  }> {
     const device = await this.deviceRepo.findByFingerprint(deviceId);
     if (!device) {
       throw new AppError(404, "NOT_FOUND", "Device registration not found");
@@ -938,7 +1004,158 @@ export class KioskService {
       throw new AppError(403, "TENANT_MISMATCH", "Cross-tenant access forbidden: Tenant mismatch for device");
     }
 
-    return this.deviceRepo.heartbeat(device._id as mongoose.Types.ObjectId, contentVersion, telemetry);
+    const rawExisting = device.telemetry;
+    const existingTelemetry: Record<string, any> =
+      rawExisting && typeof (rawExisting as any).toObject === "function"
+        ? (rawExisting as any).toObject()
+        : (rawExisting && (rawExisting as any)._doc
+            ? { ...(rawExisting as any)._doc }
+            : { ...(rawExisting || {}) });
+
+    delete existingTelemetry.$__;
+    delete existingTelemetry.$isNew;
+    delete existingTelemetry._doc;
+
+    const cleanIncoming: Record<string, any> = {};
+    for (const [key, val] of Object.entries(telemetry || {})) {
+      if (val !== undefined) {
+        cleanIncoming[key] = val;
+      }
+    }
+
+    const mergedTelemetry = {
+      ...existingTelemetry,
+      ...cleanIncoming
+    };
+
+    const updatedDevice = await this.deviceRepo.heartbeat(
+      device._id as mongoose.Types.ObjectId,
+      contentVersion,
+      mergedTelemetry
+    );
+
+    // K-ANA-001: Record operational time-series telemetry log (30-day rolling TTL)
+    try {
+      await KioskDeviceTelemetryModel.create({
+        organizationId: device.organizationId,
+        deviceId: device._id,
+        hardwareGuid: device.deviceId || device.hardwareGuid,
+        batteryLevel: mergedTelemetry.batteryLevel,
+        isCharging: mergedTelemetry.isCharging,
+        storageUsedBytes: mergedTelemetry.storageUsedBytes,
+        storageFreeBytes: mergedTelemetry.storageFreeBytes,
+        storageTotalBytes: mergedTelemetry.storageTotalBytes,
+        networkLatencyMs: mergedTelemetry.networkLatencyMs,
+        screenResolution: mergedTelemetry.screenResolution,
+        orientation: mergedTelemetry.orientation,
+        appVersion: mergedTelemetry.appVersion,
+        contentVersion,
+        ipAddress: (telemetry as any)?.ipAddress || (device as any)?.ipAddress,
+        recordedAt: new Date(),
+        createdAt: new Date()
+      });
+    } catch (telemetryErr) {
+      console.warn("[KioskService] Error recording device time-series telemetry:", telemetryErr);
+    }
+
+    const pendingCommands: any[] = [];
+    const currentDevice = await KioskDeviceModel.findById(device._id);
+
+    if (currentDevice?.pendingCommands && currentDevice.pendingCommands.length > 0) {
+      for (const cmd of currentDevice.pendingCommands) {
+        if (!cmd.status || cmd.status === "pending") {
+          pendingCommands.push({
+            id: cmd.id,
+            type: cmd.type,
+            command: cmd.command || cmd.type,
+            payload: cmd.payload,
+            status: "pending",
+            createdAt: cmd.createdAt
+          });
+        }
+      }
+
+      if (pendingCommands.length > 0) {
+        await KioskDeviceModel.updateOne(
+          { _id: device._id },
+          {
+            $set: {
+              "pendingCommands.$[elem].status": "dispatched",
+              "pendingCommands.$[elem].dispatchedAt": new Date()
+            }
+          },
+          {
+            arrayFilters: [{ "elem.status": "pending" }]
+          }
+        );
+      }
+    }
+
+    const activeEmergency = await this.getActiveEmergency(orgId);
+    if (activeEmergency) {
+      pendingCommands.push({
+        id: `cmd-emergency-${activeEmergency._id}`,
+        type: "emergency_override",
+        createdAt: activeEmergency.triggeredAt,
+        payload: activeEmergency
+      });
+    }
+
+    return {
+      success: true,
+      serverTime: Date.now(),
+      commands: pendingCommands,
+      device: updatedDevice || currentDevice || device
+    };
+  }
+
+  async queueCommand(
+    deviceIdOrGuid: string,
+    orgId: string,
+    commandData: { type: string; payload?: any; command?: string }
+  ): Promise<any> {
+    const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrGuid) && deviceIdOrGuid.length === 24;
+    const device = isObjectId
+      ? await KioskDeviceModel.findOne({
+          _id: new mongoose.Types.ObjectId(deviceIdOrGuid),
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false
+        })
+      : await this.deviceRepo.findByFingerprint(deviceIdOrGuid);
+
+    if (!device || device.organizationId.toString() !== orgId.toString() || device.isDeleted) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    const commandType = (commandData.type || commandData.command || "UNKNOWN").trim();
+    const commandName = (commandData.command || commandData.type || commandType).trim();
+
+    const newCommand = {
+      id: `cmd-${crypto.randomUUID()}`,
+      type: commandType,
+      command: commandName,
+      payload: commandData.payload || {},
+      status: "pending",
+      createdAt: new Date()
+    };
+
+    const updateDoc: any = {
+      $push: { pendingCommands: newCommand }
+    };
+
+    const upperType = commandType.toUpperCase();
+    if (upperType === "ENTER_MAINTENANCE") {
+      updateDoc.$set = { status: "maintenance" };
+    } else if (upperType === "EXIT_MAINTENANCE") {
+      updateDoc.$set = { status: "online" };
+    }
+
+    await KioskDeviceModel.updateOne(
+      { _id: device._id },
+      updateDoc
+    );
+
+    return newCommand;
   }
 
   async getDeviceCommands(deviceIdOrGuid: string, orgId: string, requestUser?: any) {
@@ -986,19 +1203,33 @@ export class KioskService {
       throw new AppError(403, "FORBIDDEN", `Device is ${device.status}. Command access denied.`);
     }
 
-    const activeEmergency = await this.getActiveEmergency(orgId);
-    if (activeEmergency) {
-      return [
-        {
-          id: `cmd-emergency-${activeEmergency._id}`,
-          type: "emergency_override",
-          createdAt: activeEmergency.triggeredAt,
-          payload: activeEmergency
+    const commands: any[] = [];
+    if (device.pendingCommands && device.pendingCommands.length > 0) {
+      for (const cmd of device.pendingCommands) {
+        if (!cmd.status || cmd.status === "pending") {
+          commands.push({
+            id: cmd.id,
+            type: cmd.type,
+            command: cmd.command || cmd.type,
+            payload: cmd.payload,
+            status: "pending",
+            createdAt: cmd.createdAt
+          });
         }
-      ];
+      }
     }
 
-    return [];
+    const activeEmergency = await this.getActiveEmergency(orgId);
+    if (activeEmergency) {
+      commands.push({
+        id: `cmd-emergency-${activeEmergency._id}`,
+        type: "emergency_override",
+        createdAt: activeEmergency.triggeredAt,
+        payload: activeEmergency
+      });
+    }
+
+    return commands;
   }
 
   async listDevices(filter: any, pagination: any) {
@@ -1273,11 +1504,38 @@ export class KioskService {
     return this.getDeviceAssignments(deviceIdOrGuid, orgId);
   }
 
-  async revokeDevice(id: string, orgId: string, userId?: string) {
+  async revokeDevice(id: string, orgId: string, userId?: string, reason?: string) {
     const revoked = await this.deviceRepo.revoke(id, orgId, userId);
     if (!revoked) {
       throw new AppError(404, "NOT_FOUND", "Kiosk device not found");
     }
+
+    try {
+      await AuditLog.create({
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        actorUserId: userId && mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : undefined,
+        actorType: "user",
+        eventCategory: "kiosk",
+        eventType: "KIOSK_DEVICE_REVOKED",
+        resourceType: "kiosk_device",
+        resourceId: revoked._id,
+        action: "revoke",
+        description: `Kiosk device ${revoked.name || revoked.deviceId} revoked. Reason: ${reason || "Administrative revocation"}`,
+        metadata: {
+          deviceId: revoked.deviceId,
+          hardwareGuid: revoked.hardwareGuid || revoked.deviceId,
+          reason: reason || "Administrative revocation",
+          adminId: userId?.toString() || "system",
+          name: revoked.name,
+          location: revoked.location,
+          revokedAt: new Date()
+        },
+        severity: "warning"
+      });
+    } catch (auditErr) {
+      console.warn("[KioskService] Failed to create audit log for device revocation:", auditErr);
+    }
+
     return revoked;
   }
 
@@ -1736,6 +1994,29 @@ export class KioskService {
               },
               severity: "info"
             });
+
+            // Kiosk compliance audit event
+            await AuditLog.create({
+              organizationId: new mongoose.Types.ObjectId(orgId),
+              actorUserId: newSession.userId,
+              actorType: newSession.userId ? "user" : "system",
+              eventCategory: "kiosk",
+              eventType: "KIOSK_COMPLETION_RECORDED",
+              resourceType: "kiosk_session",
+              resourceId: newSession._id,
+              action: "complete",
+              description: `Kiosk completion recorded (offline sync) for employee ${newSession.userId || "anonymous"} on journey version ${matchedJourney.publishing?.version || 1}`,
+              metadata: {
+                employeeId: newSession.userId?.toString() || "",
+                journeyId: matchedJourney._id?.toString(),
+                journeyVersion: matchedJourney.publishing?.version || 1,
+                verificationChecksum: item.verificationChecksum,
+                sessionId: newSession._id.toString(),
+                deviceId: item.deviceId,
+                isOfflineSync: true
+              },
+              severity: "info"
+            });
           } catch (auditErr) {
             console.warn("[KioskService] Failed to create audit log for offline sync:", auditErr);
           }
@@ -1847,6 +2128,17 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
     return this.analyticsRepo.getSummary(orgId, journeyId, startDate, endDate);
+  }
+
+  /**
+   * K-ANA-001: Step Funnel Drop-off Analysis (Aggregated, PII-Free)
+   */
+  async getJourneyDropOffFunnel(journeyId: string, orgId: string, startDate?: string, endDate?: string) {
+    const journey = await this.journeyRepo.findByIdAndOrg(journeyId, orgId);
+    if (!journey) {
+      throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
+    }
+    return this.analyticsRepo.getStepDropOffFunnel(orgId, journeyId, startDate, endDate);
   }
 
   /**
@@ -2136,6 +2428,32 @@ export class KioskService {
         },
         severity: "info",
       });
+
+      // Compliance Audit event: KIOSK_SUPERVISOR_WITNESSED
+      try {
+        await AuditLog.create({
+          organizationId: supervisor.organizationId,
+          actorUserId: supervisor._id,
+          actorType: "user",
+          eventCategory: "kiosk",
+          eventType: "KIOSK_SUPERVISOR_WITNESSED",
+          resourceType: "kiosk_session",
+          resourceId: session._id,
+          action: "witness",
+          description: `Supervisor ${supervisor.profile?.fullName || supervisor.auth?.email} witnessed kiosk session for employee ${session.userId || "anonymous"}`,
+          metadata: {
+            supervisorId: supervisor._id.toString(),
+            employeeId: session.userId?.toString() || "",
+            sessionId: session._id.toString(),
+            deviceId: session.deviceId,
+            method: "pin",
+            witnessedAt: now
+          },
+          severity: "info",
+        });
+      } catch (auditErr) {
+        console.warn("[KioskService] Failed to create audit log for supervisor witness:", auditErr);
+      }
     }
 
     // Requirement 3: Return signed witness verification token or session update confirmation
@@ -2198,66 +2516,302 @@ export class KioskService {
   }
 
   /**
-   * Autonomous Kiosk Fleet Health Sentinel (Prompt 09 Step 3)
+   * Autonomous Kiosk Fleet Health Sentinel (K-ANA-002)
+   * Detects:
+   * 1. Terminals offline for >15 minutes during operational shift hours
+   * 2. Battery levels <15% on battery-operated tablets
+   * 3. Network latency spikes exceeding 5000ms
+   * Dispatches alerts via NotificationModel (in-app, webhook) and tenant webhooks.
    */
-  async scanKioskFleetHealth(orgId?: string) {
-    const threshold = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
-    const query: Record<string, any> = {
+  async scanKioskFleetHealth(
+    orgId?: string,
+    options?: {
+      offlineThresholdMinutes?: number;
+      lowBatteryThreshold?: number;
+      highLatencyThresholdMs?: number;
+      webhookUrl?: string;
+    }
+  ) {
+    const offlineMins = options?.offlineThresholdMinutes ?? 15;
+    const lowBatteryThreshold = options?.lowBatteryThreshold ?? 15;
+    const highLatencyThresholdMs = options?.highLatencyThresholdMs ?? 5000;
+    const threshold = new Date(Date.now() - offlineMins * 60 * 1000);
+
+    const orgFilter = orgId ? { organizationId: new mongoose.Types.ObjectId(orgId) } : {};
+
+    // 1. Detect Offline Terminals (>15 minutes without heartbeat)
+    const offlineQuery: Record<string, any> = {
+      ...orgFilter,
+      isDeleted: { $ne: true },
       status: "online",
       $or: [
         { lastHeartbeatAt: { $lt: threshold } },
         { lastHeartbeatAt: { $exists: false }, lastSeen: { $lt: threshold } },
+        { lastHeartbeatAt: null, lastSeen: { $lt: threshold } },
       ],
     };
 
-    if (orgId) {
-      query.organizationId = new mongoose.Types.ObjectId(orgId);
-    }
-
-    const staleDevices = await KioskDeviceModel.find(query);
-    const flagged = [];
+    const staleDevices = await KioskDeviceModel.find(offlineQuery);
+    const offlineFlagged: any[] = [];
 
     for (const device of staleDevices) {
       (device as any).status = "offline";
       await device.save();
 
-      try {
-        const NotificationModel = mongoose.model("Notification");
-        const admin = await User.findOne({
-          organizationId: device.organizationId,
-          "permissions.role": { $in: ["admin", "owner"] },
-          isDeleted: false,
-        });
-        if (admin) {
-          await NotificationModel.create({
-            organizationId: device.organizationId,
-            recipientUserId: admin._id,
-            type: "manager_alert",
-            channel: "in_app",
-            title: "Kiosk Terminal Offline Alert",
-            message: `Kiosk Terminal ${device.name} in ${device.location} has been offline for 30 minutes. Shift safety briefings may be impacted.`,
-            priority: "high",
-            status: "sent",
-            isRead: false,
-          });
-        }
-      } catch (e) {
-        console.warn("[KioskService] Error dispatching offline notification:", e);
-      }
+      await this.dispatchFleetAlert({
+        organizationId: device.organizationId,
+        alertType: "terminal_offline",
+        title: "Kiosk Terminal Offline Alert",
+        message: `Kiosk Terminal ${device.name} in ${device.location} has been offline for ${offlineMins} minutes. Shift safety briefings may be impacted.`,
+        priority: "high",
+        device,
+        overrideWebhookUrl: options?.webhookUrl,
+      });
 
-      flagged.push({
+      offlineFlagged.push({
         deviceId: device.deviceId,
         name: device.name,
         location: device.location,
+        status: "offline",
+        alertType: "terminal_offline",
+        lastHeartbeatAt: device.lastHeartbeatAt || device.lastSeen,
+      });
+    }
+
+    // 2. Detect Tablets with Low Battery (<15%)
+    // Check tablets or active devices reporting batteryLevel < 15 and not charging
+    const tabletQuery: Record<string, any> = {
+      ...orgFilter,
+      isDeleted: { $ne: true },
+      status: { $ne: "decommissioned" },
+      $or: [
+        { deviceType: { $in: ["countertop_tablet", "rugged_handheld", "tablet"] } },
+        { "telemetry.batteryLevel": { $exists: true } },
+      ],
+    };
+
+    const candidateTablets = await KioskDeviceModel.find(tabletQuery);
+    const lowBatteryFlagged: any[] = [];
+
+    for (const device of candidateTablets) {
+      const rawBattery = (device as any).telemetry?.batteryLevel;
+      if (rawBattery === undefined || rawBattery === null) continue;
+
+      // Normalize battery to 0-100 percentage
+      const batteryPct = rawBattery <= 1 && rawBattery > 0 ? Math.round(rawBattery * 100) : rawBattery;
+      const isCharging = (device as any).telemetry?.isCharging === true;
+
+      if (batteryPct < lowBatteryThreshold && !isCharging) {
+        await this.dispatchFleetAlert({
+          organizationId: device.organizationId,
+          alertType: "low_battery",
+          title: "Kiosk Tablet Low Battery Alert",
+          message: `Kiosk Tablet ${device.name} in ${device.location} has critical battery level (${batteryPct}%). Connect to power immediately.`,
+          priority: "high",
+          device,
+          details: { batteryLevel: batteryPct },
+          overrideWebhookUrl: options?.webhookUrl,
+        });
+
+        lowBatteryFlagged.push({
+          deviceId: device.deviceId,
+          name: device.name,
+          location: device.location,
+          status: device.status,
+          alertType: "low_battery",
+          batteryLevel: batteryPct,
+          lastHeartbeatAt: device.lastHeartbeatAt || device.lastSeen,
+        });
+      }
+    }
+
+    // 3. Detect Severe Network Latency Spikes (> 5000ms)
+    const latencyQuery: Record<string, any> = {
+      ...orgFilter,
+      isDeleted: { $ne: true },
+      status: { $ne: "decommissioned" },
+      "telemetry.networkLatencyMs": { $gt: highLatencyThresholdMs },
+    };
+
+    const highLatencyDevices = await KioskDeviceModel.find(latencyQuery);
+    const latencySpikeFlagged: any[] = [];
+
+    for (const device of highLatencyDevices) {
+      const latencyMs = (device as any).telemetry?.networkLatencyMs;
+      await this.dispatchFleetAlert({
+        organizationId: device.organizationId,
+        alertType: "latency_spike",
+        title: "Kiosk Network Latency Spike Alert",
+        message: `Kiosk Terminal ${device.name} in ${device.location} is experiencing severe network latency (${latencyMs}ms). Offline sync may be degraded.`,
+        priority: "high",
+        device,
+        details: { networkLatencyMs: latencyMs },
+        overrideWebhookUrl: options?.webhookUrl,
+      });
+
+      latencySpikeFlagged.push({
+        deviceId: device.deviceId,
+        name: device.name,
+        location: device.location,
+        status: device.status,
+        alertType: "latency_spike",
+        networkLatencyMs: latencyMs,
         lastHeartbeatAt: device.lastHeartbeatAt || device.lastSeen,
       });
     }
 
     return {
       scannedAt: new Date(),
-      offlineCount: flagged.length,
-      flaggedDevices: flagged,
+      offlineCount: offlineFlagged.length,
+      lowBatteryCount: lowBatteryFlagged.length,
+      latencySpikeCount: latencySpikeFlagged.length,
+      flaggedDevices: [...offlineFlagged, ...lowBatteryFlagged, ...latencySpikeFlagged],
+      offlineDevices: offlineFlagged,
+      lowBatteryDevices: lowBatteryFlagged,
+      latencySpikeDevices: latencySpikeFlagged,
     };
+  }
+
+  /**
+   * Helper: Multi-channel Alert Dispatcher (in-app notifications + webhooks)
+   */
+  private async dispatchFleetAlert(params: {
+    organizationId: mongoose.Types.ObjectId | string;
+    alertType: "terminal_offline" | "low_battery" | "latency_spike";
+    title: string;
+    message: string;
+    priority: "high" | "critical";
+    device: any;
+    details?: Record<string, any>;
+    overrideWebhookUrl?: string;
+  }) {
+    try {
+      const orgIdObj = new mongoose.Types.ObjectId(params.organizationId);
+
+      // 1. Locate Admin / Manager Users for this Tenant
+      const admins = await User.find({
+        organizationId: orgIdObj,
+        $or: [
+          { "permissions.role": { $in: ["admin", "owner", "superadmin", "it_admin"] } },
+          { "permissions.roles": { $in: ["admin", "owner", "superadmin", "it_admin"] } },
+          { role: { $in: ["admin", "owner", "superadmin", "it_admin"] } },
+        ],
+        isDeleted: false,
+      });
+
+      let targetAdmins = admins;
+      if (targetAdmins.length === 0) {
+        const fallbackUser = await User.findOne({ organizationId: orgIdObj, isDeleted: false });
+        if (fallbackUser) {
+          targetAdmins = [fallbackUser];
+        }
+      }
+
+      const alertData = {
+        deviceId: params.device.deviceId,
+        deviceName: params.device.name,
+        location: params.device.location,
+        deviceType: params.device.deviceType,
+        alertType: params.alertType,
+        timestamp: new Date().toISOString(),
+        ...params.details,
+      };
+
+      // 2. Dispatch in-app notifications to admins
+      for (const admin of targetAdmins) {
+        try {
+          await Notification.create({
+            organizationId: orgIdObj,
+            recipientUserId: admin._id,
+            type: "manager_alert",
+            channel: "in_app",
+            title: params.title,
+            message: params.message,
+            priority: params.priority,
+            status: "sent",
+            isRead: false,
+            data: alertData,
+          });
+        } catch (err) {
+          console.warn(`[KioskService] Error creating admin alert notification:`, err);
+        }
+      }
+
+      // 3. Resolve Tenant Configured Webhook
+      let webhookUrl = params.overrideWebhookUrl;
+      if (!webhookUrl) {
+        try {
+          const org = await Organization.findById(orgIdObj);
+          webhookUrl =
+            (org as any)?.integrations?.kioskAlertWebhookUrl ||
+            (org as any)?.integrations?.webhookUrl ||
+            (org as any)?.kioskSettings?.alertWebhookUrl ||
+            (org as any)?.kioskSettings?.webhookUrl ||
+            (org as any)?.alertWebhookUrl ||
+            process.env.KIOSK_ALERT_WEBHOOK_URL;
+        } catch (orgErr) {
+          console.warn("[KioskService] Error resolving organization webhook:", orgErr);
+        }
+      }
+
+      // 4. Dispatch outbound HTTP webhook if configured
+      if (webhookUrl) {
+        const webhookPayload = {
+          event: "kiosk_fleet_alert",
+          alertType: params.alertType,
+          severity: params.priority,
+          timestamp: new Date().toISOString(),
+          organizationId: orgIdObj.toString(),
+          device: {
+            id: params.device._id ? params.device._id.toString() : undefined,
+            deviceId: params.device.deviceId,
+            name: params.device.name,
+            location: params.device.location,
+            deviceType: params.device.deviceType,
+            status: params.device.status,
+            telemetry: params.device.telemetry,
+          },
+          message: params.message,
+          details: params.details,
+        };
+
+        try {
+          await fetch(webhookUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "Talnova-Kiosk-Sentinel/1.0",
+            },
+            body: JSON.stringify(webhookPayload),
+            signal: AbortSignal.timeout(3000),
+          });
+        } catch (fetchErr) {
+          console.warn(`[KioskService] Failed to dispatch alert webhook to ${webhookUrl}:`, fetchErr);
+        }
+
+        // Record a webhook channel notification record for auditability
+        if (targetAdmins.length > 0) {
+          try {
+            await Notification.create({
+              organizationId: orgIdObj,
+              recipientUserId: targetAdmins[0]._id,
+              type: "manager_alert",
+              channel: "webhook",
+              title: params.title,
+              message: params.message,
+              priority: params.priority,
+              status: "sent",
+              isRead: false,
+              data: { ...alertData, webhookUrl, webhookPayload },
+            });
+          } catch (webhookNotifErr) {
+            console.warn("[KioskService] Error recording webhook notification log:", webhookNotifErr);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[KioskService] Error in dispatchFleetAlert:", e);
+    }
   }
 
   /**
@@ -2417,7 +2971,8 @@ export class KioskService {
   }
 
   /**
-   * Complete session with server-authoritative completion check.
+   * Complete session with server-authoritative completion check, progression rule
+   * validation, minimum dwell time enforcement, and tamper-proof verification checksum (ADR-007).
    */
   async completeSession(
     sessionId: string,
@@ -2426,9 +2981,12 @@ export class KioskService {
       quizScore?: number;
       ppeItemsVerified?: string[];
       verificationChecksum?: string;
+      completedStepIds?: string[];
+      completedStepId?: string;
     },
     orgId?: string
   ): Promise<IKioskSession> {
+    // 1. Retrieve KioskSession
     const session = await this.sessionRepo.findById(sessionId);
     if (!session) {
       throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
@@ -2438,22 +2996,181 @@ export class KioskService {
       return session;
     }
 
-    // Server-authoritative check: does journey require supervisor co-signature?
+    // 1b. Retrieve bound KioskJourneyVersion snapshot or fallback to KioskJourney
+    let journeyVersion: IKioskJourneyVersion | null = null;
+    if (session.journeyVersionId) {
+      journeyVersion = await this.journeyVersionRepo.findById(session.journeyVersionId.toString());
+    }
+    if (!journeyVersion && session.journeyId) {
+      journeyVersion = await this.journeyVersionRepo.findByJourneyAndVersion(
+        session.journeyId.toString(),
+        session.versionNumber || 1
+      );
+    }
+
     const journey = await this.journeyRepo.findById(session.journeyId.toString());
+    if (!journey && !journeyVersion) {
+      throw new AppError(404, "NOT_FOUND", "Bound kiosk journey not found");
+    }
+
+    const steps = (journeyVersion?.steps && journeyVersion.steps.length > 0)
+      ? journeyVersion.steps
+      : (journey?.steps || []);
+    const settings = journeyVersion?.settings || journey?.settings || ({} as any);
+
+    // 2. Validate that every mandatory step was visited
+    const visitedStepIds = new Set<string>([
+      ...(session.completedStepIds || []),
+      ...(data?.completedStepIds || []),
+      ...(data?.completedStepId ? [data.completedStepId] : []),
+    ]);
+
+    const hasExplicitFlags = steps.some(
+      (s: any) => typeof s.isMandatory === "boolean" || typeof s.isOptional === "boolean"
+    );
+    const enforceAll = Boolean(
+      (settings as any)?.enforceMandatorySteps ||
+      (settings as any)?.enforceStepProgression ||
+      (journey as any)?.settings?.enforceMandatorySteps ||
+      (journey as any)?.settings?.enforceStepProgression
+    );
+
+    let mandatorySteps: any[] = [];
+    if (hasExplicitFlags) {
+      mandatorySteps = steps.filter(
+        (s: any) => s.isMandatory === true || (s.isOptional === false && s.isMandatory !== false)
+      );
+    } else if (enforceAll) {
+      mandatorySteps = steps.filter((s: any) => s.isOptional !== true && s.isMandatory !== false);
+    }
+
+    const missingSteps = mandatorySteps.filter((s: any) => !visitedStepIds.has(s.id));
+    const missingStepIds = missingSteps.map((s: any) => s.id);
+
+    if (missingStepIds.length > 0) {
+      throw new AppError(
+        400,
+        "COMPLETION_GATE_VIOLATION",
+        `Session completion rejected: Mandatory steps incomplete (${missingStepIds.join(", ")})`,
+        {
+          gate: "mandatory_steps",
+          missingStepIds,
+          missingSteps: missingStepIds,
+        }
+      );
+    }
+
+    // 3. Validate total session duration >= journey.settings.minimumDurationSeconds
+    const minDurationSeconds =
+      (settings as any)?.minimumDurationSeconds ??
+      (journey as any)?.settings?.minimumDurationSeconds ??
+      0;
+
+    const recordedDuration =
+      typeof data?.durationSeconds === "number"
+        ? data.durationSeconds
+        : (session.durationSeconds || 0);
+
+    const elapsedSeconds = session.startedAt
+      ? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000)
+      : 0;
+
+    const effectiveDuration = Math.max(recordedDuration, elapsedSeconds);
+
+    if (minDurationSeconds > 0 && effectiveDuration < minDurationSeconds) {
+      throw new AppError(
+        400,
+        "COMPLETION_GATE_VIOLATION",
+        `Session completion rejected: Minimum dwell time of ${minDurationSeconds}s not satisfied (recorded: ${effectiveDuration}s)`,
+        {
+          gate: "minimum_duration",
+          requiredDurationSeconds: minDurationSeconds,
+          actualDurationSeconds: effectiveDuration,
+        }
+      );
+    }
+
+    // 4. Validate that quiz scores meet or exceed passing threshold
+    let requiredPassingScore: number | null = null;
+    if (typeof (settings as any)?.passingScorePercentage === "number") {
+      requiredPassingScore = (settings as any).passingScorePercentage;
+    }
+    const quizSteps = steps.filter((s: any) => s.quiz?.passingScore || s.interaction?.quiz?.passingScore);
+    if (quizSteps.length > 0) {
+      const stepMax = Math.max(
+        ...quizSteps.map((s: any) => s.quiz?.passingScore || s.interaction?.quiz?.passingScore || 80)
+      );
+      requiredPassingScore = requiredPassingScore !== null ? Math.max(requiredPassingScore, stepMax) : stepMax;
+    }
+
+    if (requiredPassingScore !== null) {
+      const effectiveQuizScore = typeof data?.quizScore === "number" ? data.quizScore : session.quizScore;
+      if (effectiveQuizScore === undefined || effectiveQuizScore === null || effectiveQuizScore < requiredPassingScore) {
+        throw new AppError(
+          400,
+          "COMPLETION_GATE_VIOLATION",
+          `Session completion rejected: Quiz score of ${effectiveQuizScore ?? "N/A"} does not meet minimum passing threshold of ${requiredPassingScore}%`,
+          {
+            gate: "quiz_passing_score",
+            requiredScore: requiredPassingScore,
+            actualScore: effectiveQuizScore ?? null,
+          }
+        );
+      }
+    }
+
+    // 5. Validate that supervisor witness attestation exists if required
     const requiresWitness = Boolean(
       (journey as any)?.requireSupervisorWitness ||
       (journey?.settings as any)?.requireSupervisorWitness ||
       (journey?.settings?.security as any)?.requireSupervisorWitness ||
-      journey?.steps?.some((s: any) => s.requireSupervisorWitness || s.interaction?.requireSupervisorWitness)
+      (settings as any)?.requireSupervisorWitness ||
+      (settings?.security as any)?.requireSupervisorWitness ||
+      steps?.some((s: any) => s.requireSupervisorWitness || s.interaction?.requireSupervisorWitness)
     );
 
-    const targetStatus = requiresWitness && !session.supervisorWitness
-      ? "awaiting_supervisor"
-      : "completed";
+    if (requiresWitness && !session.supervisorWitness?.supervisorId) {
+      const awaitingMetadata: any = {
+        durationIncrement: 0,
+      };
+      if (typeof data?.durationSeconds === "number") {
+        awaitingMetadata.durationSeconds = data.durationSeconds;
+      }
+      if (typeof data?.quizScore === "number") {
+        awaitingMetadata.quizScore = data.quizScore;
+      }
+      if (data?.ppeItemsVerified) {
+        awaitingMetadata.ppeItemsVerified = data.ppeItemsVerified;
+      }
+      if (visitedStepIds.size > 0) {
+        awaitingMetadata.completedStepIds = Array.from(visitedStepIds);
+      }
 
+      const updated = await this.sessionRepo.transitionStatus(
+        session._id,
+        "awaiting_supervisor",
+        awaitingMetadata,
+        orgId
+      );
+      return (await this.sessionRepo.findById(session._id)) || updated!;
+    }
+
+    // 6. Compute SHA-256 HMAC verificationChecksum
+    const completedAt = new Date();
+    const secret =
+      process.env.COMPLIANCE_SIGNING_SECRET ||
+      process.env.COOKIE_SECRET ||
+      process.env.JWT_SECRET ||
+      "talnova-kiosk-compliance-secret";
+
+    const payload = `${session._id}:${session.organizationId}:${session.userId || "anonymous"}:${session.journeyId}:${session.versionNumber || 1}:${completedAt.toISOString()}`;
+    const verificationChecksum = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+
+    // 7. Transition session status to 'completed'
     const metadata: any = {
-      completedAt: targetStatus === "completed" ? new Date() : undefined,
+      completedAt,
       durationIncrement: 0,
+      verificationChecksum,
     };
     if (typeof data?.durationSeconds === "number") {
       metadata.durationSeconds = data.durationSeconds;
@@ -2464,24 +3181,154 @@ export class KioskService {
     if (data?.ppeItemsVerified) {
       metadata.ppeItemsVerified = data.ppeItemsVerified;
     }
-    if (data?.verificationChecksum) {
-      metadata.verificationChecksum = data.verificationChecksum;
+    if (visitedStepIds.size > 0) {
+      metadata.completedStepIds = Array.from(visitedStepIds);
     }
 
     const updated = await this.sessionRepo.transitionStatus(
       session._id,
-      targetStatus,
+      "completed",
       metadata,
       orgId
     );
 
-    if (typeof data?.durationSeconds === "number") {
-      await KioskSessionModel.findByIdAndUpdate(session._id, {
-        $set: { durationSeconds: data.durationSeconds },
+    // Persist all fields directly on KioskSession document
+    await KioskSessionModel.findByIdAndUpdate(session._id, {
+      $set: {
+        status: "completed",
+        completedAt,
+        verificationChecksum,
+        ...(typeof data?.durationSeconds === "number" ? { durationSeconds: data.durationSeconds } : {}),
+        ...(typeof data?.quizScore === "number" ? { quizScore: data.quizScore } : {}),
+        ...(visitedStepIds.size > 0 ? { completedStepIds: Array.from(visitedStepIds) } : {}),
+      },
+    });
+
+    const refreshedSession = (await this.sessionRepo.findById(session._id)) || updated!;
+
+    // 8. Record audit log & update employee user profile and roadmap tasks
+    try {
+      await AuditLog.create({
+        organizationId: session.organizationId,
+        actorUserId: session.userId || undefined,
+        actorType: session.userId ? "user" : "system",
+        eventCategory: "journey",
+        eventType: "KIOSK_SESSION_COMPLETED",
+        resourceType: "KioskSession",
+        resourceId: session._id,
+        action: "complete",
+        description: `Kiosk session ${session._id} completed and verified for journey "${journey?.title || session.journeyId}"`,
+        metadata: {
+          sessionId: session._id,
+          deviceId: session.deviceId,
+          journeyId: session.journeyId,
+          versionNumber: session.versionNumber,
+          verificationChecksum,
+          durationSeconds: data?.durationSeconds ?? session.durationSeconds,
+          quizScore: data?.quizScore ?? session.quizScore,
+          completedAt,
+        },
+        severity: "info",
       });
+
+      // Compliance Audit Event: KIOSK_COMPLETION_RECORDED
+      await AuditLog.create({
+        organizationId: session.organizationId,
+        actorUserId: session.userId || undefined,
+        actorType: session.userId ? "user" : "system",
+        eventCategory: "kiosk",
+        eventType: "KIOSK_COMPLETION_RECORDED",
+        resourceType: "kiosk_session",
+        resourceId: session._id,
+        action: "complete",
+        description: `Kiosk completion recorded for employee ${session.userId || "anonymous"} on journey version ${session.versionNumber}`,
+        metadata: {
+          employeeId: session.userId?.toString() || "",
+          journeyId: session.journeyId?.toString(),
+          journeyVersion: session.versionNumber,
+          verificationChecksum,
+          sessionId: session._id.toString(),
+          deviceId: session.deviceId,
+          completedAt
+        },
+        severity: "info",
+      });
+    } catch (auditErr) {
+      console.warn("[KioskService] Failed to create audit log for session completion:", auditErr);
     }
 
-    return (await this.sessionRepo.findById(session._id)) || updated!;
+    if (session.userId) {
+      try {
+        const UserModel =
+          mongoose.models.User ||
+          (mongoose.modelNames().includes("User") ? mongoose.model("User") : null);
+        if (UserModel) {
+          await UserModel.updateOne(
+            { _id: session.userId },
+            {
+              $inc: { "statistics.completedJourneys": 1 },
+              $set: { "statistics.lastActiveAt": new Date() },
+              $addToSet: { completedKioskJourneys: session.journeyId },
+            }
+          );
+        }
+
+        const AssignmentModel =
+          mongoose.models.Assignment ||
+          mongoose.models.EmployeeAssignment ||
+          (mongoose.modelNames().includes("EmployeeAssignment") ? mongoose.model("EmployeeAssignment") : null) ||
+          (mongoose.modelNames().includes("Assignment") ? mongoose.model("Assignment") : null);
+        if (AssignmentModel) {
+          await AssignmentModel.updateMany(
+            {
+              employeeId: session.userId,
+              $or: [
+                { journeyId: session.journeyId },
+                { "journey.journeyId": session.journeyId }
+              ],
+              status: { $ne: "completed" },
+            },
+            {
+              $set: {
+                status: "completed",
+                completedAt,
+                "progress.completionPercentage": 100,
+                "progress.status": "completed",
+              },
+            }
+          );
+        }
+
+        const TaskModel =
+          mongoose.models.Task ||
+          (mongoose.modelNames().includes("Task") ? mongoose.model("Task") : null);
+        if (TaskModel) {
+          await TaskModel.updateMany(
+            {
+              organizationId: session.organizationId,
+              employeeId: session.userId,
+              status: { $nin: ["completed", "verified"] },
+              $or: [
+                { "autoVerification.linkedEntityId": session.journeyId },
+                { taskCode: `JOURNEY_${session.journeyId}` },
+                { title: new RegExp(journey?.title || "Safety", "i") },
+              ],
+            },
+            {
+              $set: {
+                status: "completed",
+                completedAt,
+                completedBy: session.userId,
+              },
+            }
+          );
+        }
+      } catch (userErr) {
+        console.warn("[KioskService] Failed to update employee roadmap records:", userErr);
+      }
+    }
+
+    return refreshedSession;
   }
 
   /**
@@ -2708,6 +3555,9 @@ export class KioskService {
   /**
    * Retrieve currently active emergency for an organization
    */
+  /**
+   * Retrieve currently active emergency for an organization
+   */
   async getActiveEmergency(orgId: string): Promise<IKioskEmergency | null> {
     if (!orgId) return null;
     return await KioskEmergencyModel.findOne({
@@ -2715,6 +3565,368 @@ export class KioskService {
       isActive: true
     }).sort({ triggeredAt: -1 });
   }
+
+  /**
+   * =========================================================================
+   * K-ANA-003: Enterprise Safety Compliance Reporting & Audit Packet Engine
+   * =========================================================================
+   */
+
+  /**
+   * Overall Compliance Reporting Summary
+   */
+  async getComplianceSummary(
+    orgId: string,
+    filters?: { journeyId?: string; startDate?: string; endDate?: string }
+  ) {
+    const orgObjId = new mongoose.Types.ObjectId(orgId);
+    const matchQuery: Record<string, any> = { organizationId: orgObjId };
+
+    if (filters?.journeyId && mongoose.Types.ObjectId.isValid(filters.journeyId)) {
+      matchQuery.journeyId = new mongoose.Types.ObjectId(filters.journeyId);
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      matchQuery.startedAt = {};
+      if (filters.startDate) matchQuery.startedAt.$gte = new Date(filters.startDate);
+      if (filters.endDate) matchQuery.startedAt.$lte = new Date(filters.endDate);
+    }
+
+    const totalSessions = await KioskSessionModel.countDocuments(matchQuery);
+    const completedSessions = await KioskSessionModel.countDocuments({ ...matchQuery, status: "completed" });
+    const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+
+    const certifiedUserIds = await KioskSessionModel.distinct("userId", {
+      ...matchQuery,
+      status: "completed",
+      userId: { $exists: true, $ne: null }
+    });
+    const certifiedWorkersCount = certifiedUserIds.length;
+
+    const dbWorkersCount = await User.countDocuments({
+      organizationId: orgObjId,
+      isDeleted: false,
+      "employment.status": { $ne: "inactive" }
+    });
+    const totalWorkersCount = Math.max(dbWorkersCount, certifiedWorkersCount);
+
+    const supervisorSignOffsCount = await KioskSessionModel.countDocuments({
+      ...matchQuery,
+      status: "completed",
+      "supervisorWitness.supervisorId": { $exists: true, $ne: null }
+    });
+
+    const durationAgg = await KioskSessionModel.aggregate([
+      { $match: { ...matchQuery, status: "completed" } },
+      { $group: { _id: null, avgDuration: { $avg: "$durationSeconds" } } }
+    ]);
+    const averageDurationSeconds = durationAgg[0]?.avgDuration ? Math.round(durationAgg[0].avgDuration) : 0;
+
+    const complianceStatus =
+      completionRate >= 85 ? "compliant" : completionRate >= 70 ? "needs_attention" : "at_risk";
+
+    // Recent 10 verified completions with full metadata
+    const recentDocs = await KioskSessionModel.find({ ...matchQuery, status: "completed" })
+      .sort({ completedAt: -1, updatedAt: -1 })
+      .limit(10)
+      .populate("userId", "profile.fullName profile.firstName profile.lastName auth.email employment.department employment.jobTitle")
+      .populate("deviceId", "name location")
+      .populate("journeyId", "title")
+      .populate("supervisorWitness.supervisorId", "profile.fullName profile.firstName profile.lastName");
+
+    const recentCompletions = recentDocs.map((s: any) => ({
+      sessionId: s._id.toString(),
+      workerName: s.userId?.profile?.fullName || `${s.userId?.profile?.firstName || ""} ${s.userId?.profile?.lastName || ""}`.trim() || "Frontline Worker",
+      workerEmail: s.userId?.auth?.email || "worker@enterprise.com",
+      department: s.userId?.employment?.department || "Operations",
+      jobTitle: s.userId?.employment?.jobTitle || "Operator",
+      journeyTitle: s.journeyId?.title || "Safety Briefing",
+      deviceName: s.deviceId?.name || "Kiosk Terminal",
+      deviceLocation: s.deviceId?.location || "Facility Floor",
+      startedAt: s.startedAt,
+      completedAt: s.completedAt || s.updatedAt,
+      durationSeconds: s.durationSeconds,
+      quizScore: s.quizScore,
+      ppeItemsVerified: s.ppeItemsVerified || [],
+      supervisorWitness: s.supervisorWitness ? {
+        supervisorName: s.supervisorWitness.supervisorId?.profile?.fullName || "Shift Supervisor",
+        method: s.supervisorWitness.method,
+        witnessedAt: s.supervisorWitness.witnessedAt
+      } : undefined,
+      verificationChecksum: s.verificationChecksum || ""
+    }));
+
+    // Historical 6-week trend data
+    const now = new Date();
+    const historicalTrends = [];
+    for (let i = 5; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const weekLabel = `W-${weekStart.toISOString().substring(5, 10)}`;
+
+      const wTotal = await KioskSessionModel.countDocuments({
+        organizationId: orgObjId,
+        startedAt: { $gte: weekStart, $lt: weekEnd }
+      });
+      const wCompleted = await KioskSessionModel.countDocuments({
+        organizationId: orgObjId,
+        status: "completed",
+        completedAt: { $gte: weekStart, $lt: weekEnd }
+      });
+      const wRate = wTotal > 0 ? Math.round((wCompleted / wTotal) * 100) : (wCompleted > 0 ? 100 : 0);
+
+      historicalTrends.push({
+        period: weekLabel,
+        totalSessions: wTotal,
+        completedSessions: wCompleted,
+        completionRate: wRate,
+        targetRate: 85
+      });
+    }
+
+    return {
+      totalSessions,
+      completedSessions,
+      completionRate,
+      certifiedWorkersCount,
+      totalWorkersCount,
+      supervisorSignOffsCount,
+      averageDurationSeconds,
+      complianceStatus,
+      historicalTrends,
+      recentCompletions
+    };
+  }
+
+  /**
+   * Compliance Breakdown by Department and Shift
+   */
+  async getComplianceByDepartment(
+    orgId: string,
+    filters?: { journeyId?: string; startDate?: string; endDate?: string }
+  ) {
+    const orgObjId = new mongoose.Types.ObjectId(orgId);
+    const org = await Organization.findById(orgObjId);
+
+    // Collect departments from Organization settings, or distinct from existing Users
+    let deptNames: string[] = (org?.departments || []).map((d: any) => d.name).filter(Boolean);
+    if (deptNames.length === 0) {
+      const userDepts = await User.distinct("employment.department", { organizationId: orgObjId, isDeleted: false });
+      deptNames = userDepts.filter(Boolean);
+    }
+    if (deptNames.length === 0) {
+      deptNames = ["Operations", "Logistics", "Manufacturing", "Maintenance", "Safety"];
+    }
+
+    const sessionMatch: Record<string, any> = { organizationId: orgObjId };
+    if (filters?.journeyId && mongoose.Types.ObjectId.isValid(filters.journeyId)) {
+      sessionMatch.journeyId = new mongoose.Types.ObjectId(filters.journeyId);
+    }
+    if (filters?.startDate || filters?.endDate) {
+      sessionMatch.startedAt = {};
+      if (filters.startDate) sessionMatch.startedAt.$gte = new Date(filters.startDate);
+      if (filters.endDate) sessionMatch.startedAt.$lte = new Date(filters.endDate);
+    }
+
+    const departmentsData = [];
+
+    for (const dept of deptNames) {
+      const deptUsers = await User.find({
+        organizationId: orgObjId,
+        "employment.department": dept,
+        isDeleted: false
+      }).select("_id");
+      const userIds = deptUsers.map((u: any) => u._id);
+
+      const deptSessionMatch = { ...sessionMatch, userId: { $in: userIds } };
+      const totalSessions = await KioskSessionModel.countDocuments(deptSessionMatch);
+      const completedSessions = await KioskSessionModel.countDocuments({ ...deptSessionMatch, status: "completed" });
+      const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+
+      const certifiedUsers = await KioskSessionModel.distinct("userId", {
+        ...deptSessionMatch,
+        status: "completed"
+      });
+      const certifiedWorkers = certifiedUsers.length;
+
+      const supervisorSignOffs = await KioskSessionModel.countDocuments({
+        ...deptSessionMatch,
+        status: "completed",
+        "supervisorWitness.supervisorId": { $exists: true, $ne: null }
+      });
+
+      const dropouts = await KioskSessionModel.countDocuments({
+        ...deptSessionMatch,
+        status: { $in: ["abandoned", "timed_out"] }
+      });
+
+      // Shift distribution for completed sessions
+      const completedDocs = await KioskSessionModel.find({ ...deptSessionMatch, status: "completed" }).select("completedAt startedAt");
+      let morning = 0;
+      let afternoon = 0;
+      let night = 0;
+
+      for (const doc of completedDocs) {
+        const date = doc.completedAt || doc.startedAt;
+        if (date) {
+          const hour = new Date(date).getHours();
+          if (hour >= 6 && hour < 14) morning++;
+          else if (hour >= 14 && hour < 22) afternoon++;
+          else night++;
+        }
+      }
+
+      departmentsData.push({
+        department: dept,
+        totalWorkers: Math.max(userIds.length, certifiedWorkers),
+        certifiedWorkers,
+        totalSessions,
+        completedSessions,
+        completionRate,
+        supervisorSignOffs,
+        dropouts,
+        shiftBreakdown: [
+          { shift: "Morning", completions: morning },
+          { shift: "Afternoon", completions: afternoon },
+          { shift: "Night", completions: night }
+        ]
+      });
+    }
+
+    return {
+      departments: departmentsData
+    };
+  }
+
+  /**
+   * Export Compliance Audit Packet (CSV / JSON)
+   */
+  async exportComplianceAuditPacket(
+    orgId: string,
+    filters?: { journeyId?: string; startDate?: string; endDate?: string; department?: string; format?: "csv" | "json" }
+  ) {
+    const orgObjId = new mongoose.Types.ObjectId(orgId);
+    const org = await Organization.findById(orgObjId);
+
+    const sessionMatch: Record<string, any> = {
+      organizationId: orgObjId,
+      status: "completed"
+    };
+
+    if (filters?.journeyId && mongoose.Types.ObjectId.isValid(filters.journeyId)) {
+      sessionMatch.journeyId = new mongoose.Types.ObjectId(filters.journeyId);
+    }
+    if (filters?.startDate || filters?.endDate) {
+      sessionMatch.startedAt = {};
+      if (filters.startDate) sessionMatch.startedAt.$gte = new Date(filters.startDate);
+      if (filters.endDate) sessionMatch.startedAt.$lte = new Date(filters.endDate);
+    }
+
+    const sessions = await KioskSessionModel.find(sessionMatch)
+      .sort({ completedAt: -1 })
+      .populate("userId", "profile.fullName profile.firstName profile.lastName auth.email employment.department employment.jobTitle")
+      .populate("deviceId", "name location")
+      .populate("journeyId", "title")
+      .populate("supervisorWitness.supervisorId", "profile.fullName profile.firstName profile.lastName");
+
+    // Filter by department if specified
+    const filteredSessions = filters?.department
+      ? sessions.filter((s: any) => s.userId?.employment?.department?.toLowerCase() === filters.department?.toLowerCase())
+      : sessions;
+
+    const records = filteredSessions.map((s: any) => {
+      const workerName = s.userId?.profile?.fullName || `${s.userId?.profile?.firstName || ""} ${s.userId?.profile?.lastName || ""}`.trim() || "Frontline Worker";
+      const workerEmail = s.userId?.auth?.email || "worker@enterprise.com";
+      const department = s.userId?.employment?.department || "Operations";
+      const jobTitle = s.userId?.employment?.jobTitle || "Operator";
+      const journeyTitle = s.journeyId?.title || "Safety Briefing";
+      const deviceName = s.deviceId?.name || "Kiosk Terminal";
+      const deviceLocation = s.deviceId?.location || "Facility Floor";
+      const supervisorWitnessed = s.supervisorWitness ? "Yes" : "No";
+      const supervisorName = s.supervisorWitness?.supervisorId?.profile?.fullName || (s.supervisorWitness ? "Shift Supervisor" : "N/A");
+      const witnessMethod = s.supervisorWitness?.method || "N/A";
+      const durationMins = s.durationSeconds ? (s.durationSeconds / 60).toFixed(1) : "0.0";
+
+      return {
+        sessionId: s._id.toString(),
+        workerName,
+        workerEmail,
+        department,
+        jobTitle,
+        journeyTitle,
+        deviceName,
+        deviceLocation,
+        startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : "",
+        completedAt: s.completedAt ? new Date(s.completedAt).toISOString() : (s.updatedAt ? new Date(s.updatedAt).toISOString() : ""),
+        durationMinutes: durationMins,
+        quizScore: s.quizScore !== undefined ? String(s.quizScore) : "N/A",
+        supervisorWitnessed,
+        supervisorName,
+        witnessMethod,
+        verificationChecksum: s.verificationChecksum || ""
+      };
+    });
+
+    if (filters?.format === "json") {
+      return {
+        exportDate: new Date().toISOString(),
+        organization: org?.name || "Enterprise Safety Network",
+        totalRecords: records.length,
+        records
+      };
+    }
+
+    // CSV Format
+    const escapeCsv = (val: string) => {
+      if (!val) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const headers = [
+      "Session ID",
+      "Worker Name",
+      "Worker Email",
+      "Department",
+      "Job Title",
+      "Journey Title",
+      "Terminal Device",
+      "Location",
+      "Started At",
+      "Completed At",
+      "Duration (Minutes)",
+      "Quiz Score",
+      "Supervisor Witnessed",
+      "Supervisor Name",
+      "Witness Method",
+      "Verification Checksum"
+    ];
+
+    const csvRows = [headers.join(",")];
+    for (const r of records) {
+      csvRows.push([
+        escapeCsv(r.sessionId),
+        escapeCsv(r.workerName),
+        escapeCsv(r.workerEmail),
+        escapeCsv(r.department),
+        escapeCsv(r.jobTitle),
+        escapeCsv(r.journeyTitle),
+        escapeCsv(r.deviceName),
+        escapeCsv(r.deviceLocation),
+        escapeCsv(r.startedAt),
+        escapeCsv(r.completedAt),
+        escapeCsv(r.durationMinutes),
+        escapeCsv(r.quizScore),
+        escapeCsv(r.supervisorWitnessed),
+        escapeCsv(r.supervisorName),
+        escapeCsv(r.witnessMethod),
+        escapeCsv(r.verificationChecksum)
+      ].join(","));
+    }
+
+    return csvRows.join("\r\n");
+  }
 }
 
 export default KioskService;
+

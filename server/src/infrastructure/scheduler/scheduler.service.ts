@@ -168,7 +168,7 @@ export class SchedulerService {
         { organizationId: orgId.toString() },
         {
           organizationId: orgId.toString(),
-          idempotencyKey: `scan_kiosk_${new Date().toISOString().substring(0, 13)}_${orgId.toString()}`,
+          idempotencyKey: `scan_kiosk_${new Date().toISOString().substring(0, 16)}_${orgId.toString()}`,
         }
       );
     }

@@ -17,7 +17,8 @@ export interface IAuditLog extends Document {
     | "ai"
     | "infrastructure"
     | "admin"
-    | "feature_flag";
+    | "feature_flag"
+    | "kiosk";
   eventType: string;
   resourceType: string;
   resourceId?: mongoose.Types.ObjectId;
@@ -34,7 +35,11 @@ export interface IAuditLog extends Document {
     | "export"
     | "status_change"
     | "error"
-    | "execute";
+    | "execute"
+    | "pair"
+    | "revoke"
+    | "publish"
+    | "witness";
   description: string;
   metadata?: {
     previousValue?: any;
@@ -79,6 +84,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "infrastructure",
         "admin",
         "feature_flag",
+        "kiosk",
       ],
       required: true,
     },
@@ -101,6 +107,10 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "status_change",
         "error",
         "execute",
+        "pair",
+        "revoke",
+        "publish",
+        "witness",
       ],
       required: true,
     },

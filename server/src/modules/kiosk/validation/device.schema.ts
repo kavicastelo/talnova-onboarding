@@ -7,12 +7,15 @@ import { KIOSK_COMMAND_TYPES, PAIR_CODE_LENGTH } from "../constants/index.js";
  */
 export const KioskTelemetrySchema = z
   .object({
-    batteryLevel: z.number().min(0).max(1).optional(),
+    batteryLevel: z.number().min(0).max(100).optional(),
     isCharging: z.boolean().optional(),
     storageUsedBytes: z.number().int().nonnegative().optional(),
     storageFreeBytes: z.number().int().nonnegative().optional(),
+    storageTotalBytes: z.number().int().nonnegative().optional(),
     appVersion: z.string().min(1).optional(),
-    networkLatencyMs: z.number().int().nonnegative().optional()
+    networkLatencyMs: z.number().int().nonnegative().optional(),
+    screenResolution: z.string().optional(),
+    orientation: z.string().optional()
   })
   .strict()
   .describe("Kiosk device hardware telemetry data");
@@ -68,12 +71,16 @@ export const KioskDeviceHeartbeatSchema = z
   .object({
     currentContentVersion: z.number().int().nonnegative().optional().default(0),
     telemetry: KioskTelemetrySchema.optional(),
-    batteryLevel: z.number().optional(),
+    batteryLevel: z.number().min(0).max(100).optional(),
     appVersion: z.string().optional(),
     isCharging: z.boolean().optional(),
-    storageUsedBytes: z.number().optional(),
-    storageFreeBytes: z.number().optional(),
-    networkLatencyMs: z.number().optional()
+    storageUsedBytes: z.number().int().nonnegative().optional(),
+    storageFreeBytes: z.number().int().nonnegative().optional(),
+    storageTotalBytes: z.number().int().nonnegative().optional(),
+    networkLatencyMs: z.number().int().nonnegative().optional(),
+    screenResolution: z.string().optional(),
+    orientation: z.string().optional(),
+    screenOrientation: z.string().optional()
   })
   .passthrough();
 
@@ -82,8 +89,11 @@ export const KioskDeviceHeartbeatSchema = z
  */
 export const KioskRemoteCommandSchema = z
   .object({
-    command: z.enum(KIOSK_COMMAND_TYPES),
+    type: z.string().optional(),
+    command: z.string().optional(),
     payload: z.record(z.string(), z.unknown()).optional()
   })
-  .strict()
+  .refine((data) => Boolean(data.type || data.command), {
+    message: "Either type or command must be provided"
+  })
   .describe("Kiosk terminal admin command dispatch schema");
