@@ -6,7 +6,8 @@ export const KIOSK_SECURITY_PROTECTION_TYPES = [
   "pin",
   "qr",
   "device_only",
-  "signed_url"
+  "signed_url",
+  "supervisor"
 ] as const;
 
 /**

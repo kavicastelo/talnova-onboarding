@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Monitor, HelpCircle, ArrowRight, CheckCircle } from 'lucide-react';
+import { ShieldCheck, Monitor, HelpCircle, ArrowRight, CheckCircle, Copy, Check, ChevronLeft } from 'lucide-react';
 import { kioskService } from '../services/kiosk.service';
 import { deviceIdentityService } from '../services/device-identity.service';
 import { mdmEnrollmentService } from '../services/mdm-enrollment.service';
@@ -20,8 +20,18 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [copiedGuid, setCopiedGuid] = useState(false);
   const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
   const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
+
+  const handleCopyGuid = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (navigator?.clipboard && deviceId) {
+      navigator.clipboard.writeText(deviceId);
+      setCopiedGuid(true);
+      setTimeout(() => setCopiedGuid(false), 2000);
+    }
+  };
 
   // Listen to instantaneous device revocation events
   useEffect(() => {
@@ -131,7 +141,17 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
             onPairSuccess(result.device, result.token);
           }, 1500);
         } catch (err: any) {
-          setError(err?.response?.data?.message || err?.message || 'Invalid or expired pairing code. Please try again.');
+          const serverMessage = err?.response?.data?.message || err?.message;
+          if (err?.response?.data?.code === 'DEVICE_MISMATCH' || serverMessage?.includes('different hardware GUID')) {
+            setError(
+              t(
+                'pairing.guidMismatchHelp',
+                'Hardware GUID mismatch: This pairing code was locked to a different device. Please generate an open code without GUID lock, or verify the terminal GUID.'
+              )
+            );
+          } else {
+            setError(serverMessage || t('pairing.invalidOrExpired', 'Invalid or expired pairing code. Please try again.'));
+          }
           setPairCode([]); // Clear code on failure
         } finally {
           setIsLoading(false);
@@ -207,9 +227,40 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                 />
               </div>
 
-              <div className="rounded-lg bg-slate-950/50 border border-slate-900 p-3 text-[11px] text-slate-500 font-mono flex items-center justify-between">
-                <span>HW ID: {deviceId.substring(0, 18)}...</span>
-                <span className="text-slate-600">{t('pairing.locked', 'Locked')}</span>
+              <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-xs text-slate-400 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {t('pairing.hardwareGuid', 'Terminal Hardware GUID')}
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {t('pairing.ready', 'Ready')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span data-testid="kiosk-hardware-guid-display" className="font-mono text-[11px] text-slate-200 select-all break-all">
+                    {deviceId || 'Detecting hardware...'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyGuid}
+                    data-testid="copy-guid-btn"
+                    className="p-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition shrink-0 flex items-center gap-1 text-[11px]"
+                    title="Copy Hardware GUID"
+                  >
+                    {copiedGuid ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400 font-semibold">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -225,6 +276,24 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
           </form>
         ) : (
           <div className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1);
+                  setPairCode([]);
+                  setError(null);
+                }}
+                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>{t('pairing.backToInfo', 'Back')}</span>
+              </button>
+              <span className="font-mono text-[10px] text-slate-500">
+                HW: {deviceId ? `${deviceId.substring(0, 8)}...${deviceId.substring(deviceId.length - 4)}` : ''}
+              </span>
+            </div>
+
             <div className="flex flex-col items-center text-center">
               <ShieldCheck className="h-12 w-12 text-emerald-500 mb-3" />
               <h2 className="text-2xl font-bold text-slate-100">{t('pairing.enterPairingCode', 'Enter Pairing Code')}</h2>

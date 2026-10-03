@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ShieldAlert,
@@ -7,11 +7,15 @@ import {
   CheckCircle2,
   Hand,
   Check,
-  Info
+  Info,
+  Volume2,
+  Radio,
+  ChevronDown
 } from 'lucide-react';
 import { KioskStep } from '../../../types/kiosk/step.types';
 import { KioskBlock } from '../../../types/kiosk/block.types';
 import { KnowledgeQuizEngine } from './interactions/KnowledgeQuizEngine';
+import { normalizeCloudMediaUrl } from './builder/MediaAssetPicker';
 
 import { antiTamperingService } from '../services/anti-tampering.service';
 import { FontScale } from './accessibility/AccessibilityToolbar';
@@ -45,6 +49,10 @@ export interface KioskStepContainerProps {
   // Quiz
   onQuizPass?: (score: number) => void;
   onQuizFail?: (score: number) => void;
+  // Supervisor Gate
+  isSupervisorWitnessed?: boolean;
+  onOpenSupervisorGate?: () => void;
+  supervisorWitnessData?: any;
   // Subtitles
   showSubtitles?: boolean;
   isRtl?: boolean;
@@ -75,6 +83,9 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
   ppeSubmitError = null,
   onQuizPass,
   onQuizFail,
+  isSupervisorWitnessed = false,
+  onOpenSupervisorGate,
+  supervisorWitnessData,
   showSubtitles = false,
   isRtl,
   className = ''
@@ -101,16 +112,16 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       typeof settingsTrans === 'string'
         ? settingsTrans
         : typeof settingsTrans === 'object'
-        ? settingsTrans?.textValue
-        : undefined;
+          ? settingsTrans?.textValue
+          : undefined;
 
     const blockTrans = (b as any).translations?.[lang];
     const blockText =
       typeof blockTrans === 'string'
         ? blockTrans
         : typeof blockTrans === 'object'
-        ? blockTrans?.textValue
-        : undefined;
+          ? blockTrans?.textValue
+          : undefined;
 
     const textValue = mediaRef?.textValue ?? settingsText ?? blockText;
     const uploadId =
@@ -154,8 +165,8 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
     const ref = isFallback
       ? defaultData
       : targetData.hasContent
-      ? targetData
-      : defaultData;
+        ? targetData
+        : defaultData;
 
     if (!ref.hasContent && !ref.textValue && !ref.uploadId && !ref.embedUrl) {
       return null;
@@ -192,37 +203,33 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             key={block.id}
             data-testid={`kiosk-block-text-${block.id}`}
             dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-            className={`leading-relaxed font-normal break-words ${
-              block.settings?.size === 'large'
+            className={`leading-relaxed font-normal break-words ${block.settings?.size === 'large'
                 ? 'text-2xl sm:text-3xl'
                 : block.settings?.size === 'small'
-                ? 'text-base sm:text-lg'
-                : 'text-lg sm:text-xl'
-            } ${
-              highContrast
+                  ? 'text-base sm:text-lg'
+                  : 'text-lg sm:text-xl'
+              } ${highContrast
                 ? 'text-white bg-black/60 p-4 rounded-xl border border-white/20'
                 : block.settings?.contrastMode
-                ? 'text-slate-100 bg-black/40 p-4 rounded-xl'
-                : 'text-slate-200'
-            }`}
+                  ? 'text-slate-100 bg-black/40 p-4 rounded-xl'
+                  : 'text-slate-200'
+              }`}
           />
         ) : (
           <p
             key={block.id}
             data-testid={`kiosk-block-text-${block.id}`}
-            className={`leading-relaxed font-normal break-words ${
-              block.settings?.size === 'large'
+            className={`leading-relaxed font-normal break-words ${block.settings?.size === 'large'
                 ? 'text-2xl sm:text-3xl'
                 : block.settings?.size === 'small'
-                ? 'text-base sm:text-lg'
-                : 'text-lg sm:text-xl'
-            } ${
-              highContrast
+                  ? 'text-base sm:text-lg'
+                  : 'text-lg sm:text-xl'
+              } ${highContrast
                 ? 'text-white bg-black/60 p-4 rounded-xl border border-white/20'
                 : block.settings?.contrastMode
-                ? 'text-slate-100 bg-black/40 p-4 rounded-xl'
-                : 'text-slate-200'
-            }`}
+                  ? 'text-slate-100 bg-black/40 p-4 rounded-xl'
+                  : 'text-slate-200'
+              }`}
           >
             {sanitizedContent}
           </p>
@@ -231,19 +238,20 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       }
 
       case 'image': {
-        const imageUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
+        const rawImageUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
+        const normalizedImageUrl = rawImageUrl ? normalizeCloudMediaUrl(rawImageUrl, 'image').embedUrl : '';
         content = (
           <div
             key={block.id}
-            className={`relative overflow-hidden rounded-2xl border flex items-center justify-center ${
-              highContrast
+            data-testid="kiosk-image-block"
+            className={`relative overflow-hidden rounded-2xl border flex items-center justify-center ${highContrast
                 ? 'border-white bg-black'
                 : 'border-slate-800 bg-slate-900/60'
-            }`}
+              }`}
           >
-            {imageUrl ? (
+            {normalizedImageUrl ? (
               <img
-                src={imageUrl}
+                src={normalizedImageUrl}
                 alt={step.title || 'Instructional Step Visual'}
                 className="max-h-[48vh] w-full object-contain p-2"
               />
@@ -257,31 +265,109 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
         break;
       }
       case 'video': {
-        const videoUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
+        const rawVideoUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
+        const { embedUrl: normalizedVideoUrl, provider } = rawVideoUrl
+          ? normalizeCloudMediaUrl(rawVideoUrl, 'video')
+          : { embedUrl: '', provider: 'none' };
+
+        const isEmbed =
+          provider === 'youtube' ||
+          provider === 'vimeo' ||
+          provider === 'loom' ||
+          normalizedVideoUrl.includes('/embed') ||
+          normalizedVideoUrl.includes('/preview') ||
+          normalizedVideoUrl.includes('player.vimeo.com');
+
+        const watchThreshold = (block.settings as any)?.watchThresholdPercent ?? (step.type === 'video_step' ? 90 : 0);
+
         content = (
           <div
             key={block.id}
-            className="aspect-video w-full max-h-[50vh] overflow-hidden rounded-2xl bg-black border border-slate-900 relative shadow-2xl"
+            data-testid="kiosk-video-block"
+            className="aspect-video w-full max-h-[50vh] overflow-hidden rounded-2xl bg-black border border-slate-900 relative shadow-2xl flex flex-col justify-center items-center"
           >
-            <video
-              id="sop-video-player"
-              src={videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}
-              autoPlay={block.settings?.autoplay}
-              loop={block.settings?.loop}
-              controls
-              onEnded={onVideoComplete}
-              className="h-full w-full object-cover"
-            />
+            {isEmbed ? (
+              <iframe
+                id="sop-video-embed"
+                data-testid="sop-video-embed"
+                src={normalizedVideoUrl}
+                title={step.title || 'Instructional Video Guide'}
+                className="w-full h-full border-0 rounded-2xl"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                id="sop-video-player"
+                data-testid="sop-video-player"
+                src={normalizedVideoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}
+                autoPlay={block.settings?.autoplay}
+                loop={block.settings?.loop}
+                controls
+                playsInline
+                onEnded={onVideoComplete}
+                onTimeUpdate={(e) => {
+                  const vid = e.currentTarget;
+                  if (vid.duration && vid.duration > 0 && watchThreshold > 0) {
+                    const pct = Math.round((vid.currentTime / vid.duration) * 100);
+                    if (pct >= watchThreshold && !videoCompleted && onVideoComplete) {
+                      onVideoComplete();
+                    }
+                  }
+                }}
+                className="h-full w-full object-contain"
+              />
+            )}
             {!videoCompleted && onVideoComplete && (
               <button
                 id="sop-video-complete-btn"
+                data-testid="sop-video-complete-btn"
                 type="button"
                 onClick={onVideoComplete}
                 className="absolute bottom-4 right-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-sm min-h-[48px] shadow-lg flex items-center space-x-2 cursor-pointer z-10 active:scale-95 transition"
               >
-                <span>{t('player.videoFinished', { defaultValue: 'Video Finished' })}</span>
+                <span>{t('player.videoFinished', { defaultValue: 'Confirm Video Watched' })}</span>
                 <CheckCircle2 className="w-5 h-5" />
               </button>
+            )}
+          </div>
+        );
+        break;
+      }
+      case 'audio': {
+        const rawAudioUrl = ref.embedUrl || (ref.uploadId ? `/api/v1/kiosk/uploads/${ref.uploadId}` : '');
+        const normalizedAudioUrl = rawAudioUrl ? normalizeCloudMediaUrl(rawAudioUrl, 'audio').embedUrl : '';
+        content = (
+          <div
+            key={block.id}
+            data-testid="kiosk-audio-block"
+            className="w-full p-6 rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl flex flex-col space-y-4"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <Volume2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-white">
+                  {t('player.audioBriefing', { defaultValue: 'Audio Briefing Station' })}
+                </h4>
+                <p className="text-xs text-slate-400">
+                  {t('player.listenInstruction', { defaultValue: 'Listen carefully to spoken safety guidelines before proceeding.' })}
+                </p>
+              </div>
+            </div>
+            {normalizedAudioUrl ? (
+              <audio
+                controls
+                data-testid="kiosk-audio-player"
+                src={normalizedAudioUrl}
+                className="w-full mt-2"
+                autoPlay={block.settings?.autoplay ?? true}
+              />
+            ) : (
+              <div className="text-center py-4 text-slate-500 text-xs font-mono">
+                No audio clip attached for this language.
+              </div>
             )}
           </div>
         );
@@ -292,15 +378,14 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
         content = (
           <div key={block.id} className="flex justify-center p-4">
             <div
-              className={`p-6 rounded-full border-2 ${
-                block.settings?.theme === 'danger'
+              className={`p-6 rounded-full border-2 ${block.settings?.theme === 'danger'
                   ? 'text-rose-500 border-rose-500/30 bg-rose-950/20'
                   : block.settings?.theme === 'warning'
-                  ? 'text-amber-500 border-amber-500/30 bg-amber-950/20'
-                  : block.settings?.theme === 'mandatory'
-                  ? 'text-sky-500 border-sky-500/30 bg-sky-950/20'
-                  : 'text-emerald-500 border-emerald-500/30 bg-emerald-950/20'
-              }`}
+                    ? 'text-amber-500 border-amber-500/30 bg-amber-950/20'
+                    : block.settings?.theme === 'mandatory'
+                      ? 'text-sky-500 border-sky-500/30 bg-sky-950/20'
+                      : 'text-emerald-500 border-emerald-500/30 bg-emerald-950/20'
+                }`}
             >
               <AlertTriangle className="w-16 h-16" />
             </div>
@@ -342,8 +427,38 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
     (step as any).settings?.translations?.[selectedLanguage]?.title ||
     step.title;
 
+  const mainRef = useRef<HTMLElement>(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  const checkScrollOverflow = useCallback(() => {
+    if (!mainRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = mainRef.current;
+    const hasOverflow = scrollHeight > clientHeight + 24;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 32;
+    setCanScrollDown(hasOverflow && !isNearBottom);
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(checkScrollOverflow, 120);
+    const el = mainRef.current;
+    if (!el) return () => clearTimeout(timeout);
+    el.addEventListener('scroll', checkScrollOverflow, { passive: true });
+    window.addEventListener('resize', checkScrollOverflow);
+    return () => {
+      clearTimeout(timeout);
+      el.removeEventListener('scroll', checkScrollOverflow);
+      window.removeEventListener('resize', checkScrollOverflow);
+    };
+  }, [checkScrollOverflow, stepIndex, step]);
+
+  const handleScrollDown = () => {
+    if (!mainRef.current) return;
+    mainRef.current.scrollBy({ top: 320, behavior: 'smooth' });
+  };
+
   return (
     <main
+      ref={mainRef}
       data-testid="kiosk-step-container"
       data-step-index={stepIndex}
       data-direction={direction}
@@ -353,40 +468,190 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       data-rtl={isRtlMode ? 'true' : 'false'}
       role="main"
       aria-label={translatedTitle || t('player.stepCanvas', { defaultValue: 'Instructional Step Canvas' })}
-      className={`relative flex-1 overflow-y-auto overflow-x-hidden max-w-full w-full flex flex-col justify-start px-4 sm:px-8 lg:px-12 py-6 transition-all duration-300 ease-out break-words ${
-        isRtlMode
+      className={`relative flex-1 overflow-y-auto overflow-x-hidden max-w-full w-full flex flex-col justify-start px-4 sm:px-8 lg:px-12 py-6 pb-28 sm:pb-36 transition-all duration-300 ease-out break-words scrollbar-thin scrollbar-thumb-slate-700 hover:scrollbar-thumb-slate-600 active:scrollbar-thumb-emerald-500 ${isRtlMode
           ? direction === 'forward'
             ? 'animate-slide-in-left'
             : 'animate-slide-in-right'
           : direction === 'forward'
-          ? 'animate-slide-in-right'
-          : 'animate-slide-in-left'
-      } ${className}`}
+            ? 'animate-slide-in-right'
+            : 'animate-slide-in-left'
+        } ${className}`}
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 flex-1 flex flex-col justify-center min-w-0 break-words">
-        {/* Step-specific warning or emergency protocol header */}
-        {(isEmergency || isWarning) && (
+      <div className="w-full max-w-5xl mx-auto space-y-6 flex-1 flex flex-col justify-start my-auto min-w-0 break-words">
+        {/* Step-specific OSHA warning standard or emergency protocol banner */}
+        {isWarning && (() => {
+          const hazardLevel = (
+            (step as any).warningConfig?.hazardLevel ||
+            (step as any).settings?.hazardLevel ||
+            (step as any).interaction?.hazardLevel ||
+            'warning'
+          ).toLowerCase();
+          const configs: Record<string, { label: string; desc: string; border: string; iconColor: string }> = {
+            danger: {
+              label: 'DANGER: IMMEDIATE CRITICAL HAZARD',
+              desc: 'Hazardous situation which, if not avoided, will result in death or permanent serious injury.',
+              border: 'border-rose-500 bg-rose-950/40 text-rose-200',
+              iconColor: 'text-rose-400'
+            },
+            warning: {
+              label: 'Attention / Hazard Warning',
+              desc: 'Follow safe handling guidelines. Hazardous situation which, if not avoided, could result in serious injury or equipment damage.',
+              border: 'border-amber-500 bg-amber-950/40 text-amber-200',
+              iconColor: 'text-amber-400'
+            },
+            caution: {
+              label: 'CAUTION: PRECAUTIONARY NOTICE',
+              desc: 'Hazardous situation which, if not avoided, could result in minor or moderate physical injury.',
+              border: 'border-yellow-500 bg-yellow-950/40 text-yellow-200',
+              iconColor: 'text-yellow-400'
+            },
+            notice: {
+              label: 'NOTICE: MANDATORY FACILITY POLICY',
+              desc: 'Important plant policy and operational procedures not related to personal physical injury.',
+              border: 'border-sky-500 bg-sky-950/40 text-sky-200',
+              iconColor: 'text-sky-400'
+            }
+          };
+          const cfg = configs[hazardLevel] || configs.warning;
+          const warningConfig = (step as any).warningConfig;
+          const signalWord = warningConfig?.signalWord || hazardLevel.toUpperCase();
+          const hazardStatement = warningConfig?.hazardStatement;
+          const precautionaryStatement = warningConfig?.precautionaryStatement;
+
+          return (
+            <div
+              data-testid="osha-hazard-banner"
+              data-hazard-level={hazardLevel}
+              className={`flex items-start space-x-4 border-2 rounded-2xl p-6 shadow-xl ${cfg.border}`}
+            >
+              <AlertTriangle className={`w-8 h-8 shrink-0 ${cfg.iconColor}`} />
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-3 py-1 rounded font-black text-sm uppercase ${hazardLevel === 'danger'
+                        ? 'bg-rose-600 text-white'
+                        : hazardLevel === 'caution'
+                          ? 'bg-amber-500 text-slate-950'
+                          : hazardLevel === 'notice'
+                            ? 'bg-sky-600 text-white'
+                            : 'bg-amber-600 text-white'
+                      }`}
+                  >
+                    {signalWord}
+                  </span>
+                  <h3 className="text-xl font-black uppercase tracking-wider">{cfg.label}</h3>
+                </div>
+                {hazardStatement && (
+                  <p className="text-base font-bold text-white pt-1">{hazardStatement}</p>
+                )}
+                <p className="text-sm opacity-90">{precautionaryStatement || cfg.desc}</p>
+                {(step as any).settings?.complianceStandard && (
+                  <p className="text-xs font-mono opacity-75 pt-1">
+                    Standard Reference: {(step as any).settings.complianceStandard}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {isEmergency && (() => {
+          const emergencyConfig = (step as any).emergencyConfig || (step as any).settings || {};
+          const musterPoint = emergencyConfig.musterPoint || (step as any).settings?.musterPoint;
+          const evacuationRoute = emergencyConfig.evacuationRoute || (step as any).settings?.evacuationRoute;
+          const emergencyContact = emergencyConfig.emergencyContact || emergencyConfig.dispatchChannel || (step as any).settings?.dispatchChannel;
+
+          return (
+            <div
+              data-testid="emergency-step-container"
+              className="flex flex-col space-y-4 border-2 border-rose-500 bg-rose-950/50 text-rose-200 rounded-2xl p-6 shadow-2xl animate-pulse"
+            >
+              <div className="flex items-start space-x-4">
+                <ShieldAlert className="w-9 h-9 shrink-0 text-rose-400" />
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-wider text-white">Emergency Safety Protocol Active</h3>
+                  <p className="text-sm opacity-90 mt-0.5">Immediate action required. Immediate evacuation and life-safety guidelines. Observe muster locations.</p>
+                </div>
+              </div>
+              {(musterPoint || evacuationRoute || emergencyContact) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-rose-500/30">
+                  {musterPoint && (
+                    <div className="flex items-center space-x-2 text-xs font-bold text-rose-300">
+                      <span className="px-2 py-0.5 rounded bg-rose-500/30 font-extrabold uppercase">Designated Muster Point</span>
+                      <span>{musterPoint}</span>
+                    </div>
+                  )}
+                  {evacuationRoute && (
+                    <div className="sm:col-span-2 text-xs text-rose-200 font-semibold bg-rose-900/30 p-2.5 rounded-lg border border-rose-500/20">
+                      <span className="font-bold uppercase tracking-wider block text-[10px] text-rose-400 mb-1">Evacuation Route</span>
+                      <span>{evacuationRoute}</span>
+                    </div>
+                  )}
+                  {emergencyContact && (
+                    <div className="flex items-center space-x-2 text-xs font-bold text-rose-300">
+                      <Radio className="w-3.5 h-3.5" />
+                      <span>{emergencyContact}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Supervisor Witness On-Canvas Attestation Card */}
+        {(step.type === 'supervisor_gate' || step.requireSupervisorWitness) && (
           <div
-            className={`flex items-start space-x-4 border rounded-2xl p-6 ${
-              isEmergency
-                ? 'bg-rose-950/30 border-rose-500/50 text-rose-300 animate-pulse'
-                : 'bg-amber-950/30 border-amber-500/50 text-amber-300'
-            }`}
+            data-testid="supervisor-gate-card"
+            className={`p-6 rounded-2xl border transition-all ${isSupervisorWitnessed
+                ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-200'
+                : 'bg-indigo-950/40 border-indigo-500/50 text-indigo-200 shadow-xl'
+              }`}
           >
-            {isEmergency ? (
-              <ShieldAlert className="w-8 h-8 shrink-0 text-rose-400" />
-            ) : (
-              <AlertTriangle className="w-8 h-8 shrink-0 text-amber-400" />
-            )}
-            <div>
-              <h3 className="text-xl font-black uppercase tracking-wider">
-                {isEmergency ? 'Emergency Safety Protocol' : 'Attention / Hazard Warning'}
-              </h3>
-              <p className="text-sm opacity-90 mt-1">
-                {isEmergency
-                  ? 'Immediate action required. Please observe emergency procedures carefully.'
-                  : 'Follow safe handling guidelines to prevent physical injury.'}
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start space-x-3.5">
+                <div
+                  className={`p-3 rounded-xl border ${isSupervisorWitnessed
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse'
+                    }`}
+                >
+                  {isSupervisorWitnessed ? (
+                    <ShieldCheck className="w-7 h-7" />
+                  ) : (
+                    <ShieldAlert className="w-7 h-7" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-lg font-black tracking-tight text-white flex items-center space-x-2">
+                    <span>{isSupervisorWitnessed ? 'Supervisor Witness Verified' : 'Supervisor Witness Required'}</span>
+                    {isSupervisorWitnessed && (
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950">
+                        Authorized
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                    {isSupervisorWitnessed
+                      ? `Attestation Authorized & Logged. Checkpoint cleared by supervisor ${supervisorWitnessData?.fullName ||
+                      supervisorWitnessData?.name ||
+                      'Authorized Lead'
+                      }.`
+                      : 'Pending Supervisor Authorization. A certified supervisor must witness this checkpoint and enter their 4-digit PIN.'}
+                  </p>
+                </div>
+              </div>
+              {!isSupervisorWitnessed && onOpenSupervisorGate && (
+                <button
+                  type="button"
+                  data-testid="supervisor-signoff-btn"
+                  onClick={onOpenSupervisorGate}
+                  className="min-h-[56px] px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm transition active:scale-95 shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>Supervisor Sign-Off</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -508,19 +773,17 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                         id={`ppe-check-${itemId}`}
                         data-testid={`ppe-check-${itemId}`}
                         onClick={() => onTogglePpeItem?.(item)}
-                        className={`min-h-[52px] min-w-[48px] p-3.5 rounded-xl border text-left flex items-center justify-between font-semibold text-sm transition active:scale-98 ${
-                          isChecked
+                        className={`min-h-[52px] min-w-[48px] p-3.5 rounded-xl border text-left flex items-center justify-between font-semibold text-sm transition active:scale-98 ${isChecked
                             ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-200'
                             : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700'
-                        }`}
+                          }`}
                       >
                         <span>{item}</span>
                         <div
-                          className={`w-6 h-6 rounded-md border flex items-center justify-center ${
-                            isChecked
+                          className={`w-6 h-6 rounded-md border flex items-center justify-center ${isChecked
                               ? 'bg-emerald-500 border-emerald-500 text-slate-950'
                               : 'border-slate-700 bg-slate-900'
-                          }`}
+                            }`}
                         >
                           {isChecked && <Check className="w-4 h-4 stroke-[3]" />}
                         </div>
@@ -585,7 +848,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             <div className="w-full pt-4">
               <KnowledgeQuizEngine
                 quiz={(step.interaction?.quiz || step.quiz)!}
-                onPass={onQuizPass || (() => {})}
+                onPass={onQuizPass || (() => { })}
                 onFail={onQuizFail}
                 highContrast={highContrast}
               />
@@ -610,6 +873,27 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Floating Touch Scroll Indicator when content extends beneath the fold */}
+      {canScrollDown && (
+        <div
+          data-testid="kiosk-scroll-cue"
+          className="sticky bottom-4 left-1/2 z-30 pointer-events-auto flex justify-center py-2"
+        >
+          <button
+            type="button"
+            data-testid="kiosk-scroll-down-btn"
+            onClick={handleScrollDown}
+            className={`min-h-[48px] px-5 py-2.5 rounded-full border shadow-2xl flex items-center space-x-2 text-xs font-bold transition active:scale-95 animate-bounce cursor-pointer ${highContrast
+                ? 'bg-amber-400 text-black border-2 border-amber-300 shadow-amber-400/20'
+                : 'bg-slate-900/95 border-emerald-500/50 text-emerald-300 hover:bg-slate-800 shadow-emerald-500/20'
+              }`}
+          >
+            <ChevronDown className="w-4 h-4 stroke-[3]" />
+            <span>{t('player.scrollForMore', { defaultValue: 'Scroll for more' })}</span>
+          </button>
         </div>
       )}
     </main>

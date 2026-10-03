@@ -118,7 +118,7 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
           disabled={!canGoNext}
           aria-disabled={!canGoNext}
           onClick={onFinish}
-          className={`min-h-[64px] min-w-[64px] sm:min-w-[140px] px-8 py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+          className={`min-h-[64px] min-w-[64px] sm:min-w-[140px] px-5 sm:px-8 py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
             !canGoNext
               ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
               : highContrast
@@ -143,7 +143,7 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
           disabled={!canGoNext}
           aria-disabled={!canGoNext}
           onClick={onNext}
-          className={`min-h-[64px] min-w-[64px] sm:min-w-[140px] px-8 py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+          className={`min-h-[64px] min-w-[64px] sm:min-w-[140px] px-5 sm:px-8 py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
             !canGoNext
               ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
               : highContrast
@@ -187,7 +187,7 @@ export const KioskActionFooter: React.FC<KioskActionFooterProps> = ({
         data-testid="kiosk-btn-prev"
         data-position={isRtlMode ? 'bottom-right' : 'bottom-left'}
         onClick={onPrev}
-        className={`min-h-[64px] min-w-[64px] sm:min-w-[120px] px-6 py-4 rounded-2xl border font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+        className={`min-h-[64px] min-w-[64px] sm:min-w-[120px] px-4 sm:px-6 py-4 rounded-2xl border font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
           highContrast
             ? 'bg-black border-white text-white hover:bg-white/20 active:bg-white/30 focus-visible:outline-amber-400'
             : 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800 hover:text-white'

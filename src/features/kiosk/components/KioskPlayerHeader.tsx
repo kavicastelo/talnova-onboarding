@@ -185,7 +185,7 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
               data-testid="toggle-autoplay-btn"
               onClick={onToggleAutoPlay}
               title={autoPlay ? t('player.autoplayOn', { defaultValue: 'Narration Autoplay: ON' }) : t('player.autoplayOff', { defaultValue: 'Narration Autoplay: OFF' })}
-              className={`min-h-[48px] px-3 h-12 rounded-xl border text-xs font-bold transition active:scale-95 flex items-center space-x-1.5 rtl:space-x-reverse ${
+              className={`hidden md:flex min-h-[48px] px-3 h-12 rounded-xl border text-xs font-bold transition active:scale-95 items-center space-x-1.5 rtl:space-x-reverse ${
                 autoPlay
                   ? highContrast
                     ? 'bg-amber-400 text-black border-amber-300'
@@ -198,7 +198,7 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
             </button>
           )}
 
-          {/* Multi-Language Modal Trigger (K-LOC-001) */}
+          {/* Multi-Language Modal Trigger (K-LOC-001) - Visible on tablet/mobile screens */}
           {onLanguageChange && (
             <button
               type="button"
@@ -206,7 +206,7 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
               data-testid="player-language-modal-btn"
               onClick={() => setIsLanguageModalOpen(true)}
               title={t('player.switchLanguage', { defaultValue: 'Switch Language' })}
-              className={`min-h-[48px] min-w-[48px] h-12 px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-1.5 transition active:scale-95 ${
+              className={`flex xl:hidden min-h-[48px] min-w-[48px] h-12 px-3.5 rounded-xl border text-xs font-bold items-center justify-center space-x-1.5 transition active:scale-95 ${
                 highContrast
                   ? 'bg-black border-white text-white hover:border-amber-400'
                   : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800 text-slate-200'
@@ -217,11 +217,11 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
             </button>
           )}
 
-          {/* Inline Quick Language Switcher Pills */}
+          {/* Inline Quick Language Switcher Pills - Visible on wide screens */}
           {languages && languages.length > 1 && onLanguageChange && (
             <div
               data-testid="player-language-switcher"
-              className="flex items-center space-x-2 bg-slate-900/80 border border-slate-800 rounded-xl p-1"
+              className="hidden xl:flex items-center space-x-2 bg-slate-900/80 border border-slate-800 rounded-xl p-1"
             >
               <Languages className="w-4 h-4 text-slate-400 ms-1.5 me-0.5 hidden sm:inline" />
               {languages.map((lang) => (
@@ -252,14 +252,14 @@ export const KioskPlayerHeader: React.FC<KioskPlayerHeaderProps> = ({
               id="kiosk-btn-exit"
               data-testid="kiosk-btn-exit"
               onClick={onExit}
-              className={`min-h-[48px] min-w-[48px] h-12 px-4 rounded-xl font-bold text-xs border transition flex items-center space-x-2 active:scale-95 ${
+              className={`min-h-[48px] min-w-[48px] h-12 px-3 sm:px-4 rounded-xl font-bold text-xs border transition flex items-center space-x-2 active:scale-95 ${
                 highContrast
                   ? 'bg-black border-white text-white hover:border-amber-400'
                   : 'bg-rose-950/40 border-rose-900/60 text-rose-300 hover:bg-rose-900/60 hover:text-white'
               }`}
             >
               <LogOut className="w-4 h-4" />
-              <span>{isAdminPreview ? t('player.exitPreview', { defaultValue: 'Exit Preview' }) : t('player.exit', { defaultValue: 'Exit' })}</span>
+              <span className="hidden sm:inline">{isAdminPreview ? t('player.exitPreview', { defaultValue: 'Exit Preview' }) : t('player.exit', { defaultValue: 'Exit' })}</span>
             </button>
           )}
         </div>

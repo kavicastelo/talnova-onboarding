@@ -10,6 +10,7 @@ import {
 } from '../features/kiosk/components/fleet/DeviceDetailDrawer';
 import { KioskDevice } from '../types/kiosk/device.types';
 import { KioskJourney } from '../types/kiosk/journey.types';
+import { KioskDeviceGroup } from '../types/kiosk/group.types';
 
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
@@ -57,6 +58,7 @@ describe('K-DEV-006: Fleet Management Dashboard & Telemetry Drawer Suite', () =>
       location: 'Plant A - Gate 1',
       deviceType: 'wall_mount',
       status: 'online',
+      deviceGroupId: 'grp-1',
       currentContentVersion: 1,
       lastSeen: new Date(),
       pairedAt: new Date('2026-09-01'),
@@ -142,6 +144,29 @@ describe('K-DEV-006: Fleet Management Dashboard & Telemetry Drawer Suite', () =>
       lastSeen: new Date(Date.now() - 3600000),
       telemetry: {}
     } as any
+  ];
+
+  const mockGroups: KioskDeviceGroup[] = [
+    {
+      _id: 'grp-1',
+      organizationId: 'org-1',
+      name: 'Plant A Terminals',
+      description: 'Terminals in Plant A',
+      deviceIds: ['dev-1'] as any,
+      isDeleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'grp-2',
+      organizationId: 'org-1',
+      name: 'Plant B Terminals',
+      description: 'Terminals in Plant B',
+      deviceIds: [] as any,
+      isDeleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
   ];
 
   describe('1. Summary Metric Badges (Requirement 1)', () => {
@@ -363,6 +388,52 @@ describe('K-DEV-006: Fleet Management Dashboard & Telemetry Drawer Suite', () =>
       expect(formatBytes(5242880)).toBe('5.0 MB');
       expect(formatBytes(10737418240)).toBe('10.0 GB');
       expect(formatBytes(undefined)).toBe('N/A');
+    });
+  });
+
+  describe('6. Device Group Badges & Inline Reassignment', () => {
+    it('renders device group filter and assigned group badge in fleet dashboard', () => {
+      const html = renderToString(
+        <FleetDashboardTab
+          devices={mockDevices}
+          journeys={mockJourneys}
+          deviceGroups={mockGroups}
+          onRefreshFleet={vi.fn()}
+          onPairTerminal={vi.fn()}
+          onToggleMaintenance={vi.fn()}
+          onDispatchCommand={vi.fn()}
+          onRevokeDevice={vi.fn()}
+          onManageAssignments={vi.fn()}
+        />
+      );
+
+      // Verify group filter select is rendered
+      expect(html).toContain('data-testid="group-filter-select"');
+      expect(html).toContain('Plant A Terminals');
+      expect(html).toContain('Plant B Terminals');
+
+      // Verify group badge on dev-1
+      expect(html).toContain('data-testid="terminal-group-badge"');
+      expect(html).toContain('Plant A Terminals');
+    });
+
+    it('renders device group assignment block and inline selector in detail drawer', () => {
+      const html = renderToString(
+        <DeviceDetailDrawer
+          device={mockDevices[0]}
+          isOpen={true}
+          onClose={vi.fn()}
+          journeys={mockJourneys}
+          deviceGroups={mockGroups}
+          onUpdateDevice={vi.fn()}
+        />
+      );
+
+      // Verify group assignment section and selector
+      expect(html).toContain('data-testid="drawer-group-select"');
+      expect(html).toContain('Plant A Terminals');
+      expect(html).toContain('Plant B Terminals');
+      expect(html).toContain('No Group (Unassigned)');
     });
   });
 });

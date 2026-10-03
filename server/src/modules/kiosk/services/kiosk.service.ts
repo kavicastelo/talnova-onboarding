@@ -21,6 +21,7 @@ import { KioskDeviceGroupRepository } from "../repositories/kiosk-device-group.r
 import { KioskSessionRepository } from "../repositories/kiosk-session.repository.js";
 import { KioskSessionModel, IKioskSession } from "../models/kiosk-session.model.js";
 import { computeCanonicalStepsChecksum } from "../utils/checksum.util.js";
+import { KioskPairingCodeModel } from "../models/kiosk-pairing-code.model.js";
 import { validateJourneyForPublish } from "../validation/journey-publish.validator.js";
 import { ValidationReport } from "../types/validation.types.js";
 import AuditLog from "../../audit-logs/models/audit-log.model.js";
@@ -816,14 +817,14 @@ export class KioskService {
 
   // --- Device Management ---
 
-  async generatePairingCode(orgId: string, deviceId: string, userId?: string): Promise<{ code: string; expiresInSeconds: number }> {
+  async generatePairingCode(orgId: string, deviceId?: string, userId?: string): Promise<{ code: string; expiresInSeconds: number }> {
     const org = await Organization.findById(orgId);
     if (!org) {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
     }
 
     const maxKiosks = await this.resolveMaxKiosks(org);
-    const existing = await this.deviceRepo.findByFingerprint(deviceId);
+    const existing = deviceId ? await this.deviceRepo.findByFingerprint(deviceId) : null;
     if (!existing) {
       const currentKiosksCount = await KioskDeviceModel.countDocuments({
         $or: [
@@ -855,8 +856,20 @@ export class KioskService {
 
     const { orgId } = pairingData;
     const pairedBy = pairedByUserId || pairingData.createdBy;
-    if (pairingData.deviceId && pairingData.deviceId !== deviceId) {
-      throw new AppError(400, "DEVICE_MISMATCH", "Pairing code was generated for a different hardware GUID");
+    if (
+      pairingData.deviceId &&
+      pairingData.deviceId.trim().toLowerCase() !== deviceId.trim().toLowerCase()
+    ) {
+      // Revert single-use consumption so technician can retry with correct hardware GUID
+      await KioskPairingCodeModel.updateOne(
+        { code, consumed: true },
+        { $set: { consumed: false }, $unset: { consumedAt: 1 } }
+      ).catch(() => {});
+      throw new AppError(
+        400,
+        "DEVICE_MISMATCH",
+        `Pairing code was generated for a different hardware GUID ("${pairingData.deviceId}")`
+      );
     }
 
     // Sign token for physical device (90 days expiry, K-DEV-003)
@@ -1760,6 +1773,27 @@ export class KioskService {
       isDeleted: false
     });
 
+    if (validDeviceIds.length > 0) {
+      // Pull these devices from any other groups in this organization to maintain clean primary grouping
+      await KioskDeviceGroupModel.updateMany(
+        {
+          _id: { $ne: group._id },
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          deviceIds: { $in: validDeviceIds }
+        },
+        { $pull: { deviceIds: { $in: validDeviceIds } } }
+      );
+
+      // Synchronize deviceGroupId on KioskDevice documents
+      await KioskDeviceModel.updateMany(
+        {
+          _id: { $in: validDeviceIds },
+          organizationId: new mongoose.Types.ObjectId(orgId)
+        },
+        { $set: { deviceGroupId: group._id } }
+      );
+    }
+
     return group;
   }
 
@@ -1861,6 +1895,49 @@ export class KioskService {
     }
 
     const updated = await this.deviceGroupRepo.update(id, orgId, updates);
+
+    if (data.deviceIds !== undefined) {
+      const currentMemberIds = (group.deviceIds || []).map((d: any) => d.toString());
+      const newMemberIds = (updates.deviceIds || []).map((d: any) => d.toString());
+
+      const added = newMemberIds.filter((devId: string) => !currentMemberIds.includes(devId));
+      const removed = currentMemberIds.filter((devId: string) => !newMemberIds.includes(devId));
+
+      if (added.length > 0) {
+        const addedObjectIds = added.map((devId: string) => new mongoose.Types.ObjectId(devId));
+        // Remove from other groups
+        await KioskDeviceGroupModel.updateMany(
+          {
+            _id: { $ne: group._id },
+            organizationId: new mongoose.Types.ObjectId(orgId),
+            deviceIds: { $in: addedObjectIds }
+          },
+          { $pull: { deviceIds: { $in: addedObjectIds } } }
+        );
+        // Set new deviceGroupId
+        await KioskDeviceModel.updateMany(
+          {
+            _id: { $in: addedObjectIds },
+            organizationId: new mongoose.Types.ObjectId(orgId)
+          },
+          { $set: { deviceGroupId: group._id } }
+        );
+      }
+
+      if (removed.length > 0) {
+        const removedObjectIds = removed.map((devId: string) => new mongoose.Types.ObjectId(devId));
+        // Clear deviceGroupId for removed devices
+        await KioskDeviceModel.updateMany(
+          {
+            _id: { $in: removedObjectIds },
+            organizationId: new mongoose.Types.ObjectId(orgId),
+            deviceGroupId: group._id
+          },
+          { $set: { deviceGroupId: null } }
+        );
+      }
+    }
+
     return updated;
   }
 
@@ -1875,7 +1952,110 @@ export class KioskService {
       targetType: "device_group",
       targetId: group._id
     });
+    // Clear deviceGroupId on all devices that were in this group
+    await KioskDeviceModel.updateMany(
+      {
+        organizationId: new mongoose.Types.ObjectId(orgId),
+        deviceGroupId: group._id
+      },
+      { $set: { deviceGroupId: null } }
+    );
     return { success: true };
+  }
+
+  async updateDevice(
+    deviceIdOrId: string,
+    orgId: string,
+    updates: {
+      name?: string;
+      location?: string;
+      siteId?: string | null;
+      deviceType?: string;
+      deviceGroupId?: string | null;
+    }
+  ) {
+    const isObjectId = mongoose.Types.ObjectId.isValid(deviceIdOrId) && deviceIdOrId.length === 24;
+    const device = await KioskDeviceModel.findOne({
+      $or: [
+        ...(isObjectId ? [{ _id: new mongoose.Types.ObjectId(deviceIdOrId) }] : []),
+        { deviceId: deviceIdOrId },
+        { hardwareGuid: deviceIdOrId }
+      ],
+      organizationId: new mongoose.Types.ObjectId(orgId),
+      isDeleted: false
+    });
+
+    if (!device) {
+      throw new AppError(404, "NOT_FOUND", "Device not found");
+    }
+
+    const setFields: any = {};
+    if (updates.name !== undefined) {
+      if (!updates.name.trim()) throw new AppError(400, "BAD_REQUEST", "Device name cannot be empty");
+      setFields.name = updates.name.trim();
+    }
+    if (updates.location !== undefined) {
+      if (!updates.location.trim()) throw new AppError(400, "BAD_REQUEST", "Location cannot be empty");
+      setFields.location = updates.location.trim();
+    }
+    if (updates.siteId !== undefined) {
+      setFields.siteId = updates.siteId ? updates.siteId.trim() : null;
+    }
+    if (updates.deviceType !== undefined) {
+      setFields.deviceType = updates.deviceType;
+    }
+
+    if (updates.deviceGroupId !== undefined) {
+      if (updates.deviceGroupId) {
+        if (!mongoose.Types.ObjectId.isValid(updates.deviceGroupId)) {
+          throw new AppError(400, "BAD_REQUEST", "Invalid deviceGroupId");
+        }
+        const targetGroup = await KioskDeviceGroupModel.findOne({
+          _id: new mongoose.Types.ObjectId(updates.deviceGroupId),
+          organizationId: new mongoose.Types.ObjectId(orgId),
+          isDeleted: false
+        });
+        if (!targetGroup) {
+          throw new AppError(404, "NOT_FOUND", "Target device group not found");
+        }
+
+        // Pull from previous groups
+        await KioskDeviceGroupModel.updateMany(
+          {
+            _id: { $ne: targetGroup._id },
+            organizationId: new mongoose.Types.ObjectId(orgId),
+            deviceIds: device._id
+          },
+          { $pull: { deviceIds: device._id } }
+        );
+
+        // Add to new group
+        await KioskDeviceGroupModel.updateOne(
+          { _id: targetGroup._id },
+          { $addToSet: { deviceIds: device._id } }
+        );
+
+        setFields.deviceGroupId = targetGroup._id;
+      } else {
+        // Unset from group
+        await KioskDeviceGroupModel.updateMany(
+          {
+            organizationId: new mongoose.Types.ObjectId(orgId),
+            deviceIds: device._id
+          },
+          { $pull: { deviceIds: device._id } }
+        );
+        setFields.deviceGroupId = null;
+      }
+    }
+
+    const updated = await KioskDeviceModel.findByIdAndUpdate(
+      device._id,
+      { $set: setFields },
+      { new: true }
+    );
+
+    return updated;
   }
 
   async getGroupAssignments(groupId: string, orgId: string) {
@@ -2461,21 +2641,33 @@ export class KioskService {
       throw new AppError(400, "BAD_REQUEST", "organizationId is required for supervisor authorization");
     }
 
-    const cleanId = supervisorIdentifier.trim();
-    const isHexObjectId = /^[0-9a-fA-F]{24}$/.test(cleanId);
+    const cleanId = (supervisorIdentifier || "").trim();
+    if (!cleanId) {
+      throw new AppError(400, "BAD_REQUEST", "supervisorIdentifier is required for supervisor authorization");
+    }
 
-    // Requirement 1: Assert supervisor has role in ['owner', 'admin', 'manager', 'supervisor', 'super_admin']
-    const allowedRoles = ["owner", "admin", "manager", "supervisor", "super_admin"];
+    const isHexObjectId = /^[0-9a-fA-F]{24}$/.test(cleanId);
+    const escapedId = cleanId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const idRegex = new RegExp(`^${escapedId}$`, "i");
+
+    // Requirement 1: Assert supervisor has role in ['owner', 'admin', 'manager', 'supervisor', 'super_admin', 'it_admin', 'hr_admin']
+    const allowedRoles = ["owner", "admin", "manager", "supervisor", "super_admin", "it_admin", "hr_admin"];
+
+    const orgObjectId = mongoose.Types.ObjectId.isValid(targetOrgId)
+      ? new mongoose.Types.ObjectId(targetOrgId)
+      : targetOrgId;
 
     const supervisor = await User.findOne({
-      organizationId: new mongoose.Types.ObjectId(targetOrgId),
+      organizationId: orgObjectId,
       isDeleted: false,
       "permissions.role": { $in: allowedRoles },
       $or: [
         ...(isHexObjectId ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : []),
         { "auth.email": cleanId.toLowerCase() },
-        { "employment.employeeId": cleanId },
-        { "employment.badgeId": cleanId },
+        { "employment.employeeId": idRegex },
+        { "employment.badgeId": idRegex },
+        { email: cleanId.toLowerCase() },
+        { "profile.email": cleanId.toLowerCase() },
       ],
     });
 
@@ -2722,28 +2914,109 @@ export class KioskService {
    * Set / update supervisor 4-digit PIN
    */
   async setSupervisorPin(orgId: string, supervisorId: string, pin: string) {
-    if (!pin || pin.trim().length < 4) {
-      throw new AppError(400, "BAD_REQUEST", "Supervisor PIN must be at least 4 digits");
+    if (!orgId) {
+      throw new AppError(400, "BAD_REQUEST", "organizationId is required");
     }
 
-    const pinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
-    const supervisor = await User.findOneAndUpdate(
-      {
-        _id: new mongoose.Types.ObjectId(supervisorId),
-        organizationId: new mongoose.Types.ObjectId(orgId),
-        isDeleted: false,
-      },
-      {
-        $set: { "security.supervisorPinHash": pinHash },
-      },
+    const cleanId = (supervisorId || "").trim();
+    if (!cleanId) {
+      throw new AppError(400, "BAD_REQUEST", "Supervisor ID, email, or badge/employee ID is required");
+    }
+
+    const pinStr = (pin || "").trim();
+    if (!/^\d{4}$/.test(pinStr)) {
+      throw new AppError(400, "BAD_REQUEST", "Supervisor PIN must be exactly 4 numeric digits");
+    }
+
+    const isHexObjectId = /^[0-9a-fA-F]{24}$/.test(cleanId);
+    const escapedId = cleanId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const idRegex = new RegExp(`^${escapedId}$`, "i");
+
+    const orgObjectId = mongoose.Types.ObjectId.isValid(orgId)
+      ? new mongoose.Types.ObjectId(orgId)
+      : orgId;
+
+    const query: any = {
+      organizationId: orgObjectId,
+      isDeleted: false,
+      $or: [
+        ...(isHexObjectId ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : []),
+        { "auth.email": cleanId.toLowerCase() },
+        { "employment.employeeId": idRegex },
+        { "employment.badgeId": idRegex },
+        { email: cleanId.toLowerCase() },
+        { "profile.email": cleanId.toLowerCase() },
+      ],
+    };
+
+    const supervisor = await User.findOne(query);
+
+    if (!supervisor) {
+      throw new AppError(
+        404,
+        "SUPERVISOR_NOT_FOUND",
+        `Supervisor user not found for identifier "${cleanId}" in your organization`
+      );
+    }
+
+    const allowedRoles = ["owner", "admin", "manager", "supervisor", "super_admin", "it_admin", "hr_admin"];
+    const currentRole = supervisor.permissions?.role;
+    const shouldUpgradeRole = !currentRole || !allowedRoles.includes(currentRole);
+
+    const pinHash = crypto.createHash("sha256").update(pinStr).digest("hex");
+
+    const updateFields: any = {
+      "security.supervisorPinHash": pinHash,
+      "security.failedSupervisorPinAttempts": 0,
+      "security.supervisorPinLockedUntil": null,
+    };
+
+    if (shouldUpgradeRole) {
+      updateFields["permissions.role"] = "supervisor";
+    }
+
+    const updatedSupervisor = await User.findByIdAndUpdate(
+      supervisor._id,
+      { $set: updateFields },
       { new: true }
     );
 
-    if (!supervisor) {
-      throw new AppError(404, "NOT_FOUND", "Supervisor user not found");
+    // Record audit event for supervisor PIN configuration
+    try {
+      await AuditLog.create({
+        organizationId: supervisor.organizationId,
+        actorUserId: supervisor._id,
+        actorType: "user",
+        eventCategory: "security",
+        eventType: "SUPERVISOR_PIN_UPDATED",
+        resourceType: "user",
+        resourceId: supervisor._id,
+        action: "update",
+        status: "success",
+        details: {
+          supervisorId: supervisor._id.toString(),
+          email: supervisor.auth?.email,
+          role: updatedSupervisor?.permissions?.role,
+        },
+      });
+    } catch {
+      // Non-blocking audit log
     }
 
-    return { success: true, message: "Supervisor PIN set successfully" };
+    return {
+      success: true,
+      message: "Supervisor PIN set successfully",
+      supervisor: {
+        id: updatedSupervisor?._id?.toString() || supervisor._id.toString(),
+        name:
+          updatedSupervisor?.profile?.fullName ||
+          `${updatedSupervisor?.profile?.firstName || ""} ${updatedSupervisor?.profile?.lastName || ""}`.trim() ||
+          updatedSupervisor?.auth?.email,
+        email: updatedSupervisor?.auth?.email,
+        employeeId: updatedSupervisor?.employment?.employeeId,
+        role: updatedSupervisor?.permissions?.role || "supervisor",
+      },
+    };
   }
 
   /**

@@ -338,23 +338,29 @@ export async function validateJourneyForPublish(
   // --- RULE 5: Supervisor Role Availability if Supervisor Witness is Required ---
   const isSupervisorWitnessRequired =
     journey.settings?.requireSupervisorWitness === true ||
+    journey.settings?.security?.requireSupervisorWitness === true ||
     journey.settings?.security?.protectionType === "supervisor" ||
     steps.some(
       (s: any) =>
         s.interaction?.requireSupervisorWitness === true ||
         s.interaction?.type === "supervisor_witness" ||
-        s.requireSupervisorWitness === true
+        s.requireSupervisorWitness === true ||
+        s.type === "supervisor_gate"
     );
 
   if (isSupervisorWitnessRequired) {
     if (checkDatabase && orgId) {
+      const orgObjectId = mongoose.Types.ObjectId.isValid(orgId.toString())
+        ? new mongoose.Types.ObjectId(orgId.toString())
+        : orgId;
+
       const supervisorCount = await User.countDocuments({
-        organizationId: new mongoose.Types.ObjectId(orgId.toString()),
+        organizationId: orgObjectId,
         $or: [
-          { "permissions.role": "supervisor" },
-          { "permissions.roles": "supervisor" },
-          { "permissions.customRoles": "supervisor" },
-          { "permissions.role": "manager" }
+          { "permissions.role": { $in: ["supervisor", "manager"] } },
+          { "permissions.roles": { $in: ["supervisor", "manager"] } },
+          { "permissions.customRoles": { $in: ["supervisor", "manager"] } },
+          { "security.supervisorPinHash": { $exists: true, $ne: null } }
         ],
         isDeleted: false,
         "employment.status": { $ne: "inactive" }
@@ -366,6 +372,20 @@ export async function validateJourneyForPublish(
           message:
             "Supervisor witness is required, but no active supervisor user exists for this organization."
         });
+      } else {
+        const pinConfiguredCount = await User.countDocuments({
+          organizationId: orgObjectId,
+          isDeleted: false,
+          "security.supervisorPinHash": { $exists: true, $ne: null }
+        });
+
+        if (pinConfiguredCount === 0) {
+          warnings.push({
+            rule: "supervisor_availability",
+            message:
+              "Supervisor witness is required. Active supervisors exist, but no 4-digit supervisor witness PIN has been configured yet in Kiosk Dashboard."
+          });
+        }
       }
     } else {
       warnings.push({

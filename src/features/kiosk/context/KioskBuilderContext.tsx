@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { KioskJourney, ValidationReport, ValidationErrorDetail } from '../../../types/kiosk/journey.types';
+import { KioskJourney, KioskJourneyVersion, ValidationReport, ValidationErrorDetail } from '../../../types/kiosk/journey.types';
 import { KioskStep, KioskStepType } from '../../../types/kiosk/step.types';
 import { KioskBlock, KioskBlockType } from '../../../types/kiosk/block.types';
 import { kioskService } from '../services/kiosk.service';
@@ -20,7 +20,12 @@ interface KioskBuilderContextProps {
   loadJourney: (journeyId: string) => Promise<void>;
   updateJourneyDetails: (details: Partial<KioskJourney>) => void;
   saveJourney: () => Promise<void>;
-  publishJourney: () => Promise<KioskJourney | null>;
+  publishJourney: (
+    changelog?: string,
+    scheduling?: { publishAt?: string | Date; expiresAt?: string | Date }
+  ) => Promise<KioskJourney | null>;
+  rollbackJourney: (version: number) => Promise<KioskJourney | null>;
+  listVersions: () => Promise<KioskJourneyVersion[]>;
   
   // Step Actions
   setActiveStepId: (stepId: string | null) => void;
@@ -104,29 +109,78 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  const publishJourney = async (): Promise<KioskJourney | null> => {
+  const publishJourney = async (
+    changelog?: string,
+    scheduling?: { publishAt?: string | Date; expiresAt?: string | Date }
+  ): Promise<KioskJourney | null> => {
     if (!journey || !journey._id) return null;
     setError(null);
     
     // First perform full local validation
     const isValid = validateJourney();
     if (!isValid) {
-      setError('Cannot publish: Journey has validation errors.');
-      return null;
+      const msg = 'Cannot publish: Journey has validation errors.';
+      setError(msg);
+      throw new Error(msg);
     }
 
     try {
       if (hasUnsavedChanges) {
         await saveJourney();
       }
-      const published = await kioskService.publishJourney(journey._id);
+      const published = await kioskService.publishJourney(journey._id, changelog, scheduling);
       setJourney(published);
       setOriginalJourney(published);
       setHasUnsavedChanges(false);
+      setValidationErrors([]);
+      setValidationReport(null);
+      setValidationErrorDetails([]);
       return published;
     } catch (err: any) {
-      setError(err?.message || 'Failed to publish kiosk journey');
+      const serverMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to publish kiosk journey';
+      setError(serverMessage);
+
+      const details = err?.response?.data?.details;
+      if (details?.errors && Array.isArray(details.errors)) {
+        setValidationErrorDetails(details.errors);
+        setValidationErrors(details.errors.map((e: any) => e.message || String(e)));
+        if (details.warnings) {
+          setValidationReport(details as ValidationReport);
+        }
+      }
+      throw new Error(serverMessage);
+    }
+  };
+
+  const rollbackJourney = async (version: number): Promise<KioskJourney | null> => {
+    if (!journey || !journey._id) return null;
+    setError(null);
+    try {
+      const restored = await kioskService.rollbackJourney(journey._id, version);
+      setJourney(restored);
+      setOriginalJourney(restored);
+      setHasUnsavedChanges(false);
+      setValidationErrors([]);
+      setValidationReport(null);
+      setValidationErrorDetails([]);
+      return restored;
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.message || 'Failed to rollback kiosk journey';
+      setError(serverMessage);
       return null;
+    }
+  };
+
+  const listVersions = async (): Promise<KioskJourneyVersion[]> => {
+    if (!journey || !journey._id) return [];
+    try {
+      return await kioskService.listJourneyVersions(journey._id);
+    } catch (err: any) {
+      console.error('Failed to list versions:', err);
+      return [];
     }
   };
 
@@ -135,21 +189,35 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const addStep = (type: KioskStepType) => {
     if (!journey) return;
     const steps = [...(journey.steps || [])];
+    const completionIndex = steps.findIndex((s) => s.type === 'completion');
     
     const newStep: KioskStep = {
       id: `step-${generateId()}`,
       type,
-      title: `New ${type.replace('_step', '').charAt(0).toUpperCase() + type.replace('_step', '').slice(1)} Step`,
+      title: `New ${type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`,
       order: steps.length,
       blocks: [],
       interaction: {
-        type: type === 'interactive_confirmation' ? 'hold_to_confirm' : 'tap_to_continue'
+        type:
+          type === 'interactive_confirmation'
+            ? 'hold_to_confirm'
+            : type === 'supervisor_gate'
+            ? 'supervisor_witness'
+            : 'tap_to_continue'
       }
     };
 
+    let updatedSteps: KioskStep[];
+    if (completionIndex !== -1 && type !== 'completion') {
+      steps.splice(completionIndex, 0, newStep);
+      updatedSteps = steps.map((s, idx) => ({ ...s, order: idx }));
+    } else {
+      updatedSteps = [...steps, newStep].map((s, idx) => ({ ...s, order: idx }));
+    }
+
     setJourney((prev) => {
       if (!prev) return null;
-      return { ...prev, steps: [...steps, newStep] };
+      return { ...prev, steps: updatedSteps };
     });
     setActiveStepId(newStep.id);
     setHasUnsavedChanges(true);
@@ -376,6 +444,8 @@ export const KioskBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ 
         updateJourneyDetails,
         saveJourney,
         publishJourney,
+        rollbackJourney,
+        listVersions,
         setActiveStepId,
         addStep,
         updateStep,

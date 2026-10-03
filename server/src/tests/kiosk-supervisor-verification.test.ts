@@ -446,4 +446,187 @@ describe("K-SUP-001: Supervisor Witness PIN Verification & Audit Binding Backend
       expect(decoded.type).toBe("kiosk_supervisor_witness");
     });
   });
+
+  // =========================================================================
+  // 5. Supervisor PIN Configuration Endpoint (/api/v1/kiosk/supervisor/pin)
+  // =========================================================================
+  describe("Supervisor PIN Configuration Endpoint (/api/v1/kiosk/supervisor/pin)", () => {
+    let adminToken: string;
+
+    beforeAll(() => {
+      adminToken = (app as any).jwt.sign({
+        userId: new mongoose.Types.ObjectId().toString(),
+        organizationId: testOrg._id.toString(),
+        role: "super_admin",
+      });
+    });
+
+    it("successfully sets supervisor PIN using employee ID (alphanumeric string)", async () => {
+      const newPin = "9482";
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/pin",
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          supervisorId: supervisorUser.employment.employeeId,
+          pin: newPin,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+
+      // Verify that this new PIN works at the terminal verification endpoint
+      const verifyRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/verify-pin",
+        payload: {
+          organizationId: testOrg._id.toString(),
+          supervisorIdentifier: supervisorUser.employment.employeeId,
+          pin: newPin,
+          sessionId: activeSession._id.toString(),
+        },
+      });
+      expect(verifyRes.statusCode).toBe(200);
+      expect(JSON.parse(verifyRes.body).verified).toBe(true);
+    });
+
+    it("successfully sets supervisor PIN using email address", async () => {
+      const newPin = "7153";
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/pin",
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          supervisorIdentifier: supervisorUser.auth.email,
+          pin: newPin,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+
+      const verifyRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/verify-pin",
+        payload: {
+          organizationId: testOrg._id.toString(),
+          supervisorIdentifier: supervisorUser.auth.email,
+          pin: newPin,
+          sessionId: activeSession._id.toString(),
+        },
+      });
+      expect(verifyRes.statusCode).toBe(200);
+      expect(JSON.parse(verifyRes.body).verified).toBe(true);
+    });
+
+    it("elevates regular employee to supervisor role when PIN is configured", async () => {
+      expect(regularEmployee.permissions.role).toBe("employee");
+
+      const empPin = "3819";
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/pin",
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          supervisorId: regularEmployee.employment.employeeId,
+          pin: empPin,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+
+      // Verify database reflects role upgrade to supervisor
+      const updatedUser = await User.findById(regularEmployee._id);
+      expect(updatedUser?.permissions?.role).toBe("supervisor");
+
+      // Verify that this previously non-supervisor employee can now verify PIN on kiosk
+      const verifyRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/verify-pin",
+        payload: {
+          organizationId: testOrg._id.toString(),
+          supervisorIdentifier: regularEmployee.employment.employeeId,
+          pin: empPin,
+          sessionId: activeSession._id.toString(),
+        },
+      });
+      expect(verifyRes.statusCode).toBe(200);
+      expect(JSON.parse(verifyRes.body).verified).toBe(true);
+    });
+
+    it("clears account lockout and resets failed attempts upon setting new PIN", async () => {
+      // Simulate lockout
+      await User.findByIdAndUpdate(supervisorUser._id, {
+        $set: {
+          "security.supervisorPinLockedUntil": new Date(Date.now() + 600000),
+          "security.failedSupervisorPinAttempts": 3,
+        },
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/pin",
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          supervisorId: supervisorUser._id.toString(),
+          pin: "5555",
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+
+      const refreshed = await User.findById(supervisorUser._id);
+      expect(refreshed?.security?.supervisorPinLockedUntil).toBeNull();
+      expect(refreshed?.security?.failedSupervisorPinAttempts).toBe(0);
+    });
+
+    it("returns 404 when target supervisor identifier does not exist", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/supervisor/pin",
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          supervisorId: "non-existent-user-id-99999",
+          pin: "1234",
+        },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.code || body.error?.code).toBe("SUPERVISOR_NOT_FOUND");
+    });
+
+    it("returns 400 validation error when PIN is not 4 numeric digits", async () => {
+      const invalidPins = ["123", "12345", "abcd", "12a4", ""];
+
+      for (const badPin of invalidPins) {
+        const response = await app.inject({
+          method: "POST",
+          url: "/api/v1/kiosk/supervisor/pin",
+          headers: {
+            authorization: `Bearer ${adminToken}`,
+          },
+          payload: {
+            supervisorId: supervisorUser.auth.email,
+            pin: badPin,
+          },
+        });
+
+        expect([400, 422]).toContain(response.statusCode);
+      }
+    });
+  });
 });

@@ -114,11 +114,29 @@ export const kioskService = {
     return { device, token, deviceToken: token };
   },
 
-  generatePairingCode: async (deviceId: string): Promise<{ code: string; expiresInSeconds: number }> => {
-    const response = await apiClient.post<any>('/kiosk/devices/pair/code', { deviceId });
+  generatePairingCode: async (deviceId?: string): Promise<{ code: string; expiresInSeconds: number }> => {
+    const payload = deviceId ? { deviceId } : {};
+    const response = await apiClient.post<any>('/kiosk/devices/pair/code', payload);
     const code = response.data?.code || response.data?.data?.code || '';
     const expiresInSeconds = response.data?.expiresInSeconds || response.data?.data?.expiresInSeconds || 900;
     return { code, expiresInSeconds };
+  },
+
+  updateDevice: async (
+    deviceId: string,
+    data: {
+      name?: string;
+      location?: string;
+      siteId?: string | null;
+      deviceType?: string;
+      deviceGroupId?: string | null;
+    }
+  ): Promise<KioskDevice> => {
+    const response = await apiClient.patch<{ success: boolean; data: KioskDevice }>(
+      `/kiosk/devices/${deviceId}`,
+      data
+    );
+    return response.data.data;
   },
 
   refreshDeviceToken: async (): Promise<{ device: KioskDevice; token: string; deviceToken: string }> => {
@@ -204,6 +222,28 @@ export const kioskService = {
     return response.data.success;
   },
 
+  verifySupervisorPin: async (
+    supervisorIdentifier: string,
+    pin: string,
+    sessionId?: string,
+    organizationId?: string
+  ): Promise<{
+    verified: boolean;
+    supervisor: any;
+    witnessToken?: string;
+    session?: any;
+    message?: string;
+  }> => {
+    const payload: any = {
+      supervisorIdentifier,
+      pin
+    };
+    if (sessionId) payload.sessionId = sessionId;
+    if (organizationId) payload.organizationId = organizationId;
+    const response = await apiClient.post<any>('/kiosk/supervisor/verify-pin', payload);
+    return response.data;
+  },
+
   syncAnalytics: async (sessions: Partial<KioskAnalytics>[], signedParams?: { o: string; exp: string; sig: string; journeyId?: string }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/analytics/sync', { sessions }, { params: signedParams });
     return response.data.data;
@@ -229,21 +269,13 @@ export const kioskService = {
     return response.data.data;
   },
 
-  verifySupervisorPin: async (
-    supervisorIdentifier: string,
-    pin: string,
-    sessionId?: string
-  ): Promise<{ verified: boolean; supervisor: any; session?: any; witnessToken?: string }> => {
-    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/supervisor/verify-pin', {
-      supervisorIdentifier,
-      pin,
-      sessionId
-    });
-    return response.data.data;
-  },
 
   setSupervisorPin: async (supervisorId: string, pin: string): Promise<boolean> => {
-    const response = await apiClient.post<{ success: boolean; message: string }>('/kiosk/supervisor/pin', { supervisorId, pin });
+    const response = await apiClient.post<{ success: boolean; message: string }>('/kiosk/supervisor/pin', {
+      supervisorId,
+      supervisorIdentifier: supervisorId,
+      pin,
+    });
     return response.data.success;
   },
 

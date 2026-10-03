@@ -17,10 +17,12 @@ import {
   MapPin,
   Layers,
   AlertTriangle,
-  Monitor
+  Monitor,
+  Folder
 } from 'lucide-react';
 import { KioskDevice } from '../../../../types/kiosk/device.types';
 import { KioskJourney } from '../../../../types/kiosk/journey.types';
+import { KioskDeviceGroup } from '../../../../types/kiosk/group.types';
 import { Badge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
 import { toast } from 'sonner';
@@ -30,9 +32,11 @@ export interface DeviceDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   journeys?: KioskJourney[];
+  deviceGroups?: KioskDeviceGroup[];
   onToggleMaintenance?: (deviceId: string, currentStatus: string) => Promise<void> | void;
   onDispatchCommand?: (deviceId: string, command: string) => Promise<void> | void;
   onRevokeDevice?: (deviceId: string, deviceName: string) => Promise<void> | void;
+  onUpdateDevice?: (deviceId: string, data: any) => Promise<void> | void;
   onManageAssignments?: (device: KioskDevice) => void;
 }
 
@@ -65,17 +69,40 @@ export function DeviceDetailDrawer({
   isOpen,
   onClose,
   journeys = [],
+  deviceGroups = [],
   onToggleMaintenance,
   onDispatchCommand,
   onRevokeDevice,
+  onUpdateDevice,
   onManageAssignments
 }: DeviceDetailDrawerProps) {
   const { t } = useTranslation(['kiosk', 'common']);
   const [copiedGuid, setCopiedGuid] = useState(false);
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
 
   if (!isOpen || !device) {
     return null;
   }
+
+  const currentGroupId = (device.deviceGroupId || '').toString();
+  const currentGroup = deviceGroups?.find(
+    (g) =>
+      (currentGroupId && g._id?.toString() === currentGroupId) ||
+      (g.deviceIds && g.deviceIds.some((id: any) => (id?._id || id).toString() === device._id))
+  );
+
+  const handleGroupChange = async (newGroupId: string) => {
+    if (!device?._id || !onUpdateDevice) return;
+    try {
+      setIsUpdatingGroup(true);
+      await onUpdateDevice(device._id, { deviceGroupId: newGroupId || null });
+      toast.success(t('fleet.groupUpdated', { defaultValue: 'Device group updated' }));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update device group');
+    } finally {
+      setIsUpdatingGroup(false);
+    }
+  };
 
   const isOnline = device.status === 'online';
   const isMaintenance = device.status === 'maintenance';
@@ -302,6 +329,38 @@ export function DeviceDetailDrawer({
                     </span>
                   </p>
                 </div>
+              </div>
+
+              {/* Group Assignment Block */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                    <Folder className="w-3 h-3 text-slate-400" />
+                    {t('fleet.assignedGroup', { defaultValue: 'Device Group' })}
+                  </span>
+                  <p className="text-xs font-semibold text-slate-700">
+                    {currentGroup ? currentGroup.name : t('fleet.unassigned', { defaultValue: 'Unassigned (No Group)' })}
+                  </p>
+                </div>
+                {onUpdateDevice && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      data-testid="drawer-group-select"
+                      disabled={isUpdatingGroup}
+                      value={currentGroupId || currentGroup?._id || ''}
+                      onChange={(e) => handleGroupChange(e.target.value)}
+                      aria-label={t('fleet.assignedGroup', { defaultValue: 'Device Group' })}
+                      className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50"
+                    >
+                      <option value="">{t('fleet.noGroup', { defaultValue: 'No Group (Unassigned)' })}</option>
+                      {deviceGroups?.map((group) => (
+                        <option key={group._id} value={group._id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           </div>

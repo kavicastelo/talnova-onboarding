@@ -193,3 +193,42 @@
   box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.5) !important;
 }
 
+/* =========================================================================
+   Dedicated Kiosk Printable Safety Certificate Styles
+   ========================================================================= */
+@media print {
+  /* Hide all interactive shell components, navigation, modals, and overlays */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Isolate and display only the dedicated printable certificate */
+  #kiosk-printable-certificate,
+  #kiosk-printable-certificate * {
+    visibility: visible !important;
+  }
+
+  #kiosk-printable-certificate {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 10mm 15mm !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    z-index: 9999999 !important;
+    box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+}
