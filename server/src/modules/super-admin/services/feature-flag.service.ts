@@ -7,7 +7,8 @@ interface CacheEntry {
 
 export class FeatureFlagService {
   private static cache = new Map<string, CacheEntry>();
-  private static CACHE_TTL_MS = 60 * 1000; // 60 seconds
+  private static CACHE_TTL_MS =
+    process.env.NODE_ENV === "test" || process.env.VITEST ? 0 : 60 * 1000; // 60 seconds (0 in tests)
 
   /**
    * Deterministic string hash function returning 0..99

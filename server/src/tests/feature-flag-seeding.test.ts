@@ -55,6 +55,17 @@ describe("PR-GOV-001: Master Feature Registry Expansion to 105 Capabilities", ()
   });
 
   afterAll(async () => {
+    await FeatureFlag.updateOne(
+      { key: "digital_signatures" },
+      {
+        $set: {
+          isEnabled: true,
+          description: "In-app digital document signing & verification",
+          rolloutPercentage: 100,
+          excludedOrganizationIds: [],
+        },
+      }
+    );
     await Organization.deleteMany({ _id: testOrg._id });
     await User.deleteMany({ _id: superAdminUser._id });
     await app.close();
@@ -145,6 +156,19 @@ describe("PR-GOV-001: Master Feature Registry Expansion to 105 Capabilities", ()
     expect(modifiedAfterSync?.rolloutPercentage).toBe(42);
     expect(modifiedAfterSync?.description).toBe("Custom admin overridden description");
     expect(modifiedAfterSync?.excludedOrganizationIds).toContainEqual(customOrgId);
+
+    // Restore flag for subsequent tests
+    await FeatureFlag.updateOne(
+      { key: targetKey },
+      {
+        $set: {
+          isEnabled: true,
+          description: "In-app digital document signing & verification",
+          rolloutPercentage: 100,
+          excludedOrganizationIds: [],
+        },
+      }
+    );
   });
 
   it("4. GET /api/v1/super-admin/settings/flags returns the full 105-flag catalog", async () => {

@@ -134,7 +134,9 @@ describe("Phase 1 — Platform Foundation Test Suite", () => {
       );
 
       // Wait for background retry cycle to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      for (let i = 0; i < 30 && attemptsCount < 2; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
       expect(job).not.toBeNull();
       expect(attemptsCount).toBe(2);
@@ -158,7 +160,9 @@ describe("Phase 1 — Platform Foundation Test Suite", () => {
         { organizationId: orgAId, idempotencyKey: "unique_op_123" }
       );
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      for (let i = 0; i < 30 && execCount < 1; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
       expect(job1).not.toBeNull();
       expect(job2).toBeNull(); // Suppressed

@@ -3101,6 +3101,10 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk journey not found");
     }
 
+    if (callerUser?.organizationId && journey.organizationId && callerUser.organizationId.toString() !== journey.organizationId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Cannot access journey belonging to another organization");
+    }
+
     const orgId = data.organizationId || callerUser?.organizationId || journey.organizationId.toString();
 
     // Resolve userId:
@@ -3194,6 +3198,10 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
     }
 
+    if (orgId && session.organizationId && session.organizationId.toString() !== orgId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Cannot update session belonging to another organization");
+    }
+
     const currentStepId = data.currentStepId || data.stepId;
     const completedSteps: string[] = [];
     if (data.completedStepId) completedSteps.push(data.completedStepId);
@@ -3237,6 +3245,10 @@ export class KioskService {
     const session = await this.sessionRepo.findById(sessionId);
     if (!session) {
       throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+    }
+
+    if (orgId && session.organizationId && session.organizationId.toString() !== orgId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Cannot complete session belonging to another organization");
     }
 
     if (session.status === "completed") {
@@ -3632,6 +3644,10 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
     }
 
+    if (orgId && session.organizationId && session.organizationId.toString() !== orgId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Cannot abort session belonging to another organization");
+    }
+
     const metadata: any = {};
     if (typeof data?.durationSeconds === "number") {
       metadata.durationSeconds = data.durationSeconds;
@@ -3673,6 +3689,10 @@ export class KioskService {
     const session = await this.sessionRepo.findById(sessionId);
     if (!session) {
       throw new AppError(404, "NOT_FOUND", "Kiosk session not found");
+    }
+
+    if (orgId && session.organizationId && session.organizationId.toString() !== orgId.toString()) {
+      throw new AppError(403, "TENANT_MISMATCH", "Cannot timeout session belonging to another organization");
     }
 
     const metadata: any = {};

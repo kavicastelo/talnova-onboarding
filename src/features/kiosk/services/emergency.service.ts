@@ -279,11 +279,15 @@ export class EmergencyService {
     if (this.pollIntervalId) clearInterval(this.pollIntervalId);
 
     // Initial check
-    this.fetchEmergencyStatus(organizationId).catch(() => {});
+    this.fetchEmergencyStatus(organizationId).catch(() => {
+      // Ignore initial poll failure
+    });
 
     // Poll every 15 seconds
     this.pollIntervalId = setInterval(() => {
-      this.fetchEmergencyStatus(organizationId).catch(() => {});
+      this.fetchEmergencyStatus(organizationId).catch(() => {
+        // Ignore background poll failure
+      });
     }, 15000);
   }
 

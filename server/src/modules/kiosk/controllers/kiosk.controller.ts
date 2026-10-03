@@ -1,15 +1,60 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { KioskService } from "../services/kiosk.service.js";
 import AppError from "../../../common/errors/app-error.js";
 import { KioskJourneyModel } from "../models/kiosk-journey.model.js";
 import { KioskSessionModel } from "../models/kiosk-session.model.js";
+import { KioskDeviceModel } from "../models/kiosk-device.model.js";
 import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 import kioskEmergencyStream from "../services/kiosk-emergency-stream.js";
 import { kioskSyntheticProbeService } from "../services/kiosk-synthetic-probe.service.js";
 
 export class KioskController {
   constructor(private readonly kioskService: KioskService) {}
+
+  private async resolveAuthenticatedUser(request: FastifyRequest): Promise<any> {
+    let user = request.user as any;
+    const authHeader = request.headers.authorization;
+    if (!user && authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      try {
+        await request.jwtVerify();
+        user = request.user;
+      } catch (err: any) {
+        if (err instanceof AppError) {
+          throw err;
+        }
+        const isExpired =
+          err.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED" ||
+          err.name === "TokenExpiredError" ||
+          err.message?.toLowerCase().includes("expired");
+        throw new AppError(
+          401,
+          isExpired ? "TOKEN_EXPIRED" : "UNAUTHORIZED",
+          isExpired ? "Authentication token has expired" : "Invalid token signature"
+        );
+      }
+    }
+
+    if (user && user.role === "kiosk_device" && user.deviceId) {
+      const rawToken = authHeader ? authHeader.replace(/^Bearer\s+/i, "").trim() : "";
+      if (rawToken) {
+        const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+        const device = await KioskDeviceModel.findOne({
+          deviceId: user.deviceId,
+          organizationId: user.organizationId,
+          isDeleted: false,
+          paired: { $ne: false },
+          status: { $nin: ["decommissioned", "suspended", "revoked"] }
+        });
+        if (!device || (device.tokenRef && device.tokenRef !== hash)) {
+          throw new AppError(401, "DEVICE_REVOKED", "Device credentials have been revoked or invalidated.");
+        }
+      }
+    }
+
+    return user;
+  }
 
   // --- Journey CRUD & Lifecycle ---
 
@@ -60,21 +105,13 @@ export class KioskController {
   };
 
   getSession = async (request: FastifyRequest, reply: FastifyReply) => {
-    let user = request.user as any;
-    if (!user && request.headers.authorization) {
-      try {
-        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
-        user = (request.server as any).jwt.decode(token);
-      } catch {
-        // ignore
-      }
-    }
+    const user = await this.resolveAuthenticatedUser(request);
     const orgId = user?.organizationId || request.kioskContext?.organizationId || (request.query as any)?.organizationId;
     const params = request.params as any;
 
     let session: any = null;
+    const isObjectId = mongoose.Types.ObjectId.isValid(params.id);
     try {
-      const isObjectId = mongoose.Types.ObjectId.isValid(params.id);
       const query: Record<string, any> = isObjectId
         ? { _id: new mongoose.Types.ObjectId(params.id) }
         : { sessionToken: params.id };
@@ -93,6 +130,13 @@ export class KioskController {
       }
     } catch {
       // ignore
+    }
+
+    if (!session && orgId && isObjectId) {
+      const foreignSession = await KioskSessionModel.findById(params.id);
+      if (foreignSession && foreignSession.organizationId.toString() !== orgId.toString()) {
+        throw new AppError(403, "TENANT_MISMATCH", "Cannot access session belonging to another organization");
+      }
     }
 
     const resolvedOrgId = orgId || session?.organizationId;
@@ -115,16 +159,7 @@ export class KioskController {
   };
 
   createSession = async (request: FastifyRequest, reply: FastifyReply) => {
-    let user = request.user as any;
-    if (!user && request.headers.authorization) {
-      try {
-        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
-        user = (request.server as any).jwt.decode(token);
-      } catch {
-        // ignore
-      }
-    }
-
+    const user = await this.resolveAuthenticatedUser(request);
     const body = request.body as any;
     const session = await this.kioskService.createSession(body, user);
 
@@ -136,16 +171,7 @@ export class KioskController {
   };
 
   updateSessionProgress = async (request: FastifyRequest, reply: FastifyReply) => {
-    let user = request.user as any;
-    if (!user && request.headers.authorization) {
-      try {
-        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
-        user = (request.server as any).jwt.decode(token);
-      } catch {
-        // ignore
-      }
-    }
-
+    const user = await this.resolveAuthenticatedUser(request);
     const params = request.params as any;
     const body = request.body as any;
     const orgId = user?.organizationId || request.kioskContext?.organizationId;
@@ -160,16 +186,7 @@ export class KioskController {
   };
 
   completeSession = async (request: FastifyRequest, reply: FastifyReply) => {
-    let user = request.user as any;
-    if (!user && request.headers.authorization) {
-      try {
-        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
-        user = (request.server as any).jwt.decode(token);
-      } catch {
-        // ignore
-      }
-    }
-
+    const user = await this.resolveAuthenticatedUser(request);
     const params = request.params as any;
     const body = (request.body || {}) as any;
     const orgId = user?.organizationId || request.kioskContext?.organizationId;
@@ -184,16 +201,7 @@ export class KioskController {
   };
 
   abortSession = async (request: FastifyRequest, reply: FastifyReply) => {
-    let user = request.user as any;
-    if (!user && request.headers.authorization) {
-      try {
-        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
-        user = (request.server as any).jwt.decode(token);
-      } catch {
-        // ignore
-      }
-    }
-
+    const user = await this.resolveAuthenticatedUser(request);
     const params = request.params as any;
     const body = (request.body || {}) as any;
     const orgId = user?.organizationId || request.kioskContext?.organizationId;
@@ -208,16 +216,7 @@ export class KioskController {
   };
 
   timeoutSession = async (request: FastifyRequest, reply: FastifyReply) => {
-    let user = request.user as any;
-    if (!user && request.headers.authorization) {
-      try {
-        const token = request.headers.authorization.replace(/^Bearer\s+/i, "");
-        user = (request.server as any).jwt.decode(token);
-      } catch {
-        // ignore
-      }
-    }
-
+    const user = await this.resolveAuthenticatedUser(request);
     const params = request.params as any;
     const body = (request.body || {}) as any;
     const orgId = user?.organizationId || request.kioskContext?.organizationId;

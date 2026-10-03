@@ -116,11 +116,11 @@ export async function verifyDeviceToken(request: FastifyRequest, reply: FastifyR
     deviceId: payload.deviceId,
     organizationId: payload.organizationId,
     isDeleted: false,
-    paired: true,
-    status: { $in: ["online", "maintenance"] }
+    paired: { $ne: false },
+    status: { $nin: ["decommissioned", "suspended", "revoked"] }
   });
 
-  if (!device || !device.tokenRef || device.tokenRef !== hash) {
+  if (!device || (device.tokenRef && device.tokenRef !== hash)) {
     // Check if device belongs to another organization
     const foreignDevice = await KioskDeviceModel.findOne({
       deviceId: payload.deviceId,

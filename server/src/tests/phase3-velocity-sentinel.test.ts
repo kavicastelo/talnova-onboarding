@@ -386,7 +386,8 @@ describe("Phase 3 — Autonomous Monitoring, Velocity Scoring & Omnichannel Aler
 
   it("4. Complies with local timezone business hours (09:00 - 17:00)", async () => {
     const empTokyoId = new mongoose.Types.ObjectId();
-    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const eveningUtc = new Date("2026-09-13T14:00:00Z");
+    const fiveDaysAgo = new Date(eveningUtc.getTime() - 5 * 24 * 60 * 60 * 1000);
 
     await User.create({
       _id: empTokyoId,
@@ -410,7 +411,6 @@ describe("Phase 3 — Autonomous Monitoring, Velocity Scoring & Omnichannel Aler
 
     // Tokyo is UTC+9.
     // When UTC is 14:00, Tokyo time is 23:00 (outside 09:00 - 17:00).
-    const eveningUtc = new Date("2026-09-13T14:00:00Z");
     const deferredScan = await sentinel.evaluateEmployeeHealth(empTokyoId, orgId, {
       now: eveningUtc,
       ignoreTimezone: false,

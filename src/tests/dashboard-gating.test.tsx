@@ -231,6 +231,23 @@ vi.mock('../hooks/useHROperations', () => ({
   useExecuteHRBulkAction: () => ({ mutate: vi.fn() }),
 }));
 
+// Mock settings hooks
+vi.mock('../hooks/useSettings', () => ({
+  useOrganizationUsage: () => ({
+    data: {
+      package: { name: 'Enterprise' },
+      metrics: {
+        users: { current: 10, limit: 100, percent: 10 },
+        storage: { currentGb: 1, limitGb: 10, percent: 10 },
+        journeys: { current: 5, limit: 20, percent: 25 },
+        kiosks: { current: 2, limit: 5, percent: 40 },
+      },
+      warnings: [],
+    },
+    isLoading: false,
+  }),
+}));
+
 // Mock localStorage for test environment
 const storageMap: Record<string, string> = {};
 (globalThis as any).localStorage = {

@@ -172,7 +172,10 @@ KioskSessionSchema.index({ organizationId: 1, userId: 1, status: 1 });
 KioskSessionSchema.index({ organizationId: 1, deviceId: 1, startedAt: -1 });
 KioskSessionSchema.index({ organizationId: 1, journeyId: 1, status: 1 });
 KioskSessionSchema.index({ sessionToken: 1 }, { unique: true, sparse: true });
-KioskSessionSchema.index({ organizationId: 1, clientSessionId: 1 }, { unique: true, sparse: true });
+KioskSessionSchema.index(
+  { organizationId: 1, clientSessionId: 1 },
+  { unique: true, partialFilterExpression: { clientSessionId: { $type: "string" } } }
+);
 
 export const KioskSessionModel = mongoose.model<IKioskSession>(
   "KioskSession",

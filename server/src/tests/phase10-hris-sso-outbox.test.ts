@@ -28,7 +28,7 @@ describe("Phase 10 — Enterprise HRIS Webhook Ingestion, JIT SSO & Outbox Sync"
 
   const ts = Date.now();
   const dummyId = new mongoose.Types.ObjectId();
-  const webhookSecret = "bamboohr_prod_secret_key_987654";
+  const webhookSecret = `bamboohr_prod_secret_key_${ts}`;
 
   beforeAll(async () => {
     app = await buildApp();

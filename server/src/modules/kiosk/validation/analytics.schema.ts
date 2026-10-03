@@ -82,7 +82,8 @@ export const CompletedKioskSessionSyncItemSchema = z
     quizScore: z.number().optional(),
     supervisorWitness: z.any().optional(),
     verificationChecksum: z.string().optional(),
-    isOfflineSync: z.boolean().optional()
+    isOfflineSync: z.boolean().optional(),
+    dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date key must be formatted as YYYY-MM-DD" }).optional()
   })
   .passthrough();
 
@@ -90,15 +91,17 @@ export const KioskAnalyticsBulkSyncObjectSchema = z
   .object({
     organizationId: z.string().optional(),
     events: z.array(KioskAnalyticsEventItemSchema).min(1).optional(),
-    sessions: z.array(z.union([CompletedKioskSessionSyncItemSchema, z.record(z.any())])).min(1).optional(),
-    completedSessions: z.array(CompletedKioskSessionSyncItemSchema).min(1).optional()
+    sessions: z.array(CompletedKioskSessionSyncItemSchema).min(1).optional(),
+    completedSessions: z.array(CompletedKioskSessionSyncItemSchema).min(1).optional(),
+    analytics: z.array(KioskAnalyticsSchema).min(1).optional()
   })
   .passthrough()
   .refine(
     (data) =>
       (data.events && data.events.length > 0) ||
       (data.sessions && data.sessions.length > 0) ||
-      (data.completedSessions && data.completedSessions.length > 0),
+      (data.completedSessions && data.completedSessions.length > 0) ||
+      (data.analytics && data.analytics.length > 0),
     {
       message: "Either events or sessions array is required and must not be empty"
     }
@@ -107,7 +110,7 @@ export const KioskAnalyticsBulkSyncObjectSchema = z
 export const KioskAnalyticsBulkSyncSchema = z
   .union([
     KioskAnalyticsBulkSyncObjectSchema,
-    z.array(z.union([CompletedKioskSessionSyncItemSchema, z.record(z.any())])).min(1)
+    z.array(CompletedKioskSessionSyncItemSchema).min(1)
   ])
   .describe("Bulk synced offline sessions package");
 

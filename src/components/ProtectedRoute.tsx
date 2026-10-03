@@ -7,6 +7,16 @@ import { Button } from './Button';
 import { useNavigate } from 'react-router-dom';
 import { FeatureDisabledBanner } from './FeatureDisabledBanner';
 
+export const FEATURE_TITLES: Record<string, string> = {
+  digital_signatures: 'Digital Signatures & Documents',
+  gamified_milestones: 'Leaderboard & Gamification',
+  ai_course_builder: 'AI Course Builder',
+  kiosk_mode: 'Kiosk Terminals',
+  office_map: 'Office Floor Map',
+  sso_enforcement: 'SSO & Identity Management',
+  advanced_hris_sync: 'HRIS Directory Sync',
+};
+
 interface ProtectedRouteProps {
   capability?: Capability;
   featureFlag?: string;

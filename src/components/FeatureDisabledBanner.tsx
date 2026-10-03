@@ -14,6 +14,16 @@ export interface FeatureDisabledBannerProps {
   onRefresh?: () => void;
 }
 
+const FEATURE_TITLES_MAP: Record<string, string> = {
+  digital_signatures: 'Digital Signatures & Documents',
+  gamified_milestones: 'Leaderboard & Gamification',
+  ai_course_builder: 'AI Course Builder',
+  kiosk_mode: 'Kiosk Terminals',
+  office_map: 'Office Floor Map',
+  sso_enforcement: 'SSO & Identity Management',
+  advanced_hris_sync: 'HRIS Directory Sync',
+};
+
 export function FeatureDisabledBanner({
   featureKey,
   compact = false,
@@ -26,6 +36,7 @@ export function FeatureDisabledBanner({
   const [copied, setCopied] = useState(false);
 
   const meta = getFeatureMetadata(featureKey);
+  const displayName = FEATURE_TITLES_MAP[featureKey] || meta.name;
 
   const handleCopyKey = () => {
     navigator.clipboard.writeText(featureKey);
@@ -44,7 +55,7 @@ export function FeatureDisabledBanner({
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {meta.name}
+                  {displayName}
                 </span>
                 <Badge variant="outline" className="border-amber-300 text-amber-800 dark:border-amber-800 dark:text-amber-300 text-[10px] px-1.5 py-0 font-medium">
                   {meta.category}
@@ -108,16 +119,16 @@ export function FeatureDisabledBanner({
       </div>
 
       <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-        {meta.name}
+        {displayName}
       </h1>
 
       <p className="mt-1 text-sm font-medium text-amber-600 dark:text-amber-400">
-        Feature Temporarily Restricted
+        Feature Temporarily Unavailable
       </p>
 
       <div className="mt-4 max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-4 text-xs text-slate-600 dark:text-slate-300 shadow-2xs space-y-2">
         <p>
-          {reason || `The feature "${meta.name}" is currently disabled for this tenant workspace. This restriction may stem from global maintenance, tenant exclusion, or tier entitlement.`}
+          {reason || `The feature "${displayName}" is currently disabled for this tenant workspace. This restriction may stem from global maintenance, tenant exclusion, or tier entitlement.`}
         </p>
         <div className="flex items-center justify-center gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
           <span className="text-slate-500 font-mono text-[11px]">Feature Flag:</span>
