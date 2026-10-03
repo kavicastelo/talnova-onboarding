@@ -426,14 +426,11 @@ export class KioskController {
 
   generatePairingCode = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
-    const body = request.body as any;
-
-    if (!body?.deviceId) {
-      throw new AppError(400, "BAD_REQUEST", "deviceId is required to generate pairing code");
-    }
+    const body = (request.body || {}) as any;
 
     const userId = user?.userId || user?.id || user?._id;
-    const { code, expiresInSeconds } = await this.kioskService.generatePairingCode(user.organizationId, body.deviceId, userId);
+    const deviceId = typeof body?.deviceId === "string" && body.deviceId.trim() ? body.deviceId.trim() : undefined;
+    const { code, expiresInSeconds } = await this.kioskService.generatePairingCode(user.organizationId, deviceId, userId);
     return reply.status(200).send({
       success: true,
       message: "Device pairing code generated successfully",
@@ -963,10 +960,11 @@ export class KioskController {
   setSupervisorPin = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user as any;
     const body = (request.body as any) || {};
-    const targetUserId = body.supervisorId || user.userId;
+    const targetUserId = (body.supervisorId || body.supervisorIdentifier || user?.userId || "").trim();
+    const orgId = user?.organizationId || (request.headers["x-organization-id"] as string);
 
     const result = await this.kioskService.setSupervisorPin(
-      user.organizationId,
+      orgId,
       targetUserId,
       body.pin
     );
@@ -975,6 +973,25 @@ export class KioskController {
       success: true,
       message: "Supervisor PIN set successfully",
       data: result,
+    });
+  };
+
+  updateDevice = async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user as any;
+    const params = request.params as any;
+    const body = (request.body || {}) as any;
+
+    const deviceId = params.id || params.deviceId;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    if (!orgId) {
+      throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
+    }
+
+    const device = await this.kioskService.updateDevice(deviceId, orgId, body);
+    return reply.status(200).send({
+      success: true,
+      message: "Device updated successfully",
+      data: device
     });
   };
 

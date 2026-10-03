@@ -20,7 +20,10 @@ import {
   Building2,
   Layers,
   Search,
-  ShieldCheck
+  ShieldCheck,
+  Send,
+  EyeOff,
+  RotateCcw
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -39,7 +42,7 @@ import { SimplePagination } from '../components/SimplePagination';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { usePagination } from '../hooks/usePagination';
 import { kioskService } from '../features/kiosk/services/kiosk.service';
-import { KioskJourney } from '../types/kiosk/journey.types';
+import { KioskJourney, KioskJourneyVersion } from '../types/kiosk/journey.types';
 import { KioskDevice } from '../types/kiosk/device.types';
 import { KioskDeviceGroup } from '../types/kiosk/group.types';
 import { KioskAnalyticsSummary } from '../types/kiosk/analytics.types';
@@ -60,6 +63,11 @@ export function KioskDashboard() {
   
   // Builder integration
   const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
+  const [publishingJourneyId, setPublishingJourneyId] = useState<string | null>(null);
+  const [historyJourney, setHistoryJourney] = useState<KioskJourney | null>(null);
+  const [historyVersions, setHistoryVersions] = useState<KioskJourneyVersion[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [rollingBackHistoryVersion, setRollingBackHistoryVersion] = useState<number | null>(null);
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -104,13 +112,9 @@ export function KioskDashboard() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const handleGeneratePairCode = async () => {
-    if (!terminalGuid.trim()) {
-      toast.error(t('toasts.enterGuid', { defaultValue: 'Please enter a Hardware GUID' }));
-      return;
-    }
     setGeneratingPairCode(true);
     try {
-      const res = await kioskService.generatePairingCode(terminalGuid.trim());
+      const res = await kioskService.generatePairingCode(terminalGuid.trim() || undefined);
       setGeneratedPairCode(res.code);
       setCodeExpiresInSeconds(res.expiresInSeconds || 900);
       toast.success(t('toasts.pairCodeGenerated', { defaultValue: '6-digit device pairing code generated' }));
@@ -266,6 +270,59 @@ export function KioskDashboard() {
       } catch (err: any) {
         toast.error(err?.message || t('toasts.failedDeleteJourney', { defaultValue: 'Failed to delete journey' }));
       }
+    }
+  };
+
+  const handleTogglePublishJourney = async (journey: KioskJourney) => {
+    setPublishingJourneyId(journey._id);
+    const isCurrentlyPublished = journey.publishing?.status === 'published';
+    try {
+      if (isCurrentlyPublished) {
+        await kioskService.unpublishJourney(journey._id);
+        toast.success(t('toasts.journeyUnpublished', { defaultValue: 'Kiosk journey unpublished (moved to draft)' }));
+      } else {
+        await kioskService.publishJourney(journey._id);
+        toast.success(t('toasts.journeyPublished', { defaultValue: 'Kiosk journey published successfully' }));
+      }
+      fetchData();
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || (isCurrentlyPublished ? 'Failed to unpublish journey' : 'Failed to publish journey');
+      toast.error(msg);
+    } finally {
+      setPublishingJourneyId(null);
+    }
+  };
+
+  const handleOpenJourneyHistory = async (journey: KioskJourney) => {
+    setHistoryJourney(journey);
+    setLoadingHistory(true);
+    try {
+      const vers = await kioskService.listJourneyVersions(journey._id);
+      setHistoryVersions(vers);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to load version history');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleRollbackFromDashboard = async (versionNum: number) => {
+    if (!historyJourney) return;
+    if (!window.confirm(`Are you sure you want to rollback to Version ${versionNum}? A new snapshot will be minted with this content.`)) {
+      return;
+    }
+    setRollingBackHistoryVersion(versionNum);
+    try {
+      await kioskService.rollbackJourney(historyJourney._id, versionNum);
+      toast.success(`Successfully rolled back to Version ${versionNum}!`);
+      setHistoryJourney(null);
+      fetchData();
+      queryClient.invalidateQueries({ queryKey: ['organizationUsage'] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || `Failed to rollback to Version ${versionNum}`);
+    } finally {
+      setRollingBackHistoryVersion(null);
     }
   };
 
@@ -476,9 +533,24 @@ export function KioskDashboard() {
                       <h3 className="font-bold text-slate-800 truncate pr-2 text-base" title={journey.title}>
                         {journey.title}
                       </h3>
-                      <Badge variant={journey.publishing?.status === 'published' ? 'default' : 'secondary'} className="capitalize text-[10px]">
-                        {journey.publishing?.status || 'draft'}
-                      </Badge>
+                      {journey.publishing?.status === 'published' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <Check className="w-3 h-3 mr-1 text-emerald-600" />
+                          Published
+                        </span>
+                      ) : journey.publishing?.status === 'scheduled' ? (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200"
+                          title={journey.publishing?.scheduling?.publishAt ? `Rollout: ${new Date(journey.publishing.scheduling.publishAt).toLocaleString()}` : 'Scheduled'}
+                        >
+                          <Clock className="w-3 h-3 mr-1 text-blue-600" />
+                          Scheduled
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          Draft
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 line-clamp-2 min-h-[2rem]">
                       {journey.description || t('journeysList.noDescription', { defaultValue: 'No description provided.' })}
@@ -497,11 +569,38 @@ export function KioskDashboard() {
                   </div>
 
                   <div className="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between">
-                    <div className="text-[10px] text-slate-400 flex items-center">
-                      <Clock className="w-3 h-3 mr-1" />
+                    <button
+                      type="button"
+                      onClick={() => handleOpenJourneyHistory(journey)}
+                      className="text-[10px] text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded flex items-center transition"
+                      title={t('journeysList.versionHistory', { defaultValue: 'View immutable version snapshots and rollback' })}
+                    >
+                      <Clock className="w-3 h-3 mr-1 text-slate-500" />
                       <span>v{journey.publishing?.version || 1}</span>
-                    </div>
+                    </button>
                     <div className="flex items-center space-x-1.5">
+                      <button
+                        onClick={() => handleTogglePublishJourney(journey)}
+                        disabled={publishingJourneyId === journey._id}
+                        className={`p-1.5 rounded hover:bg-slate-100 transition ${
+                          journey.publishing?.status === 'published'
+                            ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                            : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                        title={
+                          journey.publishing?.status === 'published'
+                            ? t('journeysList.unpublish', { defaultValue: 'Unpublish Journey (Revert to Draft)' })
+                            : t('journeysList.publish', { defaultValue: 'Publish Journey' })
+                        }
+                      >
+                        {publishingJourneyId === journey._id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : journey.publishing?.status === 'published' ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                      </button>
                       <button
                         onClick={() => setEditingJourneyId(journey._id)}
                         className="p-1.5 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
@@ -551,12 +650,18 @@ export function KioskDashboard() {
         <FleetDashboardTab
           devices={devices}
           journeys={journeys}
+          deviceGroups={deviceGroups}
           loading={loading}
           onRefreshFleet={fetchData}
           onPairTerminal={() => setPairTerminalModalOpen(true)}
           onToggleMaintenance={handleToggleMaintenance}
           onDispatchCommand={handleDispatchCommand}
           onRevokeDevice={handleRevokeDevice}
+          onUpdateDevice={async (deviceId, data) => {
+            await kioskService.updateDevice(deviceId, data);
+            toast.success(t('toasts.deviceUpdated', { defaultValue: 'Device updated successfully' }));
+            fetchData();
+          }}
           onManageAssignments={(device) => {
             setSelectedDevice(device);
             setAssignmentModalOpen(true);
@@ -1035,6 +1140,7 @@ export function KioskDashboard() {
         open={createGroupModalOpen}
         onOpenChange={setCreateGroupModalOpen}
         devices={devices}
+        deviceGroups={deviceGroups}
         onGroupSaved={fetchData}
       />
 
@@ -1044,6 +1150,7 @@ export function KioskDashboard() {
         onOpenChange={setEditGroupModalOpen}
         group={selectedGroup}
         devices={devices}
+        deviceGroups={deviceGroups}
         onGroupSaved={fetchData}
       />
 
@@ -1107,23 +1214,29 @@ export function KioskDashboard() {
             </p>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                {t('pairTerminalModal.hardwareGuid', { defaultValue: 'Hardware GUID / Fingerprint *' })}
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  {t('pairTerminalModal.hardwareGuid', { defaultValue: 'Hardware GUID (Optional)' })}
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">Leave empty for any terminal</span>
+              </div>
               <Input
                 value={terminalGuid}
                 onChange={(e) => setTerminalGuid(e.target.value)}
-                placeholder={t('pairTerminalModal.guidPlaceholder', { defaultValue: 'e.g. TEST-KIOSK-001' })}
+                placeholder={t('pairTerminalModal.guidPlaceholder', { defaultValue: 'e.g. Leave blank or paste terminal GUID' })}
                 data-testid="terminal-guid-input"
                 className="w-full text-sm font-mono"
                 disabled={!!generatedPairCode}
               />
+              <p className="text-[11px] text-slate-500">
+                {t('pairTerminalModal.guidHint', { defaultValue: 'Recommended: Leave blank to create a universal 6-digit code for any tablet, or enter a specific GUID to lock this code to one terminal.' })}
+              </p>
             </div>
 
             {!generatedPairCode ? (
               <Button
                 onClick={handleGeneratePairCode}
-                disabled={generatingPairCode || !terminalGuid.trim()}
+                disabled={generatingPairCode}
                 data-testid="generate-pair-code-btn"
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center space-x-2 py-2.5 rounded-lg"
               >
@@ -1134,7 +1247,9 @@ export function KioskDashboard() {
               <div className="space-y-4 pt-1">
                 <div className="p-4 rounded-xl bg-slate-950 text-white border border-slate-800 text-center space-y-2 shadow-inner">
                   <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                    {t('pairTerminalModal.activationCodeTitle', { defaultValue: 'One-Time Device Activation Code' })}
+                    {terminalGuid.trim()
+                      ? t('pairTerminalModal.lockedCodeTitle', { defaultValue: 'Locked Terminal Activation Code' })
+                      : t('pairTerminalModal.activationCodeTitle', { defaultValue: 'Universal Terminal Activation Code' })}
                   </div>
                   <div
                     data-testid="generated-pair-code"
@@ -1153,7 +1268,11 @@ export function KioskDashboard() {
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5">
                   <div className="font-bold text-slate-800">{t('pairTerminalModal.instructionsTitle', { defaultValue: 'Terminal Activation Instructions:' })}</div>
-                  <div>{t('pairTerminalModal.instruction1', { guid: terminalGuid, defaultValue: `1. On physical kiosk hardware, enter GUID: ${terminalGuid}` })}</div>
+                  <div>
+                    {terminalGuid.trim()
+                      ? t('pairTerminalModal.instruction1Locked', { guid: terminalGuid.trim(), defaultValue: `1. On physical kiosk hardware (${terminalGuid.trim()}), continue setup to pairing.` })
+                      : t('pairTerminalModal.instruction1Open', { defaultValue: '1. On any physical kiosk terminal in your facility, enter device name and location.' })}
+                  </div>
                   <div>{t('pairTerminalModal.instruction2', { defaultValue: '2. Enter this 6-digit code into the pairing screen to authenticate hardware.' })}</div>
                 </div>
 
@@ -1260,6 +1379,84 @@ export function KioskDashboard() {
               ) : (
                 t('supervisorPinModal.save', { defaultValue: 'Save Supervisor PIN' })
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Version History & Rollback Dialog */}
+      <Dialog open={Boolean(historyJourney)} onOpenChange={(open) => !open && setHistoryJourney(null)}>
+        <DialogContent className="sm:max-w-2xl bg-white max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+              <Clock className="w-5 h-5 text-amber-600" />
+              <span>Version History: {historyJourney?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <DialogBody className="space-y-4 overflow-y-auto flex-1 text-xs">
+            {loadingHistory ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-2 text-slate-500">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                <p>Loading immutable version history...</p>
+              </div>
+            ) : historyVersions.length === 0 ? (
+              <div className="py-8 text-center text-slate-500">
+                No published version snapshots recorded for this journey yet.
+              </div>
+            ) : (
+              historyVersions.map((ver) => (
+                <div
+                  key={ver._id || ver.version}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 rounded font-mono font-bold text-xs bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        v{ver.version}
+                      </span>
+                      <Badge variant={ver.status === 'published' ? 'default' : 'secondary'} className="capitalize text-[10px]">
+                        {ver.status}
+                      </Badge>
+                      <span className="text-slate-500">
+                        {new Date(ver.publishedAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRollbackFromDashboard(ver.version)}
+                      disabled={rollingBackHistoryVersion === ver.version}
+                      className="text-amber-700 hover:text-amber-800 border-amber-300 hover:bg-amber-50 h-8 text-xs font-semibold flex items-center space-x-1"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                      <span>{rollingBackHistoryVersion === ver.version ? 'Rolling back...' : `Rollback to v${ver.version}`}</span>
+                    </Button>
+                  </div>
+
+                  {ver.changelog && (
+                    <p className="text-slate-700 italic bg-white p-2 rounded border border-slate-200">
+                      "{ver.changelog}"
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
+                    <div className="flex items-center space-x-1 truncate max-w-[400px]">
+                      <span className="text-slate-400 uppercase font-sans text-[10px]">Checksum:</span>
+                      <span className="truncate">{ver.contentChecksum}</span>
+                    </div>
+                    <span className="font-sans text-slate-500">
+                      {ver.steps?.length || 0} Steps
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </DialogBody>
+
+          <DialogFooter className="border-t pt-3">
+            <Button variant="outline" onClick={() => setHistoryJourney(null)}>
+              {t('common:close', { defaultValue: 'Close' })}
             </Button>
           </DialogFooter>
         </DialogContent>

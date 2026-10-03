@@ -8,6 +8,7 @@ export interface SupervisorWitnessGateModalProps {
   sessionId?: string;
   workerName?: string;
   journeyTitle?: string;
+  organizationId?: string;
   onClose: () => void;
   onSuccess: (witnessData: {
     verified: boolean;
@@ -71,6 +72,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
   sessionId,
   workerName,
   journeyTitle,
+  organizationId,
   onClose,
   onSuccess,
   highContrast = false
@@ -180,7 +182,8 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
       const result = await kioskService.verifySupervisorPin(
         supervisorIdentifier,
         pinString,
-        sessionId
+        sessionId,
+        organizationId
       );
 
       if (result && result.verified) {

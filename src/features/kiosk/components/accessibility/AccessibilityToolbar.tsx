@@ -202,9 +202,9 @@ export const AccessibilityToolbar: React.FC<AccessibilityToolbarProps> = ({
           data-testid="zoom-controls-group"
           className="flex items-center gap-1.5 sm:gap-2 bg-slate-900/80 border border-slate-800 rounded-xl p-1"
         >
-          {/* Quick Direct Buttons: 100%, 125%, 150%, 200% */}
+          {/* Quick Direct Buttons: 100%, 125%, 150%, 200% on wide viewports */}
           {showQuickZoomButtons && (
-            <div className="flex items-center gap-1.5" data-testid="quick-zoom-buttons">
+            <div className="hidden xl:flex items-center gap-1.5" data-testid="quick-zoom-buttons">
               {([100, 125, 150, 200] as const).map((scale) => {
                 const isSelected = fontScale === scale;
                 return (
@@ -233,7 +233,7 @@ export const AccessibilityToolbar: React.FC<AccessibilityToolbarProps> = ({
             </div>
           )}
 
-          {/* Stepper Cycle Button */}
+          {/* Stepper Cycle Button on compact/tablet viewports */}
           <button
             type="button"
             id="toggle-font-scale"
@@ -241,7 +241,7 @@ export const AccessibilityToolbar: React.FC<AccessibilityToolbarProps> = ({
             aria-label={`Cycle text size, current ${fontScale}%`}
             onClick={handleCycleFontScale}
             title={t('launcher.toggleFontScale', { defaultValue: 'Toggle Larger Font' })}
-            className={`min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+            className={`flex xl:hidden min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg font-bold text-xs items-center space-x-1.5 transition active:scale-95 focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
               fontScale > 100
                 ? highContrast
                   ? 'bg-amber-400 text-black font-black'

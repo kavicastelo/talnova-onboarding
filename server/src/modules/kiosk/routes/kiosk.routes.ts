@@ -611,8 +611,8 @@ export async function kioskRoutes(app: FastifyInstance) {
       {
         schema: {
           body: z.object({
-            deviceId: z.string().min(1, "Hardware GUID is required")
-          })
+            deviceId: z.string().optional()
+          }).optional()
         }
       },
       controller.generatePairingCode
@@ -698,13 +698,39 @@ export async function kioskRoutes(app: FastifyInstance) {
       "/supervisor/pin",
       {
         schema: {
-          body: z.object({
-            supervisorId: z.string().min(1, "Supervisor ID is required"),
-            pin: z.string().length(4, "PIN must be exactly 4 digits"),
-          }),
+          body: z
+            .object({
+              supervisorId: z.string().min(1).optional(),
+              supervisorIdentifier: z.string().min(1).optional(),
+              pin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+            })
+            .refine((data) => Boolean(data.supervisorId || data.supervisorIdentifier), {
+              message: "Supervisor ID or identifier is required",
+              path: ["supervisorId"],
+            }),
         },
       },
       controller.setSupervisorPin
+    );
+
+    // PATCH /api/v1/kiosk/devices/:id (Update device metadata, location, group)
+    adminGroup.patch(
+      "/devices/:id",
+      {
+        schema: {
+          params: z.object({
+            id: z.string().min(1)
+          }),
+          body: z.object({
+            name: z.string().optional(),
+            location: z.string().optional(),
+            siteId: z.string().nullable().optional(),
+            deviceType: z.string().optional(),
+            deviceGroupId: z.string().nullable().optional()
+          })
+        }
+      },
+      controller.updateDevice
     );
 
     // PATCH /api/v1/kiosk/devices/:id/maintenance (Toggle Maintenance Mode)

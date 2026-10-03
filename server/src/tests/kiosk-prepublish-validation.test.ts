@@ -992,6 +992,133 @@ describe("Kiosk Journey Pre-Publish Validation & Linter Pipeline (K-JRN-003)", (
       expect(report.errors.filter(e => e.rule === "supervisor_availability")).toHaveLength(0);
       expect(report.isValid).toBe(true);
     });
+
+    it("should accept journey requiring supervisor witness when a user has a configured supervisor witness PIN", async () => {
+      // Delete any dedicated supervisor/manager roles
+      await User.deleteMany({
+        organizationId: orgAId,
+        $or: [
+          { "permissions.role": { $in: ["supervisor", "manager"] } },
+          { "permissions.roles": { $in: ["supervisor", "manager"] } },
+          { "permissions.customRoles": { $in: ["supervisor", "manager"] } }
+        ]
+      });
+
+      // Configure a supervisor PIN on an admin user in the organization
+      await User.findByIdAndUpdate(adminAUser._id, {
+        $set: {
+          "security.supervisorPinHash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+        }
+      });
+
+      const journey = createBaseJourneyData({
+        settings: {
+          autoPlay: false,
+          loopForever: false,
+          idleTimeoutSeconds: 60,
+          autoReturnHome: true,
+          hideNavigation: false,
+          disableExit: true,
+          security: { protectionType: "none" },
+          requireSupervisorWitness: true,
+          enableOfflineCaching: true
+        }
+      });
+
+      const report = await validateJourneyForPublish(journey as any, orgAId);
+      expect(report.errors.filter(e => e.rule === "supervisor_availability")).toHaveLength(0);
+      expect(report.warnings.filter(e => e.rule === "supervisor_availability")).toHaveLength(0);
+      expect(report.isValid).toBe(true);
+
+      // Clean up PIN hash on admin
+      await User.findByIdAndUpdate(adminAUser._id, {
+        $unset: { "security.supervisorPinHash": 1 }
+      });
+    });
+
+    it("should issue a warning when supervisors exist but none have configured a 4-digit PIN", async () => {
+      // Create supervisor without PIN hash
+      await User.create({
+        organizationId: orgAId,
+        auth: { email: "kiosk-val-sup-nopin@test.com", passwordHash: "placeholder", failedLoginAttempts: 0 },
+        profile: { firstName: "SupervisorNoPin", lastName: "ValA" },
+        permissions: { role: "supervisor" },
+        employment: { status: "active" },
+        security: {},
+        isDeleted: false
+      });
+
+      const journey = createBaseJourneyData({
+        settings: {
+          autoPlay: false,
+          loopForever: false,
+          idleTimeoutSeconds: 60,
+          autoReturnHome: true,
+          hideNavigation: false,
+          disableExit: true,
+          security: { protectionType: "none" },
+          requireSupervisorWitness: true,
+          enableOfflineCaching: true
+        }
+      });
+
+      const report = await validateJourneyForPublish(journey as any, orgAId);
+      expect(report.isValid).toBe(true);
+      expect(report.errors.filter(e => e.rule === "supervisor_availability")).toHaveLength(0);
+      expect(report.warnings.some(w => w.rule === "supervisor_availability" && w.message.includes("no 4-digit supervisor witness PIN has been configured"))).toBe(true);
+
+      await User.deleteMany({ "auth.email": "kiosk-val-sup-nopin@test.com" });
+
+      // Re-seed supervisorUser for subsequent publishing tests
+      supervisorUser = await User.create({
+        organizationId: orgAId,
+        auth: { email: "kiosk-val-sup-a@test.com", passwordHash: "placeholder", failedLoginAttempts: 0 },
+        profile: { firstName: "Supervisor", lastName: "ValA" },
+        permissions: { role: "supervisor" },
+        employment: { status: "active" },
+        isDeleted: false
+      });
+    });
+
+    it("should accept journey with a step of type supervisor_gate when a supervisor exists with configured PIN", async () => {
+      // Configure supervisor PIN on supervisorUser
+      await User.findByIdAndUpdate(supervisorUser._id, {
+        $set: {
+          "security.supervisorPinHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      });
+
+      const journey = createBaseJourneyData({
+        steps: [
+          {
+            id: "step-gate",
+            title: "Supervisor Witness Sign-Off",
+            type: "supervisor_gate",
+            requireSupervisorWitness: true,
+            order: 0,
+            interaction: { type: "supervisor_witness", requireSupervisorWitness: true },
+            blocks: [{ id: "b-gate", type: "text", order: 0, settings: { size: "medium" }, mediaReferences: { en: { textValue: "Supervisor Witness Sign-Off" } } }]
+          },
+          {
+            id: "step-term",
+            title: "Terminal Done",
+            type: "completion",
+            order: 1,
+            interaction: { type: "tap_to_continue" },
+            blocks: [{ id: "b-term", type: "text", order: 0, settings: { size: "medium" }, mediaReferences: { en: { textValue: "Terminal Done" } } }]
+          }
+        ]
+      });
+
+      const report = await validateJourneyForPublish(journey as any, orgAId);
+      expect(report.errors.filter(e => e.rule === "supervisor_availability")).toHaveLength(0);
+      expect(report.isValid).toBe(true);
+
+      // Clean up PIN hash
+      await User.findByIdAndUpdate(supervisorUser._id, {
+        $unset: { "security.supervisorPinHash": 1 }
+      });
+    });
   });
 
   describe("API Publishing Handler Enforcement (POST /api/v1/kiosk/journeys/:id/publish)", () => {

@@ -12,6 +12,9 @@ export const KIOSK_STEP_TYPES = [
   "countdown_step",
   "emergency_step",
   "info_step",
+  "ppe_checklist",
+  "knowledge_quiz",
+  "supervisor_gate",
   "completion"
 ] as const;
 
@@ -26,7 +29,8 @@ export const KIOSK_INTERACTION_TYPES = [
   "hotspot",
   "swipe",
   "ppe_checklist",
-  "quiz"
+  "quiz",
+  "supervisor_witness"
 ] as const;
 
 /**

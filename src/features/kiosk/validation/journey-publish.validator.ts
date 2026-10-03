@@ -253,12 +253,14 @@ export function validateJourneyForPublish(journey: Partial<KioskJourney>): Valid
   // --- RULE 5: Supervisor Role Availability if Supervisor Witness is Required ---
   const isSupervisorWitnessRequired =
     journey.settings?.requireSupervisorWitness === true ||
+    journey.settings?.security?.requireSupervisorWitness === true ||
     (journey.settings?.security?.protectionType as string) === "supervisor" ||
     steps.some(
       (s: any) =>
         s.interaction?.requireSupervisorWitness === true ||
         s.interaction?.type === "supervisor_witness" ||
-        s.requireSupervisorWitness === true
+        s.requireSupervisorWitness === true ||
+        s.type === "supervisor_gate"
     );
 
   if (isSupervisorWitnessRequired) {

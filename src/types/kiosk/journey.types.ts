@@ -15,6 +15,7 @@ export interface KioskJourneySecuritySettings {
   readonly protectionType: KioskSecurityProtectionType;
   readonly pinCode?: string;
   readonly expiresAt?: Timestamp;
+  readonly requireSupervisorWitness?: boolean;
 }
 
 export interface KioskJourneySettings {

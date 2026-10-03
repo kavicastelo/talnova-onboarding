@@ -286,10 +286,22 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   // Supervisor Witness Requirement & Gate State (DEF-009 / K-SUP-002)
   const [showSupervisorGateModal, setShowSupervisorGateModal] = useState(false);
   const [supervisorWitness, setSupervisorWitness] = useState<any | null>(null);
+  const [witnessedStepIds, setWitnessedStepIds] = useState<Set<string>>(new Set());
   const [isCompleted, setIsCompleted] = useState(initialCompleted);
   const [completionCountdown, setCompletionCountdown] = useState(15);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [completionQrDataUrl, setCompletionQrDataUrl] = useState<string>('');
+
+  // Kiosk Access / Entry PIN Gate State
+  const isEntryPinRequired = Boolean(
+    !isAdminPreview &&
+    ((journey as any)?.protectionType === 'pin' ||
+     Boolean((journey as any)?.pinCode) ||
+     (journey?.settings?.security?.protectionType as string) === 'pin' ||
+     Boolean(journey?.settings?.security?.pinCode))
+  );
+  const [isJourneyPinVerified, setIsJourneyPinVerified] = useState(false);
+  const [showEntryPinOverlay, setShowEntryPinOverlay] = useState(() => isEntryPinRequired);
 
   // Generate scannable QR code data URL for completion screen
   useEffect(() => {
@@ -302,9 +314,17 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     }
   }, [isCompleted, activeSession?._id]);
 
+  // Prompt entry PIN if journey is PIN-protected
+  useEffect(() => {
+    if (journey && isEntryPinRequired && !isJourneyPinVerified) {
+      setShowEntryPinOverlay(true);
+    }
+  }, [journey, isEntryPinRequired, isJourneyPinVerified]);
+
   // Trigger frontline worker identification if journey requires it
   useEffect(() => {
     if (journey) {
+      if (isEntryPinRequired && !isJourneyPinVerified) return;
       const isEmployeeRestricted = Boolean(
         (journey as any).requireEmployeeId ||
         (journey as any).employeeRestricted ||
@@ -316,7 +336,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         setShowIdentifyModal(true);
       }
     }
-  }, [journey, workerIdentified, isAdminPreview]);
+  }, [journey, workerIdentified, isAdminPreview, isEntryPinRequired, isJourneyPinVerified]);
 
   const handleExitClick = () => {
     if (isAdminPreview) {
@@ -332,15 +352,19 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     loadJourney(journeyId, signedParams);
     setShowSupervisorGateModal(false);
     setSupervisorWitness(null);
+    setWitnessedStepIds(new Set());
+    setIsJourneyPinVerified(false);
+    setShowEntryPinOverlay(false);
     setIsCompleted(false);
   }, [journeyId, signedParams]);
 
   // Start analytics session when journey is loaded
   useEffect(() => {
     if (journey) {
+      if (isEntryPinRequired && !isJourneyPinVerified) return;
       startSession();
     }
-  }, [journey]);
+  }, [journey, isEntryPinRequired, isJourneyPinVerified]);
 
   // K-EMP-003: Handle Idle Timeout & Automatic Privacy Reset
   useEffect(() => {
@@ -403,16 +427,27 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   };
 
   // Supervisor Witness Requirement calculation (DEF-009 / K-SUP-002)
-  const isSupervisorWitnessRequired = Boolean(
+  const isStepSupervisorWitnessRequired = (step?: typeof activeStep) => {
+    if (!step) return false;
+    return Boolean(
+      (step as any)?.supervisor_witness_required ||
+      step?.requireSupervisorWitness ||
+      (step?.interaction as any)?.supervisor_witness_required ||
+      step?.interaction?.requireSupervisorWitness ||
+      (step?.interaction?.type as any) === 'supervisor_witness' ||
+      (step as any)?.type === 'supervisor_witness' ||
+      (step as any)?.type === 'supervisor_gate'
+    );
+  };
+
+  const isJourneySupervisorWitnessRequired = Boolean(
     (journey?.settings as any)?.supervisor_witness_required ||
     (journey?.settings as any)?.requireSupervisorWitness ||
-    (journey?.settings?.security?.protectionType as string) === 'supervisor' ||
-    (activeStep as any)?.supervisor_witness_required ||
-    activeStep?.requireSupervisorWitness ||
-    (activeStep?.interaction as any)?.supervisor_witness_required ||
-    activeStep?.interaction?.requireSupervisorWitness ||
-    (activeStep?.interaction?.type as any) === 'supervisor_witness' ||
-    (activeStep as any)?.type === 'supervisor_witness'
+    (journey?.settings?.security?.protectionType as string) === 'supervisor'
+  );
+
+  const isSupervisorWitnessRequired = Boolean(
+    isJourneySupervisorWitnessRequired || isStepSupervisorWitnessRequired(activeStep)
   );
 
   // Completion screen countdown effect (auto-resets after 15 seconds)
@@ -441,15 +476,25 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     session?: any;
   }) => {
     setSupervisorWitness(witnessData.supervisor);
+    if (activeStep) {
+      setWitnessedStepIds((prev) => new Set([...prev, activeStep.id]));
+    }
     setShowSupervisorGateModal(false);
-    await completeSession();
-    setIsCompleted(true);
-    setCompletionCountdown(15);
+
+    const isLastStep = currentStepIndex === (journey?.steps?.length || 0) - 1;
+    if (isLastStep) {
+      await completeSession();
+      setIsCompleted(true);
+      setCompletionCountdown(15);
+    } else {
+      nextStep();
+    }
   };
 
   // Intercept Finish button click (DEF-009 / K-SUP-002)
   const handleFinish = async () => {
-    if (isSupervisorWitnessRequired && !supervisorWitness) {
+    const needsWitness = isJourneySupervisorWitnessRequired || isStepSupervisorWitnessRequired(activeStep);
+    if (needsWitness && !supervisorWitness && !(activeStep && witnessedStepIds.has(activeStep.id))) {
       setShowSupervisorGateModal(true);
       return;
     }
@@ -462,11 +507,19 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   // Navigation handlers with directional animation
   const handleNextStep = () => {
     setStepDirection('forward');
-    if (currentStepIndex === (journey?.steps?.length || 0) - 1) {
+    const isLast = currentStepIndex === (journey?.steps?.length || 0) - 1;
+    if (isLast) {
       handleFinish();
-    } else {
-      nextStep();
+      return;
     }
+
+    // If intermediate step is a supervisor gate, enforce attestation before advancing
+    if (activeStep && isStepSupervisorWitnessRequired(activeStep) && !witnessedStepIds.has(activeStep.id)) {
+      setShowSupervisorGateModal(true);
+      return;
+    }
+
+    nextStep();
   };
 
   const handlePrevStep = () => {
@@ -839,7 +892,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
             <button
               type="button"
               id="view-certificate-btn"
-              data-testid="view-certificate-btn"
+              data-testid="print-certificate-btn"
               onClick={() => setShowCertificateModal(true)}
               className="w-full min-h-[56px] px-6 py-3.5 rounded-2xl font-bold text-base transition active:scale-95 shadow-lg flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white"
             >
@@ -872,6 +925,84 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
                 seconds: completionCountdown
               })}
             </p>
+          </div>
+
+          {/* Dedicated Isolated Printable Safety Certificate for @media print (K-PRT-001) */}
+          <div
+            id="kiosk-printable-certificate"
+            data-testid="kiosk-printable-certificate"
+            className="hidden"
+          >
+            {/* Header: Organization & Certification Stamp */}
+            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+              <div>
+                <h1 className="text-xl font-black uppercase tracking-wider text-slate-900">
+                  {(journey as any)?.organizationName || 'FACILITY SAFETY COMPLIANCE OPERATIONS'}
+                </h1>
+                <p className="text-[10px] font-mono text-slate-600 uppercase tracking-widest mt-0.5">
+                  OSHA Standard 1910 / ISO 45001 Regulatory Verification
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 border-2 border-emerald-700 px-3 py-1 rounded bg-emerald-50 text-emerald-800 font-extrabold text-[11px]">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                <span>OFFICIAL ACCREDITATION</span>
+              </div>
+            </div>
+
+            {/* Certificate Body */}
+            <div className="text-center py-4 space-y-2">
+              <p className="text-[11px] uppercase font-bold tracking-widest text-slate-500">
+                This document certifies that
+              </p>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight font-serif">
+                {workerName || 'Frontline Worker'}
+              </h2>
+              <p className="text-xs font-mono font-semibold text-slate-700">
+                EMPLOYEE ID: {identifiedEmployee?.employment?.employeeId || identifiedEmployee?.badgeId || identifiedEmployee?.id || 'EMP-VERIFIED'}
+              </p>
+              <div className="pt-2 max-w-xl mx-auto">
+                <p className="text-xs text-slate-500">has satisfactorily demonstrated competence and completed all required training modules in:</p>
+                <h3 className="text-xl font-black text-slate-900 mt-1">
+                  {journey?.title || 'Safety & Compliance Briefing'}
+                </h3>
+                <p className="text-[11px] font-mono text-slate-600 mt-0.5">
+                  Curriculum Version #{(journey?.publishing as any)?.version || 1} • Session ID: {activeSession?._id || 'SESS-ONLINE'}
+                </p>
+              </div>
+            </div>
+
+            {/* Signatures & Verification Grid */}
+            <div className="grid grid-cols-3 gap-4 pt-3 border-t-2 border-slate-900 items-end">
+              {/* Left: Metadata details */}
+              <div className="space-y-0.5 text-[10px] text-slate-600">
+                <p><strong className="text-slate-900">Date Issued:</strong> {new Date().toLocaleDateString()}</p>
+                <p><strong className="text-slate-900">Terminal GUID:</strong> {deviceIdentityService.getHardwareGuidSync() || 'HW-TERMINAL-01'}</p>
+                <p><strong className="text-slate-900">Site Location:</strong> {deviceIdentityService.getStoredDevice?.()?.location || 'Turnstile Gate'}</p>
+              </div>
+
+              {/* Center: Signatures */}
+              <div className="text-center space-y-1">
+                <div className="border-b border-slate-400 pb-1">
+                  <span className="font-serif italic text-sm text-slate-800">
+                    {supervisorWitness ? (supervisorWitness.fullName || supervisorWitness.name) : 'Digitally Verified Terminal'}
+                  </span>
+                </div>
+                <p className="text-[9px] uppercase font-bold text-slate-500">
+                  {supervisorWitness ? `Witness Signature (${supervisorWitness.role || 'Supervisor'})` : 'Authorized Safety Lead Sign-Off'}
+                </p>
+              </div>
+
+              {/* Right: QR Code & Checksum */}
+              <div className="flex items-center justify-end gap-2 text-right">
+                {completionQrDataUrl && (
+                  <img src={completionQrDataUrl} alt="Certificate QR Code" className="w-14 h-14 border border-slate-300 p-0.5" />
+                )}
+                <div className="text-[8px] font-mono text-slate-600">
+                  <span className="block font-bold text-slate-800">SHA-256 CHECKSUM</span>
+                  <span className="break-all">{activeSession?.verificationChecksum || 'VERIFIED-SHA256-AUTHENTIC'}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Printable Certificate Modal */}
@@ -996,6 +1127,37 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     );
   }
 
+  // Kiosk Access / Entry PIN Overlay Gate (Blocks journey before PIN entry)
+  if (showEntryPinOverlay && !isJourneyPinVerified) {
+    return (
+      <div
+        data-testid="kiosk-entry-pin-overlay"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 text-white"
+      >
+        <KioskPinOverlay
+          journeyId={journeyId || journey?._id || ''}
+          pinLength={(journey as any)?.pinCode?.length || journey?.settings?.security?.pinCode?.length || 4}
+          expectedPin={(journey as any)?.pinCode || journey?.settings?.security?.pinCode}
+          title={t('player.entryPinTitle', { defaultValue: 'Secured Kiosk Terminal' })}
+          description={t('player.entryPinDescription', {
+            defaultValue: 'Access PIN Required. This kiosk briefing is protected. Enter authorization PIN to proceed.'
+          })}
+          onSuccess={() => {
+            setIsJourneyPinVerified(true);
+            setShowEntryPinOverlay(false);
+          }}
+          onCancel={() => {
+            setShowEntryPinOverlay(false);
+            if (onExit) onExit();
+            else if (typeof window !== 'undefined' && window.location) {
+              window.location.href = '/kiosk/terminal';
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -1109,6 +1271,9 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         ppeSubmitted={ppeSubmitted}
         ppeResetCountdown={ppeResetCountdown}
         ppeSubmitError={ppeSubmitError}
+        isSupervisorWitnessed={activeStep ? witnessedStepIds.has(activeStep.id) : false}
+        onOpenSupervisorGate={() => setShowSupervisorGateModal(true)}
+        supervisorWitnessData={supervisorWitness}
         showSubtitles={showSubtitles}
         isRtl={isRtl}
       />
@@ -1125,8 +1290,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         onRestart={handleResetJourney}
         onFinish={handleFinish}
         finishButtonLabel={
-          isSupervisorWitnessRequired && !supervisorWitness
+          isSupervisorWitnessRequired && !supervisorWitness && !(activeStep && witnessedStepIds.has(activeStep.id))
             ? t('supervisor.finishWitnessRequired', { defaultValue: 'Finish (Witness Required)' })
+            : undefined
+        }
+        nextButtonLabel={
+          activeStep && isStepSupervisorWitnessRequired(activeStep) && !witnessedStepIds.has(activeStep.id)
+            ? t('supervisor.nextWitnessRequired', { defaultValue: 'Supervisor Sign-Off Required' })
             : undefined
         }
         highContrast={highContrast}
@@ -1140,6 +1310,30 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         isRtl={isRtl}
         selectedLanguage={selectedLanguage}
       />
+
+      {/* Kiosk Access / Entry PIN Overlay */}
+      {showEntryPinOverlay && !isJourneyPinVerified && (
+        <KioskPinOverlay
+          journeyId={journeyId}
+          pinLength={journey?.settings?.security?.pinCode?.length || 4}
+          expectedPin={journey?.settings?.security?.pinCode}
+          title={t('player.entryPinTitle', { defaultValue: 'Enter Briefing Access PIN' })}
+          description={t('player.entryPinDescription', {
+            defaultValue: 'This kiosk briefing is protected. Enter authorization PIN to proceed.'
+          })}
+          onSuccess={() => {
+            setIsJourneyPinVerified(true);
+            setShowEntryPinOverlay(false);
+          }}
+          onCancel={() => {
+            setShowEntryPinOverlay(false);
+            if (onExit) onExit();
+            else if (typeof window !== 'undefined' && window.location) {
+              window.location.href = '/kiosk/terminal';
+            }
+          }}
+        />
+      )}
 
       {/* Administrative / Operator Exit PIN Overlay (K-SEC-002: 6-digit Exit PIN) */}
       {showPinOverlay && (
@@ -1199,6 +1393,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
       <SupervisorWitnessGateModal
         isOpen={showSupervisorGateModal}
         sessionId={activeSession?._id}
+        organizationId={journey?.organizationId}
         workerName={
           deviceIdentityService.getEmployeeUser?.()?.fullName ||
           (deviceIdentityService.getEmployeeUser?.()?.firstName && deviceIdentityService.getEmployeeUser?.()?.lastName

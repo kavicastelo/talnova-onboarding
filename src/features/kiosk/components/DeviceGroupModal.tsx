@@ -29,6 +29,7 @@ interface DeviceGroupModalProps {
   onOpenChange: (open: boolean) => void;
   group?: KioskDeviceGroup | null;
   devices: KioskDevice[];
+  deviceGroups?: KioskDeviceGroup[];
   onGroupSaved: () => void;
 }
 
@@ -37,6 +38,7 @@ export const DeviceGroupModal: React.FC<DeviceGroupModalProps> = ({
   onOpenChange,
   group,
   devices,
+  deviceGroups = [],
   onGroupSaved
 }) => {
   const { t } = useTranslation(['kiosk', 'common']);
@@ -266,6 +268,26 @@ export const DeviceGroupModal: React.FC<DeviceGroupModalProps> = ({
                         </div>
 
                         <div className="flex items-center space-x-2">
+                          {(() => {
+                            const otherGroup = deviceGroups.find((g) => {
+                              if (group && g._id === group._id) return false;
+                              return (
+                                (dev.deviceGroupId && g._id === dev.deviceGroupId) ||
+                                (g.deviceIds && g.deviceIds.some((id: any) => (id?._id || id).toString() === dev._id))
+                              );
+                            });
+                            if (!otherGroup) return null;
+                            return (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] text-amber-700 bg-amber-50 border-amber-200 py-0.5 px-1.5 flex items-center space-x-1"
+                                title={`Currently in ${otherGroup.name}. Selecting will move to this group.`}
+                              >
+                                <Folder className="w-2.5 h-2.5 text-amber-600" />
+                                <span>{otherGroup.name}</span>
+                              </Badge>
+                            );
+                          })()}
                           <Badge
                             variant={dev.status === 'online' ? 'default' : 'secondary'}
                             className={`text-[10px] capitalize py-0.5 px-1.5 ${

@@ -214,7 +214,7 @@ export const KioskPinOverlay: React.FC<KioskPinOverlayProps> = ({
         )}
 
         {/* Keypad */}
-        <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto mt-4">
+        <div data-testid="kiosk-pin-keypad" className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto mt-4">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
             <button
               key={num}

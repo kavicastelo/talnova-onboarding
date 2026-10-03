@@ -19,10 +19,12 @@ import {
   Trash2,
   ChevronRight,
   Loader2,
-  X
+  X,
+  Folder
 } from 'lucide-react';
 import { KioskDevice } from '../../../../types/kiosk/device.types';
 import { KioskJourney } from '../../../../types/kiosk/journey.types';
+import { KioskDeviceGroup } from '../../../../types/kiosk/group.types';
 import { Card } from '../../../../components/Card';
 import { Button } from '../../../../components/Button';
 import { Badge } from '../../../../components/Badge';
@@ -32,24 +34,28 @@ import { DeviceDetailDrawer, normalizeBatteryPercent, isLowBattery, formatBytes 
 export interface FleetDashboardTabProps {
   devices: KioskDevice[];
   journeys: KioskJourney[];
+  deviceGroups?: KioskDeviceGroup[];
   loading?: boolean;
   onRefreshFleet: () => Promise<void> | void;
   onPairTerminal: () => void;
   onToggleMaintenance: (deviceId: string, currentStatus: string) => Promise<void> | void;
   onDispatchCommand: (deviceId: string, command: string) => Promise<void> | void;
   onRevokeDevice: (deviceId: string, deviceName: string) => Promise<void> | void;
+  onUpdateDevice?: (deviceId: string, data: any) => Promise<void> | void;
   onManageAssignments: (device: KioskDevice) => void;
 }
 
 export function FleetDashboardTab({
   devices,
   journeys,
+  deviceGroups = [],
   loading = false,
   onRefreshFleet,
   onPairTerminal,
   onToggleMaintenance,
   onDispatchCommand,
   onRevokeDevice,
+  onUpdateDevice,
   onManageAssignments
 }: FleetDashboardTabProps) {
   const { t } = useTranslation(['kiosk', 'common']);
@@ -59,6 +65,7 @@ export function FleetDashboardTab({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [siteFilter, setSiteFilter] = useState<string>('all');
   const [deviceTypeFilter, setDeviceTypeFilter] = useState<string>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
 
   // Detail Drawer State
   const [selectedDevice, setSelectedDevice] = useState<KioskDevice | null>(null);
@@ -121,9 +128,27 @@ export function FleetDashboardTab({
         if (device.deviceType !== deviceTypeFilter) return false;
       }
 
+      // 5. Group filter
+      if (groupFilter !== 'all') {
+        if (groupFilter === 'unassigned') {
+          if (device.deviceGroupId) return false;
+          const inAnyGroup = deviceGroups.some((g) =>
+            g.deviceIds && g.deviceIds.some((id: any) => (id?._id || id).toString() === device._id)
+          );
+          if (inAnyGroup) return false;
+        } else {
+          const targetGroup = deviceGroups.find((g) => g._id === groupFilter);
+          const matchesGroupId = device.deviceGroupId === groupFilter;
+          const matchesInGroupList = targetGroup?.deviceIds?.some(
+            (id: any) => (id?._id || id).toString() === device._id
+          );
+          if (!matchesGroupId && !matchesInGroupList) return false;
+        }
+      }
+
       return true;
     });
-  }, [devices, searchTerm, statusFilter, siteFilter, deviceTypeFilter]);
+  }, [devices, searchTerm, statusFilter, siteFilter, deviceTypeFilter, groupFilter, deviceGroups]);
 
   // Paginated Data
   const totalItems = filteredDevices.length;
@@ -380,13 +405,33 @@ export function FleetDashboardTab({
             <option value="rugged_handheld">Rugged Handheld</option>
           </select>
 
+          {/* Group Filter */}
+          <select
+            value={groupFilter}
+            onChange={(e) => {
+              setGroupFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            data-testid="group-filter-select"
+            className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-slate-700 font-medium text-xs focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="all">All Device Groups</option>
+            <option value="unassigned">Unassigned (No Group)</option>
+            {deviceGroups.map((g) => (
+              <option key={g._id} value={g._id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+
           {/* Reset Filters */}
-          {(statusFilter !== 'all' || siteFilter !== 'all' || deviceTypeFilter !== 'all' || searchTerm) && (
+          {(statusFilter !== 'all' || siteFilter !== 'all' || deviceTypeFilter !== 'all' || groupFilter !== 'all' || searchTerm) && (
             <button
               onClick={() => {
                 setStatusFilter('all');
                 setSiteFilter('all');
                 setDeviceTypeFilter('all');
+                setGroupFilter('all');
                 setSearchTerm('');
                 setCurrentPage(1);
               }}
@@ -441,6 +486,11 @@ export function FleetDashboardTab({
                 const isCharging = device.telemetry?.isCharging ?? false;
                 const latency = device.telemetry?.networkLatencyMs;
                 const storageFree = device.telemetry?.storageFreeBytes;
+                const assignedGroup = deviceGroups?.find(
+                  (g) =>
+                    (device.deviceGroupId && g._id?.toString() === device.deviceGroupId?.toString()) ||
+                    (g.deviceIds && g.deviceIds.some((id: any) => (id?._id || id).toString() === device._id))
+                );
 
                 return (
                   <div
@@ -503,6 +553,18 @@ export function FleetDashboardTab({
                         >
                           GUID: {device.deviceId || device.hardwareGuid}
                         </span>
+                        {assignedGroup && (
+                          <>
+                            <span className="text-slate-300">|</span>
+                            <span
+                              data-testid="terminal-group-badge"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/60"
+                            >
+                              <Folder className="w-2.5 h-2.5 text-indigo-500" />
+                              <span>{assignedGroup.name}</span>
+                            </span>
+                          </>
+                        )}
                       </p>
                     </div>
 
@@ -643,13 +705,15 @@ export function FleetDashboardTab({
 
       {/* 4. Slide-over Device Detail Drawer */}
       <DeviceDetailDrawer
-        device={selectedDevice}
+        device={selectedDevice ? devices.find((d) => d._id === selectedDevice._id) || selectedDevice : null}
         isOpen={drawerOpen}
         onClose={handleCloseDrawer}
         journeys={journeys}
+        deviceGroups={deviceGroups}
         onToggleMaintenance={onToggleMaintenance}
         onDispatchCommand={onDispatchCommand}
         onRevokeDevice={onRevokeDevice}
+        onUpdateDevice={onUpdateDevice}
         onManageAssignments={onManageAssignments}
       />
     </div>
