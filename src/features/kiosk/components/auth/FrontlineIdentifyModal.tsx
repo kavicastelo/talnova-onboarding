@@ -363,6 +363,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       <button
                         type="button"
                         onClick={handleKeypadClear}
+                        aria-label="Clear input"
                         className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[48px] min-w-[48px] w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white active:scale-95 transition"
                         title="Clear input"
                       >
@@ -432,6 +433,7 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       type="button"
                       id="keypad-delete"
                       data-testid="keypad-delete"
+                      aria-label="Delete last digit"
                       onClick={handleKeypadDelete}
                       className="min-h-[48px] min-w-[48px] h-14 rounded-2xl border border-slate-800 bg-slate-950 text-slate-400 hover:text-white active:scale-95 flex items-center justify-center transition"
                     >

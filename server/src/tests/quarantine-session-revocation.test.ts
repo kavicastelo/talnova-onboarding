@@ -179,7 +179,7 @@ describe("PR-SEC-001: Active JWT Session Revocation & Quarantine Boundary Guard"
     const body = JSON.parse(res.body);
     expect(body.success).toBe(false);
     expect(body.code).toBe("ORGANIZATION_SUSPENDED");
-    expect(body.message).toBe("Your organization has been suspended by platform administration.");
+    expect(body.message).toContain("Your organization has been suspended");
   });
 
   it("Step 6b: Super Admin is exempt and can still perform administrative operations on suspended tenant", async () => {

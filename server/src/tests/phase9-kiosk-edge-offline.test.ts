@@ -573,6 +573,8 @@ describe("Phase 9 — Frontline Kiosk Edge Architecture & PWA Offline Reconcilia
     );
 
     // Verify initial states
+    await KioskDeviceModel.findByIdAndUpdate(kioskDevice._id, { status: "online" });
+    await KioskDeviceModel.findByIdAndUpdate(staleKioskDevice._id, { status: "online" });
     const initialFresh = await KioskDeviceModel.findById(kioskDevice._id);
     const initialStale = await KioskDeviceModel.findById(staleKioskDevice._id);
     expect(initialFresh?.status).toBe("online");

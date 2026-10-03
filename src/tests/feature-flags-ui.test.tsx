@@ -46,31 +46,43 @@ const mockFlags = [
   },
 ];
 
-vi.mock('../hooks/useSuperAdmin', () => ({
-  useSuperAdminFeatureFlags: () => ({
-    data: mockFlags,
-    isLoading: false,
-    isError: false,
-  }),
-  useToggleFeatureFlag: () => ({
-    mutateAsync: mockToggleMutateAsync,
-    isPending: false,
-  }),
-  useUpdateFeatureFlag: () => ({
-    mutateAsync: mockUpdateMutateAsync,
-    isPending: false,
-  }),
-  useCreateFeatureFlag: () => ({
-    mutateAsync: mockCreateMutateAsync,
-    isPending: false,
-  }),
-  useSuperAdminOrganizations: () => ({
-    data: [
-      { id: 'org-1', name: 'Acme Corp', slug: 'acme' },
-      { id: 'org-2', name: 'Beta Industries', slug: 'beta' },
-    ],
-  }),
-}));
+vi.mock('../hooks/useSuperAdmin', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../hooks/useSuperAdmin')>();
+  return {
+    ...actual,
+    useSuperAdminFeatureFlags: () => ({
+      data: mockFlags,
+      isLoading: false,
+      isError: false,
+    }),
+    useToggleFeatureFlag: () => ({
+      mutateAsync: mockToggleMutateAsync,
+      isPending: false,
+    }),
+    useUpdateFeatureFlag: () => ({
+      mutateAsync: mockUpdateMutateAsync,
+      isPending: false,
+    }),
+    useCreateFeatureFlag: () => ({
+      mutateAsync: mockCreateMutateAsync,
+      isPending: false,
+    }),
+    useSuperAdminOrganizations: () => ({
+      data: [
+        { id: 'org-1', name: 'Acme Corp', slug: 'acme' },
+        { id: 'org-2', name: 'Beta Industries', slug: 'beta' },
+      ],
+    }),
+    useSuperAdminOrganizationFlags: () => ({
+      data: [],
+      isLoading: false,
+    }),
+    useUpdateOrganizationFlagOverride: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+  };
+});
 
 describe('PR-GOV-002: Role-Targeted Feature Overrides Super Admin UI', () => {
   let queryClient: QueryClient;

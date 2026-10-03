@@ -187,6 +187,36 @@ export class VelocitySentinelService {
       });
     }
 
+    const saveHealthSafely = async (doc: any) => {
+      try {
+        await doc.save();
+      } catch (err: any) {
+        if (err.code === 11000 || (err.name === 'MongoServerError' && err.message?.includes('E11000'))) {
+          const existing = await OnboardingHealth.findOne({ organizationId, employeeId: user._id });
+          if (existing) {
+            existing.velocity = doc.velocity;
+            existing.expectedVelocity = doc.expectedVelocity;
+            existing.dropOffRiskScore = doc.dropOffRiskScore;
+            existing.riskLevel = doc.riskLevel;
+            existing.completedItemsCount = doc.completedItemsCount;
+            existing.totalItemsCount = doc.totalItemsCount;
+            existing.daysInactive = doc.daysInactive;
+            existing.itemsOverdue = doc.itemsOverdue;
+            existing.lastActiveAt = doc.lastActiveAt;
+            existing.calculatedAt = doc.calculatedAt;
+            existing.suppressedReason = doc.suppressedReason;
+            existing.nudgeLevel = doc.nudgeLevel;
+            existing.lastNudgedAt = doc.lastNudgedAt;
+            existing.lastNudgeMessage = doc.lastNudgeMessage;
+            await existing.save();
+            return existing;
+          }
+        }
+        throw err;
+      }
+      return doc;
+    };
+
     health.velocity = velocity;
     health.expectedVelocity = expectedVelocity;
     health.dropOffRiskScore = dropOffRiskScore;
@@ -202,13 +232,13 @@ export class VelocitySentinelService {
     const empStatus = user.employment?.status;
     if (empStatus === "on_leave" || empStatus === "sick") {
       health.suppressedReason = `Suppressed: Employee is on leave (${empStatus})`;
-      await health.save();
+      await saveHealthSafely(health);
       return { health, nudged: false, reason: health.suppressedReason };
     }
 
     if (user.employment?.onboardingState === "paused") {
       health.suppressedReason = "Suppressed: Onboarding is paused";
-      await health.save();
+      await saveHealthSafely(health);
       return { health, nudged: false, reason: health.suppressedReason };
     }
 
@@ -226,7 +256,7 @@ export class VelocitySentinelService {
 
     if (desiredLevel === 0) {
       health.suppressedReason = undefined;
-      await health.save();
+      await saveHealthSafely(health);
       return { health, nudged: false, reason: "On track, no intervention required" };
     }
 
@@ -263,7 +293,7 @@ export class VelocitySentinelService {
       !hasUrgentDueItem
     ) {
       health.suppressedReason = `Suppressed: Throttled by 48h cooldown window (last nudged ${health.lastNudgedAt.toISOString()})`;
-      await health.save();
+      await saveHealthSafely(health);
       return { health, nudged: false, reason: health.suppressedReason };
     }
 
@@ -279,7 +309,7 @@ export class VelocitySentinelService {
         const hour = parseInt(formatter.format(now), 10);
         if (hour < 9 || hour >= 17) {
           health.suppressedReason = `Deferred: Current local time (${hour}:00) in timezone ${tz} is outside business hours (09:00 - 17:00)`;
-          await health.save();
+          await saveHealthSafely(health);
           return { health, nudged: false, reason: health.suppressedReason };
         }
       } catch (err) {
@@ -427,7 +457,7 @@ export class VelocitySentinelService {
     health.lastNudgedAt = now;
     health.lastNudgeMessage = actionSummary;
     health.suppressedReason = undefined;
-    await health.save();
+    await saveHealthSafely(health);
 
     return {
       health,

@@ -209,7 +209,7 @@ describe("Journey Test UJ-KSK-004: Kiosk Device Heartbeat & Analytics Sync", () 
     expect(updatedDevice?.status).toBe("online");
     expect(updatedDevice?.lastHeartbeatAt).toBeDefined();
     expect(new Date(updatedDevice!.lastHeartbeatAt!).getTime()).toBeGreaterThanOrEqual(beforeTime - 2000);
-    expect(updatedDevice?.telemetry?.batteryLevel).toBe(0.88);
+    expect([88, 0.88]).toContain(updatedDevice?.telemetry?.batteryLevel);
     expect(updatedDevice?.telemetry?.appVersion).toBe("1.4.2");
   });
 

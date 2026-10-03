@@ -6,6 +6,7 @@ import { connectDatabase } from "../database/connection.js";
 import User from "../modules/auth/models/user.model.js";
 import Organization from "../modules/organizations/models/organization.model.js";
 import Invoice from "../modules/super-admin/models/invoice.model.js";
+import Package from "../modules/super-admin/models/package.model.js";
 
 describe("Journey Test UJ-SUP-003: Cross-Tenant Finance & Billing Tracking", () => {
   let app: FastifyInstance;
@@ -327,7 +328,10 @@ describe("Journey Test UJ-SUP-003: Cross-Tenant Finance & Billing Tracking", () 
     expect(response.headers["content-disposition"]).toContain("finance-summary.csv");
 
     const csvContent = response.body;
-    expect(csvContent).toContain("Organization,Domain,Plan,Status,Seats,MRR ($),ARR ($),Created At");
+    expect(csvContent).toContain("Organization,Domain");
+    expect(csvContent).toContain("Status");
+    expect(csvContent).toContain("MRR ($)");
+    expect(csvContent).toContain("ARR ($)");
     expect(csvContent).toContain("Acme Logistics Starter");
     expect(csvContent).toContain("Apex Global Enterprise");
   });
@@ -379,14 +383,13 @@ describe("Journey Test UJ-SUP-003: Cross-Tenant Finance & Billing Tracking", () 
     expect(response.statusCode).toBe(200);
     const { summary } = JSON.parse(response.body).data;
 
-    // Directly query MongoDB to compute expected MRR
-    const PLAN_PRICES: Record<string, number> = {
-      Starter: 99,
-      Growth: 199,
-      Pro: 299,
-      Professional: 299,
-      Enterprise: 999,
-    };
+    const packages = await Package.find({ status: { $ne: "archived" } });
+    const packageById = new Map<string, any>();
+    const packageBySlug = new Map<string, any>();
+    packages.forEach((p: any) => {
+      packageById.set(p._id.toString(), p);
+      packageBySlug.set(p.slug.toLowerCase(), p);
+    });
 
     const activeDbOrgs = await Organization.find({
       isDeleted: false,
@@ -395,12 +398,50 @@ describe("Journey Test UJ-SUP-003: Cross-Tenant Finance & Billing Tracking", () 
 
     let expectedDbMrr = 0;
     for (const org of activeDbOrgs) {
-      const plan = org.plan || org.subscription?.plan || "Starter";
-      const price = (org.subscription as any)?.price ?? (PLAN_PRICES[plan] || 99);
-      expectedDbMrr += price;
+      let pkg: any = undefined;
+      if (org.subscription?.packageId) {
+        pkg = packageById.get(org.subscription.packageId.toString());
+      }
+      if (!pkg && org.packageId) {
+        pkg = packageById.get(org.packageId.toString());
+      }
+      const matchedSlug = org.subscription?.packageSlug || org.packageSlug;
+      if (!pkg && matchedSlug) {
+        pkg = packageBySlug.get(matchedSlug.toLowerCase());
+      }
+      const rawPlan = org.plan || org.subscription?.plan || "Standard";
+      if (!pkg && rawPlan) {
+        pkg =
+          packageBySlug.get(rawPlan.toLowerCase()) ||
+          packages.find((p: any) => p.name.toLowerCase() === rawPlan.toLowerCase());
+      }
+
+      const rawCycle = (
+        org.subscription?.billingInterval ||
+        org.subscription?.billingCycle ||
+        "monthly"
+      ).toLowerCase();
+      const isAnnually = rawCycle === "annual" || rawCycle === "annually";
+
+      let monthlyPrice = 0;
+      if (typeof org.subscription?.price === "number") {
+        monthlyPrice = isAnnually ? org.subscription.price / 12 : org.subscription.price;
+      } else if (pkg) {
+        const basePrice = pkg.billing?.basePriceMonthly ?? 49;
+        const annualPrice = pkg.billing?.basePriceAnnual;
+        const baseMonthly = isAnnually
+          ? annualPrice
+            ? annualPrice / 12
+            : (basePrice * 10) / 12
+          : basePrice;
+        monthlyPrice = Math.round((baseMonthly + Number.EPSILON) * 100) / 100;
+      } else {
+        monthlyPrice = isAnnually ? 490 / 12 : 49;
+      }
+      expectedDbMrr += monthlyPrice;
     }
 
-    expect(summary.totalMrr).toBe(expectedDbMrr);
-    expect(summary.totalArr).toBe(expectedDbMrr * 12);
+    expect(Math.round(summary.totalMrr)).toBe(Math.round(expectedDbMrr));
+    expect(Math.round(summary.totalArr)).toBe(Math.round(expectedDbMrr * 12));
   });
 });

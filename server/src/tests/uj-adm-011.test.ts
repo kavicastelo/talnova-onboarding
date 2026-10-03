@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { FastifyInstance } from "fastify";
 import buildApp from "../app.js";
 import { connectDatabase } from "../database/connection.js";
@@ -156,9 +157,18 @@ describe("Journey Test UJ-ADM-011: HRIS Marketplace Integration Sync", () => {
       ],
     };
 
+    const integ = await HRISIntegration.findOne({ organizationId: testOrg._id, provider: "bamboohr" });
+    const signature = crypto
+      .createHmac("sha256", integ!.webhookSecret!)
+      .update(JSON.stringify(webhookPayload))
+      .digest("hex");
+
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/integrations/webhooks/bamboohr",
+      headers: {
+        "x-bamboohr-signature": signature,
+      },
       payload: webhookPayload,
     });
 

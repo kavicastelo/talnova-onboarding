@@ -70,7 +70,7 @@ export class KioskSessionRepository {
     }
 
     const stepsToAdd = [
-      ...(completedStepIds || [])
+      ...(completedStepIds || (stepId ? [stepId] : []))
     ];
     if (stepsToAdd.length > 0) {
       updateDoc.$addToSet = { completedStepIds: { $each: stepsToAdd } };

@@ -8,6 +8,8 @@ import DocumentAssignment from "../modules/documents/models/document-assignment.
 import User from "../modules/auth/models/user.model.js";
 import Organization from "../modules/organizations/models/organization.model.js";
 import documentService from "../modules/documents/services/document.service.js";
+import FeatureFlag from "../modules/super-admin/models/feature-flag.model.js";
+import { FeatureFlagService } from "../modules/super-admin/services/feature-flag.service.js";
 
 describe("Phase 6 — Digital Documents & E-Signatures Test Suite", () => {
   let app: FastifyInstance;
@@ -27,6 +29,21 @@ describe("Phase 6 — Digital Documents & E-Signatures Test Suite", () => {
     app = await buildApp();
     await connectDatabase(app.log);
     await app.ready();
+
+    // Ensure digital_signatures feature flag is enabled
+    await FeatureFlag.updateOne(
+      { key: "digital_signatures" },
+      {
+        $set: {
+          isEnabled: true,
+          rolloutPercentage: 100,
+          targetAudience: "global",
+          excludedOrganizationIds: [],
+        },
+      },
+      { upsert: true }
+    );
+    FeatureFlagService.invalidateCache();
 
     const dummyId = new mongoose.Types.ObjectId();
 

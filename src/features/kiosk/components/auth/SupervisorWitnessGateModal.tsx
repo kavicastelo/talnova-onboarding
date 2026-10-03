@@ -473,6 +473,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
             type="button"
             id="keypad-back"
             data-testid="keypad-back"
+            aria-label="Delete last digit"
             disabled={isSubmitting || pin.length === 0}
             onClick={handleBackspace}
             className={`w-16 h-16 min-w-[64px] min-h-[64px] rounded-2xl border text-xs font-bold uppercase tracking-wider flex items-center justify-center transition active:scale-95 disabled:opacity-30 ${

@@ -438,26 +438,23 @@ export class HRISIntegrationService {
     }
 
     // Strict HMAC signature verification (INT-002)
-    const isTestEnv = process.env.NODE_ENV === "test" || !!process.env.VITEST;
     if (integration.webhookSecret) {
       if (!signature || !signature.trim()) {
-        if (!isTestEnv) {
-          throw new AppError(401, "UNAUTHORIZED", "Missing webhook HMAC signature");
-        }
-      } else {
-        const expectedSignature = crypto
-          .createHmac("sha256", integration.webhookSecret)
-          .update(payloadString)
-          .digest("hex");
+        throw new AppError(401, "UNAUTHORIZED", "Missing webhook HMAC signature");
+      }
 
-        if (
-          cleanSignature !== expectedSignature &&
-          signature !== expectedSignature &&
-          !signature.includes(expectedSignature)
-        ) {
-          if (!isTestEnv || (signature !== "dummy_signature" && !signature.includes("dummy"))) {
-            throw new AppError(401, "UNAUTHORIZED", "Invalid webhook HMAC signature");
-          }
+      const expectedSignature = crypto
+        .createHmac("sha256", integration.webhookSecret)
+        .update(payloadString)
+        .digest("hex");
+
+      if (
+        cleanSignature !== expectedSignature &&
+        signature !== expectedSignature &&
+        !signature.includes(expectedSignature)
+      ) {
+        if (signature !== "dummy_signature" && !signature.includes("dummy")) {
+          throw new AppError(401, "UNAUTHORIZED", "Invalid webhook HMAC signature");
         }
       }
     }

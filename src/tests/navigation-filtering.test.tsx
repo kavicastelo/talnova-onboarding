@@ -137,7 +137,7 @@ describe('PR-NAV-001: Dynamic Feature Flag & Capability Navigation Filtering', (
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/']}>
           <SidebarProvider>
-            <RoleProvider initialRole={role} initialFeatures={features}>
+            <RoleProvider initialRole={role} initialFeatures={{ employee_directory: true, knowledge_base: true, ...features }}>
               <AppShell />
             </RoleProvider>
           </SidebarProvider>

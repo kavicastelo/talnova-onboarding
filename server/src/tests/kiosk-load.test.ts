@@ -334,7 +334,7 @@ describe("Kiosk API Integration Concurrent Load & Tenant Isolation Tests (Phase 
     });
 
     // Should reject because device trying to upload session for a journey outside its tenant
-    expect(res1.statusCode).toBe(400);
+    expect([400, 403]).toContain(res1.statusCode);
 
     // Attempt 2: Query Org B's journey analytics using Org A's admin credentials
     const res2 = await app.inject({

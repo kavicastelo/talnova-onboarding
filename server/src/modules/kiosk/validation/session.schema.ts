@@ -27,7 +27,7 @@ export const CreateKioskSessionSchema = z
     journeyVersionId: z.string().optional().nullable(),
     versionNumber: z.number().int().min(1).optional().default(1),
     userId: z.string().optional().nullable(),
-    sessionToken: z.string().optional(),
+    sessionToken: z.string().min(1, { message: "Session token must not be empty" }).optional(),
     currentStepId: z.string().optional(),
     status: z.enum(KIOSK_SESSION_STATUSES).optional().default("active"),
     isOfflineSync: z.boolean().optional().default(false),

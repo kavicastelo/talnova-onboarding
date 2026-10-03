@@ -36,13 +36,15 @@ export interface KioskPlayerProps {
   };
   onExit?: () => void;
   isAdminPreview?: boolean;
+  initialCompleted?: boolean;
 }
 
 export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   journeyId,
   signedParams,
   onExit,
-  isAdminPreview = false
+  isAdminPreview = false,
+  initialCompleted = false
 }) => {
   const { t, i18n } = useTranslation('kiosk');
   const {
@@ -284,7 +286,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   // Supervisor Witness Requirement & Gate State (DEF-009 / K-SUP-002)
   const [showSupervisorGateModal, setShowSupervisorGateModal] = useState(false);
   const [supervisorWitness, setSupervisorWitness] = useState<any | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(initialCompleted);
   const [completionCountdown, setCompletionCountdown] = useState(15);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [completionQrDataUrl, setCompletionQrDataUrl] = useState<string>('');

@@ -49,12 +49,12 @@ describe("LocaleNegotiator", () => {
     });
 
     it("skips highest-q unsupported locale and falls back to next supported", () => {
-      // zh is unsupported, fi is next
-      expect(negotiator.negotiate("zh-CN;q=1.0, fi;q=0.8")).toBe("fi");
+      // ja is unsupported, fi is next
+      expect(negotiator.negotiate("ja-JP;q=1.0, fi;q=0.8")).toBe("fi");
     });
 
     it("falls back to en for fully unsupported header", () => {
-      expect(negotiator.negotiate("zh-CN;q=1.0, de;q=0.8")).toBe("en");
+      expect(negotiator.negotiate("ja-JP;q=1.0, ko;q=0.8")).toBe("en");
     });
 
     it("handles region variant in multi-value header", () => {
@@ -73,7 +73,7 @@ describe("LocaleNegotiator", () => {
 
   describe("normalize()", () => {
     it("returns en for unsupported locale (silent fallback)", () => {
-      expect(negotiator.normalize("zh")).toBe("en");
+      expect(negotiator.normalize("ja")).toBe("en");
       expect(negotiator.normalize(undefined)).toBe("en");
     });
 
@@ -90,7 +90,7 @@ describe("LocaleNegotiator", () => {
 
   describe("resolve()", () => {
     it("returns null for unsupported locale", () => {
-      expect(negotiator.resolve("de")).toBeNull();
+      expect(negotiator.resolve("ja")).toBeNull();
       expect(negotiator.resolve(undefined)).toBeNull();
     });
 

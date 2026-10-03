@@ -66,8 +66,6 @@ export const JourneySimulator: React.FC<JourneySimulatorProps> = ({
   initialLanguage = 'en',
   className = ''
 }) => {
-  if (!isOpen) return null;
-
   const steps: KioskStep[] = useMemo(() => {
     if (journey.steps && journey.steps.length > 0) {
       return journey.steps as KioskStep[];
@@ -321,6 +319,8 @@ export const JourneySimulator: React.FC<JourneySimulatorProps> = ({
     if (selectedLanguage === 'ar') return `[AR] ${activeStep.title}`;
     return activeStep.title;
   }, [activeStep.title, selectedLanguage]);
+
+  if (!isOpen) return null;
 
   return (
     <div

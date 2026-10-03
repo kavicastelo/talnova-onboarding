@@ -64,38 +64,50 @@ const mockOrganizations = [
   },
 ];
 
-vi.mock('../hooks/useSuperAdmin', () => ({
-  useSuperAdminOrganizations: () => ({
-    data: {
-      data: mockOrganizations,
-      total: mockOrganizations.length,
-      totalPages: 1,
-    },
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  }),
-  useUpdateOrganization: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
-  useCreateOrganization: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
-  useToggleOrganizationStatus: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
-  useDeleteOrganization: () => ({
-    mutateAsync: mockDeleteMutateAsync,
-    isPending: false,
-  }),
-  useRestoreOrganization: () => ({
-    mutateAsync: mockRestoreMutateAsync,
-    isPending: false,
-  }),
-}));
+vi.mock('../hooks/useSuperAdmin', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../hooks/useSuperAdmin')>();
+  return {
+    ...actual,
+    useSuperAdminOrganizations: () => ({
+      data: {
+        data: mockOrganizations,
+        total: mockOrganizations.length,
+        totalPages: 1,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }),
+    useUpdateOrganization: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+    useCreateOrganization: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+    useToggleOrganizationStatus: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+    useDeleteOrganization: () => ({
+      mutateAsync: mockDeleteMutateAsync,
+      isPending: false,
+    }),
+    useRestoreOrganization: () => ({
+      mutateAsync: mockRestoreMutateAsync,
+      isPending: false,
+    }),
+    useSuperAdminPackages: () => ({
+      data: { packages: [] },
+      isLoading: false,
+    }),
+    useAssignOrganizationPackage: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+  };
+});
 
 describe('Phase 3: Super Admin Delete & Purge Organization Integration Suite', () => {
   let queryClient: QueryClient;

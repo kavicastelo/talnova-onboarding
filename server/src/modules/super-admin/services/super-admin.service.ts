@@ -4952,11 +4952,8 @@ export class SuperAdminService {
       updateOne: {
         filter: { key: flag.key },
         update: {
-          $set: {
-            name: flag.name,
-            description: flag.description,
-          },
           $setOnInsert: {
+            description: flag.description,
             isEnabled: flag.isEnabled,
             rolloutPercentage: flag.rolloutPercentage,
             targetAudience: flag.targetAudience,
@@ -4965,6 +4962,9 @@ export class SuperAdminService {
             excludedOrganizationIds: [],
             targetRoles: [],
             isDeleted: false,
+          },
+          $set: {
+            name: flag.name,
           },
         },
         upsert: true,
