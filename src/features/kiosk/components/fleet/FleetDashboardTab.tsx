@@ -43,6 +43,7 @@ export interface FleetDashboardTabProps {
   onRevokeDevice: (deviceId: string, deviceName: string) => Promise<void> | void;
   onUpdateDevice?: (deviceId: string, data: any) => Promise<void> | void;
   onManageAssignments: (device: KioskDevice) => void;
+  onPairTerminalWithGuid?: (guid: string) => void;
 }
 
 export function FleetDashboardTab({
@@ -52,6 +53,7 @@ export function FleetDashboardTab({
   loading = false,
   onRefreshFleet,
   onPairTerminal,
+  onPairTerminalWithGuid,
   onToggleMaintenance,
   onDispatchCommand,
   onRevokeDevice,
@@ -90,7 +92,7 @@ export function FleetDashboardTab({
     const online = devices.filter((d) => d.status === 'online').length;
     const offline = devices.filter((d) => d.status === 'offline').length;
     const maintenance = devices.filter((d) => d.status === 'maintenance').length;
-    const lowBatteryCount = devices.filter((d) => isLowBattery(d.telemetry?.batteryLevel)).length;
+    const lowBatteryCount = devices.filter((d) => isLowBattery(d.telemetry?.batteryLevel) && !d.telemetry?.isCharging).length;
 
     return { total, online, offline, maintenance, lowBatteryCount };
   }, [devices]);
@@ -112,7 +114,7 @@ export function FleetDashboardTab({
       // 2. Status filter
       if (statusFilter !== 'all') {
         if (statusFilter === 'low_battery') {
-          if (!isLowBattery(device.telemetry?.batteryLevel)) return false;
+          if (!isLowBattery(device.telemetry?.batteryLevel) || device.telemetry?.isCharging) return false;
         } else if (device.status !== statusFilter) {
           return false;
         }
@@ -482,8 +484,8 @@ export function FleetDashboardTab({
                 const isOnline = device.status === 'online';
                 const isMaintenance = device.status === 'maintenance';
                 const batteryPercent = normalizeBatteryPercent(device.telemetry?.batteryLevel);
-                const lowBattery = isLowBattery(device.telemetry?.batteryLevel);
                 const isCharging = device.telemetry?.isCharging ?? false;
+                const lowBattery = isLowBattery(device.telemetry?.batteryLevel) && !isCharging;
                 const latency = device.telemetry?.networkLatencyMs;
                 const storageFree = device.telemetry?.storageFreeBytes;
                 const assignedGroup = deviceGroups?.find(
@@ -587,7 +589,13 @@ export function FleetDashboardTab({
                           <Battery className="w-4 h-4 text-slate-500" />
                         )}
                         <span data-testid="battery-display">
-                          {batteryPercent !== null ? `${batteryPercent}%` : 'N/A'}
+                          {batteryPercent !== null
+                            ? isCharging && (batteryPercent === 100 || batteryPercent > 95)
+                              ? '100% (AC Mains)'
+                              : `${batteryPercent}%`
+                            : isCharging
+                            ? 'AC Power'
+                            : 'N/A'}
                         </span>
                       </div>
 
@@ -715,6 +723,7 @@ export function FleetDashboardTab({
         onRevokeDevice={onRevokeDevice}
         onUpdateDevice={onUpdateDevice}
         onManageAssignments={onManageAssignments}
+        onPairTerminalWithGuid={onPairTerminalWithGuid}
       />
     </div>
   );

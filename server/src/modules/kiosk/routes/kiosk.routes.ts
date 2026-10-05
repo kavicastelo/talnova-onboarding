@@ -66,11 +66,78 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.getSyntheticSampleAsset
   );
 
-  // GET /api/v1/kiosk/journeys/play/:id (Kiosk Playback via Signed URL)
+  // Multi-modal preHandler for journey playback & retrieval
+  // Supports: Paired Kiosk Device Token, Ephemeral Frontline Worker Token, Signed URL HMAC, Admin/Employee JWT, or Public Tenant query
+  const journeyPlaybackPreHandler = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      const rawToken = authHeader.substring(7).trim();
+      let decoded: any = null;
+      try {
+        decoded = app.jwt.decode<any>(rawToken);
+      } catch {
+        // Fall-through if malformed
+      }
+
+      if (decoded?.role === "kiosk_device") {
+        await verifyDeviceToken(request, reply);
+        return;
+      }
+
+      if (decoded?.role === "frontline_worker_kiosk") {
+        try {
+          await request.jwtVerify();
+          request.kioskContext = {
+            organizationId: decoded.organizationId,
+            workerId: decoded.userId || decoded.workerId,
+            kioskDeviceId: decoded.kioskDeviceId
+          };
+          return;
+        } catch (err: any) {
+          throw new AppError(401, "TOKEN_EXPIRED", "Frontline worker session has expired. Please re-identify.");
+        }
+      }
+
+      // Standard authenticated user (owner, admin, employee, etc.)
+      try {
+        await authenticate(request, reply);
+        return;
+      } catch {
+        // Fall-through if token expired/invalid, checking signed url or public published access below
+      }
+    }
+
+    // Check signed URL query params (sig, exp, o)
+    const query = request.query as any;
+    if (query?.sig && query?.exp && query?.o) {
+      await verifySignedUrl(request, reply);
+      return;
+    }
+
+    // Unauthenticated public / tenant journey query:
+    // If request has organization query or header, attach it
+    const reqOrgId = query?.organizationId || query?.o || request.headers["x-organization-id"];
+    if (reqOrgId) {
+      request.kioskContext = {
+        organizationId: reqOrgId.toString()
+      };
+    }
+  };
+
+  // GET /api/v1/kiosk/journeys/:id (Kiosk Journey Retrieval - Device, Worker, Admin, or Public)
+  app.get(
+    "/journeys/:id",
+    {
+      preHandler: [journeyPlaybackPreHandler]
+    },
+    controller.getJourney
+  );
+
+  // GET /api/v1/kiosk/journeys/play/:id (Kiosk Playback via Signed URL, Device, or Worker)
   app.get(
     "/journeys/play/:id",
     {
-      preHandler: [verifySignedUrl]
+      preHandler: [journeyPlaybackPreHandler]
     },
     controller.getJourney
   );
@@ -271,15 +338,24 @@ export async function kioskRoutes(app: FastifyInstance) {
     controller.enrollMdmDevice
   );
 
-  // POST /api/v1/kiosk/identify (Identify frontline worker via badgeId / nationalId and issue ephemeral session token)
+  // POST /api/v1/kiosk/identify (Identify frontline worker via employeeId / badgeId / batchId / email / nationalId)
   app.post(
     "/identify",
     {
       schema: {
         body: z.object({
-          identifier: z.string().min(1, "Identifier (badgeId or nationalId) is required"),
+          identifier: z.string().optional(),
+          badgeId: z.string().optional(),
+          batchId: z.string().optional(),
+          employeeId: z.string().optional(),
+          email: z.string().optional(),
+          nationalId: z.string().optional(),
           kioskDeviceId: z.string().optional(),
-        }),
+          organizationId: z.string().optional(),
+        }).refine(
+          (data) => Boolean(data.identifier || data.badgeId || data.batchId || data.employeeId || data.email || data.nationalId),
+          { message: "At least one credential (employeeId, badgeId, batchId, email, or nationalId) is required" }
+        ),
       },
     },
     controller.identifyFrontlineWorker
@@ -539,9 +615,6 @@ export async function kioskRoutes(app: FastifyInstance) {
 
     // GET /api/v1/kiosk/journeys
     adminGroup.get("/journeys", controller.listJourneys);
-
-    // GET /api/v1/kiosk/journeys/:id
-    adminGroup.get("/journeys/:id", controller.getJourney);
 
     // POST /api/v1/kiosk/journeys
     adminGroup.post(

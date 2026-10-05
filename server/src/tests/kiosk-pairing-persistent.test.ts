@@ -237,6 +237,41 @@ describe("K-DEV-002: Persistent CSPRNG Kiosk Pairing Handshake Suite", () => {
       expect(pairAttempt.statusCode).toBe(400);
       const errorBody = JSON.parse(pairAttempt.payload);
       expect(errorBody.code).toBe("DEVICE_MISMATCH");
+      expect(errorBody.expectedGuid).toBe("authorized-hardware-guid-001");
+      expect(errorBody.actualGuid).toBe("rogue-hardware-guid-999");
+    });
+
+    it("successfully normalizes and pairs when code was generated with 'Terminal Hardware GUID:' label prefix", async () => {
+      const pureGuid = "hw-guid-clean-target-999";
+      const codeRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/devices/pair/code",
+        headers: {
+          authorization: `Bearer ${adminToken}`
+        },
+        payload: {
+          deviceId: `Terminal Hardware GUID: ${pureGuid}`
+        }
+      });
+
+      expect(codeRes.statusCode).toBe(200);
+      const { code } = JSON.parse(codeRes.payload);
+
+      const pairRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/kiosk/devices/pair",
+        payload: {
+          code,
+          deviceId: pureGuid,
+          name: "Prefix Cleaned Terminal",
+          location: "Gate 5"
+        }
+      });
+
+      expect(pairRes.statusCode).toBe(200);
+      const pairBody = JSON.parse(pairRes.payload);
+      expect(pairBody.success).toBe(true);
+      expect(pairBody.device.status).toBe("online");
     });
 
     it("triggers rate limiting after 5 consecutive failed pairing attempts on a deviceId", async () => {

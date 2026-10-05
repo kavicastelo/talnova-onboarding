@@ -114,7 +114,13 @@ export function KioskDashboard() {
   const handleGeneratePairCode = async () => {
     setGeneratingPairCode(true);
     try {
-      const res = await kioskService.generatePairingCode(terminalGuid.trim() || undefined);
+      const cleanGuid = terminalGuid
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/^["'`]|["'`]$/g, '')
+        .replace(/^(?:terminal[\s_-]*)?(?:hardware[\s_-]*|device[\s_-]*|asset[\s_-]*)?(?:guid|hw[\s_-]?id|hw|id|tag)\s*[:=]\s*/i, '')
+        .replace(/^(?:guid|hw|id)\s+/i, '')
+        .trim();
+      const res = await kioskService.generatePairingCode(cleanGuid || undefined);
       setGeneratedPairCode(res.code);
       setCodeExpiresInSeconds(res.expiresInSeconds || 900);
       toast.success(t('toasts.pairCodeGenerated', { defaultValue: '6-digit device pairing code generated' }));
@@ -195,6 +201,22 @@ export function KioskDashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Periodic background refresh for paired devices fleet dashboard (every 15s)
+  useEffect(() => {
+    if (activeTab !== 'devices') return;
+    const interval = setInterval(async () => {
+      try {
+        const deviceRes = await kioskService.listDevices();
+        if (deviceRes?.devices) {
+          setDevices(deviceRes.devices);
+        }
+      } catch {
+        // Silent background polling failure
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   // Fetch analytics when selected journey changes or analytics tab is clicked
   useEffect(() => {
@@ -346,11 +368,19 @@ export function KioskDashboard() {
 
   const handleDispatchCommand = async (deviceId: string, commandType: string) => {
     try {
-      console.log(`Dispatching ${commandType} to device ${deviceId}`);
-      // Simulate remote queue scheduling for command dispatch
-      toast.success(t('toasts.remoteCommandQueued', { command: commandType, defaultValue: `Remote command [${commandType}] successfully queued for device.` }));
+      await kioskService.dispatchDeviceCommand(deviceId, commandType);
+      toast.success(
+        t('toasts.remoteCommandQueued', {
+          command: commandType,
+          defaultValue: `Remote command [${commandType}] successfully queued for device.`
+        })
+      );
     } catch (err: any) {
-      toast.error(t('toasts.failedDispatchCommand', { defaultValue: 'Failed to dispatch remote action command' }));
+      toast.error(
+        err?.response?.data?.message ||
+        err?.message ||
+        t('toasts.failedDispatchCommand', { defaultValue: 'Failed to dispatch remote action command' })
+      );
     }
   };
 
@@ -654,6 +684,12 @@ export function KioskDashboard() {
           loading={loading}
           onRefreshFleet={fetchData}
           onPairTerminal={() => setPairTerminalModalOpen(true)}
+          onPairTerminalWithGuid={(guid) => {
+            setTerminalGuid(guid);
+            setGeneratedPairCode(null);
+            setPairCodeCopied(false);
+            setPairTerminalModalOpen(true);
+          }}
           onToggleMaintenance={handleToggleMaintenance}
           onDispatchCommand={handleDispatchCommand}
           onRevokeDevice={handleRevokeDevice}
@@ -1213,16 +1249,44 @@ export function KioskDashboard() {
               {t('pairTerminalModal.desc', { defaultValue: 'Generate a secure 6-digit one-time activation code to link physical tablet hardware to your organization.' })}
             </p>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                   {t('pairTerminalModal.hardwareGuid', { defaultValue: 'Hardware GUID (Optional)' })}
                 </label>
                 <span className="text-[10px] text-slate-400 font-medium">Leave empty for any terminal</span>
               </div>
+
+              {devices.length > 0 && !generatedPairCode && (
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-500">
+                    {t('pairTerminalModal.selectExisting', { defaultValue: 'Or select registered terminal to re-pair:' })}
+                  </label>
+                  <select
+                    value={terminalGuid}
+                    onChange={(e) => setTerminalGuid(e.target.value)}
+                    className="w-full text-xs py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="">-- Choose registered terminal or enter custom GUID below --</option>
+                    {devices.map((d) => (
+                      <option key={d._id} value={d.deviceId || d.hardwareGuid || d._id}>
+                        {d.name} ({d.deviceId || d.hardwareGuid}) - {d.location}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <Input
                 value={terminalGuid}
-                onChange={(e) => setTerminalGuid(e.target.value)}
+                onChange={(e) => {
+                  const cleaned = e.target.value
+                    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                    .replace(/^["'`]|["'`]$/g, '')
+                    .replace(/^(?:terminal[\s_-]*)?(?:hardware[\s_-]*|device[\s_-]*|asset[\s_-]*)?(?:guid|hw[\s_-]?id|hw|id|tag)\s*[:=]\s*/i, '')
+                    .replace(/^(?:guid|hw|id)\s+/i, '');
+                  setTerminalGuid(cleaned);
+                }}
                 placeholder={t('pairTerminalModal.guidPlaceholder', { defaultValue: 'e.g. Leave blank or paste terminal GUID' })}
                 data-testid="terminal-guid-input"
                 className="w-full text-sm font-mono"

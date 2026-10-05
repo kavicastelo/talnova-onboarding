@@ -266,6 +266,17 @@ export class DeviceIdentityService {
   }
 
   /**
+   * Explicitly sets or overrides the terminal hardware GUID (e.g. for custom asset tags or technician alignment).
+   */
+  setCustomHardwareGuid(newGuid: string): void {
+    const trimmed = newGuid.trim();
+    if (!trimmed) return;
+    this.cachedHardwareGuid = trimmed;
+    this.persistToLocalStorage(trimmed);
+    setIdbItem('hardware_guid', trimmed).catch(() => {});
+  }
+
+  /**
    * Checks whether the current device identity is derived from an MDM configuration.
    */
   isMdmProvisioned(): boolean {
@@ -501,10 +512,21 @@ export class DeviceIdentityService {
   setEmployeeSession(token: string | null, user?: any): void {
     this.ephemeralEmployeeToken = token;
     this.ephemeralEmployeeUser = user || null;
+    if (typeof window !== 'undefined') {
+      if (token) {
+        (window as any).__TALNOVA_EMPLOYEE_TOKEN__ = token;
+      } else {
+        delete (window as any).__TALNOVA_EMPLOYEE_TOKEN__;
+      }
+    }
   }
 
   getEmployeeToken(): string | null {
-    return this.ephemeralEmployeeToken;
+    if (this.ephemeralEmployeeToken) return this.ephemeralEmployeeToken;
+    if (typeof window !== 'undefined' && (window as any).__TALNOVA_EMPLOYEE_TOKEN__) {
+      return (window as any).__TALNOVA_EMPLOYEE_TOKEN__;
+    }
+    return null;
   }
 
   getEmployeeUser(): any {
@@ -514,6 +536,9 @@ export class DeviceIdentityService {
   clearEmployeeSession(): void {
     this.ephemeralEmployeeToken = null;
     this.ephemeralEmployeeUser = null;
+    if (typeof window !== 'undefined') {
+      delete (window as any).__TALNOVA_EMPLOYEE_TOKEN__;
+    }
   }
 }
 

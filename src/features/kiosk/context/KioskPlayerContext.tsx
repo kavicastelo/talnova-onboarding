@@ -61,6 +61,78 @@ export interface KioskPlayerProviderProps {
 
 const KioskPlayerContext = createContext<KioskPlayerContextProps | undefined>(undefined);
 
+export function normalizeJourneyData(rawJourney: any): KioskJourney | null {
+  if (!rawJourney) return null;
+  const normalized = { ...rawJourney };
+
+  // If steps are missing or empty, but slides are present, convert slides to steps
+  if ((!normalized.steps || normalized.steps.length === 0) && Array.isArray(normalized.slides) && normalized.slides.length > 0) {
+    normalized.steps = normalized.slides.map((slide: any, idx: number) => {
+      const stepId = slide.id || `step-${idx + 1}`;
+      const title = slide.title || `Step ${idx + 1}`;
+      const contentText = slide.content || slide.text || slide.description || '';
+
+      const blocks = Array.isArray(slide.blocks) && slide.blocks.length > 0
+        ? slide.blocks
+        : [
+            {
+              id: `block-${stepId}-text`,
+              type: 'text' as const,
+              order: 0,
+              mediaReferences: {
+                en: {
+                  textValue: contentText
+                }
+              }
+            }
+          ];
+
+      return {
+        id: stepId,
+        type: (slide.type === 'quiz' ? 'quiz_step' : 'standard_step') as any,
+        title,
+        order: typeof slide.order === 'number' ? slide.order : idx,
+        blocks,
+        interaction: slide.interaction || {
+          type: 'tap_to_continue' as const
+        },
+        requireSupervisorWitness: Boolean(slide.requireSupervisorWitness)
+      };
+    });
+  }
+
+  // If steps exist, ensure each step has valid blocks with mediaReferences
+  if (Array.isArray(normalized.steps)) {
+    normalized.steps = normalized.steps.map((st: any, idx: number) => {
+      const stepId = st.id || `step-${idx + 1}`;
+      let blocks = Array.isArray(st.blocks) ? [...st.blocks] : [];
+      if (blocks.length === 0 && (st.content || st.text || st.description)) {
+        blocks = [
+          {
+            id: `block-${stepId}-text`,
+            type: 'text' as const,
+            order: 0,
+            mediaReferences: {
+              en: {
+                textValue: st.content || st.text || st.description
+              }
+            }
+          }
+        ];
+      }
+      return {
+        ...st,
+        id: stepId,
+        order: typeof st.order === 'number' ? st.order : idx,
+        blocks,
+        interaction: st.interaction || { type: 'tap_to_continue' as const }
+      };
+    });
+  }
+
+  return normalized as KioskJourney;
+}
+
 export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
   children,
   initialJourney = null,
@@ -68,7 +140,7 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
   initialSession = null,
   initialStatus = 'idle'
 }) => {
-  const [journey, setJourney] = useState<KioskJourney | null>(initialJourney);
+  const [journey, setJourney] = useState<KioskJourney | null>(() => normalizeJourneyData(initialJourney));
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(initialStepIndex);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(
     initialJourney?.languages?.[0] || 'en'
@@ -165,14 +237,55 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
     setIsLoading(true);
     setError(null);
     setSignedParamsState(signedParams);
-    try {
-      let data: KioskJourney;
-      if (signedParams) {
-        data = await kioskService.getPublicPlaybackJourney(journeyId, signedParams);
-      } else {
-        data = await kioskService.getJourney(journeyId);
+
+    // Fast immediate availability check: initialJourney or current journey
+    let data: KioskJourney | null =
+      (journey && journey._id === journeyId)
+        ? journey
+        : (initialJourney && initialJourney._id === journeyId)
+        ? initialJourney
+        : null;
+
+    // Fast local fallback: Check IndexedDB offline storage
+    if (!data) {
+      try {
+        const cachedVersion = await offlineStorageService.getLatestJourneyVersion(journeyId);
+        if (cachedVersion && cachedVersion.snapshot) {
+          data = cachedVersion.snapshot as KioskJourney;
+        }
+      } catch (offlineErr) {
+        console.warn('[KioskPlayerContext] Offline storage inspection warning:', offlineErr);
       }
-      setJourney(data);
+    }
+
+    if (data) {
+      const normalizedData = normalizeJourneyData(data);
+      data = normalizedData;
+      setJourney(normalizedData);
+    }
+
+    try {
+      let serverData: KioskJourney;
+      if (signedParams) {
+        serverData = await kioskService.getPublicPlaybackJourney(journeyId, signedParams);
+      } else {
+        serverData = await kioskService.getJourney(journeyId);
+      }
+      const normalizedServerData = normalizeJourneyData(serverData);
+      data = normalizedServerData;
+      setJourney(normalizedServerData);
+    } catch (err: any) {
+      if (!data) {
+        setError(err?.response?.data?.message || err?.message || 'Failed to load kiosk journey');
+        setJourney(null);
+        return;
+      }
+      console.info('[KioskPlayerContext] Running on local/cached journey snapshot.');
+    } finally {
+      setIsLoading(false);
+    }
+
+    if (data) {
       let targetStep = initialStepIndex || 0;
       if (targetStep === 0) {
         try {
@@ -191,18 +304,13 @@ export const KioskPlayerProvider: React.FC<KioskPlayerProviderProps> = ({
       }
       setCurrentStepIndex(targetStep);
       currentStepIndexRef.current = targetStep;
-      
+
       // Auto-select first available language
       if (data.languages && data.languages.length > 0) {
         setSelectedLanguage(data.languages[0]);
       } else {
         setSelectedLanguage('en');
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load kiosk journey');
-      setJourney(null);
-    } finally {
-      setIsLoading(false);
     }
   };
 

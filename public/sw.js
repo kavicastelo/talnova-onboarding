@@ -1,10 +1,10 @@
 /* eslint-env serviceworker */
-const CACHE_NAME = 'talnova-v2';
+const CACHE_NAME = 'talnova-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/src/main.tsx',
+  '/src/index.tsx',
   '/src/index.css'
 ];
 
@@ -35,6 +35,23 @@ self.addEventListener('activate', (event) => {
 // Fetch Interceptor: Cache-First for assets, Network-First for API and Locales
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Ignore non-http/https schemes (such as chrome-extension://, moz-extension://)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
+  // Never intercept or cache Vite development server requests or HMR modules
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.includes('/node_modules/') ||
+    url.searchParams.has('v') ||
+    url.searchParams.has('t') ||
+    url.searchParams.has('import')
+  ) {
+    return;
+  }
 
   // Ignore non-GET requests for cache
   if (event.request.method !== 'GET') {

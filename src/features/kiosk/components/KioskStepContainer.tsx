@@ -10,7 +10,8 @@ import {
   Info,
   Volume2,
   Radio,
-  ChevronDown
+  ChevronDown,
+  Clock
 } from 'lucide-react';
 import { KioskStep } from '../../../types/kiosk/step.types';
 import { KioskBlock } from '../../../types/kiosk/block.types';
@@ -57,6 +58,11 @@ export interface KioskStepContainerProps {
   showSubtitles?: boolean;
   isRtl?: boolean;
   className?: string;
+  // Phase 3 Dwell & Hazard compliance
+  dwellSeconds?: number;
+  isHazardAcknowledged?: boolean;
+  onHazardAcknowledge?: () => void;
+  videoWatchPercent?: number;
 }
 
 export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
@@ -88,10 +94,68 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
   supervisorWitnessData,
   showSubtitles = false,
   isRtl,
-  className = ''
+  className = '',
+  dwellSeconds: propsDwellSeconds,
+  isHazardAcknowledged: propsHazardAcknowledged,
+  onHazardAcknowledge,
+  videoWatchPercent: videoWatchPercentProp
 }) => {
   const { t } = useTranslation('kiosk');
   const isRtlMode = isRtl ?? isRtlLanguage(selectedLanguage);
+
+  const mainRef = useRef<HTMLElement>(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  const isEmergency = step?.type === 'emergency_step';
+  const isWarning = step?.type === 'warning_step';
+
+  const configuredDwell = (
+    propsDwellSeconds !== undefined
+      ? propsDwellSeconds
+      : (step as any)?.dwellSeconds ??
+        (step as any)?.settings?.dwellSeconds ??
+        (step as any)?.warningConfig?.dwellSeconds ??
+        (step as any)?.emergencyConfig?.dwellSeconds ??
+        ((isWarning || isEmergency) ? 3 : 0)
+  );
+
+  const [dwellRemaining, setDwellRemaining] = useState<number>(configuredDwell);
+  const [internalVideoWatchPercent, setInternalVideoWatchPercent] = useState<number>(0);
+  const [internalHazardAcknowledged, setInternalHazardAcknowledged] = useState(false);
+
+  const isDwellActive = dwellRemaining > 0;
+  const isHazardAck = propsHazardAcknowledged ?? internalHazardAcknowledged;
+  const currentVideoPct = videoWatchPercentProp ?? internalVideoWatchPercent;
+
+  useEffect(() => {
+    if (!step) return;
+    const initialDwell = (
+      propsDwellSeconds !== undefined
+        ? propsDwellSeconds
+        : (step as any)?.dwellSeconds ??
+          (step as any)?.settings?.dwellSeconds ??
+          (step as any)?.warningConfig?.dwellSeconds ??
+          (step as any)?.emergencyConfig?.dwellSeconds ??
+          ((isWarning || isEmergency) ? 3 : 0)
+    );
+    setDwellRemaining(initialDwell);
+    setInternalVideoWatchPercent(0);
+    setInternalHazardAcknowledged(false);
+
+    if (initialDwell <= 0) return;
+
+    const timer = setInterval(() => {
+      setDwellRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [step?.id, isWarning, isEmergency, propsDwellSeconds]);
 
   if (!step) {
     return (
@@ -123,7 +187,13 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
           ? blockTrans?.textValue
           : undefined;
 
-    const textValue = mediaRef?.textValue ?? settingsText ?? blockText;
+    const textValue =
+      mediaRef?.textValue ??
+      settingsText ??
+      blockText ??
+      (b as any).textValue ??
+      (b as any).content ??
+      (b as any).text;
     const uploadId =
       mediaRef?.uploadId ??
       (typeof settingsTrans === 'object' ? settingsTrans?.uploadId : undefined) ??
@@ -279,6 +349,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
           normalizedVideoUrl.includes('player.vimeo.com');
 
         const watchThreshold = (block.settings as any)?.watchThresholdPercent ?? (step.type === 'video_step' ? 90 : 0);
+        const isThresholdSatisfied = videoCompleted || (watchThreshold > 0 && currentVideoPct >= watchThreshold);
 
         content = (
           <div
@@ -286,6 +357,33 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
             data-testid="kiosk-video-block"
             className="aspect-video w-full max-h-[50vh] overflow-hidden rounded-2xl bg-black border border-slate-900 relative shadow-2xl flex flex-col justify-center items-center"
           >
+            {/* Video Watch Threshold Progress Badge */}
+            {watchThreshold > 0 && (
+              <div
+                data-testid="video-watch-progress"
+                className={`absolute top-4 left-4 z-10 px-3.5 py-1.5 rounded-xl text-xs font-bold border shadow-lg backdrop-blur-md flex items-center space-x-2 ${
+                  isThresholdSatisfied
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
+                    : 'bg-black/80 text-amber-300 border-amber-500/40'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {isThresholdSatisfied
+                    ? t('player.videoThresholdSatisfied', {
+                        defaultValue: `Watched: ${Math.max(currentVideoPct, watchThreshold)}% / Required: ${watchThreshold}% (Threshold Met)`,
+                        pct: Math.max(currentVideoPct, watchThreshold),
+                        required: watchThreshold
+                      })
+                    : t('player.videoWatchProgress', {
+                        defaultValue: `Watched: ${currentVideoPct}% / Required: ${watchThreshold}%`,
+                        pct: currentVideoPct,
+                        required: watchThreshold
+                      })}
+                </span>
+              </div>
+            )}
+
             {isEmbed ? (
               <iframe
                 id="sop-video-embed"
@@ -308,9 +406,10 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 onEnded={onVideoComplete}
                 onTimeUpdate={(e) => {
                   const vid = e.currentTarget;
-                  if (vid.duration && vid.duration > 0 && watchThreshold > 0) {
+                  if (vid.duration && vid.duration > 0) {
                     const pct = Math.round((vid.currentTime / vid.duration) * 100);
-                    if (pct >= watchThreshold && !videoCompleted && onVideoComplete) {
+                    setInternalVideoWatchPercent(pct);
+                    if (watchThreshold > 0 && pct >= watchThreshold && !videoCompleted && onVideoComplete) {
                       onVideoComplete();
                     }
                   }
@@ -324,10 +423,10 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 data-testid="sop-video-complete-btn"
                 type="button"
                 onClick={onVideoComplete}
-                className="absolute bottom-4 right-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-sm min-h-[48px] shadow-lg flex items-center space-x-2 cursor-pointer z-10 active:scale-95 transition"
+                className="absolute bottom-4 right-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-sm min-h-[48px] min-w-[48px] shadow-lg flex items-center space-x-2 cursor-pointer z-10 active:scale-95 transition"
               >
                 <span>{t('player.videoFinished', { defaultValue: 'Confirm Video Watched' })}</span>
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
               </button>
             )}
           </div>
@@ -420,15 +519,10 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
     );
   };
 
-  const isEmergency = step.type === 'emergency_step';
-  const isWarning = step.type === 'warning_step';
   const translatedTitle =
     (step as any).translations?.[selectedLanguage]?.title ||
     (step as any).settings?.translations?.[selectedLanguage]?.title ||
     step.title;
-
-  const mainRef = useRef<HTMLElement>(null);
-  const [canScrollDown, setCanScrollDown] = useState(false);
 
   const checkScrollOverflow = useCallback(() => {
     if (!mainRef.current) return;
@@ -480,8 +574,11 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
       <div className="w-full max-w-5xl mx-auto space-y-6 flex-1 flex flex-col justify-start my-auto min-w-0 break-words">
         {/* Step-specific OSHA warning standard or emergency protocol banner */}
         {isWarning && (() => {
+          const titleMatch = step.title?.match(/^\[(DANGER|WARNING|CAUTION|NOTICE)\]/i);
+          const titleHazard = titleMatch ? titleMatch[1].toLowerCase() : null;
           const hazardLevel = (
             (step as any).warningConfig?.hazardLevel ||
+            titleHazard ||
             (step as any).settings?.hazardLevel ||
             (step as any).interaction?.hazardLevel ||
             'warning'
@@ -517,6 +614,9 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
           const signalWord = warningConfig?.signalWord || hazardLevel.toUpperCase();
           const hazardStatement = warningConfig?.hazardStatement;
           const precautionaryStatement = warningConfig?.precautionaryStatement;
+          const symbolCode = warningConfig?.symbolCode;
+          const oshaCategory = warningConfig?.oshaCategory;
+          const complianceStandard = (step as any).settings?.complianceStandard || warningConfig?.complianceStandard || 'OSHA 1910.145';
 
           return (
             <div
@@ -525,8 +625,8 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
               className={`flex items-start space-x-4 border-2 rounded-2xl p-6 shadow-xl ${cfg.border}`}
             >
               <AlertTriangle className={`w-8 h-8 shrink-0 ${cfg.iconColor}`} />
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
+              <div className="space-y-1 flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`px-3 py-1 rounded font-black text-sm uppercase ${hazardLevel === 'danger'
                         ? 'bg-rose-600 text-white'
@@ -540,16 +640,49 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                     {signalWord}
                   </span>
                   <h3 className="text-xl font-black uppercase tracking-wider">{cfg.label}</h3>
+
+                  {/* Dwell Timer Status Chip */}
+                  <div className="ml-auto">
+                    {isDwellActive ? (
+                      <div
+                        data-testid="hazard-dwell-timer"
+                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse"
+                      >
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t('player.reviewHazardCountdown', { defaultValue: `Review Hazard (${dwellRemaining}s)`, seconds: dwellRemaining })}</span>
+                      </div>
+                    ) : (
+                      <div
+                        data-testid="hazard-dwell-cleared"
+                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t('player.hazardReviewed', { defaultValue: 'Hazard Reviewed' })}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {hazardStatement && (
                   <p className="text-base font-bold text-white pt-1">{hazardStatement}</p>
                 )}
                 <p className="text-sm opacity-90">{precautionaryStatement || cfg.desc}</p>
-                {(step as any).settings?.complianceStandard && (
-                  <p className="text-xs font-mono opacity-75 pt-1">
-                    Standard Reference: {(step as any).settings.complianceStandard}
-                  </p>
-                )}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {symbolCode && (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-white/10 text-white border border-white/20">
+                      {symbolCode}
+                    </span>
+                  )}
+                  {oshaCategory && (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-white/10 text-white border border-white/20">
+                      {`Category: ${oshaCategory}`}
+                    </span>
+                  )}
+                  {complianceStandard && (
+                    <span className="text-[11px] font-mono opacity-80">
+                      {`Standard Reference: ${complianceStandard}`}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -557,20 +690,41 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
 
         {isEmergency && (() => {
           const emergencyConfig = (step as any).emergencyConfig || (step as any).settings || {};
-          const musterPoint = emergencyConfig.musterPoint || (step as any).settings?.musterPoint;
+          const musterPoint = emergencyConfig.musterPoint || (step as any).settings?.musterPoint || step.interaction?.incorrectStepId;
           const evacuationRoute = emergencyConfig.evacuationRoute || (step as any).settings?.evacuationRoute;
-          const emergencyContact = emergencyConfig.emergencyContact || emergencyConfig.dispatchChannel || (step as any).settings?.dispatchChannel;
+          const emergencyContact = emergencyConfig.emergencyContact || emergencyConfig.dispatchChannel || (step as any).settings?.dispatchChannel || step.interaction?.correctStepId;
 
           return (
             <div
               data-testid="emergency-step-container"
               className="flex flex-col space-y-4 border-2 border-rose-500 bg-rose-950/50 text-rose-200 rounded-2xl p-6 shadow-2xl animate-pulse"
             >
-              <div className="flex items-start space-x-4">
-                <ShieldAlert className="w-9 h-9 shrink-0 text-rose-400" />
-                <div>
-                  <h3 className="text-xl font-black uppercase tracking-wider text-white">Emergency Safety Protocol Active</h3>
-                  <p className="text-sm opacity-90 mt-0.5">Immediate action required. Immediate evacuation and life-safety guidelines. Observe muster locations.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start space-x-4">
+                  <ShieldAlert className="w-9 h-9 shrink-0 text-rose-400" />
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-wider text-white">Emergency Safety Protocol Active</h3>
+                    <p className="text-sm opacity-90 mt-0.5">Immediate action required. Immediate evacuation and life-safety guidelines. Observe muster locations.</p>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  {isDwellActive ? (
+                    <div
+                      data-testid="hazard-dwell-timer"
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse"
+                    >
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      <span>{t('player.reviewHazardCountdown', { defaultValue: `Review Hazard (${dwellRemaining}s)`, seconds: dwellRemaining })}</span>
+                    </div>
+                  ) : (
+                    <div
+                      data-testid="hazard-dwell-cleared"
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{t('player.hazardReviewed', { defaultValue: 'Hazard Reviewed' })}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               {(musterPoint || evacuationRoute || emergencyContact) && (
@@ -600,61 +754,76 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
         })()}
 
         {/* Supervisor Witness On-Canvas Attestation Card */}
-        {(step.type === 'supervisor_gate' || step.requireSupervisorWitness) && (
-          <div
-            data-testid="supervisor-gate-card"
-            className={`p-6 rounded-2xl border transition-all ${isSupervisorWitnessed
-                ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-200'
-                : 'bg-indigo-950/40 border-indigo-500/50 text-indigo-200 shadow-xl'
-              }`}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start space-x-3.5">
-                <div
-                  className={`p-3 rounded-xl border ${isSupervisorWitnessed
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                      : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse'
-                    }`}
-                >
-                  {isSupervisorWitnessed ? (
-                    <ShieldCheck className="w-7 h-7" />
-                  ) : (
-                    <ShieldAlert className="w-7 h-7" />
-                  )}
-                </div>
-                <div>
-                  <h4 className="text-lg font-black tracking-tight text-white flex items-center space-x-2">
-                    <span>{isSupervisorWitnessed ? 'Supervisor Witness Verified' : 'Supervisor Witness Required'}</span>
-                    {isSupervisorWitnessed && (
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950">
-                        Authorized
-                      </span>
+        {(step.type === 'supervisor_gate' || step.requireSupervisorWitness) && (() => {
+          const witnessConfig = (step as any).witnessConfig || {};
+          const requiredRole = witnessConfig.supervisorRole || (step as any).settings?.supervisorRole || 'Lead Operations Supervisor';
+
+          return (
+            <div
+              data-testid="supervisor-gate-card"
+              className={`p-6 rounded-2xl border transition-all ${isSupervisorWitnessed
+                  ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-200'
+                  : 'bg-indigo-950/40 border-indigo-500/50 text-indigo-200 shadow-xl'
+                }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start space-x-3.5">
+                  <div
+                    className={`p-3 rounded-xl border ${isSupervisorWitnessed
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse'
+                      }`}
+                  >
+                    {isSupervisorWitnessed ? (
+                      <ShieldCheck className="w-7 h-7" />
+                    ) : (
+                      <ShieldAlert className="w-7 h-7" />
                     )}
-                  </h4>
-                  <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                    {isSupervisorWitnessed
-                      ? `Attestation Authorized & Logged. Checkpoint cleared by supervisor ${supervisorWitnessData?.fullName ||
-                      supervisorWitnessData?.name ||
-                      'Authorized Lead'
-                      }.`
-                      : 'Pending Supervisor Authorization. A certified supervisor must witness this checkpoint and enter their 4-digit PIN.'}
-                  </p>
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black tracking-tight text-white flex items-center space-x-2">
+                      <span data-testid="supervisor-witness-title">
+                        {isSupervisorWitnessed ? 'Supervisor Witness Verified' : 'Supervisor Witness Required'}
+                      </span>
+                      {isSupervisorWitnessed ? (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950">
+                          Authorized
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">
+                          {requiredRole}
+                        </span>
+                      )}
+                    </h4>
+                    <p data-testid="supervisor-witness-desc" className="text-xs text-slate-300 mt-1 max-w-xl">
+                      {isSupervisorWitnessed
+                        ? `Attestation Authorized & Logged. Checkpoint cleared by supervisor ${supervisorWitnessData?.fullName ||
+                        supervisorWitnessData?.name ||
+                        'Authorized Lead'
+                        }${supervisorWitnessData?.role ? ` (${supervisorWitnessData.role})` : ''}.${
+                          supervisorWitnessData?.timestamp || supervisorWitnessData?.verifiedAt
+                            ? ` Verified: ${supervisorWitnessData.timestamp || supervisorWitnessData.verifiedAt}.`
+                            : ''
+                        }`
+                        : `Pending Supervisor Authorization. Awaiting Supervisor Co-Signature. A designated ${requiredRole} must witness this checkpoint and enter their 4-digit PIN.`}
+                    </p>
+                  </div>
                 </div>
+                {!isSupervisorWitnessed && onOpenSupervisorGate && (
+                  <button
+                    type="button"
+                    data-testid="supervisor-signoff-btn"
+                    onClick={onOpenSupervisorGate}
+                    className="min-h-[56px] min-w-[48px] px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm transition active:scale-95 shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    <span>Supervisor Sign-Off</span>
+                  </button>
+                )}
               </div>
-              {!isSupervisorWitnessed && onOpenSupervisorGate && (
-                <button
-                  type="button"
-                  data-testid="supervisor-signoff-btn"
-                  onClick={onOpenSupervisorGate}
-                  className="min-h-[56px] px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm transition active:scale-95 shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
-                >
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>Supervisor Sign-Off</span>
-                </button>
-              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Step Title */}
         {translatedTitle && (
@@ -683,17 +852,32 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
               <button
                 type="button"
                 data-testid="yes-btn"
-                onClick={() => onYesNoSelection(true)}
-                className="w-full sm:w-60 min-h-[64px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
+                disabled={isDwellActive}
+                onClick={() => !isDwellActive && onYesNoSelection(true)}
+                className={`w-full sm:w-60 min-h-[64px] min-w-[64px] rounded-2xl font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+                  isDwellActive
+                    ? 'bg-emerald-800/40 text-emerald-200/50 cursor-not-allowed opacity-50'
+                    : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white cursor-pointer'
+                }`}
               >
                 <Check className="w-6 h-6 stroke-[3]" />
                 <span>Yes / Confirmed</span>
+                {isDwellActive && (
+                  <span className="text-xs bg-black/40 px-2 py-0.5 rounded font-mono ml-1">
+                    ({dwellRemaining}s)
+                  </span>
+                )}
               </button>
               <button
                 type="button"
                 data-testid="no-btn"
-                onClick={() => onYesNoSelection(false)}
-                className="w-full sm:w-60 min-h-[64px] rounded-2xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
+                disabled={isDwellActive}
+                onClick={() => !isDwellActive && onYesNoSelection(false)}
+                className={`w-full sm:w-60 min-h-[64px] min-w-[64px] rounded-2xl font-extrabold text-xl shadow-xl flex items-center justify-center space-x-2 transition focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+                  isDwellActive
+                    ? 'bg-rose-800/40 text-rose-200/50 cursor-not-allowed opacity-50'
+                    : 'bg-rose-600 hover:bg-rose-500 active:scale-95 text-white cursor-pointer'
+                }`}
               >
                 <span>No / Unsafe</span>
               </button>
@@ -701,17 +885,22 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
           )}
 
           {/* Interaction: Circular Hold-to-Confirm */}
-          {step.interaction?.type === 'hold_to_confirm' && (
+          {(step.type === 'interactive_confirmation' || step.interaction?.type === 'hold_to_confirm') && (
             <div className="flex flex-col items-center justify-center space-y-4 py-4">
               <button
                 type="button"
                 data-testid="hold-to-confirm-btn"
-                onMouseDown={onHoldStart}
-                onMouseUp={onHoldEnd}
-                onMouseLeave={onHoldEnd}
-                onTouchStart={onHoldStart}
-                onTouchEnd={onHoldEnd}
-                className="relative h-28 w-28 rounded-full bg-slate-900 border-2 border-slate-800 hover:border-emerald-500/50 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-2xl focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30"
+                disabled={isDwellActive}
+                onMouseDown={!isDwellActive ? onHoldStart : undefined}
+                onMouseUp={!isDwellActive ? onHoldEnd : undefined}
+                onMouseLeave={!isDwellActive ? onHoldEnd : undefined}
+                onTouchStart={!isDwellActive ? onHoldStart : undefined}
+                onTouchEnd={!isDwellActive ? onHoldEnd : undefined}
+                className={`relative h-28 w-28 min-h-[64px] min-w-[64px] rounded-full border-2 flex items-center justify-center transition shadow-2xl focus-visible:outline-4 focus-visible:outline-sky-500 focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
+                  isDwellActive
+                    ? 'bg-slate-900 border-slate-800 opacity-50 cursor-not-allowed'
+                    : 'bg-slate-900 border-slate-800 hover:border-emerald-500/50 active:scale-95 cursor-pointer'
+                }`}
               >
                 {/* SVG circular progress ring */}
                 <svg className="absolute inset-0 h-full w-full -rotate-90">
@@ -737,13 +926,13 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
                 <Hand className="h-10 w-10 text-emerald-400 animate-pulse" />
               </button>
               <span className="text-slate-400 font-bold text-xs tracking-widest uppercase">
-                Touch & Hold to Confirm
+                Touch & Hold to Confirm {isDwellActive && `(${dwellRemaining}s)`}
               </span>
             </div>
           )}
 
           {/* Interaction: PPE Checklist */}
-          {step.interaction?.type === 'ppe_checklist' && (
+          {(step.type === 'ppe_checklist' || step.interaction?.type === 'ppe_checklist') && (
             <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h4 className="text-base font-bold text-white flex items-center space-x-2">
@@ -762,7 +951,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {(step.interaction.ppeItems || ['Hard Hat', 'Safety Glasses', 'High-Vis Vest', 'Steel Toe Boots', 'Gloves']).map(
+                {(step.interaction?.ppeItems || ['Hard Hat', 'Safety Glasses', 'High-Vis Vest', 'Steel Toe Boots', 'Gloves']).map(
                   (item: string) => {
                     const isChecked = checkedPpe.has(item);
                     const itemId = item.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -844,7 +1033,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
           )}
 
           {/* Interaction: Knowledge Check Quiz */}
-          {(step.interaction?.type === 'quiz' || Boolean(step.interaction?.quiz || step.quiz)) && (
+          {(step.type === 'knowledge_quiz' || step.interaction?.type === 'quiz' || Boolean(step.interaction?.quiz || step.quiz)) && (
             <div className="w-full pt-4">
               <KnowledgeQuizEngine
                 quiz={(step.interaction?.quiz || step.quiz)!}
@@ -854,6 +1043,50 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
               />
             </div>
           )}
+
+          {/* Hazard Acknowledgment Action for warning_step / emergency_step without custom decision configs */}
+          {(isWarning || isEmergency) &&
+            (!step.interaction ||
+              step.interaction.type === 'none' ||
+              (step.interaction as any).type === 'tap_to_continue' ||
+              (step.interaction as any).type === 'acknowledgment') && (
+              <div className="flex justify-center py-4">
+                <button
+                  type="button"
+                  id="acknowledge-hazard-btn"
+                  data-testid="acknowledge-hazard-btn"
+                  disabled={isDwellActive || isHazardAck}
+                  onClick={() => {
+                    setInternalHazardAcknowledged(true);
+                    onHazardAcknowledge?.();
+                  }}
+                  className={`w-full sm:w-auto min-h-[56px] min-w-[48px] px-8 py-3.5 rounded-2xl font-black text-base shadow-xl flex items-center justify-center space-x-2.5 transition active:scale-95 cursor-pointer focus-visible:outline-4 focus-visible:outline-sky-500 ${
+                    isDwellActive
+                      ? 'bg-slate-800 text-slate-400 border border-slate-700 opacity-60 cursor-not-allowed'
+                      : isHazardAck
+                        ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50'
+                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                  }`}
+                >
+                  {isHazardAck ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span>{t('player.hazardAcknowledged', { defaultValue: 'Hazard Acknowledged' })}</span>
+                    </>
+                  ) : isDwellActive ? (
+                    <>
+                      <Clock className="w-5 h-5 text-amber-400 animate-spin shrink-0" />
+                      <span>{t('player.reviewHazard', { defaultValue: `Review Hazard (${dwellRemaining}s)`, seconds: dwellRemaining })}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 shrink-0" />
+                      <span>{t('player.acknowledgeHazardAction', { defaultValue: 'Acknowledge Hazard & Proceed' })}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
         </div>
       </div>
 

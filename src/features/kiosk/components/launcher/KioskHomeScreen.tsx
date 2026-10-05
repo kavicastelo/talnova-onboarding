@@ -640,6 +640,30 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
                           {t('launcher.mandatory', { defaultValue: 'Required' })}
                         </span>
                       )}
+
+                      {Boolean(
+                        (journey as any).requireEmployeeId ||
+                        (journey as any).employeeRestricted ||
+                        (journey.settings as any)?.requireEmployeeId ||
+                        (journey.settings as any)?.requireAuth ||
+                        (journey.settings?.security?.protectionType as any) === 'employee_id'
+                      ) ? (
+                        <span
+                          data-testid={`employee-restricted-badge-${journey._id}`}
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                        >
+                          <UserCheck className="w-3 h-3 mr-1 text-indigo-400" />
+                          Employee ID
+                        </span>
+                      ) : (
+                        <span
+                          data-testid={`public-access-badge-${journey._id}`}
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        >
+                          <Sparkles className="w-3 h-3 mr-1 text-emerald-400" />
+                          Public
+                        </span>
+                      )}
                     </div>
 
                     {/* Witness requirement indicator if specified */}
@@ -709,12 +733,29 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           {/* Identify as Employee Button (Requirement Scope & Acceptance Criteria 2) */}
           {identifiedWorker ? (
-            <div
-              data-testid="identified-worker-badge"
-              className="flex-1 sm:flex-initial h-12 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 border border-emerald-500/40 bg-emerald-950/40 text-emerald-300"
-            >
-              <UserCheck className="w-4 h-4 text-emerald-400" />
-              <span>{identifiedWorker.name} ({identifiedWorker.department})</span>
+            <div className="flex items-center space-x-2">
+              <div
+                data-testid="identified-worker-badge"
+                className="flex-1 sm:flex-initial h-12 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 border border-emerald-500/40 bg-emerald-950/40 text-emerald-300"
+              >
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+                <span>{identifiedWorker.name} ({identifiedWorker.department})</span>
+              </div>
+              <button
+                data-testid="switch-worker-button"
+                onClick={() => {
+                  setIdentifiedWorker(null);
+                  setWorkerConfirmed(false);
+                  setEphemeralToken(null);
+                  deviceIdentityService.clearEmployeeSession();
+                  setIdentifyModalOpen(true);
+                }}
+                className="h-12 px-3 rounded-xl font-bold text-xs border border-slate-700 bg-slate-900/80 text-slate-300 hover:text-white hover:border-slate-500 transition active:scale-95 flex items-center space-x-1.5"
+                title="Switch worker or re-identify"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{t('launcher.switchWorker', { defaultValue: 'Switch' })}</span>
+              </button>
             </div>
           ) : (
             <button

@@ -22,7 +22,24 @@ export function registerServiceWorker() {
     return;
   }
 
-  // Otherwise on portal / admin pages, register the general application service worker
+  // In development, do not register /sw.js to prevent hijacking Vite HMR and prebundled deps.
+  // Also clean up any existing /sw.js registrations and stale dev caches.
+  if ((import.meta as any).env?.DEV) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const reg of registrations) {
+        if (!reg.scope.includes('/kiosk/')) {
+          reg.unregister();
+        }
+      }
+    });
+    if ('caches' in window) {
+      caches.delete('talnova-v2');
+      caches.delete('talnova-v1');
+    }
+    return;
+  }
+
+  // Otherwise on portal / admin pages (in production), register the general application service worker
   const register = () => {
     navigator.serviceWorker
       .register('/sw.js')
@@ -40,3 +57,4 @@ export function registerServiceWorker() {
     window.addEventListener('load', register);
   }
 }
+

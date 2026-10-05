@@ -22,23 +22,48 @@ export class KioskDeviceRepository {
   }
 
   async findByFingerprint(deviceId: string): Promise<IKioskDevice | null> {
-    return KioskDeviceModel.findOne({ deviceId });
+    return KioskDeviceModel.findOne({
+      $or: [{ deviceId }, { hardwareGuid: deviceId }]
+    });
   }
 
   async findByIdAndOrg(
     id: string | mongoose.Types.ObjectId,
     orgId: string | mongoose.Types.ObjectId
   ): Promise<IKioskDevice | null> {
-    return KioskDeviceModel.findOne({ _id: id, organizationId: orgId });
+    const isObjectId = typeof id === "object" || (mongoose.Types.ObjectId.isValid(id.toString()) && id.toString().length === 24);
+    const orgObjId = typeof orgId === "object" || (mongoose.Types.ObjectId.isValid(orgId.toString()) && orgId.toString().length === 24)
+      ? new mongoose.Types.ObjectId(orgId.toString())
+      : orgId;
+
+    const query: Record<string, any> = {
+      $or: [
+        ...(isObjectId ? [{ _id: new mongoose.Types.ObjectId(id.toString()) }] : []),
+        { deviceId: id.toString() }
+      ],
+      organizationId: orgObjId,
+      isDeleted: { $ne: true }
+    };
+    return KioskDeviceModel.findOne(query);
   }
 
   async find(
     filter: KioskDeviceFilter,
     pagination: PaginationOptions
   ): Promise<{ devices: IKioskDevice[]; total: number }> {
+    const orgId = filter.organizationId
+      ? (typeof filter.organizationId === "object" || (mongoose.Types.ObjectId.isValid(filter.organizationId.toString()) && filter.organizationId.toString().length === 24)
+          ? new mongoose.Types.ObjectId(filter.organizationId.toString())
+          : filter.organizationId)
+      : undefined;
+
     const query: Record<string, any> = {
-      organizationId: filter.organizationId
+      isDeleted: { $ne: true }
     };
+
+    if (orgId) {
+      query.organizationId = orgId;
+    }
 
     if (filter.status) {
       query.status = filter.status;
@@ -85,11 +110,14 @@ export class KioskDeviceRepository {
     contentVersion: number,
     telemetry: KioskTelemetry
   ): Promise<IKioskDevice | null> {
+    const existing = await KioskDeviceModel.findById(id).select("status");
+    const newStatus = existing?.status === "maintenance" ? "maintenance" : "online";
+
     return KioskDeviceModel.findByIdAndUpdate(
       id,
       {
         $set: {
-          status: "online",
+          status: newStatus,
           lastSeen: new Date(),
           lastHeartbeatAt: new Date(),
           currentContentVersion: contentVersion,
