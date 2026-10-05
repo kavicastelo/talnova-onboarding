@@ -11,6 +11,8 @@ declare module "fastify" {
       journeyId?: string;
       deviceId?: string;
       device?: any;
+      workerId?: string;
+      kioskDeviceId?: string;
     };
   }
 }

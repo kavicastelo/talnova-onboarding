@@ -80,12 +80,41 @@ export class KioskController {
   };
 
   getJourney = async (request: FastifyRequest, reply: FastifyReply) => {
-    const orgId = request.kioskContext?.organizationId || (request.user as any)?.organizationId;
+    const params = request.params as any;
+    const query = (request.query || {}) as any;
+    const headers = request.headers as any;
+
+    let orgId =
+      request.kioskContext?.organizationId ||
+      (request.user as any)?.organizationId ||
+      query?.organizationId ||
+      query?.o ||
+      headers["x-organization-id"];
+
+    // If orgId is not provided in context/query/headers, look up the journey by id or code to discover organization
+    if (!orgId && params.id) {
+      const isObjectId = mongoose.Types.ObjectId.isValid(params.id) && params.id.length === 24;
+      const jLookup = isObjectId
+        ? { _id: new mongoose.Types.ObjectId(params.id), isDeleted: false }
+        : { journeyCode: params.id, isDeleted: false };
+      const jDoc = await KioskJourneyModel.findOne(jLookup).select("organizationId publishing");
+      if (jDoc?.organizationId) {
+        orgId = jDoc.organizationId.toString();
+      }
+    }
+
     if (!orgId) {
       throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
     }
-    const params = request.params as any;
+
     const journey = await this.kioskService.getJourney(params.id, orgId);
+
+    // If the requester has no authenticated credentials or device token and is accessing anonymously,
+    // verify the journey is published
+    const hasAuth = Boolean(request.user || request.kioskContext?.deviceId || request.kioskContext?.workerId);
+    if (!hasAuth && journey.publishing?.status !== "published") {
+      throw new AppError(403, "FORBIDDEN", "This kiosk briefing is not published for public access.");
+    }
 
     // Instrument feature telemetry (fire-and-forget)
     FeatureTelemetryService.recordUsage({
@@ -858,26 +887,48 @@ export class KioskController {
   identifyFrontlineWorker = async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request.body as any) || {};
     let orgId = body.organizationId || (request.user as any)?.organizationId || (request.headers["x-organization-id"] as string);
-    const identifier = body.identifier || body.badgeId || body.nationalId || body.employeeId || body.email;
+    const identifier = body.identifier || body.badgeId || body.batchId || body.employeeId || body.email || body.nationalId;
 
     if (!orgId && body.kioskDeviceId) {
-      const dev = await this.kioskService.getDeviceRepo().findById(body.kioskDeviceId);
+      const dev = await KioskDeviceModel.findOne({
+        $or: [
+          { deviceId: body.kioskDeviceId },
+          { guid: body.kioskDeviceId },
+          ...(mongoose.Types.ObjectId.isValid(body.kioskDeviceId) ? [{ _id: new mongoose.Types.ObjectId(body.kioskDeviceId) }] : [])
+        ],
+        isDeleted: false
+      });
       if (dev?.organizationId) {
         orgId = dev.organizationId.toString();
       }
     }
 
     if (!orgId && identifier) {
-      const isHex = typeof identifier === "string" && /^[0-9a-fA-F]{24}$/.test(identifier);
+      const cleanId = String(identifier).trim();
+      const escaped = cleanId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const idRegex = new RegExp(`^${escaped}$`, "i");
+      const isHex = /^[0-9a-fA-F]{24}$/.test(cleanId);
+      const numericOnly = cleanId.replace(/\D/g, "");
+      const numericRegex = numericOnly.length >= 3 ? new RegExp(`(?:^|[^0-9])${numericOnly}$`, "i") : null;
+
+      const candidateOr: any[] = [
+        { "employment.badgeId": idRegex },
+        { "employment.employeeId": idRegex },
+        { "employment.nationalId": idRegex },
+        { "auth.email": idRegex },
+        ...(isHex ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : [])
+      ];
+
+      if (numericRegex) {
+        candidateOr.push(
+          { "employment.badgeId": numericRegex },
+          { "employment.employeeId": numericRegex }
+        );
+      }
+
       const candidate = await mongoose.model("User").findOne({
-        $or: [
-          { "employment.badgeId": identifier },
-          { "employment.employeeId": identifier },
-          { "employment.nationalId": identifier },
-          { "auth.email": identifier.toLowerCase() },
-          ...(isHex ? [{ _id: new mongoose.Types.ObjectId(identifier) }] : []),
-        ],
-        isDeleted: false,
+        $or: candidateOr,
+        isDeleted: false
       });
       if (candidate?.organizationId) {
         orgId = candidate.organizationId.toString();
@@ -886,7 +937,7 @@ export class KioskController {
 
     if (!orgId) {
       if (identifier) {
-        throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge or identity number.");
+        throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge, employee ID, or email address.");
       }
       throw new AppError(400, "BAD_REQUEST", "organizationId is required for frontline worker identification");
     }
@@ -982,7 +1033,7 @@ export class KioskController {
     const body = (request.body || {}) as any;
 
     const deviceId = params.id || params.deviceId;
-    const orgId = user?.organizationId || request.kioskContext?.organizationId;
+    const orgId = user?.organizationId || request.kioskContext?.organizationId || (request.headers["x-organization-id"] as string);
     if (!orgId) {
       throw new AppError(401, "UNAUTHORIZED", "Organization context missing");
     }

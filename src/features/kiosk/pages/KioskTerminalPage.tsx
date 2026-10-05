@@ -23,6 +23,7 @@ import { KioskErrorBoundary } from '../components/KioskErrorBoundary';
 import { powerRecoveryService } from '../services/power-recovery.service';
 import { PowerRecoveryResumeModal } from '../components/recovery/PowerRecoveryResumeModal';
 import { KioskActiveSessionCheckpoint } from '../../../types/kiosk/recovery.types';
+import { kioskHeartbeatService } from '../services/kiosk-heartbeat.service';
 
 export const KioskTerminalPage: React.FC = () => {
   const { t } = useTranslation('kiosk');
@@ -283,6 +284,40 @@ export const KioskTerminalPage: React.FC = () => {
     };
   }, [routeDeviceId, navigate, fetchManifest]);
 
+  // Automated telemetry heartbeat loop & remote command event handlers (K-DEV-005, K-DEV-007)
+  useEffect(() => {
+    // Start automated telemetry heartbeat when terminal is initialized/manifest available
+    if (manifest || deviceIdentityService.isPaired() || routeDeviceId) {
+      kioskHeartbeatService.start({
+        intervalMs: 30000,
+        getContentVersion: () => manifest?.device?.currentContentVersion || 1
+      });
+    }
+
+    const handleEnterMaintenance = () => {
+      setIsMaintenance(true);
+    };
+
+    const handleExitMaintenance = () => {
+      setIsMaintenance(false);
+    };
+
+    const handleManifestReload = () => {
+      fetchManifest();
+    };
+
+    window.addEventListener('kiosk:enter-maintenance', handleEnterMaintenance);
+    window.addEventListener('kiosk:exit-maintenance', handleExitMaintenance);
+    window.addEventListener('kiosk:manifest-reload', handleManifestReload);
+
+    return () => {
+      kioskHeartbeatService.stop();
+      window.removeEventListener('kiosk:enter-maintenance', handleEnterMaintenance);
+      window.removeEventListener('kiosk:exit-maintenance', handleExitMaintenance);
+      window.removeEventListener('kiosk:manifest-reload', handleManifestReload);
+    };
+  }, [manifest?.device?.currentContentVersion, routeDeviceId, fetchManifest]);
+
   // 0. Active Emergency Evacuation Overlay (Highest Priority K-SEC-004)
   if (activeEmergency && activeEmergency.isActive) {
     return (
@@ -331,7 +366,10 @@ export const KioskTerminalPage: React.FC = () => {
           console.info('[KioskTerminalPage] Soft recovery restored for journey:', activeJourneyId, checkpoint);
         }}
       >
-        <KioskPlayerProvider initialStepIndex={restoredStepIndex}>
+        <KioskPlayerProvider
+          initialStepIndex={restoredStepIndex}
+          initialJourney={manifest?.journeys?.find((j) => j._id === activeJourneyId) || null}
+        >
           <KioskPlayer
             journeyId={activeJourneyId}
             onExit={() => {

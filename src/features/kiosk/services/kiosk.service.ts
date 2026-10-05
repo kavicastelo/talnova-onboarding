@@ -28,7 +28,12 @@ export const kioskService = {
   },
 
   getJourney: async (id: string): Promise<KioskJourney> => {
-    const response = await apiClient.get<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}`);
+    const headers: Record<string, string> = {};
+    const employeeToken = deviceIdentityService.getEmployeeToken();
+    if (employeeToken) {
+      headers.Authorization = `Bearer ${employeeToken}`;
+    }
+    const response = await apiClient.get<{ success: boolean; data: KioskJourney }>(`/kiosk/journeys/${id}`, { headers });
     return response.data.data;
   },
 
@@ -160,7 +165,12 @@ export const kioskService = {
     orientation?: string;
     appVersion?: string;
   }): Promise<{ success: boolean; serverTime: number; commands: PendingCommand[]; data?: any }> => {
-    const response = await apiClient.post<any>('/kiosk/devices/heartbeat', payload);
+    const deviceToken = deviceIdentityService.getDeviceToken();
+    const headers: Record<string, string> = {};
+    if (deviceToken) {
+      headers.Authorization = `Bearer ${deviceToken}`;
+    }
+    const response = await apiClient.post<any>('/kiosk/devices/heartbeat', payload, { headers });
     const data = response.data;
     return {
       success: data?.success ?? true,
@@ -216,6 +226,28 @@ export const kioskService = {
     return response.data.data;
   },
 
+  dispatchDeviceCommand: async (
+    deviceId: string,
+    command: string,
+    payload?: Record<string, unknown>
+  ): Promise<any> => {
+    const normalizedType =
+      command === 'refresh_cache'
+        ? 'RELOAD_MANIFEST'
+        : command === 'restart_app'
+        ? 'RESTART_APP'
+        : command === 'clear_cache'
+        ? 'CLEAR_CACHE'
+        : command.toUpperCase();
+
+    const response = await apiClient.post<any>(`/kiosk/devices/${deviceId}/commands`, {
+      type: normalizedType,
+      command: normalizedType,
+      payload: payload || {}
+    });
+    return response.data?.data || response.data;
+  },
+
   // --- Player & Playback ---
   verifyPin: async (journeyId: string, pinCode: string): Promise<boolean> => {
     const response = await apiClient.post<{ success: boolean; message: string }>(`/kiosk/journeys/${journeyId}/auth/pin`, { pinCode });
@@ -261,11 +293,6 @@ export const kioskService = {
 
   toggleMaintenanceMode: async (deviceId: string, maintenance: boolean): Promise<KioskDevice> => {
     const response = await apiClient.patch<{ success: boolean; data: KioskDevice }>(`/kiosk/devices/${deviceId}/maintenance`, { maintenance });
-    return response.data.data;
-  },
-
-  identifyFrontlineWorker: async (identifier: string, kioskDeviceId?: string): Promise<{ token: string; user: any; pendingComplianceDocsCount: number }> => {
-    const response = await apiClient.post<{ success: boolean; data: any }>('/kiosk/identify', { identifier, kioskDeviceId });
     return response.data.data;
   },
 
@@ -483,5 +510,44 @@ export const kioskService = {
     const match = disposition.match(/filename="?([^"]+)"?/);
     const filename = match ? match[1] : `compliance-audit-packet-${Date.now()}.csv`;
     return { blob: response.data, filename };
+  },
+
+  identifyFrontlineWorker: async (
+    identifier: string,
+    kioskDeviceId?: string,
+    extra?: {
+      employeeId?: string;
+      badgeId?: string;
+      batchId?: string;
+      email?: string;
+      organizationId?: string;
+    }
+  ): Promise<{
+    token: string;
+    sessionToken: string;
+    worker?: any;
+    user?: any;
+    pendingComplianceDocsCount?: number;
+    expiresInSeconds?: number;
+  }> => {
+    const payload: any = {
+      identifier,
+      ...extra
+    };
+    if (kioskDeviceId) {
+      payload.kioskDeviceId = kioskDeviceId;
+    }
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        token: string;
+        sessionToken: string;
+        worker?: any;
+        user?: any;
+        pendingComplianceDocsCount?: number;
+        expiresInSeconds?: number;
+      };
+    }>('/kiosk/identify', payload);
+    return response.data.data;
   }
 };

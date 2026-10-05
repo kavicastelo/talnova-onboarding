@@ -630,6 +630,146 @@ describe("Kiosk Device Groups & Site Hierarchy Inheritance (K-ASN-003)", () => {
     });
   });
 
+  describe("Direct Device Metadata & Group Mutation via PATCH /devices/:id (K-DEV-001, K-DEV-006, K-ASN-003)", () => {
+    it("should update device name, location, siteId, and deviceType", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/kiosk/devices/${deviceA._id}`,
+        headers: { authorization: `Bearer ${adminAToken}` },
+        payload: {
+          name: "Updated Terminal Alpha",
+          location: "Main Reception Floor 1",
+          siteId: "SITE-NORTH-01",
+          deviceType: "countertop"
+        }
+      });
+
+      expect(res.statusCode).toBe(200);
+      const data = JSON.parse(res.body).data;
+      expect(data.name).toBe("Updated Terminal Alpha");
+      expect(data.location).toBe("Main Reception Floor 1");
+      expect(data.siteId).toBe("SITE-NORTH-01");
+      expect(data.deviceType).toBe("countertop");
+
+      // Verify in DB
+      const inDb = await KioskDeviceModel.findById(deviceA._id);
+      expect(inDb?.name).toBe("Updated Terminal Alpha");
+      expect(inDb?.location).toBe("Main Reception Floor 1");
+    });
+
+    it("should bi-directionally assign device to a group, reassign to another group, and unassign", async () => {
+      const group1 = await KioskDeviceGroupModel.create({
+        organizationId: orgAId,
+        name: "Security Zone 1",
+        deviceIds: [],
+        isDeleted: false
+      });
+
+      const group2 = await KioskDeviceGroupModel.create({
+        organizationId: orgAId,
+        name: "Security Zone 2",
+        deviceIds: [],
+        isDeleted: false
+      });
+
+      // 1. Assign to group1
+      const assignRes1 = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/kiosk/devices/${deviceA._id}`,
+        headers: { authorization: `Bearer ${adminAToken}` },
+        payload: {
+          deviceGroupId: group1._id.toString()
+        }
+      });
+      expect(assignRes1.statusCode).toBe(200);
+
+      // Verify device has group1
+      const devAfter1 = await KioskDeviceModel.findById(deviceA._id);
+      expect(devAfter1?.deviceGroupId?.toString()).toBe(group1._id.toString());
+
+      // Verify group1 contains deviceA
+      const g1After1 = await KioskDeviceGroupModel.findById(group1._id);
+      expect(g1After1?.deviceIds.map((id: any) => id.toString())).toContain(deviceA._id.toString());
+
+      // 2. Reassign to group2 -> should pull from group1 and add to group2
+      const assignRes2 = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/kiosk/devices/${deviceA._id}`,
+        headers: { authorization: `Bearer ${adminAToken}` },
+        payload: {
+          deviceGroupId: group2._id.toString()
+        }
+      });
+      expect(assignRes2.statusCode).toBe(200);
+
+      // Verify device has group2
+      const devAfter2 = await KioskDeviceModel.findById(deviceA._id);
+      expect(devAfter2?.deviceGroupId?.toString()).toBe(group2._id.toString());
+
+      // Verify group1 no longer contains deviceA
+      const g1After2 = await KioskDeviceGroupModel.findById(group1._id);
+      expect(g1After2?.deviceIds.map((id: any) => id.toString())).not.toContain(deviceA._id.toString());
+
+      // Verify group2 contains deviceA
+      const g2After2 = await KioskDeviceGroupModel.findById(group2._id);
+      expect(g2After2?.deviceIds.map((id: any) => id.toString())).toContain(deviceA._id.toString());
+
+      // 3. Unassign from group (deviceGroupId: null)
+      const unassignRes = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/kiosk/devices/${deviceA._id}`,
+        headers: { authorization: `Bearer ${adminAToken}` },
+        payload: {
+          deviceGroupId: null
+        }
+      });
+      expect(unassignRes.statusCode).toBe(200);
+
+      const devAfter3 = await KioskDeviceModel.findById(deviceA._id);
+      expect(devAfter3?.deviceGroupId).toBeNull();
+
+      const g2After3 = await KioskDeviceGroupModel.findById(group2._id);
+      expect(g2After3?.deviceIds.map((id: any) => id.toString())).not.toContain(deviceA._id.toString());
+    });
+
+    it("should reject assigning a device to a group belonging to another organization", async () => {
+      const competitorGroup = await KioskDeviceGroupModel.create({
+        organizationId: orgBId,
+        name: "Competitor Vault",
+        deviceIds: [],
+        isDeleted: false
+      });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/kiosk/devices/${deviceA._id}`,
+        headers: { authorization: `Bearer ${adminAToken}` },
+        payload: {
+          deviceGroupId: competitorGroup._id.toString()
+        }
+      });
+
+      expect(res.statusCode).toBe(404);
+      const body = JSON.parse(res.body);
+      expect(body.message).toContain("Target device group not found");
+    });
+
+    it("should prevent Admin B from updating Device A belonging to Org A", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/kiosk/devices/${deviceA._id}`,
+        headers: { authorization: `Bearer ${adminBToken}` },
+        payload: {
+          name: "Malicious Rename"
+        }
+      });
+
+      expect(res.statusCode).toBe(404);
+      const inDb = await KioskDeviceModel.findById(deviceA._id);
+      expect(inDb?.name).not.toBe("Malicious Rename");
+    });
+  });
+
   describe("Tenant Isolation", () => {
     it("should prevent Admin B from accessing or updating Org A's groups", async () => {
       const groupA = await KioskDeviceGroupModel.create({
@@ -666,3 +806,5 @@ describe("Kiosk Device Groups & Site Hierarchy Inheritance (K-ASN-003)", () => {
     });
   });
 });
+
+

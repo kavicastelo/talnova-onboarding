@@ -172,13 +172,16 @@ export async function buildApp() {
     });
   });
 
-  app.get("/health", async (request, reply) => {
+  const healthHandler = async (request: any, reply: any) => {
     const dbConnected = mongoose.connection.readyState === 1;
     if (!dbConnected) {
       return reply.status(503).send({ status: "unhealthy", database: "disconnected" });
     }
-    return { status: "healthy", database: "connected" };
-  });
+    return { status: "healthy", database: "connected", timestamp: new Date().toISOString() };
+  };
+
+  app.get("/health", healthHandler);
+  app.get("/api/v1/health", healthHandler);
 
   return app;
 }

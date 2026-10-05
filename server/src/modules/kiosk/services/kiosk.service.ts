@@ -815,7 +815,18 @@ export class KioskService {
     return maxKiosks;
   }
 
-  // --- Device Management ---
+  // Helper to normalize hardware GUID strings (stripping label prefixes like "GUID:", "Hardware GUID:", quotes, zero-width spaces, and whitespace)
+  private normalizeHardwareGuid(guid?: string | null): string {
+    if (!guid) return "";
+    return guid
+      .replace(/[\u200B-\u200D\uFEFF]/g, "") // strip zero-width characters
+      .trim()
+      .replace(/^["'`]|["'`]$/g, "") // strip surrounding quotes
+      .replace(/^(?:terminal[\s_-]*)?(?:hardware[\s_-]*|device[\s_-]*|asset[\s_-]*)?(?:guid|hw[\s_-]?id|hw|id|tag)\s*[:=]\s*/i, "") // strip leading label prefixes followed by : or =
+      .replace(/^(?:guid|hw|id)\s+/i, "") // strip leading "guid " or "hw " if space-separated
+      .trim()
+      .toLowerCase();
+  }
 
   async generatePairingCode(orgId: string, deviceId?: string, userId?: string): Promise<{ code: string; expiresInSeconds: number }> {
     const org = await Organization.findById(orgId);
@@ -823,8 +834,41 @@ export class KioskService {
       throw new AppError(404, "NOT_FOUND", "Organization not found");
     }
 
+    let targetDeviceId = deviceId ? deviceId.trim() : undefined;
+    if (targetDeviceId) {
+      targetDeviceId = targetDeviceId
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/^["'`]|["'`]$/g, "")
+        .replace(/^(?:terminal[\s_-]*)?(?:hardware[\s_-]*|device[\s_-]*|asset[\s_-]*)?(?:guid|hw[\s_-]?id|hw|id|tag)\s*[:=]\s*/i, "")
+        .replace(/^(?:guid|hw|id)\s+/i, "")
+        .trim();
+
+      const found = await KioskDeviceModel.findOne({
+        $and: [
+          {
+            $or: [
+              { organizationId: new mongoose.Types.ObjectId(orgId) },
+              { organizationId: orgId.toString() as any }
+            ]
+          },
+          {
+            $or: [
+              ...(mongoose.Types.ObjectId.isValid(targetDeviceId) ? [{ _id: new mongoose.Types.ObjectId(targetDeviceId) }] : []),
+              { deviceId: targetDeviceId },
+              { hardwareGuid: targetDeviceId },
+              { name: targetDeviceId }
+            ]
+          }
+        ]
+      });
+
+      if (found) {
+        targetDeviceId = found.hardwareGuid || found.deviceId || targetDeviceId;
+      }
+    }
+
     const maxKiosks = await this.resolveMaxKiosks(org);
-    const existing = deviceId ? await this.deviceRepo.findByFingerprint(deviceId) : null;
+    const existing = targetDeviceId ? await this.deviceRepo.findByFingerprint(targetDeviceId) : null;
     if (!existing) {
       const currentKiosksCount = await KioskDeviceModel.countDocuments({
         $or: [
@@ -844,7 +888,7 @@ export class KioskService {
     }
 
     // 15-minute activation window (900 seconds)
-    const code = await this.securityService.generatePairingCode(orgId, deviceId, 900000, userId);
+    const code = await this.securityService.generatePairingCode(orgId, targetDeviceId, 900000, userId);
     return { code, expiresInSeconds: 900 };
   }
 
@@ -856,10 +900,69 @@ export class KioskService {
 
     const { orgId } = pairingData;
     const pairedBy = pairedByUserId || pairingData.createdBy;
-    if (
-      pairingData.deviceId &&
-      pairingData.deviceId.trim().toLowerCase() !== deviceId.trim().toLowerCase()
-    ) {
+
+    const expectedRaw = pairingData.deviceId ? pairingData.deviceId.trim() : "";
+    const actualRaw = deviceId ? deviceId.trim() : "";
+    const expectedNormalized = this.normalizeHardwareGuid(expectedRaw);
+    const actualNormalized = this.normalizeHardwareGuid(actualRaw);
+
+    let isMatch = !expectedNormalized || expectedNormalized === actualNormalized;
+
+    // Check without hyphens (UUID formatted vs unformatted)
+    if (!isMatch && expectedNormalized && actualNormalized) {
+      if (expectedNormalized.replace(/-/g, "") === actualNormalized.replace(/-/g, "")) {
+        isMatch = true;
+      }
+    }
+
+    // Check if either refers to an existing device in the organization
+    if (!isMatch && expectedNormalized && actualNormalized) {
+      const existingCandidates = await KioskDeviceModel.find({
+        $and: [
+          {
+            $or: [
+              { organizationId: new mongoose.Types.ObjectId(orgId) },
+              { organizationId: orgId.toString() as any }
+            ]
+          },
+          {
+            $or: [
+              ...(mongoose.Types.ObjectId.isValid(expectedRaw) ? [{ _id: new mongoose.Types.ObjectId(expectedRaw) }] : []),
+              ...(mongoose.Types.ObjectId.isValid(actualRaw) ? [{ _id: new mongoose.Types.ObjectId(actualRaw) }] : []),
+              { deviceId: { $in: [expectedRaw, actualRaw, expectedNormalized, actualNormalized] } },
+              { hardwareGuid: { $in: [expectedRaw, actualRaw, expectedNormalized, actualNormalized] } },
+              { name: { $in: [expectedRaw, actualRaw] } }
+            ]
+          }
+        ]
+      });
+
+      for (const dev of existingCandidates) {
+        const devIdClean = this.normalizeHardwareGuid(dev.deviceId);
+        const devHwClean = this.normalizeHardwareGuid(dev.hardwareGuid);
+        const devMongoId = dev._id.toString().toLowerCase();
+        const devNameClean = (dev.name || "").trim().toLowerCase();
+
+        const expectedMatchesDev =
+          expectedNormalized === devIdClean ||
+          expectedNormalized === devHwClean ||
+          expectedNormalized === devMongoId ||
+          expectedNormalized === devNameClean;
+
+        const actualMatchesDev =
+          actualNormalized === devIdClean ||
+          actualNormalized === devHwClean ||
+          actualNormalized === devMongoId ||
+          actualNormalized === devNameClean;
+
+        if (expectedMatchesDev || actualMatchesDev) {
+          isMatch = true;
+          break;
+        }
+      }
+    }
+
+    if (!isMatch) {
       // Revert single-use consumption so technician can retry with correct hardware GUID
       await KioskPairingCodeModel.updateOne(
         { code, consumed: true },
@@ -868,7 +971,13 @@ export class KioskService {
       throw new AppError(
         400,
         "DEVICE_MISMATCH",
-        `Pairing code was generated for a different hardware GUID ("${pairingData.deviceId}")`
+        `Pairing code was generated for hardware GUID "${expectedRaw}", but this terminal sent "${actualRaw}".`,
+        {
+          expectedGuid: expectedRaw,
+          actualGuid: actualRaw,
+          expectedNormalized,
+          actualNormalized
+        }
       );
     }
 
@@ -889,6 +998,9 @@ export class KioskService {
     const tokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
     let device = await this.deviceRepo.findByFingerprint(deviceId);
+    if (!device && expectedRaw) {
+      device = await this.deviceRepo.findByFingerprint(expectedRaw);
+    }
 
     if (device) {
       // Re-activate or re-pair existing device
@@ -1452,9 +1564,20 @@ export class KioskService {
       assignmentsByDeviceId.get(key)!.push(a);
     }
 
+    const HEARTBEAT_TIMEOUT_MS = 120000; // 2 minutes window for active heartbeats
+    const now = Date.now();
+
     const enrichedDevices = result.devices.map((device: any) => {
       const devObj = device.toObject ? device.toObject() : { ...device };
       devObj.assignments = assignmentsByDeviceId.get(device._id.toString()) || [];
+
+      // Dynamically calculate online/offline status based on heartbeat freshness
+      if (devObj.status !== "maintenance" && devObj.status !== "decommissioned" && devObj.status !== "suspended") {
+        const lastHeartbeat = devObj.lastHeartbeatAt || devObj.lastSeen;
+        const isFresh = Boolean(lastHeartbeat && now - new Date(lastHeartbeat).getTime() <= HEARTBEAT_TIMEOUT_MS);
+        devObj.status = isFresh ? "online" : "offline";
+      }
+
       return devObj;
     });
 
@@ -2515,19 +2638,37 @@ export class KioskService {
     }
 
     const cleanId = identifier.trim();
+    const escaped = cleanId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const idRegex = new RegExp(`^${escaped}$`, "i");
+    const isHex = /^[0-9a-fA-F]{24}$/.test(cleanId);
+
+    // Support numeric-only input on kiosk keypads matching prefixed IDs (e.g. 1001 matches EMP-1001)
+    const numericOnly = cleanId.replace(/\D/g, "");
+    const numericRegex = numericOnly.length >= 3 ? new RegExp(`(?:^|[^0-9])${numericOnly}$`, "i") : null;
+
+    const orConditions: any[] = [
+      { "employment.badgeId": idRegex },
+      { "employment.employeeId": idRegex },
+      { "employment.nationalId": idRegex },
+      { "auth.email": idRegex },
+      ...(isHex ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : [])
+    ];
+
+    if (numericRegex) {
+      orConditions.push(
+        { "employment.badgeId": numericRegex },
+        { "employment.employeeId": numericRegex }
+      );
+    }
+
     const worker = await User.findOne({
       organizationId: new mongoose.Types.ObjectId(orgId),
       isDeleted: false,
-      $or: [
-        { "employment.badgeId": cleanId },
-        { "employment.employeeId": cleanId },
-        { "employment.nationalId": cleanId },
-        { "auth.email": cleanId.toLowerCase() },
-      ],
+      $or: orConditions
     });
 
     if (!worker) {
-      throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge or identity number.");
+      throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge, employee ID, or email address.");
     }
 
     // Generate ephemeral 1-hour session token

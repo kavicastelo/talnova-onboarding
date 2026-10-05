@@ -101,9 +101,27 @@ apiClient.interceptors.request.use(
         config.url = `/demo${config.url.startsWith('/') ? '' : '/'}${config.url}`;
       }
     } else {
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('kiosk_device_token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const isKioskRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/kiosk');
+      const employeeToken = typeof window !== 'undefined' ? (window as any).__TALNOVA_EMPLOYEE_TOKEN__ : null;
+      const isDeviceHeartbeat = Boolean(
+        config.url && (config.url.includes('/devices/heartbeat') || config.url.endsWith('/heartbeat'))
+      );
+
+      if (isKioskRoute && employeeToken && !isDeviceHeartbeat) {
+        if (config.headers) {
+          config.headers.Authorization = `Bearer ${employeeToken}`;
+          config.headers['x-worker-session-token'] = employeeToken;
+        }
+      } else if (isKioskRoute && localStorage.getItem('kiosk_device_token')) {
+        const deviceToken = localStorage.getItem('kiosk_device_token');
+        if (config.headers && deviceToken) {
+          config.headers.Authorization = `Bearer ${deviceToken}`;
+        }
+      } else {
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('kiosk_device_token');
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
     }
 

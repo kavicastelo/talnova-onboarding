@@ -574,4 +574,399 @@ describe('K-RUN-005: Kiosk Player Full Enhancements & Compliance Gates Suite', (
       expect(html).toContain('data-testid="print-certificate-btn"');
     });
   });
+
+  // =========================================================================
+  // 8. Phase 3: Video Watch Threshold Progress Badge & Compliance
+  // =========================================================================
+  describe('Phase 3: Video Watch Threshold Progress Badge & Controls', () => {
+    it('renders video watch progress badge displaying watch percentage vs requirement', () => {
+      const videoStep = baseJourney.steps[2]; // video_step with watchThresholdPercent: 90
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={videoStep}
+          stepIndex={2}
+          totalSteps={5}
+          selectedLanguage="en"
+          videoWatchPercent={45}
+        />
+      );
+
+      expect(html).toContain('data-testid="video-watch-progress"');
+      expect(html).toContain('Watched: 45% / Required: 90%');
+    });
+
+    it('displays threshold satisfied status badge when threshold percentage is satisfied', () => {
+      const videoStep = baseJourney.steps[2];
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={videoStep}
+          stepIndex={2}
+          totalSteps={5}
+          selectedLanguage="en"
+          videoWatchPercent={95}
+        />
+      );
+
+      expect(html).toContain('data-testid="video-watch-progress"');
+      expect(html).toContain('Threshold Met');
+    });
+
+    it('enforces WCAG touch target dimensions on video confirmation button (>= 48x48px)', () => {
+      const videoStep = baseJourney.steps[2];
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={videoStep}
+          stepIndex={2}
+          totalSteps={5}
+          selectedLanguage="en"
+          videoCompleted={false}
+          onVideoComplete={vi.fn()}
+        />
+      );
+
+      expect(html).toContain('data-testid="sop-video-complete-btn"');
+      expect(html).toContain('min-h-[48px]');
+      expect(html).toContain('min-w-[48px]');
+    });
+  });
+
+  // =========================================================================
+  // 9. Phase 3: Warning & Emergency Step Dwell Countdown & Hazard Acknowledgment
+  // =========================================================================
+  describe('Phase 3: Warning & Emergency Step Dwell Countdown & Hazard Acknowledgment', () => {
+    it('renders active dwell timer chip and disabled acknowledge button during dwell countdown', () => {
+      const dangerStep = baseJourney.steps[1]; // warning_step
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={dangerStep}
+          stepIndex={1}
+          totalSteps={5}
+          selectedLanguage="en"
+          dwellSeconds={3}
+        />
+      );
+
+      // Verify active dwell countdown chip in OSHA banner
+      expect(html).toContain('data-testid="hazard-dwell-timer"');
+      expect(html).toContain('Review Hazard (3s)');
+
+      // Verify acknowledge hazard button is locked during active dwell
+      expect(html).toContain('data-testid="acknowledge-hazard-btn"');
+      expect(html).toContain('disabled=""');
+      expect(html).toContain('cursor-not-allowed');
+    });
+
+    it('renders cleared dwell chip and enables acknowledge hazard button when dwell is satisfied', () => {
+      const dangerStep = baseJourney.steps[1];
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={dangerStep}
+          stepIndex={1}
+          totalSteps={5}
+          selectedLanguage="en"
+          dwellSeconds={0}
+        />
+      );
+
+      // Verify dwell cleared badge is rendered
+      expect(html).toContain('data-testid="hazard-dwell-cleared"');
+      expect(html).toContain('Hazard Reviewed');
+
+      // Verify acknowledge hazard button is active
+      expect(html).toContain('data-testid="acknowledge-hazard-btn"');
+      expect(html).not.toContain('disabled=""');
+      expect(html).toContain('Acknowledge Hazard &amp; Proceed');
+    });
+
+    it('renders dwell countdown timer on emergency evacuation step', () => {
+      const emergencyStep = baseJourney.steps[4]; // emergency_step
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={emergencyStep}
+          stepIndex={4}
+          totalSteps={5}
+          selectedLanguage="en"
+          dwellSeconds={5}
+        />
+      );
+
+      expect(html).toContain('data-testid="emergency-step-container"');
+      expect(html).toContain('data-testid="hazard-dwell-timer"');
+      expect(html).toContain('Review Hazard (5s)');
+    });
+
+    it('disables yes/no decision buttons on warning step during active dwell', () => {
+      const warningYesNoStep: KioskStep = {
+        id: 'step-warn-decision',
+        title: 'Chemical Siphon Valve Verification',
+        type: 'warning_step',
+        order: 1,
+        warningConfig: {
+          hazardLevel: 'DANGER',
+          signalWord: 'DANGER',
+          hazardStatement: 'Toxic Vapor Release Zone'
+        },
+        interaction: {
+          type: 'yes_no'
+        },
+        blocks: []
+      };
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={warningYesNoStep}
+          stepIndex={1}
+          totalSteps={2}
+          selectedLanguage="en"
+          dwellSeconds={4}
+          onYesNoSelection={vi.fn()}
+        />
+      );
+
+      expect(html).toContain('data-testid="yes-btn"');
+      expect(html).toContain('disabled=""');
+      expect(html).toContain('cursor-not-allowed');
+      expect(html).toContain('(4s)');
+    });
+  });
+
+  // =========================================================================
+  // 10. Phase 4: Step Type Studio Parity in Player
+  // =========================================================================
+  describe('Phase 4: Step Type Studio Parity in Player', () => {
+    it('infers OSHA NOTICE severity preset from title prefix and renders GHS code and citation', () => {
+      const noticeStep: KioskStep = {
+        id: 'step-notice-hygiene',
+        title: '[NOTICE] Safety Hygiene Policy',
+        type: 'warning_step',
+        order: 0,
+        warningConfig: {
+          symbolCode: 'GHS05',
+          oshaCategory: 'Category 1B Corrosive',
+          complianceStandard: 'OSHA 1910.145(c)(3)'
+        },
+        blocks: []
+      };
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={noticeStep}
+          stepIndex={0}
+          totalSteps={1}
+          selectedLanguage="en"
+        />
+      );
+
+      expect(html).toContain('data-testid="osha-hazard-banner"');
+      expect(html).toContain('data-hazard-level="notice"');
+      expect(html).toContain('NOTICE: MANDATORY FACILITY POLICY');
+      expect(html).toContain('bg-sky-600');
+      expect(html).toContain('border-sky-500');
+      expect(html).toContain('GHS05');
+      expect(html).toContain('Category: Category 1B Corrosive');
+      expect(html).toContain('Standard Reference: OSHA 1910.145(c)(3)');
+    });
+
+    it('infers OSHA DANGER from title prefix when warningConfig.hazardLevel is omitted', () => {
+      const studioDangerStep: KioskStep = {
+        id: 'step-danger-studio',
+        title: '[DANGER] Extreme High Voltage Zone',
+        type: 'warning_step',
+        order: 0,
+        blocks: []
+      };
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={studioDangerStep}
+          stepIndex={0}
+          totalSteps={1}
+          selectedLanguage="en"
+        />
+      );
+
+      expect(html).toContain('data-testid="osha-hazard-banner"');
+      expect(html).toContain('data-hazard-level="danger"');
+      expect(html).toContain('DANGER: IMMEDIATE CRITICAL HAZARD');
+      expect(html).toContain('bg-rose-600');
+    });
+
+    it('extracts emergency muster point and radio frequency from StepTypeStudio interaction fields', () => {
+      const studioEmergencyStep: KioskStep = {
+        id: 'step-emergency-studio',
+        title: 'Emergency Evacuation Drill',
+        type: 'emergency_step',
+        order: 0,
+        interaction: {
+          type: 'none',
+          incorrectStepId: 'Muster Point Delta - Rail Siding Gate 2',
+          correctStepId: 'VHF Emergency Ch. 09 / Dial 9911'
+        },
+        blocks: []
+      };
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={studioEmergencyStep}
+          stepIndex={0}
+          totalSteps={1}
+          selectedLanguage="en"
+        />
+      );
+
+      expect(html).toContain('data-testid="emergency-step-container"');
+      expect(html).toContain('Muster Point Delta - Rail Siding Gate 2');
+      expect(html).toContain('VHF Emergency Ch. 09 / Dial 9911');
+      expect(html).toContain('Designated Muster Point');
+    });
+
+    it('renders on-canvas supervisor witness card with awaiting status, role, and sign-off button', () => {
+      const supervisorStep: KioskStep = {
+        id: 'step-supervisor-gate-1',
+        title: 'High-Risk Electrical Lockout Verification',
+        type: 'supervisor_gate',
+        order: 0,
+        witnessConfig: {
+          supervisorRole: 'Master Electrician Supervisor'
+        } as any,
+        blocks: []
+      };
+
+      const onOpenGateMock = vi.fn();
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={supervisorStep}
+          stepIndex={0}
+          totalSteps={1}
+          selectedLanguage="en"
+          isSupervisorWitnessed={false}
+          onOpenSupervisorGate={onOpenGateMock}
+        />
+      );
+
+      expect(html).toContain('data-testid="supervisor-gate-card"');
+      expect(html).toContain('Awaiting Supervisor Co-Signature');
+      expect(html).toContain('Master Electrician Supervisor');
+      expect(html).toContain('data-testid="supervisor-signoff-btn"');
+      expect(html).toContain('Supervisor Sign-Off');
+    });
+
+    it('renders supervisor verified state with witness credentials and authorization timestamp', () => {
+      const supervisorStep: KioskStep = {
+        id: 'step-supervisor-gate-2',
+        title: 'Confined Space Permit Authorization',
+        type: 'supervisor_gate',
+        order: 0,
+        blocks: []
+      };
+
+      const witnessData = {
+        fullName: 'Sarah Jenkins',
+        role: 'Safety Director',
+        verifiedAt: '10:45:00 AM'
+      };
+
+      const html = renderToString(
+        <KioskStepContainer
+          step={supervisorStep}
+          stepIndex={0}
+          totalSteps={1}
+          selectedLanguage="en"
+          isSupervisorWitnessed={true}
+          supervisorWitnessData={witnessData}
+        />
+      );
+
+      expect(html).toContain('data-testid="supervisor-gate-card"');
+      expect(html).toContain('Supervisor Witness Verified');
+      expect(html).toContain('Authorized');
+      expect(html).toContain('Sarah Jenkins');
+      expect(html).toContain('Safety Director');
+      expect(html).toContain('Verified: 10:45:00 AM');
+      expect(html).not.toContain('data-testid="supervisor-signoff-btn"');
+    });
+
+    it('aliases studio step types directly to their interaction engines without explicit interaction.type', () => {
+      // 1. interactive_confirmation aliasing
+      const holdStep: KioskStep = {
+        id: 'step-studio-hold',
+        title: 'Emergency Fuel Line Purge Confirmation',
+        type: 'interactive_confirmation',
+        order: 0,
+        blocks: []
+      };
+
+      const holdHtml = renderToString(
+        <KioskStepContainer
+          step={holdStep}
+          stepIndex={0}
+          totalSteps={1}
+          selectedLanguage="en"
+        />
+      );
+      expect(holdHtml).toContain('data-testid="hold-to-confirm-btn"');
+      expect(holdHtml).toContain('Touch &amp; Hold to Confirm');
+
+      // 2. ppe_checklist aliasing
+      const ppeStep: KioskStep = {
+        id: 'step-studio-ppe',
+        title: 'Chemical Bay Entry Inspection',
+        type: 'ppe_checklist',
+        order: 1,
+        blocks: []
+      };
+
+      const ppeHtml = renderToString(
+        <KioskStepContainer
+          step={ppeStep}
+          stepIndex={1}
+          totalSteps={2}
+          selectedLanguage="en"
+          onSubmitPpe={vi.fn()}
+        />
+      );
+      expect(ppeHtml).toContain('Mandatory PPE Verification Checklist');
+      expect(ppeHtml).toContain('data-testid="ppe-check-hard-hat"');
+      expect(ppeHtml).toContain('data-testid="ppe-confirm-btn"');
+
+      // 3. knowledge_quiz aliasing
+      const quizStep: KioskStep = {
+        id: 'step-studio-quiz',
+        title: 'Fall Protection Knowledge Assessment',
+        type: 'knowledge_quiz',
+        order: 2,
+        quiz: {
+          passingScore: 80,
+          questions: [
+            {
+              id: 'q1',
+              question: 'What is the required tie-off height for fall arrest systems?',
+              options: ['4 feet', '6 feet', '10 feet'],
+              correctOptionIndex: 1
+            }
+          ]
+        },
+        blocks: []
+      };
+
+      const quizHtml = renderToString(
+        <KioskStepContainer
+          step={quizStep}
+          stepIndex={2}
+          totalSteps={3}
+          selectedLanguage="en"
+        />
+      );
+      expect(quizHtml).toContain('What is the required tie-off height for fall arrest systems?');
+      expect(quizHtml).toContain('6 feet');
+    });
+  });
 });
+

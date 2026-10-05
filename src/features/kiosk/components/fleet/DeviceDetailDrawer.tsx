@@ -38,6 +38,7 @@ export interface DeviceDetailDrawerProps {
   onRevokeDevice?: (deviceId: string, deviceName: string) => Promise<void> | void;
   onUpdateDevice?: (deviceId: string, data: any) => Promise<void> | void;
   onManageAssignments?: (device: KioskDevice) => void;
+  onPairTerminalWithGuid?: (guid: string) => void;
 }
 
 export function normalizeBatteryPercent(batteryLevel?: number): number | null {
@@ -74,7 +75,8 @@ export function DeviceDetailDrawer({
   onDispatchCommand,
   onRevokeDevice,
   onUpdateDevice,
-  onManageAssignments
+  onManageAssignments,
+  onPairTerminalWithGuid
 }: DeviceDetailDrawerProps) {
   const { t } = useTranslation(['kiosk', 'common']);
   const [copiedGuid, setCopiedGuid] = useState(false);
@@ -107,8 +109,8 @@ export function DeviceDetailDrawer({
   const isOnline = device.status === 'online';
   const isMaintenance = device.status === 'maintenance';
   const batteryPercent = normalizeBatteryPercent(device.telemetry?.batteryLevel);
-  const lowBattery = isLowBattery(device.telemetry?.batteryLevel);
   const isCharging = device.telemetry?.isCharging ?? false;
+  const lowBattery = isLowBattery(device.telemetry?.batteryLevel) && !isCharging;
 
   const storageUsed = device.telemetry?.storageUsedBytes;
   const storageTotal = device.telemetry?.storageTotalBytes;
@@ -128,13 +130,30 @@ export function DeviceDetailDrawer({
         : { text: 'Elevated', color: 'text-amber-700 bg-amber-50 border-amber-200' }
       : null;
 
-  const handleCopyGuid = () => {
-    if (navigator?.clipboard) {
-      navigator.clipboard.writeText(device.deviceId || device.hardwareGuid);
-      setCopiedGuid(true);
-      toast.success(t('toasts.guidCopied', { defaultValue: 'Hardware GUID copied to clipboard' }));
-      setTimeout(() => setCopiedGuid(false), 2000);
+  const handleCopyGuid = async () => {
+    const textToCopy = device.deviceId || device.hardwareGuid;
+    if (!textToCopy) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = textToCopy;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
     }
+    setCopiedGuid(true);
+    toast.success(t('toasts.guidCopied', { defaultValue: 'Hardware GUID copied to clipboard' }));
+    setTimeout(() => setCopiedGuid(false), 2000);
   };
 
   return (
@@ -300,6 +319,17 @@ export function DeviceDetailDrawer({
                   >
                     {copiedGuid ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
+                  {onPairTerminalWithGuid && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onPairTerminalWithGuid(device.deviceId || device.hardwareGuid)}
+                      data-testid="drawer-re-pair-btn"
+                      className="text-[11px] h-6 px-2 py-0 text-indigo-600 border-indigo-200 hover:bg-indigo-50 ml-auto"
+                    >
+                      Pair / Re-Pair
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -393,22 +423,26 @@ export function DeviceDetailDrawer({
                 </div>
                 <div className="flex items-baseline space-x-2">
                   <span data-testid="battery-percentage" className="text-xl font-bold text-slate-800">
-                    {batteryPercent !== null ? `${batteryPercent}%` : 'N/A'}
+                    {batteryPercent !== null ? `${batteryPercent}%` : isCharging ? '100%' : 'N/A'}
                   </span>
                   {isCharging && (
                     <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                      Charging
+                      {batteryPercent === 100 || batteryPercent === null ? 'AC Mains' : 'Charging'}
                     </span>
                   )}
                 </div>
                 {/* Visual Battery Bar */}
-                {batteryPercent !== null && (
+                {(batteryPercent !== null || isCharging) && (
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        batteryPercent < 20 ? 'bg-rose-500' : batteryPercent < 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                        batteryPercent !== null && batteryPercent < 20
+                          ? 'bg-rose-500'
+                          : batteryPercent !== null && batteryPercent < 50
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500'
                       }`}
-                      style={{ width: `${batteryPercent}%` }}
+                      style={{ width: `${batteryPercent !== null ? batteryPercent : 100}%` }}
                     />
                   </div>
                 )}

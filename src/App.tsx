@@ -60,7 +60,6 @@ import { KioskComplianceDashboard } from './pages/kiosk/KioskComplianceDashboard
 import { RoleProvider, useRole } from './context/RoleContext';
 import { LocalizationProvider } from './context/LocalizationProvider';
 import { SidebarProvider } from './components/Sidebar';
-import { useScreenInit } from './useScreenInit';
 import { Toaster } from 'sonner';
 import { DemoAuthProvider } from '../demo/src/context/DemoAuthContext';
 import { DemoAppShell } from '../demo/src/components/DemoAppShell';
@@ -108,7 +107,6 @@ const KioskPairRoute: React.FC = () => {
 };
 
 export function App() {
-  useScreenInit();
   return (
     <LocalizationProvider>
       <RoleProvider>

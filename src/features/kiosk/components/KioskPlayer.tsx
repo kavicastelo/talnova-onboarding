@@ -146,6 +146,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
   const [ppeSubmitted, setPpeSubmitted] = useState(false);
   const [ppeResetCountdown, setPpeResetCountdown] = useState(10);
   const [ppeSubmitError, setPpeSubmitError] = useState<string | null>(null);
+  const [isHazardAcknowledged, setIsHazardAcknowledged] = useState(false);
 
   // Security overlays & revocation
   const [showPinOverlay, setShowPinOverlay] = useState(false);
@@ -544,6 +545,7 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
     setPpeSubmitted(false);
     setPpeResetCountdown(10);
     setPpeSubmitError(null);
+    setIsHazardAcknowledged(false);
   }, [activeStep?.id]);
 
   // PPE Auto-reset 10s countdown
@@ -615,10 +617,10 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
   // Hold-to-confirm handlers
   const handleHoldStart = () => {
-    if (!activeStep?.interaction) return;
+    if (!activeStep?.interaction && activeStep?.type !== 'interactive_confirmation') return;
     recordInteraction('hold_start');
 
-    const duration = activeStep.interaction.holdDurationMs || 2000;
+    const duration = activeStep?.interaction?.holdDurationMs || (activeStep as any)?.settings?.holdDurationMs || 2000;
     const intervalTime = 50;
     const totalTicks = duration / intervalTime;
     let currentTick = 0;
@@ -653,9 +655,13 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
 
   // Interaction mode determinations
   const isPpeStep =
-    activeStep?.interaction?.type === 'ppe_checklist' || activeStep?.id === 'step-sop-01';
+    activeStep?.type === 'ppe_checklist' ||
+    activeStep?.interaction?.type === 'ppe_checklist' ||
+    activeStep?.id === 'step-sop-01';
   const isYesNoStep = activeStep?.interaction?.type === 'yes_no';
-  const isHoldStep = activeStep?.interaction?.type === 'hold_to_confirm';
+  const isHoldStep =
+    activeStep?.type === 'interactive_confirmation' ||
+    activeStep?.interaction?.type === 'hold_to_confirm';
   const totalSteps = journey?.steps?.length || 0;
   const isLastStep = currentStepIndex === totalSteps - 1;
 
@@ -1276,6 +1282,8 @@ export const KioskPlayer: React.FC<KioskPlayerProps> = ({
         supervisorWitnessData={supervisorWitness}
         showSubtitles={showSubtitles}
         isRtl={isRtl}
+        isHazardAcknowledged={isHazardAcknowledged}
+        onHazardAcknowledge={() => setIsHazardAcknowledged(true)}
       />
 
       {/* 3. Fixed Bottom Action Footer Pinned to 96px */}

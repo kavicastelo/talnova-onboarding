@@ -12,7 +12,7 @@ interface KioskPairingScreenProps {
 
 export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSuccess }) => {
   const { t } = useTranslation('kiosk');
-  const [deviceId, setDeviceId] = useState('');
+  const [deviceId, setDeviceId] = useState(() => deviceIdentityService.getHardwareGuidSync() || '');
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [pairCode, setPairCode] = useState<string[]>([]);
@@ -23,14 +23,34 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
   const [copiedGuid, setCopiedGuid] = useState(false);
   const [isRevoked, setIsRevoked] = useState(() => deviceIdentityService.isRevoked());
   const [revocationMessage, setRevocationMessage] = useState<string | undefined>();
+  const [isEditingGuid, setIsEditingGuid] = useState(false);
+  const [customGuidInput, setCustomGuidInput] = useState('');
 
-  const handleCopyGuid = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (navigator?.clipboard && deviceId) {
-      navigator.clipboard.writeText(deviceId);
-      setCopiedGuid(true);
-      setTimeout(() => setCopiedGuid(false), 2000);
+  const handleCopyGuid = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const target = deviceId || deviceIdentityService.getHardwareGuidSync() || '';
+    if (!target) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(target);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch {
+      // Fallback for non-secure contexts or permission restrictions
+      const textarea = document.createElement('textarea');
+      textarea.value = target;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
     }
+    setCopiedGuid(true);
+    setTimeout(() => setCopiedGuid(false), 2000);
   };
 
   // Listen to instantaneous device revocation events
@@ -127,9 +147,14 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
         setError(null);
         const codeString = pairCode.join('');
         try {
+          const effectiveDeviceId =
+            deviceId ||
+            deviceIdentityService.getHardwareGuidSync() ||
+            (await deviceIdentityService.getOrCreateHardwareGuid());
+
           const result = await kioskService.pairDevice({
             code: codeString,
-            deviceId,
+            deviceId: effectiveDeviceId,
             name,
             location
           });
@@ -141,14 +166,51 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
             onPairSuccess(result.device, result.token);
           }, 1500);
         } catch (err: any) {
-          const serverMessage = err?.response?.data?.message || err?.message;
-          if (err?.response?.data?.code === 'DEVICE_MISMATCH' || serverMessage?.includes('different hardware GUID')) {
-            setError(
-              t(
-                'pairing.guidMismatchHelp',
-                'Hardware GUID mismatch: This pairing code was locked to a different device. Please generate an open code without GUID lock, or verify the terminal GUID.'
-              )
-            );
+          const respData = err?.response?.data || {};
+          const serverMessage = respData.message || respData.error?.message || err?.message;
+          const isMismatch =
+            respData.code === 'DEVICE_MISMATCH' ||
+            respData.error === 'DEVICE_MISMATCH' ||
+            respData.error?.code === 'DEVICE_MISMATCH' ||
+            serverMessage?.includes('different hardware GUID') ||
+            serverMessage?.includes('hardware GUID');
+
+          const expectedGuid =
+            respData.expectedGuid ||
+            respData.details?.expectedGuid ||
+            (() => {
+              const match = serverMessage?.match(/hardware GUID "([^"]+)"/i);
+              return match ? match[1] : null;
+            })();
+
+          // Seamless auto-alignment: If code was generated for a specific GUID / Asset Tag,
+          // align this terminal's hardware GUID and immediately finalize pairing
+          if (isMismatch && expectedGuid && expectedGuid !== deviceId) {
+            try {
+              deviceIdentityService.setCustomHardwareGuid(expectedGuid);
+              setDeviceId(expectedGuid);
+              const retryResult = await kioskService.pairDevice({
+                code: codeString,
+                deviceId: expectedGuid,
+                name,
+                location
+              });
+              deviceIdentityService.setDeviceCredentials(retryResult.device, retryResult.token);
+              setIsSuccess(true);
+              setTimeout(() => {
+                onPairSuccess(retryResult.device, retryResult.token);
+              }, 1500);
+              return;
+            } catch (retryErr: any) {
+              const retryMsg = retryErr?.response?.data?.message || retryErr?.message;
+              setError(retryMsg || 'Hardware GUID mismatch.');
+              setPairCode([]);
+              return;
+            }
+          }
+
+          if (isMismatch) {
+            setError(serverMessage || 'Hardware GUID mismatch.');
           } else {
             setError(serverMessage || t('pairing.invalidOrExpired', 'Invalid or expired pairing code. Please try again.'));
           }
@@ -227,40 +289,79 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                 />
               </div>
 
-              <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-xs text-slate-400 space-y-1.5">
+              <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-xs text-slate-400 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     {t('pairing.hardwareGuid', 'Terminal Hardware GUID')}
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {t('pairing.ready', 'Ready')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomGuidInput(deviceId);
+                        setIsEditingGuid(!isEditingGuid);
+                      }}
+                      className="min-h-[48px] min-w-[48px] px-3 py-3 text-[10px] text-sky-400 hover:text-sky-300 font-medium underline flex items-center justify-center cursor-pointer"
+                    >
+                      {isEditingGuid ? 'Cancel' : 'Custom Asset Tag'}
+                    </button>
+                    <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {t('pairing.ready', 'Ready')}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span data-testid="kiosk-hardware-guid-display" className="font-mono text-[11px] text-slate-200 select-all break-all">
-                    {deviceId || 'Detecting hardware...'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyGuid}
-                    data-testid="copy-guid-btn"
-                    className="p-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition shrink-0 flex items-center gap-1 text-[11px]"
-                    title="Copy Hardware GUID"
-                  >
-                    {copiedGuid ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400 font-semibold">Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+
+                {isEditingGuid ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={customGuidInput}
+                      onChange={(e) => setCustomGuidInput(e.target.value)}
+                      placeholder="e.g. KIOSK-01 or Asset Tag"
+                      className="flex-1 min-h-[48px] font-mono text-xs bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmed = customGuidInput.trim();
+                        if (trimmed) {
+                          deviceIdentityService.setCustomHardwareGuid(trimmed);
+                          setDeviceId(trimmed);
+                          setIsEditingGuid(false);
+                        }
+                      }}
+                      className="min-h-[48px] min-w-[48px] px-4 py-3 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg shrink-0 flex items-center justify-center cursor-pointer"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span data-testid="kiosk-hardware-guid-display" className="font-mono text-[11px] text-slate-200 select-all break-all">
+                      {deviceId || 'Detecting hardware...'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyGuid}
+                      data-testid="copy-guid-btn"
+                      className="min-h-[48px] min-w-[48px] p-2.5 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition shrink-0 flex items-center justify-center gap-1 text-[11px] cursor-pointer"
+                      title="Copy Hardware GUID"
+                    >
+                      {copiedGuid ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400 font-semibold">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -320,7 +421,30 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
               ))}
             </div>
 
-            {error && <p className="text-xs text-rose-400 text-center">{error}</p>}
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-900/60 text-xs text-rose-300 space-y-2">
+                <p className="leading-relaxed font-medium">{error}</p>
+                {(() => {
+                  const match = error.match(/hardware GUID "([^"]+)"/i);
+                  const expected = match ? match[1] : null;
+                  if (!expected) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deviceIdentityService.setCustomHardwareGuid(expected);
+                        setDeviceId(expected);
+                        setError(null);
+                        setPairCode([]);
+                      }}
+                      className="w-full py-2 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-semibold text-xs transition text-center"
+                    >
+                      Align Terminal ID to "{expected}" &amp; Retry
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Keypad */}
             <div className="grid grid-cols-3 gap-3 max-w-[300px] mx-auto pt-2">

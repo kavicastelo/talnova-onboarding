@@ -123,7 +123,7 @@ export function errorHandler(
   }
 
   // 5. Handle @fastify/jwt errors
-  if (error.code && error.code.startsWith("FST_JWT_")) {
+  if (typeof error.code === "string" && error.code.startsWith("FST_JWT_")) {
     const isExpired = error.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED";
     return reply.status(401).send({
       success: false,
@@ -134,7 +134,22 @@ export function errorHandler(
     });
   }
 
-  // 6. Generic Internal Server Error fallback
+  // 6. Handle MongoDB duplicate key errors (code 11000)
+  if ((error as any).code === 11000) {
+    const keyPattern = (error as any).keyPattern || {};
+    const field = Object.keys(keyPattern)[0] || "field";
+    return reply.status(409).send({
+      success: false,
+      message: `A record with this ${field} already exists.`,
+      error: {
+        code: "DUPLICATE_KEY",
+        field,
+      },
+      code: "DUPLICATE_KEY",
+    });
+  }
+
+  // 7. Generic Internal Server Error fallback
   return reply.status(500).send({
     success: false,
     message: "An internal server error occurred.",
