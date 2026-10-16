@@ -31,9 +31,11 @@ export const authService = {
     };
   },
 
-  login: async (email: string, password: string): Promise<any> => {
+  login: async (identifier: string, password: string): Promise<any> => {
+    const cleanId = identifier.trim();
     const res = await apiClient.post<ApiResponse<{ accessToken: string; user: any }>>('/auth/login', {
-      email,
+      identifier: cleanId,
+      email: cleanId,
       password
     });
     const { accessToken, user } = res.data.data;

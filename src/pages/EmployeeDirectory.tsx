@@ -13,7 +13,7 @@ import { Badge } from '../components/Badge';
 import { Progress } from '../components/Progress';
 import { Skeleton } from '../components/Skeleton';
 import { SimplePagination } from '../components/SimplePagination';
-import { Plus, Search, AlertCircle, RefreshCw, Upload, Mail, Shield, ShieldCheck } from 'lucide-react';
+import { Plus, Search, AlertCircle, AlertTriangle, RefreshCw, Upload, Mail, Shield, ShieldCheck, Copy, Check } from 'lucide-react';
 import { 
   useEmployees, 
   useCreateEmployee,
@@ -81,11 +81,23 @@ export function EmployeeDirectory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [phone, setPhone] = useState('');
+  const [initialPassword, setInitialPassword] = useState('');
   const [designation, setDesignation] = useState('');
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState<'full_time' | 'part_time' | 'contractor' | 'intern'>('full_time');
   const [payrollCategory, setPayrollCategory] = useState('Salaried (Exempt)');
   const [hireDate, setHireDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Direct Credential Presentation State
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    name: string;
+    employeeId: string;
+    phone?: string;
+    temporaryPassword?: string;
+  } | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
 
   // Import Wizard State
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -139,14 +151,22 @@ export function EmployeeDirectory() {
     : defaultDepts;
 
   const handleInvite = () => {
-    if (!name || !email || !department) {
-      toast.error(t('inviteModal.requiredFields', { defaultValue: 'Name, Email, and Department are required.' }));
+    const trimmedEmail = email.trim();
+    const trimmedEmpId = employeeId.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!name.trim() || !trimmedEmail || !department) {
+      toast.error(t('inviteModal.requiredFields', { defaultValue: 'Full Name, Email Address, and Department are required to send an employee invitation.' }));
       return;
     }
+
     createEmployee.mutate(
       {
         name,
-        email,
+        email: trimmedEmail || undefined,
+        employeeId: trimmedEmpId || undefined,
+        phone: trimmedPhone || undefined,
+        initialPassword: initialPassword || undefined,
         role: 'employee',
         department,
         status: 'Onboarding',
@@ -155,13 +175,27 @@ export function EmployeeDirectory() {
         employmentType,
         payrollCategory,
         hireDate
-      },
+      } as any,
       {
-        onSuccess: () => {
-          toast.success(t('inviteModal.success', { defaultValue: 'Employee invited successfully!' }));
+        onSuccess: (created: any) => {
           setDialogOpen(false);
+          const hadEmail = !!trimmedEmail;
+          if (!hadEmail || created?.temporaryPassword) {
+            setCreatedCredentials({
+              name,
+              employeeId: created.employeeId || trimmedEmpId || 'Auto-Provisioned',
+              phone: trimmedPhone || undefined,
+              temporaryPassword: created.temporaryPassword,
+            });
+            toast.success(t('inviteModal.createdSuccess', { defaultValue: 'Employee account created successfully!' }));
+          } else {
+            toast.success(t('inviteModal.success', { defaultValue: 'Employee invited successfully!' }));
+          }
           setName('');
           setEmail('');
+          setEmployeeId('');
+          setPhone('');
+          setInitialPassword('');
           setDesignation('');
           setDepartment('');
           setEmploymentType('full_time');
@@ -169,7 +203,7 @@ export function EmployeeDirectory() {
           setHireDate(new Date().toISOString().split('T')[0]);
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || err?.message || t('inviteModal.failed', { defaultValue: 'Failed to invite employee.' }));
+          toast.error(err?.response?.data?.message || err?.message || t('inviteModal.failed', { defaultValue: 'Failed to invite/create employee.' }));
         }
       }
     );
@@ -210,23 +244,23 @@ export function EmployeeDirectory() {
                 {t('inviteEmployee', { defaultValue: 'Invite Employee' })}
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
+            <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[92vh] flex flex-col p-0 overflow-hidden">
+              <DialogHeader className="p-5 sm:p-6 pb-4 border-b bg-card shrink-0">
                 <DialogTitle className="text-lg font-bold">{t('inviteModal.title', { defaultValue: 'Invite Employee' })}</DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-1">
-                  {t('inviteModal.desc', { defaultValue: 'Send an onboarding activation invite to a newly hired team member.' })}
+                  {t('inviteModal.desc', { defaultValue: 'Send an onboarding activation invite to a newly hired team member via email.' })}
                 </DialogDescription>
               </DialogHeader>
 
-              <DialogBody className="space-y-3.5 text-xs">
+              <DialogBody className="p-5 sm:p-6 space-y-4 text-xs flex-1 overflow-y-auto min-h-0 pb-12">
                 {!isEmailAvailable && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs flex flex-col gap-2" data-testid="email-capability-invite-banner">
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs flex flex-col gap-2 shrink-0" data-testid="email-capability-invite-banner">
                     <div className="flex items-start gap-2">
                       <Mail className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                       <div>
                         <span className="font-semibold text-foreground">{t('inviteModal.emailNotConfigured', { defaultValue: 'Email Delivery Not Configured:' })} </span>
                         <span className="text-muted-foreground">
-                          {emailReason || t('inviteModal.emailReasonFallback', { defaultValue: 'Your organization must configure email delivery before invitations can be dispatched.' })}
+                          {emailReason || t('inviteModal.emailReasonFallback', { defaultValue: 'Invitations via email require SMTP. Please configure email settings to dispatch invitation emails.' })}
                         </span>
                       </div>
                     </div>
@@ -246,32 +280,63 @@ export function EmployeeDirectory() {
                     )}
                   </div>
                 )}
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.fullName', { defaultValue: 'Full Name *' })}</label>
-                  <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder={t('inviteModal.namePlaceholder', { defaultValue: 'Jane Doe' })} className="text-xs" />
+
+                {/* Full Name & Email (Core Credentials) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.fullName', { defaultValue: 'Full Name *' })}</label>
+                    <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder={t('inviteModal.namePlaceholder', { defaultValue: 'Jane Doe' })} className="text-xs" required />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      {t('inviteModal.email', { defaultValue: 'Email Address *' })}
+                    </label>
+                    <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" required placeholder={t('inviteModal.emailPlaceholder', { defaultValue: 'jane@company.com' })} className="text-xs" />
+                  </div>
                 </div>
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.email', { defaultValue: 'Email Address *' })}</label>
-                  <Input value={email} onChange={(e: any) => setEmail(e.target.value)} type="email" placeholder={t('inviteModal.emailPlaceholder', { defaultValue: 'jane@company.com' })} className="text-xs" />
+
+                {/* Optional Identifiers: Employee ID & Phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      {t('inviteModal.employeeId', { defaultValue: 'Employee ID' })}
+                      <span className="text-[10px] text-muted-foreground ml-1">(Optional)</span>
+                    </label>
+                    <Input value={employeeId} onChange={(e: any) => setEmployeeId(e.target.value)} placeholder={t('inviteModal.employeeIdPlaceholder', { defaultValue: 'e.g. EMP-1049' })} className="text-xs" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      {t('inviteModal.phone', { defaultValue: 'Phone Number' })}
+                      <span className="text-[10px] text-muted-foreground ml-1">(Optional)</span>
+                    </label>
+                    <Input value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder={t('inviteModal.phonePlaceholder', { defaultValue: '+1 (555) 000-0000' })} className="text-xs" />
+                  </div>
                 </div>
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.designation', { defaultValue: 'Designation *' })}</label>
-                  <Input value={designation} onChange={(e: any) => setDesignation(e.target.value)} placeholder={t('inviteModal.designationPlaceholder', { defaultValue: 'Software Engineer' })} className="text-xs" />
+
+                {/* Designation & Department */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.designation', { defaultValue: 'Designation / Role Title *' })}</label>
+                    <Input value={designation} onChange={(e: any) => setDesignation(e.target.value)} placeholder={t('inviteModal.designationPlaceholder', { defaultValue: 'Software Engineer' })} className="text-xs" required />
+                  </div>
+                  <div className="grid gap-1.5 relative">
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.department', { defaultValue: 'Department *' })}</label>
+                    <SearchableSelect
+                      value={department}
+                      onChange={setDepartment}
+                      placeholder={t('inviteModal.deptPlaceholder', { defaultValue: 'Search & select department...' })}
+                      searchPlaceholder={t('inviteModal.searchDeptPlaceholder', { defaultValue: 'Search department...' })}
+                      dropdownClassName="z-[60]"
+                      options={displayDepartments.map((deptName) => ({
+                        value: deptName,
+                        label: deptName,
+                      }))}
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.department', { defaultValue: 'Department *' })}</label>
-                  <SearchableSelect
-                    value={department}
-                    onChange={setDepartment}
-                    placeholder={t('inviteModal.deptPlaceholder', { defaultValue: 'Search & select department...' })}
-                    searchPlaceholder={t('inviteModal.searchDeptPlaceholder', { defaultValue: 'Search department...' })}
-                    options={displayDepartments.map((deptName) => ({
-                      value: deptName,
-                      label: deptName,
-                    }))}
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                {/* Classification & Joining Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div className="grid gap-1.5">
                     <label className="text-xs font-semibold text-foreground">{t('inviteModal.employmentType', { defaultValue: 'Employment Type *' })}</label>
                     <select
@@ -286,7 +351,7 @@ export function EmployeeDirectory() {
                     </select>
                   </div>
                   <div className="grid gap-1.5">
-                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.payrollCategory', { defaultValue: 'Payroll Type / Category *' })}</label>
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.payrollCategory', { defaultValue: 'Payroll Category *' })}</label>
                     <select
                       value={payrollCategory}
                       onChange={(e: any) => setPayrollCategory(e.target.value)}
@@ -301,36 +366,124 @@ export function EmployeeDirectory() {
                       <option value="Standard">{t('payrollCategories.standard', { defaultValue: 'Standard' })}</option>
                     </select>
                   </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold text-foreground">{t('inviteModal.hireDate', { defaultValue: 'Date of Join *' })}</label>
+                    <Input type="date" value={hireDate} onChange={(e: any) => setHireDate(e.target.value)} className="text-xs" required />
+                  </div>
                 </div>
 
+                {/* Optional Initial Password / PIN */}
                 <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold text-foreground">{t('inviteModal.hireDate', { defaultValue: 'Date of Join *' })}</label>
-                  <Input type="date" value={hireDate} onChange={(e: any) => setHireDate(e.target.value)} className="text-xs" />
+                  <label className="text-xs font-semibold text-foreground">
+                    {t('inviteModal.initialPassword', { defaultValue: 'Initial Temporary Password / PIN' })}
+                    <span className="text-[10px] text-muted-foreground ml-1">(Optional)</span>
+                  </label>
+                  <Input value={initialPassword} onChange={(e: any) => setInitialPassword(e.target.value)} type="text" placeholder={t('inviteModal.initialPasswordPlaceholder', { defaultValue: 'Auto-generated secure credentials if left empty' })} className="text-xs" />
                 </div>
               </DialogBody>
 
-              <DialogFooter className="flex items-center justify-between sm:justify-between">
+              <DialogFooter className="p-4 sm:px-6 border-t bg-muted/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
                 <div className="text-left">
                   {!isEmailAvailable && (
-                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                      {t('inviteModal.emailSetupRequired', { defaultValue: 'Email setup required to send invitations' })}
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                      {t('inviteModal.emailSetupRequired', { defaultValue: 'Email setup required to dispatch invitations' })}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} className="text-xs">
                     {t('inviteModal.cancel', { defaultValue: 'Cancel' })}
                   </Button>
                   <Button
                     size="sm"
                     onClick={handleInvite}
-                    disabled={createEmployee.isPending || !isEmailAvailable}
+                    disabled={
+                      createEmployee.isPending ||
+                      !email.trim() ||
+                      !name.trim() ||
+                      !department
+                    }
                     data-testid="send-invitation-btn"
+                    className="text-xs font-semibold"
                   >
-                    {createEmployee.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                    {createEmployee.isPending && <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />}
                     {t('inviteModal.send', { defaultValue: 'Send Invitation' })}
                   </Button>
                 </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Credentials Display Modal for Direct Employee Creations */}
+          <Dialog open={!!createdCredentials} onOpenChange={(open) => !open && setCreatedCredentials(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-5 w-5" />
+                  {t('credentialsModal.title', { defaultValue: 'Employee Account Created' })}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-1">
+                  {t('credentialsModal.desc', { defaultValue: 'Employee profile is active and ready for immediate login or Kiosk terminal access.' })}
+                </DialogDescription>
+              </DialogHeader>
+
+              {createdCredentials && (
+                <DialogBody className="space-y-3.5 text-xs">
+                  <div className="rounded-xl border border-border bg-muted/40 p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between py-1 border-b border-border/60">
+                      <span className="text-muted-foreground font-medium">Employee Name:</span>
+                      <span className="font-semibold text-foreground">{createdCredentials.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-border/60">
+                      <span className="text-muted-foreground font-medium">Employee ID:</span>
+                      <span className="font-mono font-bold text-foreground bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                        {createdCredentials.employeeId}
+                      </span>
+                    </div>
+                    {createdCredentials.phone && (
+                      <div className="flex items-center justify-between py-1 border-b border-border/60">
+                        <span className="text-muted-foreground font-medium">Phone Number:</span>
+                        <span className="font-mono font-medium text-foreground">{createdCredentials.phone}</span>
+                      </div>
+                    )}
+                    {createdCredentials.temporaryPassword && (
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-muted-foreground font-medium">Initial Password / PIN:</span>
+                        <span className="font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                          {createdCredentials.temporaryPassword}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground">
+                    Please securely share these credentials with the worker. They can sign in on the web login or enter their Employee ID on any Frontline Kiosk terminal.
+                  </p>
+                </DialogBody>
+              )}
+
+              <DialogFooter className="flex items-center justify-between sm:justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (createdCredentials) {
+                      const text = `Talnova Credentials:\nName: ${createdCredentials.name}\nEmployee ID: ${createdCredentials.employeeId}${createdCredentials.phone ? `\nPhone: ${createdCredentials.phone}` : ''}${createdCredentials.temporaryPassword ? `\nPassword: ${createdCredentials.temporaryPassword}` : ''}`;
+                      navigator.clipboard.writeText(text);
+                      setCopiedKey(true);
+                      toast.success(t('credentialsModal.copied', { defaultValue: 'Credentials copied to clipboard!' }));
+                      setTimeout(() => setCopiedKey(false), 2000);
+                    }
+                  }}
+                  className="gap-1.5"
+                >
+                  {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedKey ? t('common.copied', { defaultValue: 'Copied' }) : t('common.copyCredentials', { defaultValue: 'Copy Credentials' })}
+                </Button>
+                <Button size="sm" onClick={() => setCreatedCredentials(null)}>
+                  {t('common.done', { defaultValue: 'Done' })}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

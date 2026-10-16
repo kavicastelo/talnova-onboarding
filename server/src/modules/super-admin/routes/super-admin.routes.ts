@@ -64,6 +64,13 @@ export async function superAdminRoutes(app: FastifyInstance) {
   app.get("/observability/ai", controller.getAiObservability);
   app.get("/ai/usage", controller.getAiUsage);
   app.get("/observability/storage", controller.getStorageObservability);
+  app.get("/observability/database-storage", controller.getDatabaseStorageObservability);
+  app.get("/observability/database-storage/preview/:collectionName", controller.previewDatabasePurge);
+  app.post("/observability/database-storage/backup", controller.createDatabaseBackup);
+  app.post("/observability/database-storage/purge", controller.executeDatabasePurge);
+  app.post("/observability/database-storage/restore", controller.restoreDatabaseFromBackup);
+  app.get("/observability/database-storage/backups", controller.listDatabaseBackups);
+  app.get("/observability/database-storage/backups/:manifestId/download", controller.downloadDatabaseBackup);
   app.patch("/organizations/:id/storage-limit", controller.updateOrganizationStorageLimit);
   app.post("/organizations/:id/assign-package", controller.assignOrganizationPackage);
 

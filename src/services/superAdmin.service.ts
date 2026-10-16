@@ -621,6 +621,65 @@ export const superAdminService = {
     return response.data.data;
   },
 
+  getDatabaseStorageObservability: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/database-storage', {
+      timeout: 45000,
+    });
+    return response.data.data;
+  },
+
+  previewDatabasePurge: async (collectionName: string, olderThanDays?: number): Promise<any> => {
+    const params = olderThanDays ? { olderThanDays } : undefined;
+    const response = await apiClient.get<ApiResponse<any>>(`/super-admin/observability/database-storage/preview/${collectionName}`, {
+      params,
+      timeout: 30000,
+    });
+    return response.data.data;
+  },
+
+  createDatabaseBackup: async (payload: { collectionName: string; olderThanDays?: number; orgId?: string; maxDocuments?: number }): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/observability/database-storage/backup', payload, {
+      timeout: 120000,
+    });
+    return response.data.data;
+  },
+
+  executeDatabasePurge: async (payload: { manifestId: string; confirmationText: string }): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/observability/database-storage/purge', payload, {
+      timeout: 120000,
+    });
+    return response.data.data;
+  },
+
+  restoreDatabaseFromBackup: async (manifestId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/observability/database-storage/restore', { manifestId }, {
+      timeout: 120000,
+    });
+    return response.data.data;
+  },
+
+  listDatabaseBackups: async (): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>('/super-admin/observability/database-storage/backups', {
+      timeout: 30000,
+    });
+    return response.data.data;
+  },
+
+  downloadDatabaseBackup: async (manifestId: string, filename?: string): Promise<void> => {
+    const response = await apiClient.get(`/super-admin/observability/database-storage/backups/${manifestId}/download`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename || `${manifestId}.json.gz`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
   getPayments: async (): Promise<any> => {
     const response = await apiClient.get<ApiResponse<any>>('/super-admin/finance/payments');
     return response.data.data;

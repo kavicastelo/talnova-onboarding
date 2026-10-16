@@ -94,6 +94,8 @@ export interface Employee {
   payrollCategory?: string;
   employmentType?: 'full_time' | 'part_time' | 'contractor' | 'intern';
   employeeId?: string;
+  badgeId?: string;
+  temporaryPassword?: string;
   onboardingState?: string;
   legalHold?: boolean;
   legalHoldReason?: string;

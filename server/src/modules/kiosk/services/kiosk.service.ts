@@ -2642,22 +2642,25 @@ export class KioskService {
     const idRegex = new RegExp(`^${escaped}$`, "i");
     const isHex = /^[0-9a-fA-F]{24}$/.test(cleanId);
 
-    // Support numeric-only input on kiosk keypads matching prefixed IDs (e.g. 1001 matches EMP-1001)
-    const numericOnly = cleanId.replace(/\D/g, "");
-    const numericRegex = numericOnly.length >= 3 ? new RegExp(`(?:^|[^0-9])${numericOnly}$`, "i") : null;
+    // Support numeric-only input on kiosk keypads matching prefixed IDs (e.g. entering "1001" matches "EMP-1001")
+    const isNumericOnly = /^\d{3,}$/.test(cleanId);
+    const numericRegex = isNumericOnly ? new RegExp(`(?:^|[^0-9])${cleanId}$`, "i") : null;
 
     const orConditions: any[] = [
       { "employment.badgeId": idRegex },
       { "employment.employeeId": idRegex },
       { "employment.nationalId": idRegex },
       { "auth.email": idRegex },
+      { "profile.phone": idRegex },
+      { "profile.phone": cleanId.replace(/\s+/g, "") },
       ...(isHex ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : [])
     ];
 
     if (numericRegex) {
       orConditions.push(
         { "employment.badgeId": numericRegex },
-        { "employment.employeeId": numericRegex }
+        { "employment.employeeId": numericRegex },
+        { "profile.phone": numericRegex }
       );
     }
 
@@ -2668,7 +2671,7 @@ export class KioskService {
     });
 
     if (!worker) {
-      throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge, employee ID, or email address.");
+      throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge, employee ID, phone number, or email address.");
     }
 
     // Generate ephemeral 1-hour session token

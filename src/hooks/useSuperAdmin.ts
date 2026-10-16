@@ -302,6 +302,47 @@ export function useUpdateOrganizationStorageLimit() {
   });
 }
 
+export function useSuperAdminDatabaseStorage() {
+  return useQuery({
+    queryKey: ['superAdminDatabaseStorage'],
+    queryFn: superAdminService.getDatabaseStorageObservability,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreateDatabaseBackup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { collectionName: string; olderThanDays?: number; orgId?: string; maxDocuments?: number }) =>
+      superAdminService.createDatabaseBackup(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminDatabaseStorage'] });
+    },
+  });
+}
+
+export function useExecuteDatabasePurge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { manifestId: string; confirmationText: string }) =>
+      superAdminService.executeDatabasePurge(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminDatabaseStorage'] });
+    },
+  });
+}
+
+export function useRestoreDatabaseBackup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (manifestId: string) =>
+      superAdminService.restoreDatabaseFromBackup(manifestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superAdminDatabaseStorage'] });
+    },
+  });
+}
+
 export function useSuperAdminPayments() {
   return useQuery({
     queryKey: ['superAdminPayments'],

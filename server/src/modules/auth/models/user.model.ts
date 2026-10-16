@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IUser extends Document {
   organizationId: mongoose.Types.ObjectId;
   auth: {
-    email: string;
+    email?: string;
     passwordHash: string;
     emailVerified: boolean;
     authProvider?: "local" | "saml2" | "okta" | "azure_ad" | "google" | "oidc";
@@ -89,7 +89,7 @@ const UserSchema = new Schema<IUser>(
   {
     organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     auth: {
-      email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+      email: { type: String, required: false, lowercase: true, trim: true },
       passwordHash: { type: String, required: true },
       emailVerified: { type: Boolean, default: false },
       authProvider: {
@@ -193,9 +193,66 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Pre-save hook to populate full name and ensure multi-role integrity
+// Pre-save hook to populate full name, ensure multi-role integrity, and guarantee frontline/kiosk identifiers
 UserSchema.pre<IUser>("validate", function (next) {
-  this.profile.fullName = `${this.profile.firstName} ${this.profile.lastName}`.trim();
+  if (this.profile) {
+    this.profile.fullName = `${this.profile.firstName || ""} ${this.profile.lastName || ""}`.trim();
+  }
+
+  // Clean empty or whitespace-only auth.email to undefined so partial/sparse indexes stay pristine
+  if (this.auth) {
+    if (this.auth.email && typeof this.auth.email === "string") {
+      this.auth.email = this.auth.email.trim().toLowerCase();
+      if (!this.auth.email) {
+        (this.auth as any).email = undefined;
+      }
+    } else {
+      (this.auth as any).email = undefined;
+    }
+  }
+
+  // Ensure employment block exists
+  if (!this.employment) {
+    this.employment = {
+      employmentType: "full_time",
+      status: "invited",
+      onboardingState: "active",
+    } as any;
+  }
+
+  // Clean empty employment.employeeId
+  if (this.employment.employeeId && typeof this.employment.employeeId === "string") {
+    this.employment.employeeId = this.employment.employeeId.trim();
+    if (!this.employment.employeeId) {
+      this.employment.employeeId = undefined;
+    }
+  }
+
+  // Clean empty profile.phone
+  if (this.profile?.phone && typeof this.profile.phone === "string") {
+    this.profile.phone = this.profile.phone.trim();
+    if (!this.profile.phone) {
+      this.profile.phone = undefined;
+    }
+  }
+
+  // Real-World Rule: At least one identifier (email, employee ID, or phone number) must be provided
+  const hasEmail = Boolean(this.auth?.email);
+  const hasEmployeeId = Boolean(this.employment?.employeeId);
+  const hasPhone = Boolean(this.profile?.phone);
+
+  if (!hasEmail && !hasEmployeeId && !hasPhone) {
+    return next(new Error("At least one identifier (email, employee ID, or phone number) must be provided for every employee record."));
+  }
+
+  // Frontline Kiosk Compatibility Rule:
+  // If a frontline worker is created with only a phone number (no email and no employeeId),
+  // auto-provision an Employee ID so they can immediately sign in at physical Kiosk keypads.
+  if (hasPhone && !hasEmployeeId && !hasEmail) {
+    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    this.employment.employeeId = `EMP-${randomSuffix}`;
+  }
+
   if (!this.permissions) {
     this.permissions = { role: "employee", roles: ["employee"], customRoles: [] };
   } else {
@@ -222,13 +279,30 @@ UserSchema.index({ isDeleted: 1 });
 
 // Compound Indexes
 UserSchema.index({ organizationId: 1, isDeleted: 1 });
-UserSchema.index({ organizationId: 1, "auth.email": 1 });
+UserSchema.index(
+  { "auth.email": 1 },
+  { unique: true, partialFilterExpression: { "auth.email": { $type: "string" } } }
+);
+UserSchema.index(
+  { organizationId: 1, "auth.email": 1 },
+  { partialFilterExpression: { "auth.email": { $type: "string" } } }
+);
+UserSchema.index(
+  { organizationId: 1, "employment.employeeId": 1 },
+  { unique: true, partialFilterExpression: { "employment.employeeId": { $type: "string" } } }
+);
+UserSchema.index(
+  { organizationId: 1, "profile.phone": 1 },
+  { partialFilterExpression: { "profile.phone": { $type: "string" } } }
+);
 UserSchema.index({ organizationId: 1, "permissions.role": 1 });
 UserSchema.index({ organizationId: 1, "employment.badgeId": 1 }, { sparse: true });
 UserSchema.index({ organizationId: 1, "employment.nationalId": 1 }, { sparse: true });
-// Single-field indexes for instant sub-10ms kiosk badge and employee lookups (K-ENT-001)
+
+// Single-field indexes for instant sub-10ms kiosk badge, phone, and employee lookups (K-ENT-001)
 UserSchema.index({ "employment.badgeId": 1 }, { sparse: true });
 UserSchema.index({ "employment.employeeId": 1 }, { sparse: true });
+UserSchema.index({ "profile.phone": 1 }, { sparse: true });
 
 /**
  * CANONICAL PERSISTENCE MODEL:
