@@ -14,8 +14,8 @@ export const CANONICAL_EMPLOYEE_FIELDS: CanonicalField[] = [
   {
     key: 'email',
     label: 'Email Address',
-    required: true,
-    description: 'Corporate or primary email address used for system login.',
+    required: false,
+    description: 'Corporate or primary email address used for system login (optional for frontline workers).',
     aliases: ['email', 'work email', 'e-mail', 'email address', 'mail', 'user email', 'primary email'],
   },
   {

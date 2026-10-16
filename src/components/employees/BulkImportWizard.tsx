@@ -129,13 +129,13 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
     reader.readAsText(file);
   };
 
-  // Sample CSV Template Download
+  // Sample CSV Template Download with Frontline & Corporate Worker Examples
   const downloadSampleTemplate = () => {
     const csvContent =
-      'Work Email,Staff Name,Role,Department,Position,Manager Email,Hire Date,Contract Type,Location\n' +
-      'alex.rivera@acme.corp,Alex Rivera,employee,Engineering,Senior Fullstack Engineer,kavindu.kokila.info@gmail.com,2026-10-01,full_time,Tokyo\n' +
-      'maya.lin@acme.corp,Maya Lin,employee,Product,Lead UX Designer,kavindu.kokila.info@gmail.com,2026-10-05,full_time,San Francisco\n' +
-      'david.kim@acme.corp,David Kim,manager,Warehouse Operations,Shift Supervisor,kavindu.kokila.info@gmail.com,2026-09-20,full_time,Chicago\n';
+      'Work Email,Staff Name,Employee ID,Phone,Role,Department,Position,Badge ID,Manager Email,Hire Date,Contract Type,Location\n' +
+      'alex.rivera@acme.corp,Alex Rivera,EMP-1001,+15551234567,employee,Engineering,Senior Fullstack Engineer,BDG-001,kavindu.kokila.info@gmail.com,2026-10-01,full_time,Tokyo\n' +
+      ',Bao Nguyen,EMP-8802,+15552345678,employee,Logistics & Warehouse,Forklift Operator,BDG-002,alex.rivera@acme.corp,2026-10-05,full_time,Chicago\n' +
+      ',Maria Santos,,+15553456789,employee,Field Services,Assembly Technician,,alex.rivera@acme.corp,2026-09-20,full_time,San Francisco\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -160,9 +160,10 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
     });
   }, [rawRows, columnMapping]);
 
-  // Check required mappings
-  const hasEmailMapped = useMemo(() => {
-    return Object.values(columnMapping).includes('email');
+  // Check required mappings: At least one identifier (email, employeeId, phone) + employee name
+  const hasIdentifierMapped = useMemo(() => {
+    const values = Object.values(columnMapping);
+    return values.includes('email') || values.includes('employeeId') || values.includes('phone');
   }, [columnMapping]);
 
   const hasNameMapped = useMemo(() => {
@@ -172,8 +173,8 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
 
   // 3. Trigger Server Validation
   const runValidation = async () => {
-    if (!hasEmailMapped) {
-      toast.error(t('bulkImportWizard.mapping.missingEmailToast', { defaultValue: 'Please map a column to Email Address before proceeding.' }));
+    if (!hasIdentifierMapped) {
+      toast.error(t('bulkImportWizard.mapping.missingIdentifierToast', { defaultValue: 'Please map at least one identifier column (Email, Employee ID, or Phone) before proceeding.' }));
       return;
     }
     if (!hasNameMapped) {
@@ -288,8 +289,8 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <DialogHeader className="p-5 sm:p-6 pb-4 border-b bg-card">
-          <div className="flex flex-col sm:items-center justify-between gap-3">
+        <DialogHeader className="p-5 sm:p-6 pb-4 border-b bg-card shrink-0">
+          <div className="flex flex-col sm:items-center justify-between gap-3.5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
                 <FileSpreadsheet className="h-6 w-6" />
@@ -307,21 +308,21 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
               </div>
             </div>
 
-            {/* Stepper indicators */}
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-muted-foreground shrink-0">
-              <span className={currentStep === 'upload' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.file', { defaultValue: '1. File' })}</span>
-              <span>&rarr;</span>
-              <span className={currentStep === 'mapping' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.map', { defaultValue: '2. Map' })}</span>
-              <span>&rarr;</span>
-              <span className={currentStep === 'preview' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.verify', { defaultValue: '3. Verify' })}</span>
-              <span>&rarr;</span>
-              <span className={currentStep === 'options' ? 'text-primary font-bold' : ''}>{t('bulkImportWizard.stepper.options', { defaultValue: '4. Options' })}</span>
+            {/* Stepper indicators - responsive on mobile, tablet & desktop */}
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-medium text-muted-foreground overflow-x-auto py-1 shrink-0 scrollbar-none">
+              <span className={`px-2.5 py-1 rounded-full transition-colors whitespace-nowrap ${currentStep === 'upload' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'bg-muted/70 text-muted-foreground'}`}>{t('bulkImportWizard.stepper.file', { defaultValue: '1. File' })}</span>
+              <span className="text-muted-foreground/40 text-[10px]">&rarr;</span>
+              <span className={`px-2.5 py-1 rounded-full transition-colors whitespace-nowrap ${currentStep === 'mapping' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'bg-muted/70 text-muted-foreground'}`}>{t('bulkImportWizard.stepper.map', { defaultValue: '2. Map' })}</span>
+              <span className="text-muted-foreground/40 text-[10px]">&rarr;</span>
+              <span className={`px-2.5 py-1 rounded-full transition-colors whitespace-nowrap ${currentStep === 'preview' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'bg-muted/70 text-muted-foreground'}`}>{t('bulkImportWizard.stepper.verify', { defaultValue: '3. Verify' })}</span>
+              <span className="text-muted-foreground/40 text-[10px]">&rarr;</span>
+              <span className={`px-2.5 py-1 rounded-full transition-colors whitespace-nowrap ${currentStep === 'options' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'bg-muted/70 text-muted-foreground'}`}>{t('bulkImportWizard.stepper.options', { defaultValue: '4. Options' })}</span>
             </div>
           </div>
         </DialogHeader>
 
         {/* Wizard Body Content */}
-        <DialogBody className="space-y-6">
+        <DialogBody className="space-y-6 flex-1 overflow-y-auto min-h-0 pb-12">
           {/* STEP 1: Upload */}
           {currentStep === 'upload' && (
             <div className="space-y-6">
@@ -376,7 +377,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
           {/* STEP 2: Dynamic Column Mapping */}
           {currentStep === 'mapping' && (
             <div className="space-y-5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-foreground">{t('bulkImportWizard.mapping.title', { defaultValue: 'Map Columns to Talnova Fields' })}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -394,17 +395,17 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 </div>
               </div>
 
-              {(!hasEmailMapped || !hasNameMapped) && (
+              {(!hasIdentifierMapped || !hasNameMapped) && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>
-                    {t('bulkImportWizard.mapping.requiredNotice', { defaultValue: 'Required fields: Email Address and Full Name (or First Name) must be mapped to proceed.' })}
+                    {t('bulkImportWizard.mapping.requiredNotice', { defaultValue: 'Required fields: At least one identifier (Email, Employee ID, or Phone) and Full Name (or First Name) must be mapped to proceed.' })}
                   </span>
                 </div>
               )}
 
-              <div className="border rounded-xl overflow-hidden">
-                <table className="w-full text-xs">
+              <div className="border rounded-xl overflow-x-auto w-full">
+                <table className="min-w-[620px] w-full text-xs">
                   <thead className="bg-muted/50 border-b">
                     <tr>
                       <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground">{t('bulkImportWizard.mapping.colCsvHeader', { defaultValue: 'CSV Column' })}</th>
@@ -537,7 +538,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                     <tr>
                       <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colNum', { defaultValue: '#' })}</th>
                       <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colStatus', { defaultValue: 'Status' })}</th>
-                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colEmail', { defaultValue: 'Email' })}</th>
+                      <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colIdentifier', { defaultValue: 'Primary Identifier' })}</th>
                       <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colName', { defaultValue: 'Name' })}</th>
                       <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colDept', { defaultValue: 'Department' })}</th>
                       <th className="p-2.5 font-semibold text-muted-foreground">{t('bulkImportWizard.preview.colJobTitle', { defaultValue: 'Job Title' })}</th>
@@ -577,24 +578,39 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                             )}
                           </td>
 
-                          {/* Email Cell */}
+                          {/* Primary Identifier Cell (Email / Employee ID / Phone) */}
                           <td
                             className="p-2.5 font-mono cursor-pointer hover:underline"
-                            onClick={() => setEditingCell({ rowIndex, field: 'email' })}
+                            onClick={() => {
+                              const activeField = user.email ? 'email' : user.employeeId ? 'employeeId' : user.phone ? 'phone' : 'email';
+                              setEditingCell({ rowIndex, field: activeField });
+                            }}
                           >
-                            {editingCell?.rowIndex === rowIndex && editingCell?.field === 'email' ? (
+                            {editingCell?.rowIndex === rowIndex && ['email', 'employeeId', 'phone'].includes(editingCell?.field) ? (
                               <Input
                                 autoFocus
-                                defaultValue={user.email || ''}
-                                onBlur={(e) => handleCellEdit(rowIndex, 'email', e.target.value)}
+                                defaultValue={user[editingCell.field] || ''}
+                                onBlur={(e) => handleCellEdit(rowIndex, editingCell.field, e.target.value)}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleCellEdit(rowIndex, 'email', (e.target as any).value);
+                                  if (e.key === 'Enter') handleCellEdit(rowIndex, editingCell.field, (e.target as any).value);
                                 }}
                                 className="h-6 text-xs p-1 font-mono"
                               />
+                            ) : user.email ? (
+                              <span className={rowError?.field === 'email' ? 'text-rose-600 font-bold' : 'text-foreground'}>
+                                {user.email}
+                              </span>
+                            ) : user.employeeId ? (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono border bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700 ${rowError?.field === 'employeeId' ? 'border-rose-400 text-rose-600' : ''}`}>
+                                ID: {user.employeeId}
+                              </span>
+                            ) : user.phone ? (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono border bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 ${rowError?.field === 'phone' ? 'border-rose-400 text-rose-600' : ''}`}>
+                                Tel: {user.phone}
+                              </span>
                             ) : (
-                              <span className={!user.email || rowError?.field === 'email' ? 'text-rose-600 font-bold' : ''}>
-                                {user.email || t('bulkImportWizard.preview.missingEmail', { defaultValue: '<missing email>' })}
+                              <span className="text-rose-600 font-bold">
+                                {t('bulkImportWizard.preview.missingIdentifier', { defaultValue: '<no identifier>' })}
                               </span>
                             )}
                           </td>
@@ -734,8 +750,8 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {t('bulkImportWizard.options.emailInvitesDesc', {
-                          tempPassword: 'Welcome@2026!',
-                          defaultValue: 'Sends an onboarding portal activation email with temporary login credentials (Welcome@2026!).'
+                          tempPassword: 'Password@123!',
+                          defaultValue: 'Sends an onboarding portal activation email with temporary login credentials (Password@123!).'
                         })}
                       </p>
                     </div>
@@ -863,7 +879,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText("Welcome@2026!");
+                      navigator.clipboard.writeText("Password@123!");
                       toast.success("Default password copied to clipboard");
                     }}
                     className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium flex items-center gap-1"
@@ -874,7 +890,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-600 dark:text-slate-400">Temporary Password:</span>
                   <code className="bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-xs">
-                    Welcome@2026!
+                    Password@123!
                   </code>
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
@@ -887,26 +903,26 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
         </DialogBody>
 
         {/* Footer Navigation */}
-        <DialogFooter className="p-4 border-t bg-muted/20 flex items-center justify-between">
+        <DialogFooter className="p-3.5 sm:p-4 border-t bg-muted/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
           <div>
             {currentStep === 'mapping' && (
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('upload')} className="gap-1 text-xs">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('upload')} className="gap-1 text-xs w-full sm:w-auto">
                 <ArrowLeft className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.backToFile', { defaultValue: 'Back to File' })}
               </Button>
             )}
             {currentStep === 'preview' && (
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('mapping')} className="gap-1 text-xs">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('mapping')} className="gap-1 text-xs w-full sm:w-auto">
                 <ArrowLeft className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.adjustMappings', { defaultValue: 'Adjust Mappings' })}
               </Button>
             )}
             {currentStep === 'options' && (
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('preview')} className="gap-1 text-xs">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('preview')} className="gap-1 text-xs w-full sm:w-auto">
                 <ArrowLeft className="h-3.5 w-3.5" /> {t('bulkImportWizard.buttons.backToPreview', { defaultValue: 'Back to Preview' })}
               </Button>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             {currentStep !== 'completed' && currentStep !== 'importing' && (
               <Button variant="outline" size="sm" onClick={handleClose} className="text-xs">
                 {t('common:cancel', { defaultValue: 'Cancel' })}
@@ -917,7 +933,7 @@ export const BulkImportWizard: React.FC<BulkImportWizardProps> = ({
               <Button
                 size="sm"
                 onClick={runValidation}
-                disabled={!hasEmailMapped || !hasNameMapped || isValidating}
+                disabled={!hasIdentifierMapped || !hasNameMapped || isValidating}
                 className="gap-1 text-xs font-semibold"
               >
                 {isValidating ? (

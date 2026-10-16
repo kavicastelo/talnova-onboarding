@@ -7,7 +7,7 @@ export class EmailService {
 
   constructor() {
     const { host, port, user, pass } = config.email;
-    
+
     if (user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
@@ -141,7 +141,7 @@ export class EmailService {
     to: string,
     token: string,
     orgName: string,
-    tempPassword = "Welcome@2026!",
+    tempPassword = "Password@123!",
     employeeName?: string
   ): Promise<boolean> {
     EmailService.sentEmails.push({ to, token });

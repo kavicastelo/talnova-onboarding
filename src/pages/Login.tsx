@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight, KeyRound, CheckCircle2, User } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useRole } from '../context/RoleContext';
 import { applyProfileLanguage } from '../context/LanguageContext';
@@ -241,7 +241,7 @@ export function Login() {
             <div>
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  {t('login.emailLabel')}
+                  {t('login.identifierLabel', { defaultValue: 'Email, Employee ID, or Phone' })}
                 </label>
                 {discoveringSSO && (
                   <span className="text-[11px] text-indigo-400 animate-pulse">{t('login.checkingSso')}</span>
@@ -249,15 +249,15 @@ export function Login() {
               </div>
               <div className="relative mt-1">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                  <Mail className="h-4 w-4" />
+                  {email.includes('@') ? <Mail className="h-4 w-4" /> : <User className="h-4 w-4" />}
                 </span>
                 <input
                   id="login-email-input"
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t('login.emailPlaceholder')}
+                  placeholder={t('login.identifierPlaceholder', { defaultValue: 'name@company.com, EMP-1049, or +15550199' })}
                   className="block w-full rounded-lg border border-white/10 bg-white/[0.05] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none ring-offset-[#0B0F19] transition-all hover:border-white/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>

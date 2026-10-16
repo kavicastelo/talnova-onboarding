@@ -30,14 +30,14 @@ export class AuthService {
    * Log in a user by verifying their credentials and starting an active session.
    */
   async login(
-    email: string,
+    identifier: string,
     password: string,
     ipAddress?: string,
     deviceInfo?: string
   ) {
-    const user = await this.userRepository.findByEmail(email);
+    const user = await this.userRepository.findByIdentifier(identifier);
     if (!user) {
-      throw new AppError(401, "UNAUTHORIZED", "Invalid email or password");
+      throw new AppError(401, "UNAUTHORIZED", "Invalid credentials");
     }
 
     // Check if organization is suspended
@@ -59,7 +59,25 @@ export class AuthService {
     }
 
     // Verify Password
-    const isValid = await verifyPassword(password, user.auth.passwordHash);
+    let isValid = await verifyPassword(password, user.auth.passwordHash);
+
+    // Graceful migration fallback for temporary default passwords when mustChangePassword is true
+    if (!isValid && user.security?.mustChangePassword) {
+      if (password === "Password@123!") {
+        const isLegacyMatch = await verifyPassword("Welcome@2026!", user.auth.passwordHash);
+        if (isLegacyMatch) {
+          // Transparently upgrade hash to new default standard
+          user.auth.passwordHash = await hashPassword("Password@123!");
+          await (user as any).save();
+          isValid = true;
+        }
+      } else if (password === "Welcome@2026!") {
+        const isNewMatch = await verifyPassword("Password@123!", user.auth.passwordHash);
+        if (isNewMatch) {
+          isValid = true;
+        }
+      }
+    }
     if (!isValid) {
       // Increment failed login attempts
       const updatedUser = await this.userRepository.incrementFailedLogin(user._id);
@@ -72,7 +90,7 @@ export class AuthService {
           "Account locked due to 5 consecutive failed login attempts. Try again in 15 minutes."
         );
       }
-      throw new AppError(401, "UNAUTHORIZED", "Invalid email or password");
+      throw new AppError(401, "UNAUTHORIZED", "Invalid credentials");
     }
 
     // Successful login - reset login failures and lock
@@ -231,14 +249,20 @@ export class AuthService {
       "security.passwordResetExpires": expires,
     } as any);
 
+    if (!user || !user.auth?.email) {
+      return;
+    }
+
+    const userEmail = user.auth.email;
+
     // Send email using organization email integration if configured
     try {
       const { OrganizationIntegrationService } = await import("../../integrations/services/organization-integration.service.js");
       const integrationService = new OrganizationIntegrationService();
       const activeEmail = await integrationService.getActiveEmailClient(user.organizationId);
-      await activeEmail.service.sendPasswordResetEmail(activeEmail.config, activeEmail.secrets, user.auth.email, rawToken);
+      await activeEmail.service.sendPasswordResetEmail(activeEmail.config, activeEmail.secrets, userEmail, rawToken);
     } catch {
-      await emailService.sendPasswordResetEmail(user.auth.email, rawToken);
+      await emailService.sendPasswordResetEmail(userEmail, rawToken);
     }
   }
 

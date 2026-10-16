@@ -9,6 +9,38 @@ export class UserRepository {
     });
   }
 
+  async findByIdentifier(identifier: string, organizationId?: string | mongoose.Types.ObjectId): Promise<IUser | null> {
+    const clean = identifier.trim();
+    if (!clean) return null;
+
+    const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const exactRegex = new RegExp(`^${escaped}$`, "i");
+    const cleanDigits = clean.replace(/\D/g, "");
+
+    const orConditions: any[] = [
+      { "auth.email": clean.toLowerCase() },
+      { "employment.employeeId": exactRegex },
+      { "employment.badgeId": exactRegex },
+      { "profile.phone": clean },
+      { "profile.phone": clean.replace(/\s+/g, "") },
+    ];
+
+    if (cleanDigits.length >= 7) {
+      orConditions.push({ "profile.phone": new RegExp(`${cleanDigits}$`) });
+    }
+
+    const query: Record<string, any> = {
+      $or: orConditions,
+      isDeleted: false,
+    };
+
+    if (organizationId) {
+      query.organizationId = typeof organizationId === "string" ? new mongoose.Types.ObjectId(organizationId) : organizationId;
+    }
+
+    return User.findOne(query);
+  }
+
   async findById(id: string | mongoose.Types.ObjectId): Promise<IUser | null> {
     return User.findOne({
       _id: id,

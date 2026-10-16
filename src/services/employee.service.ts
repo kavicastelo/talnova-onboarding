@@ -125,7 +125,11 @@ export const employeeService = {
 
     // 3. Dispatch invite
     const invitePayload = {
-      email: employee.email,
+      email: employee.email ? employee.email.trim() : undefined,
+      employeeId: employee.employeeId ? employee.employeeId.trim() : undefined,
+      phone: employee.phone ? employee.phone.trim() : undefined,
+      badgeId: employee.badgeId ? employee.badgeId.trim() : undefined,
+      initialPassword: (employee as any).initialPassword,
       firstName,
       lastName,
       role: employee.role || 'employee',
@@ -138,7 +142,11 @@ export const employeeService = {
     };
 
     const response = await apiClient.post<ApiResponse<any>>('/employees/invite', invitePayload);
-    return mapBackendUserToEmployee(response.data.data, departments);
+    const mapped = mapBackendUserToEmployee(response.data.data, departments);
+    if (response.data.data?.temporaryPassword) {
+      mapped.temporaryPassword = response.data.data.temporaryPassword;
+    }
+    return mapped;
   },
 
   updateEmployee: async (id: string, employee: Partial<Employee> & { departmentId?: string }): Promise<Employee> => {
@@ -150,6 +158,9 @@ export const employeeService = {
       payload.firstName = nameParts[0];
       payload.lastName = nameParts.slice(1).join(' ');
     }
+    if (employee.phone !== undefined) payload.phone = employee.phone;
+    if (employee.employeeId !== undefined) payload.employeeId = employee.employeeId;
+    if (employee.badgeId !== undefined) payload.badgeId = employee.badgeId;
     if (employee.role) payload.role = employee.role;
     if (employee.roles) payload.roles = employee.roles;
     if (employee.customRoles) payload.customRoles = employee.customRoles;

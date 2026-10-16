@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { SuperAdminService } from "../services/super-admin.service.js";
 import { featureTelemetryService } from "../services/feature-telemetry.service.js";
@@ -816,6 +818,129 @@ export class SuperAdminController {
       message: "Platform settings updated successfully",
       data,
     });
+  };
+
+  getDatabaseStorageObservability = async (
+    _request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const data = await this.superAdminService.getDatabaseStorageObservability();
+    return reply.status(200).send({
+      success: true,
+      message: "Database storage observability retrieved successfully",
+      data,
+    });
+  };
+
+  previewDatabasePurge = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const { collectionName } = request.params as { collectionName: string };
+    const { olderThanDays, orgId } = request.query as { olderThanDays?: string; orgId?: string };
+    const data = await this.superAdminService.previewDatabasePurge(
+      collectionName,
+      olderThanDays ? parseInt(olderThanDays, 10) : undefined,
+      orgId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Purge preview calculated successfully",
+      data,
+    });
+  };
+
+  createDatabaseBackup = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const actorUserId = (request.user as any)?.userId;
+    const actorEmail = (request.user as any)?.email;
+    const { collectionName, olderThanDays, orgId, maxDocuments } = request.body as {
+      collectionName: string;
+      olderThanDays?: number;
+      orgId?: string;
+      maxDocuments?: number;
+    };
+    const data = await this.superAdminService.createDatabaseBackup(
+      collectionName,
+      olderThanDays ?? 30,
+      actorUserId,
+      actorEmail,
+      orgId,
+      maxDocuments
+    );
+    return reply.status(201).send({
+      success: true,
+      message: "Verified backup archive created successfully",
+      data,
+    });
+  };
+
+  executeDatabasePurge = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const actorUserId = (request.user as any)?.userId;
+    const { manifestId, confirmationText } = request.body as {
+      manifestId: string;
+      confirmationText: string;
+    };
+    const data = await this.superAdminService.executeDatabasePurge(
+      manifestId,
+      actorUserId,
+      confirmationText
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Bounded purge executed successfully",
+      data,
+    });
+  };
+
+  restoreDatabaseFromBackup = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const actorUserId = (request.user as any)?.userId;
+    const { manifestId } = request.body as { manifestId: string };
+    const data = await this.superAdminService.restoreDatabaseFromBackup(
+      manifestId,
+      actorUserId
+    );
+    return reply.status(200).send({
+      success: true,
+      message: "Database records restored successfully from backup",
+      data,
+    });
+  };
+
+  listDatabaseBackups = async (
+    _request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const data = await this.superAdminService.listDatabaseBackups();
+    return reply.status(200).send({
+      success: true,
+      message: "Database backup manifests retrieved successfully",
+      data,
+    });
+  };
+
+  downloadDatabaseBackup = async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    const { manifestId } = request.params as { manifestId: string };
+    const manifest = await this.superAdminService.getBackupManifest(manifestId);
+    if (!manifest || !manifest.archiveFilePath || !fs.existsSync(manifest.archiveFilePath)) {
+      return reply.status(404).send({ success: false, message: "Backup archive not found" });
+    }
+    const stream = fs.createReadStream(manifest.archiveFilePath);
+    const filename = path.basename(manifest.archiveFilePath);
+    reply.header("Content-Type", "application/gzip");
+    reply.header("Content-Disposition", `attachment; filename="${filename}"`);
+    return reply.send(stream);
   };
 }
 

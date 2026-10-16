@@ -209,7 +209,7 @@ describe("Tenant Provisioning & Bulk Employee Import: Credentials & First-Login 
     const body = res.json();
     expect(body.success).toBe(true);
     expect(body.data.defaultCredentials).toBeDefined();
-    expect(body.data.defaultCredentials.temporaryPassword).toBe("Welcome@2026!");
+    expect(body.data.defaultCredentials.temporaryPassword).toBe("Password@123!");
     expect(body.data.defaultCredentials.mustChangePassword).toBe(true);
 
     // Check newly imported user in DB
@@ -223,7 +223,7 @@ describe("Tenant Provisioning & Bulk Employee Import: Credentials & First-Login 
       url: "/api/v1/auth/login",
       payload: {
         email: empEmail1,
-        password: "Welcome@2026!",
+        password: "Password@123!",
       },
     });
 

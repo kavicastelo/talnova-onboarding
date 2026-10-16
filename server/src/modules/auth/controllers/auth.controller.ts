@@ -15,11 +15,12 @@ export class AuthController {
     request: FastifyRequest<{ Body: LoginInput }>,
     reply: FastifyReply
   ) => {
-    const { email, password } = request.body;
+    const identifier = (request.body.identifier || request.body.email || "").trim();
+    const { password } = request.body;
     const ipAddress = getClientIp(request);
     const deviceInfo = request.headers["user-agent"];
 
-    const result = await this.authService.login(email, password, ipAddress, deviceInfo);
+    const result = await this.authService.login(identifier, password, ipAddress, deviceInfo);
 
     // Platform Maintenance Mode check: block non-super-admins
     const platformSetting = await PlatformSetting.findOne({ singleton: true });

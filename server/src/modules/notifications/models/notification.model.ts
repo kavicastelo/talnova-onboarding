@@ -180,6 +180,15 @@ const NotificationSchema = new Schema<INotification>(
   }
 );
 
+// Pre-validate hook: Automatically compute expiresAt if omitted to ensure TTL index eviction
+NotificationSchema.pre("validate", function (next) {
+  if (!this.expiresAt) {
+    const days = this.priority === "critical" ? 180 : this.priority === "high" ? 90 : 30;
+    this.expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  }
+  next();
+});
+
 // Indexes
 NotificationSchema.index({ organizationId: 1 });
 NotificationSchema.index({ recipientUserId: 1 });

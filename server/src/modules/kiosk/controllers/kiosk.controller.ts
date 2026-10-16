@@ -916,13 +916,16 @@ export class KioskController {
         { "employment.employeeId": idRegex },
         { "employment.nationalId": idRegex },
         { "auth.email": idRegex },
+        { "profile.phone": idRegex },
+        { "profile.phone": cleanId.replace(/\s+/g, "") },
         ...(isHex ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : [])
       ];
 
       if (numericRegex) {
         candidateOr.push(
           { "employment.badgeId": numericRegex },
-          { "employment.employeeId": numericRegex }
+          { "employment.employeeId": numericRegex },
+          { "profile.phone": numericRegex }
         );
       }
 
@@ -937,7 +940,7 @@ export class KioskController {
 
     if (!orgId) {
       if (identifier) {
-        throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge, employee ID, or email address.");
+        throw new AppError(404, "WORKER_NOT_FOUND", "No frontline worker record found matching the provided badge, employee ID, phone number, or email address.");
       }
       throw new AppError(400, "BAD_REQUEST", "organizationId is required for frontline worker identification");
     }
