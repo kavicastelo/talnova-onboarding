@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useAppNavigate } from '../utils/navigation';
 import { useKbArticles } from '../hooks/useKnowledgeBase';
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 export function KnowledgeBaseSlideshow() {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { t } = useTranslation('kb');
   const { data: articles = [], isLoading, isError } = useKbArticles({ status: 'published' });
   

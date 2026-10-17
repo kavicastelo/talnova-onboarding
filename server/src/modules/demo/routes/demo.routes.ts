@@ -3,10 +3,23 @@ import { demoAppController } from "../controllers/demo-app.controller.js";
 import { demoAuthenticate } from "../middleware/demo-auth.middleware.js";
 import { requireDemoFeature, guardDemoHighRisk, verifyDemoTenant } from "../middleware/demo-guard.middleware.js";
 import { attachDemoHeaders } from "../middleware/demo-watermark.middleware.js";
+import { demoRateLimiter } from "../middleware/demo-ratelimit.middleware.js";
+import { demoHoneypotHandler, checkDemoIpBlacklist } from "../middleware/demo-honeypot.middleware.js";
 
 export async function demoRoutes(app: FastifyInstance) {
-  // Public Demo Auth Endpoints
+  // Global Demo Security Hooks
+  app.addHook("onRequest", checkDemoIpBlacklist);
+  app.addHook("onRequest", demoRateLimiter);
+
+  // Decoy Honeypot Routes (Public Entrypoints for Probers & Crawlers)
+  app.get("/export-all-data", demoHoneypotHandler);
+  app.get("/internal/raw-curriculum", demoHoneypotHandler);
+  app.get("/secret-dump", demoHoneypotHandler);
+
+  // Public Demo Auth & Invite Endpoints
   app.post("/auth/login", demoAppController.login);
+  app.post("/auth/invite/redeem", demoAppController.redeemInvite);
+  app.get("/auth/invite/verify", demoAppController.verifyInvite);
 
   // Authenticated Demo Scope
   app.register(async (authedScope) => {
@@ -16,6 +29,7 @@ export async function demoRoutes(app: FastifyInstance) {
 
     // Profile & Session
     authedScope.post("/auth/logout", demoAppController.logout);
+    authedScope.post("/auth/heartbeat", demoAppController.heartbeat);
     authedScope.get("/auth/me", demoAppController.getMe);
     authedScope.get("/dashboard", demoAppController.getDashboard);
     authedScope.get("/dashboard/summary", demoAppController.getDashboardSummary);
@@ -415,11 +429,69 @@ export async function demoRoutes(app: FastifyInstance) {
     // Controlled Export with synthetic limits and watermarking
     authedScope.get("/export", demoAppController.exportControlledData);
 
-    // Blocked High-Risk / Administrative Routes in Demo Mode
+    // ==================== FULL PRODUCT DEMO ROUTES ====================
+    // Calendar Integration
+    authedScope.get("/calendar/connection", demoAppController.getCalendarConnection);
+    authedScope.post("/calendar/connection", demoAppController.connectCalendarProvider);
+    authedScope.get("/calendar/events", demoAppController.getCalendarEvents);
+    authedScope.post("/calendar/events", demoAppController.createCalendarEvent);
+    authedScope.patch("/calendar/events/:id", demoAppController.patchCalendarEvent);
+    authedScope.put("/calendar/events/:id", demoAppController.patchCalendarEvent);
+    authedScope.delete("/calendar/events/:id", demoAppController.deleteCalendarEvent);
+    authedScope.get("/calendar/availability", demoAppController.getCalendarAvailability);
+    authedScope.get("/calendar/pack/export", demoAppController.exportCalendarPack);
+    authedScope.post("/calendar/milestones/:id/schedule-review", demoAppController.scheduleMilestoneReview);
+
+    // HR Operations & Lifecycle Management
+    authedScope.get("/hr/dashboard-metrics", demoAppController.getHRDashboardMetrics);
+    authedScope.get("/hr/exceptions", demoAppController.getHRExceptions);
+    authedScope.get("/hr/compliance-report", demoAppController.getHRComplianceReport);
+    authedScope.put("/hr/lifecycle/:userId/state", demoAppController.updateHRLifecycleState);
+    authedScope.post("/hr/handover/:userId", demoAppController.completeHRHandover);
+    authedScope.post("/hr/bulk-action", demoAppController.executeHRBulkAction);
+
+    // AI Course Builder
+    authedScope.post("/ai/course-builder/generate", demoAppController.generateAICourse);
+    authedScope.post("/ai/generate-course", demoAppController.generateAICourse);
+
+    // Frontline Kiosk Operations
+    authedScope.get("/kiosk/status", demoAppController.getKioskStatus);
+    authedScope.get("/kiosk/devices", demoAppController.getKioskDevices);
+    authedScope.get("/kiosk/compliance", demoAppController.getKioskCompliance);
+    authedScope.get("/kiosk/manifest", demoAppController.getKioskManifest);
+    authedScope.post("/kiosk/pair", demoAppController.pairKioskDevice);
+
+    // HRIS Integrations & Enterprise SSO
+    authedScope.get("/integrations", demoAppController.getHRISIntegrations);
+    authedScope.get("/organizations/integrations", demoAppController.getHRISIntegrations);
+    authedScope.post("/organizations/integrations/:id/sync", demoAppController.syncHRISIntegration);
+    authedScope.post("/integrations/:id/sync", demoAppController.syncHRISIntegration);
+    authedScope.get("/organizations/security/sso", demoAppController.getSSOSettings);
+    authedScope.patch("/organizations/security/sso", demoAppController.updateSSOSettings);
+    authedScope.get("/sso", demoAppController.getSSOSettings);
+    authedScope.patch("/sso", demoAppController.updateSSOSettings);
+
+    // Super Admin / Platform Overview in Demo Mode
+    authedScope.get("/super-admin/overview", async (_req, reply) => {
+      return reply.status(200).send({
+        success: true,
+        data: {
+          totalOrganizations: 6,
+          activeUsers: 34,
+          totalJourneys: 18,
+          activeSessions: 3,
+          systemStatus: "operational",
+          retentionRate: "98.4%",
+        },
+      });
+    });
+
+    // Guarded High-Risk / Danger-Zone Routes (Security Boundary Testing)
     authedScope.all("/admin/*", { preHandler: [guardDemoHighRisk] }, async () => {});
-    authedScope.all("/integrations/*", { preHandler: [guardDemoHighRisk] }, async () => {});
+    authedScope.all("/admin/danger-zone", { preHandler: [guardDemoHighRisk] }, async () => {});
     authedScope.all("/api-keys/*", { preHandler: [guardDemoHighRisk] }, async () => {});
   });
 }
+
 
 export default demoRoutes;

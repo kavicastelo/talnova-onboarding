@@ -1,6 +1,8 @@
 export default {content: [
   './index.html',
-  './src/**/*.{js,ts,jsx,tsx}'
+  './src/**/*.{js,ts,jsx,tsx}',
+  './demo/index.html',
+  './demo/**/*.{js,ts,jsx,tsx}'
 ],
   darkMode: 'selector',
   theme: {

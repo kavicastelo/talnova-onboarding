@@ -14,7 +14,8 @@ import {
   Menu,
   ExternalLink
 } from 'lucide-react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { useAppNavigate } from '../utils/navigation';
 import { ScrollArea } from '../components/ScrollArea';
 import { Separator } from '../components/Separator';
 import { useCourse, useUpdateLessonCompletion, useSubmitQuiz } from '../hooks/useCourses';
@@ -134,7 +135,7 @@ function TranslateText({ text, children, language }: TranslateTextProps) {
 export function CourseViewer() {
   const { t } = useTranslation(['journeys', 'common']);
   const { id } = useParams();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { data: course, isLoading, isError, error, refetch } = useCourse(id || '');
   const updateLessonCompletion = useUpdateLessonCompletion();
   const submitQuiz = useSubmitQuiz();

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useAppNavigate } from '../utils/navigation';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -29,7 +30,7 @@ import { useTranslation } from 'react-i18next';
 export const DocumentSigner: React.FC = () => {
   const { t } = useTranslation('documents');
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);

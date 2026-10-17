@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "npx vite",
+    "dev:demo": "npx vite --config vite.demo.config.ts",
     "build": "npx vite build",
+    "build:demo": "npx vite build --config vite.demo.config.ts",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview",
+    "preview:demo": "npx vite preview --config vite.demo.config.ts",
     "test": "npx vitest run"
   },
   "dependencies": {
@@ -46,6 +49,7 @@
     "eslint-plugin-react-refresh": "^0.4.1",
     "fake-indexeddb": "^6.2.5",
     "idb": "^8.0.3",
+    "javascript-obfuscator": "^5.9.0",
     "jsdom": "^30.1.1",
     "postcss": "latest",
     "tailwindcss": "3.4.17",

@@ -100,8 +100,8 @@ export const DemoAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem('talnova_demo_user', JSON.stringify(u));
       localStorage.setItem('talnova_demo_tenant', JSON.stringify(t));
       localStorage.setItem('talnova_demo_watermark', JSON.stringify(wm));
-      localStorage.setItem('user_role', normalizedRole);
-      localStorage.setItem('user_roles', JSON.stringify([normalizedRole]));
+      localStorage.setItem('talnova_demo_role', normalizedRole);
+      localStorage.setItem('talnova_demo_roles', JSON.stringify([normalizedRole]));
     } finally {
       setIsLoading(false);
     }
@@ -129,6 +129,8 @@ export const DemoAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.removeItem('talnova_demo_user');
     localStorage.removeItem('talnova_demo_tenant');
     localStorage.removeItem('talnova_demo_watermark');
+    localStorage.removeItem('talnova_demo_role');
+    localStorage.removeItem('talnova_demo_roles');
   };
 
   return (

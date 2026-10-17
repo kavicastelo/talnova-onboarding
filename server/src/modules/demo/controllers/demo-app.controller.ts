@@ -12,9 +12,13 @@ import {
   getDemoKBArticleModel,
   getDemoMilestoneModel,
   getDemoFeatureUsageModel,
+  getDemoSessionModel,
 } from "../models/index.js";
 import AppError from "../../../common/errors/app-error.js";
 import { getClientIp } from "../../../common/utils/ip.util.js";
+import { packDemoPayload } from "../utils/payload-shield.util.js";
+import { hashPassword } from "../../../utils/crypto.js";
+import crypto from "node:crypto";
 
 // Knowledge Base Category ID Mapping matching client CATEGORY_MAP
 const KB_CATEGORY_ID_MAP: Record<string, string> = {
@@ -424,6 +428,221 @@ export class DemoAppController {
     return reply.status(200).send({
       success: true,
       message: "Demo session ended successfully.",
+    });
+  };
+
+  verifyInvite = async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = (request.query as any)?.token || (request.body as any)?.token;
+    if (!token) {
+      throw new AppError(400, "INVALID_INVITE", "Invite token is required.");
+    }
+
+    let payload: any;
+    try {
+      payload = request.server.jwt.verify(token);
+    } catch (err: any) {
+      const isExpired =
+        err.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED" ||
+        err.code === "FAST_JWT_EXPIRED" ||
+        err.name === "TokenExpiredError" ||
+        err.message?.toLowerCase().includes("expired");
+      throw new AppError(
+        401,
+        isExpired ? "INVITE_EXPIRED" : "INVALID_INVITE",
+        isExpired
+          ? "This demonstration link has expired. Request an extension from the Talnova team"
+          : "Invalid or malformed demo invitation link."
+      );
+    }
+
+    if (!payload || !payload.isDemoInvite) {
+      throw new AppError(400, "INVALID_INVITE", "Provided token is not a valid demo invite.");
+    }
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        valid: true,
+        prospectEmail: payload.prospectEmail,
+        prospectCompany: payload.prospectCompany,
+        assignedPersona: payload.assignedPersona,
+        expiresAt: payload.expiresAt,
+      },
+    });
+  };
+
+  redeemInvite = async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = (request.query as any)?.token || (request.body as any)?.token;
+    if (!token) {
+      throw new AppError(400, "INVALID_INVITE", "Invite token is required.");
+    }
+
+    let payload: any;
+    try {
+      payload = request.server.jwt.verify(token);
+    } catch (err: any) {
+      const isExpired =
+        err.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED" ||
+        err.code === "FAST_JWT_EXPIRED" ||
+        err.name === "TokenExpiredError" ||
+        err.message?.toLowerCase().includes("expired");
+      throw new AppError(
+        401,
+        isExpired ? "INVITE_EXPIRED" : "INVALID_INVITE",
+        isExpired
+          ? "This demonstration link has expired. Request an extension from the Talnova team"
+          : "Invalid or malformed demo invitation link."
+      );
+    }
+
+    if (!payload || !payload.isDemoInvite) {
+      throw new AppError(400, "INVALID_INVITE", "Provided token is not a valid demo invite.");
+    }
+
+    const ip = getClientIp(request);
+    const userAgent = (request.headers["user-agent"] as string) || "unknown";
+
+    const DemoTenant = getDemoTenantModel();
+    const DemoUser = getDemoUserModel();
+    const DemoSession = getDemoSessionModel();
+    const DemoActivityLog = getDemoActivityLogModel();
+
+    let tenant = await DemoTenant.findOne({ name: payload.prospectCompany });
+    if (!tenant) {
+      tenant = await DemoTenant.create({
+        name: payload.prospectCompany,
+        slug: `invite-${Date.now().toString(36)}`,
+        domain: `${payload.prospectEmail.split("@")[1] || "prospect.com"}`,
+        contactEmail: payload.prospectEmail,
+        status: "ACTIVE",
+        expiresAt: new Date(payload.expiresAt),
+        allowedFeatures: ["*"],
+        entitlementPackage: "FULL_SUITE",
+      });
+    }
+
+    let user = await DemoUser.findOne({ email: payload.prospectEmail });
+    if (!user) {
+      const dummyHash = await hashPassword("DemoInvitePass123!");
+      const roleMapping: Record<string, string> = {
+        admin: "demo_admin",
+        manager: "demo_manager",
+        employee: "demo_employee",
+      };
+      const personaRole = roleMapping[payload.assignedPersona] || payload.assignedPersona || "demo_admin";
+
+      user = await DemoUser.create({
+        demoTenantId: tenant._id,
+        email: payload.prospectEmail,
+        fullName: payload.prospectEmail.split("@")[0].replace(".", " "),
+        role: personaRole,
+        passwordHash: dummyHash,
+        status: "ACTIVE",
+        expiresAt: new Date(payload.expiresAt),
+      });
+    }
+
+    const sessionId = crypto.randomUUID();
+    const sessionExpiresAt = new Date(payload.expiresAt);
+
+    await DemoSession.create({
+      sessionId,
+      demoUserId: user._id,
+      demoTenantId: tenant._id,
+      tokenVersion: 1,
+      ipAddress: ip,
+      userAgent,
+      isValid: true,
+      riskStatus: "NORMAL",
+      lastActivityAt: new Date(),
+      expiresAt: sessionExpiresAt,
+    });
+
+    const tokenPayload = {
+      demoUserId: user._id.toString(),
+      demoTenantId: tenant._id.toString(),
+      role: user.role,
+      sessionId,
+      email: user.email,
+      companyName: tenant.name,
+      isDemo: true,
+    };
+
+    const sessionToken = request.server.jwt.sign(tokenPayload, {
+      expiresIn: Math.max(60, Math.floor((sessionExpiresAt.getTime() - Date.now()) / 1000)),
+    });
+
+    await DemoActivityLog.create({
+      demoTenantId: tenant._id,
+      demoUserId: user._id,
+      action: "INVITE_REDEEMED",
+      category: "AUTH",
+      description: `Prospect ${user.email} successfully redeemed time-bombed invite for ${tenant.name}`,
+      severity: "info",
+      metadata: { ip, userAgent, sessionId },
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Demo invite redeemed successfully.",
+      data: {
+        token: sessionToken,
+        sessionId,
+        session: {
+          sessionId,
+          expiresAt: sessionExpiresAt,
+        },
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
+        tenant: {
+          id: tenant._id,
+          name: tenant.name,
+          slug: tenant.slug,
+        },
+      },
+    });
+  };
+
+  heartbeat = async (request: FastifyRequest, reply: FastifyReply) => {
+    const sessionId = request.demoUser?.sessionId;
+    if (!sessionId) {
+      return reply.status(200).send({
+        success: true,
+        data: {
+          active: false,
+          command: "TERMINATE",
+          reason: "No active session bound",
+        },
+      });
+    }
+
+    const DemoSession = getDemoSessionModel();
+    const session = await DemoSession.findOne({ sessionId });
+
+    if (!session || !session.isValid || session.killCommand === "TERMINATE" || session.killCommand === "FREEZE") {
+      return reply.status(200).send({
+        success: true,
+        data: {
+          active: false,
+          command: session?.killCommand || "TERMINATE",
+          reason: session?.suspiciousReason || "Session terminated or revoked by administrator",
+        },
+      });
+    }
+
+    await DemoSession.updateOne({ _id: session._id }, { lastActivityAt: new Date() });
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        active: true,
+        command: "CONTINUE",
+        lastActivityAt: new Date().toISOString(),
+      },
     });
   };
 
@@ -3231,7 +3450,490 @@ export class DemoAppController {
       },
     });
   };
+
+  // ==================== CALENDAR INTEGRATION ====================
+  getCalendarConnection = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        _id: "cal-conn-demo",
+        provider: "google",
+        syncStatus: "connected",
+        timezone: "America/New_York",
+        icalToken: "demo-ical-token-xyz-123",
+        lastSyncedAt: new Date().toISOString(),
+      },
+    });
+  };
+
+  connectCalendarProvider = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { provider = "google", timezone = "America/New_York" } = (request.body as any) || {};
+    return reply.status(200).send({
+      success: true,
+      data: {
+        _id: "cal-conn-demo",
+        provider,
+        syncStatus: "connected",
+        timezone,
+        icalToken: `demo-${provider}-token-${Date.now()}`,
+        lastSyncedAt: new Date().toISOString(),
+      },
+    });
+  };
+
+  getCalendarEvents = async (_request: FastifyRequest, reply: FastifyReply) => {
+    const now = Date.now();
+    return reply.status(200).send({
+      success: true,
+      data: [
+        {
+          _id: "evt-1",
+          title: "Manager 1-on-1: Week 1 Reflection & Feedback",
+          description: "Review first week onboarding milestones and address engineering dev environment blockers.",
+          category: "manager_1on1",
+          organizerUserId: { _id: "usr-sarah", profile: { fullName: "Sarah Connor" } },
+          attendeeUserIds: [{ _id: "usr-john", profile: { fullName: "John Doe" } }],
+          startTime: new Date(now + 86400000).toISOString(),
+          endTime: new Date(now + 86400000 + 3600000).toISOString(),
+          timezone: "America/New_York",
+          locationUrl: "https://meet.google.com/demo-talnova-1on1",
+          status: "scheduled",
+          reminderMinutesBefore: 15,
+          iCalUid: "evt-1@talnova.demo",
+        },
+        {
+          _id: "evt-2",
+          title: "Buddy Coffee Chat: Culture & Team Norms",
+          description: "Informal catch-up over coffee to walk through team Slack rituals, tools, and social channels.",
+          category: "buddy_coffee",
+          organizerUserId: { _id: "usr-alice", profile: { fullName: "Alice Smith" } },
+          attendeeUserIds: [{ _id: "usr-john", profile: { fullName: "John Doe" } }],
+          startTime: new Date(now + 2 * 86400000).toISOString(),
+          endTime: new Date(now + 2 * 86400000 + 1800000).toISOString(),
+          timezone: "America/New_York",
+          locationUrl: "https://meet.google.com/demo-talnova-buddy",
+          status: "scheduled",
+          reminderMinutesBefore: 10,
+          iCalUid: "evt-2@talnova.demo",
+        },
+        {
+          _id: "evt-3",
+          title: "All-Hands Product Onboarding Orientation",
+          description: "Company-wide monthly onboarding presentation with leadership.",
+          category: "orientation",
+          organizerUserId: { _id: "usr-sarah", profile: { fullName: "Sarah Connor" } },
+          attendeeUserIds: [],
+          startTime: new Date(now + 4 * 86400000).toISOString(),
+          endTime: new Date(now + 4 * 86400000 + 3600000).toISOString(),
+          timezone: "America/New_York",
+          locationUrl: "https://meet.google.com/demo-all-hands",
+          status: "scheduled",
+          reminderMinutesBefore: 30,
+          iCalUid: "evt-3@talnova.demo",
+        },
+      ],
+    });
+  };
+
+  createCalendarEvent = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    return reply.status(201).send({
+      success: true,
+      data: {
+        _id: `evt-${Date.now()}`,
+        title: body.title || "Onboarding Catch-up",
+        description: body.description || "",
+        category: body.category || "custom",
+        organizerUserId: { _id: request.demoUser!.id, profile: { fullName: request.demoUser!.email } },
+        attendeeUserIds: body.attendeeUserIds || [],
+        startTime: body.startTime || new Date(Date.now() + 86400000).toISOString(),
+        endTime: body.endTime || new Date(Date.now() + 86400000 + 3600000).toISOString(),
+        timezone: "America/New_York",
+        locationUrl: body.locationUrl || "https://meet.google.com/talnova-demo",
+        status: "scheduled",
+        reminderMinutesBefore: 15,
+        iCalUid: `evt-${Date.now()}@talnova.demo`,
+      },
+    });
+  };
+
+  patchCalendarEvent = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    const body = (request.body as any) || {};
+    return reply.status(200).send({
+      success: true,
+      data: { _id: id, ...body, status: body.status || "scheduled" },
+    });
+  };
+
+  deleteCalendarEvent = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    return reply.status(200).send({
+      success: true,
+      message: "Event cancelled.",
+      data: { _id: id, status: "cancelled" },
+    });
+  };
+
+  getCalendarAvailability = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        date: new Date().toISOString().split("T")[0],
+        durationMinutes: 30,
+        participantCount: 2,
+        totalCandidateSlots: 8,
+        availableSlotsCount: 6,
+        availableSlots: [
+          { startTime: "09:00", endTime: "09:30", startFormatted: "9:00 AM", endFormatted: "9:30 AM", label: "Morning Open", isAvailable: true, conflicts: [] },
+          { startTime: "10:30", endTime: "11:00", startFormatted: "10:30 AM", endFormatted: "11:00 AM", label: "Late Morning", isAvailable: true, conflicts: [] },
+          { startTime: "14:00", endTime: "14:30", startFormatted: "2:00 PM", endFormatted: "2:30 PM", label: "Afternoon Focus", isAvailable: true, conflicts: [] },
+          { startTime: "16:00", endTime: "16:30", startFormatted: "4:00 PM", endFormatted: "4:30 PM", label: "Late Afternoon", isAvailable: true, conflicts: [] },
+        ],
+        allSlots: [],
+        busyEventsCount: 2,
+      },
+    });
+  };
+
+  exportCalendarPack = async (_request: FastifyRequest, reply: FastifyReply) => {
+    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Talnova//Onboarding Pack//EN\nBEGIN:VEVENT\nSUMMARY:Welcome to Talnova\nEND:VEVENT\nEND:VCALENDAR`;
+    return reply.type("text/calendar").send(icsContent);
+  };
+
+  scheduleMilestoneReview = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    return reply.status(201).send({
+      success: true,
+      data: {
+        _id: `evt-ms-${id}-${Date.now()}`,
+        title: "30-Day Milestone Performance Review",
+        category: "manager_1on1",
+        status: "scheduled",
+        startTime: new Date(Date.now() + 7 * 86400000).toISOString(),
+        endTime: new Date(Date.now() + 7 * 86400000 + 3600000).toISOString(),
+      },
+    });
+  };
+
+  // ==================== HR OPERATIONS ====================
+  getHRDashboardMetrics = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        totalEmployees: 24,
+        activeOnboardees: 4,
+        pausedOnboardees: 0,
+        journeyComplianceRate: 88,
+        pendingDocuments: 2,
+        overdueMilestones: 0,
+        unassignedBuddiesCount: 1,
+      },
+    });
+  };
+
+  getHRExceptions = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: [
+        {
+          employee: {
+            _id: "usr-david-kim",
+            name: "David Kim",
+            email: "david.kim@acme-demo.com",
+            department: "Engineering",
+            jobTitle: "Junior Frontend Engineer",
+          },
+          riskLevel: "medium",
+          issues: ["Hardware receipt not confirmed after 48h", "Security compliance training 1 day remaining"],
+        },
+      ],
+    });
+  };
+
+  getHRComplianceReport = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: [
+        {
+          employeeId: "usr-sarah",
+          name: "Sarah Connor",
+          email: "sarah.connor@acme-demo.com",
+          department: "Executive",
+          onboardingState: "completed",
+          totalAssigned: 6,
+          totalCompleted: 6,
+          completionRate: 100,
+        },
+        {
+          employeeId: "usr-john",
+          name: "John Doe",
+          email: "john.doe@acme-demo.com",
+          department: "Engineering",
+          onboardingState: "active",
+          totalAssigned: 5,
+          totalCompleted: 4,
+          completionRate: 80,
+        },
+      ],
+    });
+  };
+
+  updateHRLifecycleState = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { userId } = request.params as any;
+    const body = (request.body as any) || {};
+    return reply.status(200).send({
+      success: true,
+      data: { userId, state: body.state || "active", updatedAt: new Date().toISOString() },
+    });
+  };
+
+  completeHRHandover = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { userId } = request.params as any;
+    return reply.status(200).send({
+      success: true,
+      certificateId: `cert-${Date.now()}`,
+      employeeStatus: "graduated",
+      message: "Onboarding completed successfully. Certificate issued.",
+      data: { userId, status: "completed", completedAt: new Date().toISOString() },
+    });
+  };
+
+  executeHRBulkAction = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { employeeIds = [] } = (request.body as any) || {};
+    return reply.status(200).send({
+      success: true,
+      data: { processedCount: employeeIds.length },
+    });
+  };
+
+  // ==================== AI COURSE BUILDER ====================
+  generateAICourse = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { roleTitle = "Full-Stack Engineer", department = "Engineering", weeksCount = 4 } =
+      (request.body as any) || {};
+
+    const courseData = {
+      title: `${roleTitle} Fast-Track Acceleration Roadmap`,
+      description: `Comprehensive AI-generated ${weeksCount}-week onboarding path tailored for ${department}.`,
+      category: department,
+      durationDays: weeksCount * 7,
+      modules: [
+        {
+          _id: `mod-ai-1`,
+          title: "Week 1: Core Tooling & Architecture",
+          description: "Deep dive into local dev, GitHub conventions, and architecture diagrams.",
+          lessons: [
+            {
+              _id: "les-ai-1",
+              title: "Setting up your dev container & IDE plugins",
+              type: "Article",
+              estimatedDurationMinutes: 15,
+              contentBlocks: [{ type: "paragraph", content: "Review our standard linter and docker compose workflow." }],
+            },
+            {
+              _id: "les-ai-2",
+              title: "Architecture deep-dive: Event-driven workflows",
+              type: "Interactive",
+              estimatedDurationMinutes: 25,
+              contentBlocks: [{ type: "paragraph", content: "Explore how Fastify event hooks and Kafka streams operate." }],
+            },
+          ],
+        },
+        {
+          _id: `mod-ai-2`,
+          title: "Week 2: First Production Deployment & Feature Flag",
+          description: "Ship a small change safely using trunk-based CI/CD.",
+          lessons: [
+            {
+              _id: "les-ai-3",
+              title: "Deploying safely behind LaunchDarkly flags",
+              type: "Article",
+              estimatedDurationMinutes: 20,
+              contentBlocks: [{ type: "paragraph", content: "Checklist for staging QA and rolling out to 10% of users." }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const shielded = packDemoPayload(courseData);
+
+    return reply.status(200).send({
+      success: true,
+      data: courseData,
+      ...shielded,
+    });
+  };
+
+  // ==================== KIOSK & FRONTLINE OPERATIONS ====================
+  getKioskStatus = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        status: "ready",
+        pairedDeviceCount: 3,
+        activeSessions: 1,
+        systemHealth: "100%",
+        offlineCacheVersion: "2.4.0",
+      },
+    });
+  };
+
+  getKioskDevices = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: [
+        {
+          _id: "ksk-dev-1",
+          deviceName: "SF HQ - Lobby Tablet #1",
+          location: "San Francisco HQ",
+          deviceType: "iPad Pro 12.9\"",
+          batteryLevel: 94,
+          status: "online",
+          lastHeartbeat: new Date().toISOString(),
+          assignedJourneyCount: 4,
+        },
+        {
+          _id: "ksk-dev-2",
+          deviceName: "Warehouse Ops - Dock Terminal #3",
+          location: "Oakland Distribution Center",
+          deviceType: "Samsung Galaxy Tab Active",
+          batteryLevel: 88,
+          status: "online",
+          lastHeartbeat: new Date().toISOString(),
+          assignedJourneyCount: 2,
+        },
+      ],
+    });
+  };
+
+  getKioskCompliance = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        overallComplianceRate: 92,
+        totalFrontlineWorkers: 48,
+        completedSafetyTrainings: 44,
+        pendingWitnessVerifications: 2,
+        devicesOperational: "100%",
+      },
+    });
+  };
+
+  getKioskManifest = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        version: "2.4.0",
+        syncedAt: new Date().toISOString(),
+        journeys: [
+          {
+            id: "j-ksk-safety",
+            title: "OSHA Frontline Safety & Emergency Protocols",
+            stepsCount: 5,
+            cachedOffline: true,
+          },
+        ],
+      },
+    });
+  };
+
+  pairKioskDevice = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { pairingCode = "DEMO-8821" } = (request.body as any) || {};
+    return reply.status(200).send({
+      success: true,
+      message: "Device paired successfully in demo mode.",
+      data: {
+        deviceId: `ksk-${Date.now()}`,
+        pairingCode,
+        deviceToken: `demo-kiosk-jwt-${Date.now()}`,
+        status: "paired",
+      },
+    });
+  };
+
+  // ==================== HRIS INTEGRATIONS & SSO ====================
+  getHRISIntegrations = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: [
+        {
+          id: "int-workday",
+          provider: "Workday",
+          category: "HRIS",
+          status: "connected",
+          lastSyncedAt: new Date(Date.now() - 3600000).toISOString(),
+          syncedRecordsCount: 24,
+          autoSyncEnabled: true,
+        },
+        {
+          id: "int-bamboohr",
+          provider: "BambooHR",
+          category: "HRIS",
+          status: "disconnected",
+          syncedRecordsCount: 0,
+          autoSyncEnabled: false,
+        },
+        {
+          id: "int-slack",
+          provider: "Slack",
+          category: "Communication",
+          status: "connected",
+          lastSyncedAt: new Date(Date.now() - 1800000).toISOString(),
+          autoSyncEnabled: true,
+        },
+        {
+          id: "int-google",
+          provider: "Google Workspace",
+          category: "Identity & Directory",
+          status: "connected",
+          lastSyncedAt: new Date(Date.now() - 7200000).toISOString(),
+          autoSyncEnabled: true,
+        },
+      ],
+    });
+  };
+
+  syncHRISIntegration = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    return reply.status(200).send({
+      success: true,
+      message: `HRIS integration '${id}' sync completed successfully.`,
+      data: {
+        integrationId: id,
+        syncedEmployeesCount: 24,
+        syncedAt: new Date().toISOString(),
+      },
+    });
+  };
+
+  getSSOSettings = async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(200).send({
+      success: true,
+      data: {
+        enforceSSO: false,
+        allowedDomains: ["acme-demo.com", "talnova.demo"],
+        primaryProvider: "Okta",
+        samlConfig: {
+          issuerUrl: "https://acme-demo.okta.com",
+          ssoUrl: "https://acme-demo.okta.com/app/talnova/sso/saml",
+          x509CertFingerprint: "E4:8B:71:A2:99:12:F3:Demo:Fingerprint",
+        },
+        scimEnabled: true,
+      },
+    });
+  };
+
+  updateSSOSettings = async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    return reply.status(200).send({
+      success: true,
+      message: "SSO settings updated successfully in demo mode.",
+      data: { ...body, updatedAt: new Date().toISOString() },
+    });
+  };
 }
 
 export const demoAppController = new DemoAppController();
+
 export default demoAppController;

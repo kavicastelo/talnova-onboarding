@@ -1,0 +1,306 @@
+{
+  "version": "1.0.0",
+  "auditDate": "2026-10-17",
+  "features": [
+    {
+      "id": "FP-001",
+      "name": "Admin Executive Dashboard",
+      "prodPath": "/admin",
+      "demoPath": "/demo/admin",
+      "status": "partial",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Back navigation references root /"
+    },
+    {
+      "id": "FP-002",
+      "name": "Manager Operations Dashboard",
+      "prodPath": "/manager",
+      "demoPath": "/demo/manager",
+      "status": "partial",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Team details and nudge flows need demo routing validation"
+    },
+    {
+      "id": "FP-003",
+      "name": "Employee Onboarding Portal",
+      "prodPath": "/employee",
+      "demoPath": "/demo/employee",
+      "status": "partial",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Certificate navigation link targets unmounted demo route"
+    },
+    {
+      "id": "FP-004",
+      "name": "Journey Builder & Visual Canvas",
+      "prodPath": "/journeys/:id",
+      "demoPath": "/demo/journeys/:id",
+      "status": "broken",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Save and back buttons hardcoded to /journeys"
+    },
+    {
+      "id": "FP-005",
+      "name": "Journeys List & Templates",
+      "prodPath": "/journeys",
+      "demoPath": "/demo/journeys",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Fully functional against synthetic seed data"
+    },
+    {
+      "id": "FP-006",
+      "name": "Course & Lesson Interactive Viewer",
+      "prodPath": "/course/:id",
+      "demoPath": "/demo/course/:id",
+      "status": "partial",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Exit button navigates to /employee instead of /demo/employee"
+    },
+    {
+      "id": "FP-007",
+      "name": "Interactive Checklist Tasks",
+      "prodPath": "/tasks",
+      "demoPath": "/demo/tasks",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Hardware checklist actions supported"
+    },
+    {
+      "id": "FP-008",
+      "name": "IT Operations Hardware Queue",
+      "prodPath": "/tasks/it-ops",
+      "demoPath": "/demo/tasks/it-ops",
+      "status": "missing",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "Needs route declaration under /demo/tasks/it-ops"
+    },
+    {
+      "id": "FP-009",
+      "name": "Employee Directory & Profile 360",
+      "prodPath": "/directory",
+      "demoPath": "/demo/directory",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Individual profiles mounted at /demo/directory/:id"
+    },
+    {
+      "id": "FP-010",
+      "name": "Knowledge Base & Search",
+      "prodPath": "/kb",
+      "demoPath": "/demo/kb",
+      "status": "partial",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Slideshow link directs to /kb/slideshow outside demo"
+    },
+    {
+      "id": "FP-011",
+      "name": "Knowledge Base Slideshow Presentation",
+      "prodPath": "/kb/slideshow",
+      "demoPath": "/demo/kb/slideshow",
+      "status": "missing",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "Needs route under /demo/kb/slideshow"
+    },
+    {
+      "id": "FP-012",
+      "name": "Digital Documents & Compliance",
+      "prodPath": "/documents",
+      "demoPath": "/demo/documents",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Template creation and assignment enabled"
+    },
+    {
+      "id": "FP-013",
+      "name": "Interactive Document Signer",
+      "prodPath": "/documents/:id/sign",
+      "demoPath": "/demo/documents/:id/sign",
+      "status": "broken",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Exit buttons navigate to root /documents and /employee"
+    },
+    {
+      "id": "FP-014",
+      "name": "Certificates & Verification",
+      "prodPath": "/certificates",
+      "demoPath": "/demo/certificates",
+      "status": "missing",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "Needs route under /demo/certificates"
+    },
+    {
+      "id": "FP-015",
+      "name": "Public Certificate Verification",
+      "prodPath": "/public/certificate/:id",
+      "demoPath": null,
+      "status": "intentionally_excluded",
+      "category": "SIMULATED_DEMO",
+      "priority": "P2",
+      "notes": "Public link verified without auth"
+    },
+    {
+      "id": "FP-016",
+      "name": "Milestones & Recognition Badges",
+      "prodPath": "/milestones",
+      "demoPath": "/demo/milestones",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Rating and self-evaluation flows supported"
+    },
+    {
+      "id": "FP-017",
+      "name": "Gamification & Leaderboard",
+      "prodPath": "/leaderboard",
+      "demoPath": "/demo/leaderboard",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "XP and streak metrics populated"
+    },
+    {
+      "id": "FP-018",
+      "name": "Buddy & Mentor Program",
+      "prodPath": "/buddy",
+      "demoPath": "/demo/buddy",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "Matching and check-in logs active"
+    },
+    {
+      "id": "FP-019",
+      "name": "Talent Analytics & Retention Insights",
+      "prodPath": "/analytics",
+      "demoPath": "/demo/analytics",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P0",
+      "notes": "Summary data served from /api/v1/demo/analytics/summary"
+    },
+    {
+      "id": "FP-020",
+      "name": "AI Onboarding Assistant",
+      "prodPath": "/ai-assistant",
+      "demoPath": "/demo/ai-assistant",
+      "status": "complete",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "Simulated chat completions supported"
+    },
+    {
+      "id": "FP-021",
+      "name": "AI Course Builder",
+      "prodPath": "/ai-course-builder",
+      "demoPath": "/demo/ai-course-builder",
+      "status": "missing",
+      "category": "SIMULATED_DEMO",
+      "priority": "P2",
+      "notes": "Route omitted from demo tree"
+    },
+    {
+      "id": "FP-022",
+      "name": "HR Operations & Outbox Exceptions",
+      "prodPath": "/hr-ops",
+      "demoPath": "/demo/hr-ops",
+      "status": "complete",
+      "category": "SIMULATED_DEMO",
+      "priority": "P1",
+      "notes": "Safely gated via DemoRestrictedPage"
+    },
+    {
+      "id": "FP-023",
+      "name": "Interactive Office Floor Map",
+      "prodPath": "/office-map",
+      "demoPath": "/demo/office-map",
+      "status": "missing",
+      "category": "REQUIRED_PARITY",
+      "priority": "P2",
+      "notes": "Needs route under /demo/office-map"
+    },
+    {
+      "id": "FP-024",
+      "name": "Automated Workflows & Triggers",
+      "prodPath": "/workflows",
+      "demoPath": "/demo/workflows",
+      "status": "missing",
+      "category": "REQUIRED_PARITY",
+      "priority": "P2",
+      "notes": "Needs route under /demo/workflows"
+    },
+    {
+      "id": "FP-025",
+      "name": "Organization & Workspace Settings",
+      "prodPath": "/settings",
+      "demoPath": "/demo/settings",
+      "status": "broken",
+      "category": "REQUIRED_PARITY",
+      "priority": "P1",
+      "notes": "Sub-tabs navigate to /settings/sso and /settings/integrations"
+    },
+    {
+      "id": "FP-026",
+      "name": "HRIS Directory Integrations",
+      "prodPath": "/settings/integrations",
+      "demoPath": "/demo/settings/integrations",
+      "status": "complete",
+      "category": "SIMULATED_DEMO",
+      "priority": "P1",
+      "notes": "Gated via DemoRestrictedPage"
+    },
+    {
+      "id": "FP-027",
+      "name": "Enterprise SSO Enforcement",
+      "prodPath": "/settings/sso",
+      "demoPath": "/demo/settings/sso",
+      "status": "complete",
+      "category": "SIMULATED_DEMO",
+      "priority": "P1",
+      "notes": "Gated via DemoRestrictedPage"
+    },
+    {
+      "id": "FP-028",
+      "name": "Sandbox Email Sink & Inbox",
+      "prodPath": null,
+      "demoPath": "/demo/inbox",
+      "status": "complete",
+      "category": "SIMULATED_DEMO",
+      "priority": "P0",
+      "notes": "Dedicated demo sandbox feature"
+    },
+    {
+      "id": "FP-029",
+      "name": "Super Admin Platform Console",
+      "prodPath": "/super-admin/*",
+      "demoPath": null,
+      "status": "intentionally_excluded",
+      "category": "PRODUCTION_ONLY",
+      "priority": "N/A",
+      "notes": "Strictly barred from demo"
+    },
+    {
+      "id": "FP-030",
+      "name": "Physical Kiosk Player & Fleet",
+      "prodPath": "/kiosks",
+      "demoPath": null,
+      "status": "unverified",
+      "category": "DECISION_PENDING",
+      "priority": "P3",
+      "notes": "Requires product alignment for simulator mode"
+    }
+  ]
+}

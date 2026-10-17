@@ -252,6 +252,66 @@ export class DemoSuperAdminController {
     return reply.status(200).send(result);
   };
 
+  freezeSession = async (request: FastifyRequest, reply: FastifyReply) => {
+    const { sessionId } = request.params as any;
+    const adminUser = (request.user as any)?.email || "Super Admin";
+    const result = await demoSessionService.freezeSession(sessionId, adminUser);
+    return reply.status(200).send(result);
+  };
+
+  createInvite = async (request: FastifyRequest, reply: FastifyReply) => {
+    const {
+      prospectEmail,
+      prospectCompany,
+      assignedPersona = "admin",
+      durationHours = 24,
+    } = (request.body as any) || {};
+
+    if (!prospectEmail || !prospectCompany) {
+      throw new AppError(400, "VALIDATION_ERROR", "prospectEmail and prospectCompany are required.");
+    }
+
+    const expiresAt = new Date(Date.now() + Number(durationHours) * 3600 * 1000);
+    const invitePayload = {
+      prospectEmail,
+      prospectCompany,
+      assignedPersona,
+      isDemoInvite: true,
+      expiresAt: expiresAt.toISOString(),
+    };
+
+    const inviteToken = request.server.jwt.sign(invitePayload, {
+      expiresIn: `${durationHours}h`,
+    });
+
+    const baseUrl = process.env.DEMO_FRONTEND_URL || "https://demo.talnova.com";
+    const inviteUrl = `${baseUrl}/invite?token=${inviteToken}`;
+
+    const DemoActivityLog = getDemoActivityLogModel();
+    await DemoActivityLog.create({
+      action: "INVITE_CREATED",
+      category: "SECURITY",
+      description: `Time-bombed invite created for ${prospectEmail} (${prospectCompany}) with ${durationHours}h TTL`,
+      severity: "info",
+      metadata: { prospectEmail, prospectCompany, assignedPersona, durationHours, expiresAt },
+    });
+
+    return reply.status(201).send({
+      success: true,
+      message: `Demo invite link generated for ${prospectEmail}.`,
+      data: {
+        token: inviteToken,
+        inviteToken,
+        inviteUrl,
+        expiresAt: expiresAt.toISOString(),
+        durationHours: Number(durationHours),
+        prospectEmail,
+        prospectCompany,
+        assignedPersona,
+      },
+    });
+  };
+
   getActivityLogs = async (request: FastifyRequest, reply: FastifyReply) => {
     const { limit = "50" } = request.query as any;
     const DemoActivityLog = getDemoActivityLogModel();

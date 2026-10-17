@@ -10,6 +10,7 @@ export interface IDemoSession extends Document {
   deviceInfo?: string;
   userAgent?: string;
   isValid: boolean;
+  killCommand?: "TERMINATE" | "FREEZE" | "CONTINUE";
   riskStatus: "NORMAL" | "SUSPICIOUS" | "HIGH_RISK" | "BLOCKED";
   suspiciousReason?: string;
   lastActivityAt: Date;
@@ -28,6 +29,10 @@ const DemoSessionSchema = new Schema<IDemoSession>(
     deviceInfo: { type: String },
     userAgent: { type: String },
     isValid: { type: Boolean, default: true },
+    killCommand: {
+      type: String,
+      enum: ["TERMINATE", "FREEZE", "CONTINUE"],
+    },
     riskStatus: {
       type: String,
       enum: ["NORMAL", "SUSPICIOUS", "HIGH_RISK", "BLOCKED"],

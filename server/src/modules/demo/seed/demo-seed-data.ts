@@ -1,46 +1,42 @@
+export const ALL_DEMO_FEATURES = [
+  "roadmap_timeline",
+  "checklist_tasks",
+  "journey_templates",
+  "journey_builder",
+  "digital_signatures",
+  "employee_directory",
+  "buddy_connection",
+  "milestone_ratings",
+  "ai_assistant",
+  "ai_course_builder",
+  "knowledge_base",
+  "office_map",
+  "gamified_milestones",
+  "team_supervision",
+  "analytics_dashboard",
+  "it_ops_queue",
+  "workflow_rules",
+  "hr_operations",
+  "calendar_integration",
+  "certificates",
+  "kiosk_management",
+  "super_admin",
+  "sso_settings",
+  "hris_integrations",
+];
+
 export const DEMO_PACKAGES = {
   STANDARD: {
     name: "Standard Onboarding Demo",
-    features: [
-      "roadmap_timeline",
-      "checklist_tasks",
-      "journey_templates",
-      "digital_signatures",
-      "employee_directory",
-      "buddy_connection",
-      "knowledge_base",
-    ],
+    features: ALL_DEMO_FEATURES,
   },
   EXECUTIVE: {
     name: "Executive Overview Demo",
-    features: [
-      "roadmap_timeline",
-      "team_supervision",
-      "analytics_dashboard",
-      "milestone_ratings",
-      "compliance_audit",
-      "knowledge_base",
-    ],
+    features: ALL_DEMO_FEATURES,
   },
   FULL_SUITE: {
     name: "Full Enterprise Suite Demo",
-    features: [
-      "roadmap_timeline",
-      "checklist_tasks",
-      "journey_templates",
-      "journey_builder",
-      "digital_signatures",
-      "employee_directory",
-      "buddy_connection",
-      "milestone_ratings",
-      "ai_assistant",
-      "ai_course_builder",
-      "knowledge_base",
-      "office_map",
-      "gamified_milestones",
-      "team_supervision",
-      "analytics_dashboard",
-    ],
+    features: ALL_DEMO_FEATURES,
   },
 };
 
@@ -51,7 +47,7 @@ export const DETERMINISTIC_DEMO_COMPANIES = [
     domain: "acme-demo.com",
     contactEmail: "admin@acme-demo.com",
     entitlementPackage: "FULL_SUITE" as const,
-    allowedFeatures: DEMO_PACKAGES.FULL_SUITE.features,
+    allowedFeatures: ALL_DEMO_FEATURES,
     sessionLimit: 2,
   },
   {
@@ -60,10 +56,11 @@ export const DETERMINISTIC_DEMO_COMPANIES = [
     domain: "globex-demo.com",
     contactEmail: "admin@globex-demo.com",
     entitlementPackage: "STANDARD" as const,
-    allowedFeatures: DEMO_PACKAGES.STANDARD.features,
+    allowedFeatures: ALL_DEMO_FEATURES,
     sessionLimit: 1,
   },
 ];
+
 
 export const DETERMINISTIC_DEMO_USERS = [
   {

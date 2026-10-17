@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useAppNavigate } from '../utils/navigation';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -79,7 +80,7 @@ import { uploadService } from '../services/upload.service';
 export function JourneyBuilder() {
   const { t } = useTranslation(['journeys', 'common']);
   const { id } = useParams();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const isNew = id === 'new';
 
   const { data: journey, isLoading: journeyLoading, isError, error, refetch } = useJourney(isNew ? '' : (id || ''));

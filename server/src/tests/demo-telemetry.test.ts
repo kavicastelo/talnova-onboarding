@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import mongoose from "mongoose";
 import { buildApp } from "../app.js";
 import { connectDatabase, disconnectDatabase } from "../database/connection.js";
-import { closeDemoConnection } from "../modules/demo/database/demo-connection.js";
+import { closeDemoConnection, waitForDemoConnection } from "../modules/demo/database/demo-connection.js";
 import {
   getDemoTenantModel,
   getDemoUserModel,
@@ -20,6 +20,7 @@ describe("Demo Environment — Feature Usage Telemetry & Analytics", () => {
   beforeAll(async () => {
     app = await buildApp();
     await connectDatabase(app.log);
+    await waitForDemoConnection(app.log);
 
     const DemoTenant = getDemoTenantModel();
     const DemoUser = getDemoUserModel();

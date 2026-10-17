@@ -232,3 +232,26 @@
     margin: 0;
   }
 }
+
+/* =========================================================================
+   Demo Anti-Copy, Anti-Select & Content Shielding (Phase 3)
+   ========================================================================= */
+.demo-shielded,
+.demo-shielded * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.demo-shielded input,
+.demo-shielded textarea,
+.demo-shielded [contenteditable="true"] {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.demo-screen-capture-blur {
+  filter: blur(14px) !important;
+  transition: filter 0.15s ease-in-out !important;
+  pointer-events: none !important;
+}
