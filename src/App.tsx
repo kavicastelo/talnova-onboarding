@@ -67,10 +67,18 @@ import { DemoProtectedRoute } from '../demo/src/components/DemoProtectedRoute';
 import { DemoLogin } from '../demo/src/pages/DemoLogin';
 import { DemoInbox } from '../demo/src/pages/DemoInbox';
 import { DemoDashboardRedirect } from '../demo/src/components/DemoDashboardRedirect';
-import { DemoRestrictedPage } from '../demo/src/components/DemoRestrictedPage';
+import { DemoNotFound } from '../demo/src/pages/DemoNotFound';
+import { DemoAccessDenied } from '../demo/src/pages/DemoAccessDenied';
+import { DemoInvitePage } from '../demo/src/pages/DemoInvitePage';
+import { DemoErrorBoundary } from '../demo/src/components/DemoErrorBoundary';
 import { SuperAdminDemoManagement } from './pages/super-admin/demo/SuperAdminDemoManagement';
+import { disableReactDevTools } from '../demo/src/security/antiTamper';
 // Initialize i18n — must be imported before any component renders
 import './i18n';
+
+if (typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')) {
+  disableReactDevTools();
+}
 
 function DashboardRedirect() {
   const { role, roles, can } = useRole();
@@ -99,7 +107,7 @@ const KioskPairRoute: React.FC = () => {
   const navigate = useNavigate();
   return (
     <KioskPairingScreen
-      onPairSuccess={(_device, _token) => {
+      onPairSuccess={() => {
         navigate('/kiosk/terminal');
       }}
     />
@@ -121,8 +129,18 @@ export function App() {
             <Route path="/kb/slideshow" element={<KnowledgeBaseSlideshow />} />
             <Route path="/public/certificate/:id" element={<PublicCertificateViewer />} />
             <Route path="/verify/cert/:id" element={<PublicCertificateViewer />} />
-            <Route path="/demo/login" element={<DemoAuthProvider><DemoLogin /></DemoAuthProvider>} />
-            <Route path="/demo" element={<DemoAuthProvider><DemoProtectedRoute><DemoAppShell /></DemoProtectedRoute></DemoAuthProvider>}>
+            <Route path="/demo/login" element={<DemoErrorBoundary><DemoAuthProvider><DemoLogin /></DemoAuthProvider></DemoErrorBoundary>} />
+            <Route path="/demo/invite" element={<DemoErrorBoundary><DemoAuthProvider><DemoInvitePage /></DemoAuthProvider></DemoErrorBoundary>} />
+            <Route path="/demo/kb/slideshow" element={<DemoErrorBoundary><DemoAuthProvider><DemoProtectedRoute><KnowledgeBaseSlideshow /></DemoProtectedRoute></DemoAuthProvider></DemoErrorBoundary>} />
+            <Route path="/demo" element={
+              <DemoErrorBoundary>
+                <DemoAuthProvider>
+                  <DemoProtectedRoute>
+                    <DemoAppShell />
+                  </DemoProtectedRoute>
+                </DemoAuthProvider>
+              </DemoErrorBoundary>
+            }>
               <Route index element={<DemoDashboardRedirect />} />
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="employee" element={<EmployeeDashboard />} />
@@ -131,26 +149,61 @@ export function App() {
               <Route path="journeys/:id" element={<JourneyBuilder />} />
               <Route path="course/:id" element={<CourseViewer />} />
               <Route path="tasks" element={<Tasks />} />
+              <Route path="tasks/it-ops" element={<Tasks />} />
+              <Route path="workflows" element={<Workflows />} />
               <Route path="directory" element={<EmployeeDirectory />} />
               <Route path="directory/:id" element={<EmployeeProfile />} />
               <Route path="profile" element={<EmployeeProfile />} />
+              <Route path="office-map" element={<OfficeMap />} />
               <Route path="kb" element={<KnowledgeBase />} />
               <Route path="kb/:id" element={<KnowledgeBase />} />
+              <Route path="kb/slideshow" element={<KnowledgeBaseSlideshow />} />
+              <Route path="certificates" element={<Certificates />} />
+              <Route path="certificates/:id" element={<PublicCertificateViewer />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="documents" element={<Documents />} />
               <Route path="documents/:id/sign" element={<DocumentSigner />} />
               <Route path="milestones" element={<Milestones />} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="buddy" element={<BuddyProgram />} />
-              <Route path="calendar" element={<DemoRestrictedPage featureName="Calendar Integration" />} />
-              <Route path="hr-ops" element={<DemoRestrictedPage featureName="HR Operations & Sync" />} />
-              <Route path="hr-ops/*" element={<DemoRestrictedPage featureName="HR Operations & Sync" />} />
+              <Route path="ai-course-builder" element={<AICourseBuilder />} />
+              <Route path="calendar" element={<CalendarIntegration />} />
+              <Route path="hr-ops" element={<HROperations />} />
+              <Route path="hr-ops/exceptions" element={<HROpsExceptions />} />
               <Route path="ai-assistant" element={<AIAssistant />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="settings/integrations" element={<DemoRestrictedPage featureName="HRIS Integrations" />} />
-              <Route path="settings/sso" element={<DemoRestrictedPage featureName="SSO Enforcement" />} />
+              <Route path="settings/integrations" element={<HRISIntegrations />} />
+              <Route path="settings/sso" element={<SSOSettings />} />
+              <Route path="kiosk" element={<KioskDashboard />} />
+              <Route path="kiosk/compliance" element={<KioskComplianceDashboard />} />
+              <Route path="kiosk/terminal" element={<KioskTerminalPage />} />
+              <Route path="kiosk/pair" element={<KioskPairRoute />} />
+              <Route path="kiosk/play/:journeyId" element={<KioskPlayerPage />} />
+              <Route path="super-admin" element={<SuperAdminDashboard />} />
+              <Route path="super-admin/demo" element={<SuperAdminDemoManagement />} />
+              <Route path="super-admin/demo/*" element={<SuperAdminDemoManagement />} />
+              <Route path="super-admin/organizations" element={<SuperAdminOrganizations />} />
+              <Route path="super-admin/organizations/:id" element={<SuperAdminOrganization360 />} />
+              <Route path="super-admin/users" element={<SuperAdminUsers />} />
+              <Route path="super-admin/users/:id" element={<SuperAdminUser360 />} />
+              <Route path="super-admin/sessions" element={<SuperAdminSessions />} />
+              <Route path="super-admin/onboarding" element={<SuperAdminOnboarding />} />
+              <Route path="super-admin/features" element={<SuperAdminFeatures />} />
+              <Route path="super-admin/feature-flags" element={<SuperAdminFeatureFlags />} />
+              <Route path="super-admin/packages" element={<SuperAdminPackages />} />
+              <Route path="super-admin/tasks-ops" element={<SuperAdminTasksOps />} />
+              <Route path="super-admin/activity" element={<SuperAdminActivity />} />
+              <Route path="super-admin/observability" element={<SuperAdminObservability />} />
+              <Route path="super-admin/audit" element={<SuperAdminAudit />} />
+              <Route path="super-admin/reports" element={<SuperAdminReports />} />
+              <Route path="super-admin/finance" element={<SuperAdminFinance />} />
+              <Route path="super-admin/alerts" element={<SuperAdminAlerts />} />
+              <Route path="super-admin/settings" element={<SuperAdminPlatformSettings />} />
               <Route path="inbox" element={<DemoInbox />} />
+              <Route path="403" element={<DemoAccessDenied />} />
+              <Route path="*" element={<DemoNotFound />} />
             </Route>
+
 
             <Route path="/" element={<SidebarProvider><AppShell /></SidebarProvider>}>
               <Route index element={<DashboardRedirect />} />

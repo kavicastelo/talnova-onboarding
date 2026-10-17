@@ -860,6 +860,14 @@ export const superAdminService = {
     const response = await apiClient.post<ApiResponse<any>>(`/super-admin/demo/sessions/${sessionId}/terminate`);
     return response.data;
   },
+  freezeDemoSession: async (sessionId: string): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/super-admin/demo/sessions/${sessionId}/freeze`);
+    return response.data;
+  },
+  createDemoInvite: async (payload: { prospectEmail: string; prospectCompany: string; assignedPersona?: string; durationHours?: number }): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>('/super-admin/demo/invites', payload);
+    return response.data;
+  },
   resolveDemoRiskAlert: async (alertId: string, notes?: string): Promise<any> => {
     const response = await apiClient.patch<ApiResponse<any>>(`/super-admin/demo/risk-alerts/${alertId}/resolve`, { notes });
     return response.data;

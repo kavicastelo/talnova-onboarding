@@ -4,7 +4,7 @@ import { useRole } from '../context/RoleContext';
 import { Capability } from '../utils/rbac';
 import { ShieldAlert } from 'lucide-react';
 import { Button } from './Button';
-import { useNavigate } from 'react-router-dom';
+import { useAppNavigate } from '../utils/navigation';
 import { FeatureDisabledBanner } from './FeatureDisabledBanner';
 
 export const FEATURE_TITLES: Record<string, string> = {
@@ -25,7 +25,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ capability, featureFlag, children }: ProtectedRouteProps) {
   const { can, hasFeature } = useRole();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { t } = useTranslation('common');
 
   // 1. RBAC Capability Check

@@ -1,4 +1,5 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { useAppNavigate } from '../utils/navigation';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '../components/Button';
 import {
@@ -89,7 +90,7 @@ interface ProfileActivityItem {
 export function EmployeeProfile() {
   const { t } = useTranslation('directory');
   const { id } = useParams();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const targetId = id || 'me';
 
   // Primary Employee Profile Data

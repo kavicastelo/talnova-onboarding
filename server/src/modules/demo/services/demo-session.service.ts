@@ -55,24 +55,34 @@ export class DemoSessionService {
     const normSessionIp = normalizeIp(session.ipAddress);
     const normCurrentIp = normalizeIp(currentIp);
 
-    // Rapid IP change detection during active session
+    // Rapid IP change detection during active session (concurrent anomaly enforcement)
     if (normCurrentIp && normSessionIp && normSessionIp !== normCurrentIp) {
-      session.riskStatus = "HIGH_RISK";
-      session.suspiciousReason = `Sudden IP shift detected: ${normSessionIp} -> ${normCurrentIp}`;
+      session.riskStatus = "CRITICAL";
+      session.isValid = false;
+      session.killCommand = "FREEZE";
+      session.suspiciousReason = `Concurrent anomaly detected: Sudden IP shift ${normSessionIp} -> ${normCurrentIp}. Session frozen for security.`;
+
       await DemoSession.updateOne(
         { _id: session._id },
-        { riskStatus: "HIGH_RISK", suspiciousReason: session.suspiciousReason }
+        {
+          riskStatus: "CRITICAL",
+          isValid: false,
+          killCommand: "FREEZE",
+          suspiciousReason: session.suspiciousReason,
+        }
       );
 
       await DemoRiskAlert.create({
         demoTenantId: session.demoTenantId,
         demoUserId: session.demoUserId,
-        alertType: "RAPID_IP_CHANGE",
-        severity: "HIGH",
+        sessionId: session.sessionId,
+        alertType: "CONCURRENT_SESSION_ANOMALY",
+        severity: "CRITICAL",
         status: "OPEN",
         signals: [
           `Active session IP changed from ${normSessionIp} to ${normCurrentIp}`,
           `Session ID: ${session.sessionId}`,
+          `Enforcement: Session frozen & killCommand dispatched`,
         ],
         details: {
           previousIp: normSessionIp,
@@ -84,11 +94,17 @@ export class DemoSessionService {
       await DemoActivityLog.create({
         demoTenantId: session.demoTenantId,
         demoUserId: session.demoUserId,
-        action: "SUSPICIOUS_IP_SHIFT",
+        action: "CONCURRENT_IP_ANOMALY",
         category: "SECURITY",
-        description: `Rapid IP change detected during session ${session.sessionId}: ${normSessionIp} -> ${normCurrentIp}`,
-        severity: "warning",
+        description: `Concurrent anomaly detected during session ${session.sessionId}: ${normSessionIp} -> ${normCurrentIp}. Session frozen.`,
+        severity: "critical",
       });
+
+      throw new AppError(
+        401,
+        "SESSION_REVOKED",
+        session.suspiciousReason
+      );
     }
 
     // Update last activity timestamp
@@ -98,15 +114,23 @@ export class DemoSessionService {
   }
 
   /**
-   * Terminates an active demo session immediately.
+   * Terminates or freezes an active demo session immediately.
    */
-  public async terminateSession(sessionId: string, terminatedBy: string = "Super Admin") {
+  public async terminateSession(
+    sessionId: string,
+    terminatedBy: string = "Super Admin",
+    command: "TERMINATE" | "FREEZE" = "TERMINATE"
+  ) {
     const DemoSession = getDemoSessionModel();
     const DemoActivityLog = getDemoActivityLogModel();
 
     const session = await DemoSession.findOneAndUpdate(
       { sessionId },
-      { isValid: false, suspiciousReason: `Terminated by ${terminatedBy}` },
+      {
+        isValid: false,
+        killCommand: command,
+        suspiciousReason: command === "FREEZE" ? `Frozen by ${terminatedBy}` : `Terminated by ${terminatedBy}`,
+      },
       { new: true }
     );
 
@@ -117,14 +141,30 @@ export class DemoSessionService {
     await DemoActivityLog.create({
       demoTenantId: session.demoTenantId,
       demoUserId: session.demoUserId,
-      action: "SESSION_TERMINATED",
+      action: command === "FREEZE" ? "SESSION_FROZEN" : "SESSION_TERMINATED",
       category: "SECURITY",
-      description: `Demo session ${sessionId} forcibly terminated by ${terminatedBy}`,
+      description: `Demo session ${sessionId} forcibly ${command.toLowerCase()}d by ${terminatedBy}`,
       severity: "warning",
-      metadata: { sessionId, terminatedBy },
+      metadata: { sessionId, terminatedBy, command },
     });
 
-    return { success: true, message: `Session ${sessionId} has been terminated.` };
+    return {
+      success: true,
+      message: `Session ${sessionId} has been ${command.toLowerCase()}d.`,
+      command,
+      data: {
+        sessionId,
+        killCommand: command,
+        isValid: false,
+      },
+    };
+  }
+
+  /**
+   * Remote freeze of a demo session.
+   */
+  public async freezeSession(sessionId: string, frozenBy: string = "Super Admin") {
+    return this.terminateSession(sessionId, frozenBy, "FREEZE");
   }
 
   /**

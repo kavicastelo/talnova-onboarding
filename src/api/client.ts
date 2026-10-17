@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { unpackDemoPayload } from '../utils/payloadShield';
 
 // Config
 const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
@@ -82,10 +83,20 @@ export const createCancelToken = () => {
   };
 };
 
+// Helper to detect if running in demo environment (path-based, subdomain-based, or build flag)
+export function isDemoEnvironment(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.pathname.startsWith('/demo') ||
+    window.location.hostname.startsWith('demo.') ||
+    (import.meta as any).env?.VITE_APP_MODE === 'demo'
+  );
+}
+
 // Request Interceptor: Token injection and preparation
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const isDemoMode = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+    const isDemoMode = isDemoEnvironment();
 
     if (isDemoMode) {
       const demoToken = localStorage.getItem('talnova_demo_token');
@@ -142,6 +153,14 @@ apiClient.interceptors.request.use(
 // Response Interceptor: 401 handling, Refresh Token mechanisms
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    if (response?.data && response.data.__shielded === true && typeof response.data.payload === 'string') {
+      try {
+        const unshielded = unpackDemoPayload(response.data.payload);
+        response.data.data = unshielded;
+      } catch {
+        // Fallback gracefully
+      }
+    }
     return response;
   },
   async (error: AxiosError) => {
@@ -175,6 +194,30 @@ apiClient.interceptors.response.use(
 
     // 401 Unauthorized handling (session expired/invalid)
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const isDemo = isDemoEnvironment() ||
+                     Boolean(originalRequest.url && (originalRequest.url.startsWith('/demo') || originalRequest.url.includes('/demo/')));
+
+      // Demo 401: Handle strictly within the demo subsystem, never touching production session or endpoints
+      if (isDemo) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('talnova_demo_token');
+          localStorage.removeItem('talnova_demo_user');
+          localStorage.removeItem('talnova_demo_tenant');
+          localStorage.removeItem('talnova_demo_watermark');
+          localStorage.removeItem('talnova_demo_role');
+          localStorage.removeItem('talnova_demo_roles');
+        }
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname;
+          const isDemoLoginPage = currentPath.startsWith('/demo/login') || currentPath === '/login';
+          if (!isDemoLoginPage) {
+            const demoLoginPath = currentPath.startsWith('/demo') ? '/demo/login' : '/login';
+            window.location.href = `${demoLoginPath}?reason=session_expired`;
+          }
+        }
+        return Promise.reject(error);
+      }
+
       const isAuthRoute = originalRequest.url?.includes('/auth/');
       const isKbRoute = window.location.pathname.startsWith('/kb') || window.location.pathname.startsWith('/knowledge-base');
       const isPublicCertRoute = window.location.pathname.startsWith('/public/certificate/');

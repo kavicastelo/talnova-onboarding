@@ -18,6 +18,7 @@ import {
   Lock,
   BarChart2,
   Sparkles,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { superAdminService } from '../../../services/superAdmin.service';
@@ -41,9 +42,17 @@ export function SuperAdminDemoManagement() {
   const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [resetConfirmInput, setResetConfirmInput] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const [resetResult, setResetResult] = useState<any | null>(null);
+  const [newInvite, setNewInvite] = useState({
+    prospectEmail: '',
+    prospectCompany: '',
+    assignedPersona: 'admin',
+    durationHours: 24,
+  });
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
 
   // Form states
   const [newCompany, setNewCompany] = useState({
@@ -203,6 +212,29 @@ export function SuperAdminDemoManagement() {
       fetchOverview();
     } catch (err) {
       toast.error('Failed to terminate session');
+    }
+  };
+
+  const handleFreezeSession = async (sessionId: string) => {
+    try {
+      await superAdminService.freezeDemoSession(sessionId);
+      toast.success(`Session ${sessionId.substring(0, 8)} remotely frozen`);
+      fetchSessions();
+      fetchOverview();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to freeze session');
+    }
+  };
+
+  const handleCreateInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await superAdminService.createDemoInvite(newInvite);
+      toast.success('Time-bombed invite link generated');
+      setGeneratedInviteUrl(res.data?.inviteUrl);
+      refreshAll();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate invite');
     }
   };
 
@@ -587,12 +619,18 @@ export function SuperAdminDemoManagement() {
             <div>
               <h3 className="text-lg font-bold text-slate-900">Live Active Demo Sessions</h3>
               <p className="text-xs text-slate-500">
-                Monitors concurrent sessions and device metadata in real time.
+                Monitors concurrent sessions and device metadata in real time with remote killswitch control.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchSessions}>
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setShowInviteModal(true)}>
+                <KeyRound className="w-4 h-4 mr-1.5" />
+                Generate Time-Bombed Invite
+              </Button>
+              <Button variant="outline" size="sm" onClick={fetchSessions}>
+                Refresh
+              </Button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -646,12 +684,20 @@ export function SuperAdminDemoManagement() {
                       </td>
                       <td className="py-3 px-4">{new Date(s.lastActivityAt).toLocaleTimeString()}</td>
                       <td className="py-3 px-4">{new Date(s.expiresAt).toLocaleTimeString()}</td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handleFreezeSession(s.sessionId)}
+                          className="text-xs text-amber-600 hover:text-amber-800 font-semibold mr-3"
+                          title="Freezes client viewport and locks session"
+                        >
+                          Remote Freeze
+                        </button>
                         <button
                           onClick={() => handleTerminateSession(s.sessionId)}
                           className="text-xs text-rose-600 hover:text-rose-800 font-semibold"
+                          title="Permanently revokes session tokens"
                         >
-                          Terminate
+                          Revoke Session
                         </button>
                       </td>
                     </tr>
@@ -1311,6 +1357,123 @@ export function SuperAdminDemoManagement() {
                   </Button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Modal: Generate Time-Bombed Invite */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-slate-200 text-slate-900 space-y-4">
+            <div className="flex items-center gap-3 text-indigo-600">
+              <div className="p-2.5 bg-indigo-50 rounded-lg">
+                <KeyRound className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Generate Time-Bombed Invite</h3>
+                <p className="text-xs text-slate-500">Expiring token with prospect attribution & remote killswitch</p>
+              </div>
+            </div>
+
+            {generatedInviteUrl ? (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-3">
+                <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Invite Link Successfully Created
+                </p>
+                <div className="p-2.5 bg-white border border-emerald-200 rounded text-[11px] font-mono break-all text-slate-700 select-all">
+                  {generatedInviteUrl}
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedInviteUrl);
+                      toast.success('Link copied to clipboard!');
+                    }}
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-1" />
+                    Copy Link
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setGeneratedInviteUrl(null);
+                      setShowInviteModal(false);
+                    }}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateInvite} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">Prospect Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newInvite.prospectEmail}
+                    onChange={(e) => setNewInvite({ ...newInvite, prospectEmail: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="sarah.connor@cyberdyne.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">Prospect Company *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newInvite.prospectCompany}
+                    onChange={(e) => setNewInvite({ ...newInvite, prospectCompany: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Cyberdyne Systems"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">Assigned Persona</label>
+                    <select
+                      value={newInvite.assignedPersona}
+                      onChange={(e) => setNewInvite({ ...newInvite, assignedPersona: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                    >
+                      <option value="admin">Administrator</option>
+                      <option value="manager">Manager</option>
+                      <option value="employee">Employee</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">Validity Duration</label>
+                    <select
+                      value={newInvite.durationHours}
+                      onChange={(e) => setNewInvite({ ...newInvite, durationHours: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                    >
+                      <option value={2}>2 Hours (Fast Demo)</option>
+                      <option value={24}>24 Hours (Standard)</option>
+                      <option value={48}>48 Hours (Weekend / Evaluation)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setGeneratedInviteUrl(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">Generate Secure Link</Button>
+                </div>
+              </form>
             )}
           </div>
         </div>

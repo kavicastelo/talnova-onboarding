@@ -29,10 +29,20 @@ interface RoleProviderProps {
   initialFeatures?: Record<string, boolean>;
 }
 
+function getRoleStorageKey(): string {
+  const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+  return isDemo ? 'talnova_demo_role' : 'user_role';
+}
+
+function getRolesStorageKey(): string {
+  const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+  return isDemo ? 'talnova_demo_roles' : 'user_roles';
+}
+
 export function RoleProvider({ children, initialRole, initialRoles, initialFeatures }: RoleProviderProps) {
   const [role, setRoleState] = useState<Role>(() => {
     if (initialRole) return initialRole;
-    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_role') : null;
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(getRoleStorageKey()) : null;
     if (saved === 'super_admin' || saved === 'admin' || saved === 'employee' || saved === 'manager' || saved === 'hr_admin' || saved === 'owner' || saved === 'it_admin') {
       return saved as Role;
     }
@@ -42,7 +52,7 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
   const [roles, setRolesState] = useState<Role[]>(() => {
     if (initialRoles && initialRoles.length > 0) return initialRoles;
     try {
-      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_roles') : null;
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(getRolesStorageKey()) : null;
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed as Role[];
@@ -90,6 +100,13 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
 
   const refreshFeatures = useCallback(async () => {
     try {
+      const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+      if (isDemo) {
+        // In demo mode, features are governed by demo tenant package, avoid calling production /auth/me
+        setIsFeaturesLoaded(true);
+        return;
+      }
+
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
       if (!token) return;
 
@@ -140,14 +157,14 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
       setRoleState((current) => {
         const nextRole = allowedRoles.includes(current) ? current : backendRole;
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('user_role', nextRole);
+          localStorage.setItem(getRoleStorageKey(), nextRole);
         }
         return nextRole;
       });
 
       setRolesState(backendRoles);
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('user_roles', JSON.stringify(backendRoles));
+        localStorage.setItem(getRolesStorageKey(), JSON.stringify(backendRoles));
       }
       setIsFeaturesLoaded(true);
     } catch {
@@ -163,7 +180,8 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
   const setRole = useCallback((newRole: Role) => {
     const isSuperAdmin = roles.includes('super_admin');
     const isAdminOrOwner = roles.includes('admin') || roles.includes('owner');
-    const allowed = isSuperAdmin
+    const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+    const allowed = isDemo || isSuperAdmin
       ? ['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee']
       : isAdminOrOwner
         ? ['admin', 'hr_admin', 'it_admin', 'manager', 'employee']
@@ -175,14 +193,14 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
     }
 
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('user_role', newRole);
+      localStorage.setItem(getRoleStorageKey(), newRole);
     }
     setRoleState(newRole);
   }, [roles]);
 
   const setRoles = useCallback((newRoles: Role[]) => {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('user_roles', JSON.stringify(newRoles));
+      localStorage.setItem(getRolesStorageKey(), JSON.stringify(newRoles));
     }
     setRolesState(newRoles);
   }, []);
@@ -190,7 +208,8 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
   const toggleRole = useCallback(() => {
     const isSuperAdmin = roles.includes('super_admin');
     const isAdminOrOwner = roles.includes('admin') || roles.includes('owner');
-    const available = isSuperAdmin
+    const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+    const available = isDemo || isSuperAdmin
       ? (['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[])
       : isAdminOrOwner
         ? (['admin', 'hr_admin', 'it_admin', 'manager', 'employee'] as Role[])
@@ -202,7 +221,7 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
       const idx = available.indexOf(curr);
       const next = available[(idx + 1) % available.length] || available[0];
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('user_role', next);
+        localStorage.setItem(getRoleStorageKey(), next);
       }
       return next;
     });

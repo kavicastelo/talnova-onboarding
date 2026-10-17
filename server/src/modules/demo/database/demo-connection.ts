@@ -32,7 +32,7 @@ export function getDemoConnection(log: any = console): mongoose.Connection {
 
   demoConnectionInstance = mongoose.createConnection(demoUri, {
     autoIndex: true,
-    serverSelectionTimeoutMS: 15000,
+    serverSelectionTimeoutMS: 30000,
   });
 
   demoConnectionInstance.on("connected", () => {
@@ -48,6 +48,17 @@ export function getDemoConnection(log: any = console): mongoose.Connection {
   });
 
   return demoConnectionInstance;
+}
+
+/**
+ * Ensures the isolated demo connection is fully established before executing queries.
+ */
+export async function waitForDemoConnection(log: any = console): Promise<mongoose.Connection> {
+  const conn = getDemoConnection(log);
+  if (conn.readyState === 1) {
+    return conn;
+  }
+  return await conn.asPromise();
 }
 
 /**

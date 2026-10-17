@@ -4,7 +4,10 @@ import { useDemoAuth } from '../context/DemoAuthContext';
 import { useRole } from '../../../src/context/RoleContext';
 import { DemoWatermark } from './DemoWatermark';
 import { DemoRestrictedModal } from './DemoRestrictedModal';
+import { DevToolsWarningOverlay } from './DevToolsWarningOverlay';
+import { useDemoAntiTamper } from '../hooks/useDemoAntiTamper';
 import { useDemoTelemetry } from '../hooks/useDemoTelemetry';
+import { useDemoHeartbeat } from '../hooks/useDemoHeartbeat';
 import {
   Sidebar,
   SidebarContent,
@@ -58,6 +61,16 @@ import {
   Lock,
   Building2,
   CheckCircle2,
+  Laptop,
+  Workflow,
+  MapPin,
+  ShieldCheck,
+  Play,
+  Monitor,
+  Network,
+  KeyRound,
+  Crown,
+  AlertOctagon,
 } from 'lucide-react';
 import { Button } from '../../../src/components/Button';
 import { Badge } from '../../../src/components/Badge';
@@ -93,7 +106,7 @@ const DEMO_PERSONAS = [
     fullName: 'Bob Vance',
     role: 'Standard Admin',
     company: 'Globex Industries',
-    package: 'STANDARD',
+    package: 'FULL_SUITE',
     title: 'Director of Business Dev',
   },
 ];
@@ -104,24 +117,20 @@ export const DemoAppShell: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { trackFeature } = useDemoTelemetry();
+  const { isDevToolsOpen, dismissDevToolsWarning } = useDemoAntiTamper();
+  const { isTerminated, terminationReason, command } = useDemoHeartbeat();
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
   const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
 
+  // Demo is the full product: no features are guarded or locked by packages or plans
   const isFeatureAllowed = (featureKey?: string): boolean => {
-    if (!featureKey) return true;
-    if (!tenant?.allowedFeatures) return true;
-    return tenant.allowedFeatures.includes(featureKey);
+    void featureKey;
+    return true;
   };
 
-  const handleNavClick = (e: React.MouseEvent, item: { title: string; url: string; featureFlag?: string }) => {
-    if (item.featureFlag && !isFeatureAllowed(item.featureFlag)) {
-      e.preventDefault();
-      trackFeature(item.featureFlag, 'click', 'RESTRICTED', 0, { itemTitle: item.title });
-      setRestrictedModalFeature(item.title);
-      return;
-    }
+  const handleNavClick = (_e: React.MouseEvent, item: { title: string; url: string; featureFlag?: string }) => {
     trackFeature(item.featureFlag || item.title, 'click', 'ALLOWED', 0);
   };
 
@@ -176,44 +185,103 @@ export const DemoAppShell: React.FC = () => {
       label: 'Overview & Operations',
       items: [
         { title: 'Dashboard', url: '/demo', icon: LayoutDashboard },
+        { title: 'IT Hardware Queue', url: '/demo/tasks/it-ops', icon: Laptop, featureFlag: 'it_ops_queue' },
+        { title: 'Workflows & Rules', url: '/demo/workflows', icon: Workflow, featureFlag: 'workflow_rules' },
         { title: 'HR Operations', url: '/demo/hr-ops', icon: ShieldAlert, featureFlag: 'hr_operations' },
+        { title: 'HR Exceptions Workbench', url: '/demo/hr-ops/exceptions', icon: AlertOctagon, featureFlag: 'hr_operations' },
+      ],
+    },
+    {
+      label: 'Frontline & Kiosk',
+      items: [
+        { title: 'Kiosk Fleet Dashboard', url: '/demo/kiosk', icon: Monitor, featureFlag: 'kiosk_management' },
+        { title: 'Kiosk Compliance', url: '/demo/kiosk/compliance', icon: ShieldCheck, featureFlag: 'kiosk_management' },
+        { title: 'Kiosk Frontline Terminal', url: '/demo/kiosk/terminal', icon: Play, featureFlag: 'kiosk_management' },
       ],
     },
     {
       label: 'People & Journeys',
       items: [
-        { title: 'Journeys', url: '/demo/journeys', icon: BookOpen, featureFlag: 'journey_templates' },
-        { title: 'Tasks', url: '/demo/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
+        { title: 'Journeys List', url: '/demo/journeys', icon: BookOpen, featureFlag: 'journey_templates' },
+        { title: 'AI Course Builder', url: '/demo/ai-course-builder', icon: Sparkles, featureFlag: 'ai_course_builder' },
+        { title: 'Tasks & Checklists', url: '/demo/tasks', icon: CheckSquare, featureFlag: 'checklist_tasks' },
         { title: 'Employee Directory', url: '/demo/directory', icon: Users, featureFlag: 'employee_directory' },
-        { title: 'Buddy Program', url: '/demo/buddy', icon: Users, featureFlag: 'buddy_connection' },
-        { title: 'Calendar', url: '/demo/calendar', icon: Calendar, featureFlag: 'calendar_integration' },
+        { title: 'Office Floor Map', url: '/demo/office-map', icon: MapPin, featureFlag: 'office_map' },
+        { title: 'Buddy Mentorship', url: '/demo/buddy', icon: Users, featureFlag: 'buddy_connection' },
+        { title: 'Calendar Integration', url: '/demo/calendar', icon: Calendar, featureFlag: 'calendar_integration' },
       ],
     },
     {
-      label: 'Knowledge & Documents',
+      label: 'Knowledge & Compliance',
       items: [
         { title: 'Knowledge Base', url: '/demo/kb', icon: BookOpen, featureFlag: 'knowledge_base' },
+        { title: 'KB Slideshow', url: '/demo/kb/slideshow', icon: Play, featureFlag: 'knowledge_base' },
         { title: 'Documents & E-Sign', url: '/demo/documents', icon: FileText, featureFlag: 'digital_signatures' },
-        { title: 'Milestones & Badges', url: '/demo/milestones', icon: Award, featureFlag: 'milestone_ratings' },
-        { title: 'Leaderboard', url: '/demo/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
+        { title: 'Certificates', url: '/demo/certificates', icon: ShieldCheck, featureFlag: 'certificates' },
+        { title: 'Milestones & Reviews', url: '/demo/milestones', icon: Award, featureFlag: 'milestone_ratings' },
+        { title: 'Gamified Leaderboard', url: '/demo/leaderboard', icon: Trophy, featureFlag: 'gamified_milestones' },
       ],
     },
     {
-      label: 'Intelligence & Settings',
+      label: 'Intelligence & Management',
       items: [
-        { title: 'Analytics', url: '/demo/analytics', icon: BarChart2, featureFlag: 'analytics_dashboard' },
+        { title: 'Analytics & Insights', url: '/demo/analytics', icon: BarChart2, featureFlag: 'analytics_dashboard' },
         { title: 'AI Assistant', url: '/demo/ai-assistant', icon: Bot, featureFlag: 'ai_assistant' },
+        { title: 'HRIS Integrations', url: '/demo/settings/integrations', icon: Network, featureFlag: 'hris_integrations' },
+        { title: 'SSO Enforcement', url: '/demo/settings/sso', icon: KeyRound, featureFlag: 'sso_settings' },
+        { title: 'Super Admin Console', url: '/demo/super-admin', icon: Crown, featureFlag: 'super_admin' },
         { title: 'Settings', url: '/demo/settings', icon: Settings },
         { title: 'Email Sink (Sandbox)', url: '/demo/inbox', icon: Mail },
       ],
     },
   ];
 
+
+  if (isTerminated) {
+    return (
+      <div className="fixed inset-0 z-[999999] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center text-white">
+        <div className="h-20 w-20 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-500 mb-6 shadow-2xl">
+          <ShieldAlert className="h-10 w-10 animate-pulse" />
+        </div>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-semibold mb-4 border border-rose-500/30">
+          <span>Security Remote Killswitch Active</span>
+          <span>•</span>
+          <span>{command === 'FREEZE' ? 'Session Frozen' : 'Session Terminated'}</span>
+        </div>
+        <h1 className="text-3xl font-extrabold tracking-tight mb-3">
+          {command === 'FREEZE' ? 'Demonstration Screen Frozen' : 'Demonstration Session Terminated'}
+        </h1>
+        <p className="text-sm text-slate-300 max-w-md mx-auto mb-8">
+          {terminationReason || 'This active demonstration session was terminated or revoked by a platform administrator.'}
+        </p>
+        <button
+          onClick={() => {
+            window.location.href = '/demo/login';
+          }}
+          className="px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium shadow-md transition-colors"
+        >
+          Return to Login
+        </button>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground antialiased font-sans relative">
-        {/* Repeating Canvas Watermark */}
-        <DemoWatermark watermarkText={watermark?.text} />
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground antialiased font-sans relative select-none demo-shielded">
+        {/* Anti-Tamper DevTools Security Warning Overlay */}
+        <DevToolsWarningOverlay
+          isOpen={isDevToolsOpen}
+          onDismiss={dismissDevToolsWarning}
+        />
+
+        {/* Dynamic Forensic Canvas Watermark with Tamper Watchdog */}
+        <DemoWatermark
+          watermarkText={watermark?.text}
+          userFullName={user?.fullName}
+          tenantName={tenant?.name}
+          sessionId={watermark?.sessionId || user?.id || user?.email}
+        />
 
         {/* Real Product Sidebar */}
         <Sidebar>

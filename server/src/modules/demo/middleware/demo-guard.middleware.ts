@@ -49,7 +49,12 @@ export function requireDemoFeature(featureKey: string) {
       throw new AppError(403, "TENANT_NOT_FOUND", "Demo tenant record not found.");
     }
 
-    const isEntitled = tenant.allowedFeatures.includes(featureKey);
+    const isEntitled =
+      !tenant.allowedFeatures ||
+      tenant.allowedFeatures.includes(featureKey) ||
+      tenant.allowedFeatures.includes("*") ||
+      tenant.allowedFeatures.includes("all") ||
+      tenant.entitlementPackage === "FULL_SUITE";
     if (!isEntitled) {
       const DemoActivityLog = getDemoActivityLogModel();
       await DemoActivityLog.create({
