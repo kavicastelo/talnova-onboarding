@@ -433,8 +433,7 @@ describe('K-SEC-002: Browser Kiosk Lockdown & Exit PIN Suite', () => {
         hideNavigation: false,
         disableExit: false,
         security: {
-          protectionType: 'pin',
-          pinCode: '741852'
+          protectionType: 'none'
         }
       }
     };

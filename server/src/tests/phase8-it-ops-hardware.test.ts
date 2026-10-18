@@ -221,7 +221,7 @@ describe("Phase 8 — IT Ops Hardware Provisioning & MDM Lifecycle Test Suite", 
       },
       payload: {
         fileName: "macbook_pro_serial_receipt.pdf",
-        fileUrl: "https://storage.talnova.com/receipts/mbp-9021.pdf",
+        fileUrl: "https://storage.talnova.io/receipts/mbp-9021.pdf",
       },
     });
 
@@ -233,7 +233,7 @@ describe("Phase 8 — IT Ops Hardware Provisioning & MDM Lifecycle Test Suite", 
       "macbook_pro_serial_receipt.pdf"
     );
     expect(receiptData.data.hardwareMetadata.receiptAttachment.fileUrl).toBe(
-      "https://storage.talnova.com/receipts/mbp-9021.pdf"
+      "https://storage.talnova.io/receipts/mbp-9021.pdf"
     );
     expect(receiptData.data.hardwareMetadata.receiptAttachment.uploadedAt).toBeDefined();
 

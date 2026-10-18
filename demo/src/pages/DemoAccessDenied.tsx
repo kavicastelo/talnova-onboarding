@@ -91,7 +91,7 @@ export const DemoAccessDenied: React.FC<DemoAccessDeniedProps> = ({
           <Button variant="outline" onClick={() => window.location.reload()} className="gap-2">
             Reload in Standard Browser
           </Button>
-          <Button onClick={() => window.open('https://talnova.com/contact', '_blank')} className="gap-2 shadow-sm">
+          <Button onClick={() => window.open('https://talnovaonboard.com/contact', '_blank')} className="gap-2 shadow-sm">
             Contact Sales for License
           </Button>
         </div>

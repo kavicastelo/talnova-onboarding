@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Send, RefreshCw, Clock, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { getDemoApiBase } from '../utils/apiConfig';
 
 export const DemoInbox: React.FC = () => {
-  const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
+  const API_BASE = getDemoApiBase();
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmail, setSelectedEmail] = useState<any | null>(null);

@@ -641,13 +641,11 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
                         </span>
                       )}
 
-                      {Boolean(
-                        (journey as any).requireEmployeeId ||
-                        (journey as any).employeeRestricted ||
-                        (journey.settings as any)?.requireEmployeeId ||
-                        (journey.settings as any)?.requireAuth ||
-                        (journey.settings?.security?.protectionType as any) === 'employee_id'
-                      ) ? (
+                      {(journey as any).requireEmployeeId ||
+                      (journey as any).employeeRestricted ||
+                      (journey.settings as any)?.requireEmployeeId ||
+                      (journey.settings as any)?.requireAuth ||
+                      (journey.settings?.security?.protectionType as any) === 'employee_id' ? (
                         <span
                           data-testid={`employee-restricted-badge-${journey._id}`}
                           className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"

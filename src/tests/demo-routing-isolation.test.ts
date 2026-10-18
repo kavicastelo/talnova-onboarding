@@ -51,13 +51,13 @@ describe('Demo Routing Isolation & Interceptor Safeguards (TASK-101 & TASK-102)'
 
     it('returns true when hostname starts with demo. (subdomain topology)', () => {
       (globalThis as any).window.location.pathname = '/journeys';
-      (globalThis as any).window.location.hostname = 'demo.talnova.com';
+      (globalThis as any).window.location.hostname = 'demo.talnova.io';
       expect(isDemoEnvironment()).toBe(true);
     });
 
     it('returns false when on production root or routes', () => {
       (globalThis as any).window.location.pathname = '/journeys';
-      (globalThis as any).window.location.hostname = 'app.talnova.com';
+      (globalThis as any).window.location.hostname = 'app.talnova.io';
       expect(isDemoEnvironment()).toBe(false);
     });
 
@@ -146,7 +146,7 @@ describe('Demo Routing Isolation & Interceptor Safeguards (TASK-101 & TASK-102)'
       storageMap['user_role'] = 'employee';
 
       (globalThis as any).window.location.pathname = '/journeys';
-      (globalThis as any).window.location.hostname = 'app.talnova.com';
+      (globalThis as any).window.location.hostname = 'app.talnova.io';
       (globalThis as any).window.location.href = 'http://localhost:5173/journeys';
 
       // Mock refresh failure to test fallback to /login
@@ -222,15 +222,15 @@ describe('Demo Routing Isolation & Interceptor Safeguards (TASK-101 & TASK-102)'
       const { getAppPath } = await import('../utils/navigation');
       (globalThis as any).window.location.pathname = '/demo/admin';
 
-      expect(getAppPath('https://docs.talnova.com')).toBe('https://docs.talnova.com');
+      expect(getAppPath('https://docs.talnova.io')).toBe('https://docs.talnova.io');
       expect(getAppPath('http://example.com')).toBe('http://example.com');
-      expect(getAppPath('mailto:support@talnova.com')).toBe('mailto:support@talnova.com');
+      expect(getAppPath('mailto:support@talnova.io')).toBe('mailto:support@talnova.io');
     });
 
     it('preserves exact paths unchanged in production environment', async () => {
       const { getAppPath } = await import('../utils/navigation');
       (globalThis as any).window.location.pathname = '/tasks';
-      (globalThis as any).window.location.hostname = 'app.talnova.com';
+      (globalThis as any).window.location.hostname = 'app.talnova.io';
 
       expect(getAppPath('/')).toBe('/');
       expect(getAppPath('/tasks')).toBe('/tasks');

@@ -167,18 +167,18 @@ export class SuperAdminService {
       : await Organization.countDocuments({ isDeleted: false });
     const activeOrganizations = isOrgScoped
       ? await Organization.countDocuments({
-          _id: organizationId,
-          isDeleted: false,
-          status: "Active",
-        })
+        _id: organizationId,
+        isDeleted: false,
+        status: "Active",
+      })
       : await Organization.countDocuments({ isDeleted: false, status: "Active" });
     const suspendedOrganizations = totalOrganizations - activeOrganizations;
     const orgsBefore30d = isOrgScoped
       ? 1
       : await Organization.countDocuments({
-          createdAt: { $lt: thirtyDaysAgo },
-          isDeleted: false,
-        });
+        createdAt: { $lt: thirtyDaysAgo },
+        isDeleted: false,
+      });
     const orgsInLast30d = totalOrganizations - orgsBefore30d;
     const orgsDeltaPct =
       orgsBefore30d > 0
@@ -257,8 +257,8 @@ export class SuperAdminService {
       prevRevenue > 0
         ? Math.round(((currRevenue - prevRevenue) / prevRevenue) * 100)
         : currRevenue > 0
-        ? 100
-        : 0;
+          ? 100
+          : 0;
     const revenueDeltaStr =
       revenueDeltaPct >= 0 ? `+${revenueDeltaPct}%` : `${revenueDeltaPct}%`;
 
@@ -306,8 +306,8 @@ export class SuperAdminService {
       prevExpenses > 0
         ? Math.round(((currExpenses - prevExpenses) / prevExpenses) * 100)
         : currExpenses > 0
-        ? 100
-        : 0;
+          ? 100
+          : 0;
     const expenseDeltaStr =
       expenseDeltaPct >= 0 ? `+${expenseDeltaPct}%` : `${expenseDeltaPct}%`;
 
@@ -345,8 +345,8 @@ export class SuperAdminService {
       systemHealthVal >= 98.0
         ? "HEALTHY"
         : systemHealthVal >= 94.0
-        ? "DEGRADED"
-        : "CRITICAL";
+          ? "DEGRADED"
+          : "CRITICAL";
 
     // 8. 6-Month dynamic Growth Analytics data
     const growthData: any[] = [];
@@ -390,9 +390,9 @@ export class SuperAdminService {
       const orgsCount = isOrgScoped
         ? 1
         : await Organization.countDocuments({
-            createdAt: { $lte: endOfMonth },
-            isDeleted: false,
-          });
+          createdAt: { $lte: endOfMonth },
+          isDeleted: false,
+        });
 
       const usersCount = await User.countDocuments({
         ...userFilter,
@@ -491,8 +491,8 @@ export class SuperAdminService {
         log.eventCategory === "user"
           ? "user"
           : log.eventCategory === "journey"
-          ? "journey"
-          : "system",
+            ? "journey"
+            : "system",
     }));
   }
 
@@ -594,7 +594,7 @@ export class SuperAdminService {
           createdAt: org.createdAt
             ? org.createdAt.toISOString().split("T")[0]
             : new Date().toISOString().split("T")[0],
-          supportEmail: org.supportEmail || "support@talnova.com",
+          supportEmail: org.supportEmail || "support@talnovaonboard.com",
         };
       })
     );
@@ -904,9 +904,8 @@ export class SuperAdminService {
       resourceType: "Organization",
       resourceId: orgId,
       action: "create",
-      description: `Organization ${newOrg.name} (${
-        domainLower || slugLower
-      }) was provisioned with owner ${targetAdminEmail}`,
+      description: `Organization ${newOrg.name} (${domainLower || slugLower
+        }) was provisioned with owner ${targetAdminEmail}`,
       severity: "info",
     });
 
@@ -1013,10 +1012,10 @@ export class SuperAdminService {
       seatLimit !== undefined
         ? seatLimit
         : seatQuota !== undefined
-        ? seatQuota
-        : maxUsers !== undefined
-        ? maxUsers
-        : subscription?.seatLimit;
+          ? seatQuota
+          : maxUsers !== undefined
+            ? maxUsers
+            : subscription?.seatLimit;
     if (requestedSeats !== undefined) {
       const seatsNum = Number(requestedSeats);
       if (isNaN(seatsNum) || seatsNum < 0) {
@@ -1398,9 +1397,8 @@ export class SuperAdminService {
       resourceType: "Organization",
       resourceId: org._id,
       action: "status_change",
-      description: `Tenant ${org.name} was placed in quarantine/suspension. Reason: ${
-        reason || "Super Admin administrative action"
-      }`,
+      description: `Tenant ${org.name} was placed in quarantine/suspension. Reason: ${reason || "Super Admin administrative action"
+        }`,
       severity: "critical",
     });
 
@@ -1697,10 +1695,10 @@ export class SuperAdminService {
         status: u.employment?.status || "Active",
         organization: u.organizationId
           ? {
-              id: (u.organizationId as any)._id?.toString(),
-              name: (u.organizationId as any).name,
-              slug: (u.organizationId as any).slug,
-            }
+            id: (u.organizationId as any)._id?.toString(),
+            name: (u.organizationId as any).name,
+            slug: (u.organizationId as any).slug,
+          }
           : null,
         createdAt: u.createdAt,
         lastLoginAt: u.auth?.lastLoginAt,
@@ -1790,11 +1788,11 @@ export class SuperAdminService {
       })),
       onboardingCase: onboardingCase
         ? {
-            id: onboardingCase._id.toString(),
-            state: onboardingCase.state,
-            source: onboardingCase.source,
-            createdAt: onboardingCase.createdAt,
-          }
+          id: onboardingCase._id.toString(),
+          state: onboardingCase.state,
+          source: onboardingCase.source,
+          createdAt: onboardingCase.createdAt,
+        }
         : null,
     };
   }
@@ -1924,18 +1922,18 @@ export class SuperAdminService {
         id: s._id.toString(),
         user: s.userId
           ? {
-              id: (s.userId as any)._id?.toString(),
-              name: (s.userId as any).profile?.fullName || "User",
-              email: (s.userId as any).auth?.email,
-              role: (s.userId as any).permissions?.role,
-            }
+            id: (s.userId as any)._id?.toString(),
+            name: (s.userId as any).profile?.fullName || "User",
+            email: (s.userId as any).auth?.email,
+            role: (s.userId as any).permissions?.role,
+          }
           : null,
         organization: s.organizationId
           ? {
-              id: (s.organizationId as any)._id?.toString(),
-              name: (s.organizationId as any).name,
-              slug: (s.organizationId as any).slug,
-            }
+            id: (s.organizationId as any)._id?.toString(),
+            name: (s.organizationId as any).name,
+            slug: (s.organizationId as any).slug,
+          }
           : null,
         deviceInfo: s.deviceInfo || "Unknown Device",
         ipAddress: s.ipAddress || "N/A",
@@ -2821,8 +2819,8 @@ export class SuperAdminService {
         tierKey === "enterprise" || rawPlan === "Enterprise"
           ? "Enterprise"
           : tierKey === "custom" || rawPlan === "Professional" || rawPlan === "Growth" || rawPlan === "Pro"
-          ? "Pro"
-          : "Starter";
+            ? "Pro"
+            : "Starter";
 
       if (!tierCounts[normalizedPlan]) {
         tierCounts[normalizedPlan] = { count: 0, mrr: 0 };
@@ -3137,9 +3135,8 @@ export class SuperAdminService {
       csv += `"${org.name.replace(/"/g, '""')}","${(org.domain || "").replace(
         /"/g,
         '""'
-      )}","${packageName.replace(/"/g, '""')}","${packageTier}","${cycle}","${
-        org.status || "Active"
-      }",${seats},"${activeAddOnsList.replace(/"/g, '""')}",${mrr},${arr},"${created}"\n`;
+      )}","${packageName.replace(/"/g, '""')}","${packageTier}","${cycle}","${org.status || "Active"
+        }",${seats},"${activeAddOnsList.replace(/"/g, '""')}",${mrr},${arr},"${created}"\n`;
     }
 
     return csv;
@@ -3279,8 +3276,8 @@ export class SuperAdminService {
       ? invoice.balanceDue !== undefined
         ? invoice.balanceDue
         : invoice.status === "Paid" || invoice.status === "paid"
-        ? 0
-        : invoice.totalAmount ?? invoice.amount ?? 0
+          ? 0
+          : invoice.totalAmount ?? invoice.amount ?? 0
       : 0;
 
     if (
@@ -3413,15 +3410,14 @@ export class SuperAdminService {
       action: "create",
       description: invoice
         ? `Manual payment receipt ${paymentNo} recorded: $${paymentAmount.toFixed(
-            2
-          )} from ${orgName} against invoice ${
-            invoice.invoiceNo
-          } (Prev balance: $${previousBalance.toFixed(
-            2
-          )}, New balance: $${newBalance.toFixed(2)})`
+          2
+        )} from ${orgName} against invoice ${invoice.invoiceNo
+        } (Prev balance: $${previousBalance.toFixed(
+          2
+        )}, New balance: $${newBalance.toFixed(2)})`
         : `Manual prepayment receipt ${paymentNo} recorded: $${paymentAmount.toFixed(
-            2
-          )} from ${orgName} (${refNo})`,
+          2
+        )} from ${orgName} (${refNo})`,
       severity: "info",
       metadata: {
         invoiceNo: invoice?.invoiceNo || "N/A",
@@ -3603,8 +3599,8 @@ export class SuperAdminService {
     const dateVal = expenseDate
       ? new Date(expenseDate)
       : incurredAt
-      ? new Date(incurredAt)
-      : new Date();
+        ? new Date(incurredAt)
+        : new Date();
 
     const newExpense = new ExpenseRecord({
       expenseNo,
@@ -4096,19 +4092,19 @@ export class SuperAdminService {
         id: c._id.toString(),
         employee: c.employeeId
           ? {
-              id: (c.employeeId as any)._id?.toString(),
-              name: (c.employeeId as any).profile?.fullName || "Employee",
-              email: (c.employeeId as any).auth?.email,
-              department:
-                (c.employeeId as any).employment?.department || "General",
-            }
+            id: (c.employeeId as any)._id?.toString(),
+            name: (c.employeeId as any).profile?.fullName || "Employee",
+            email: (c.employeeId as any).auth?.email,
+            department:
+              (c.employeeId as any).employment?.department || "General",
+          }
           : null,
         organization: c.organizationId
           ? {
-              id: (c.organizationId as any)._id?.toString(),
-              name: (c.organizationId as any).name,
-              slug: (c.organizationId as any).slug,
-            }
+            id: (c.organizationId as any)._id?.toString(),
+            name: (c.organizationId as any).name,
+            slug: (c.organizationId as any).slug,
+          }
           : null,
         source: c.source,
         state: c.state,
@@ -4202,17 +4198,17 @@ export class SuperAdminService {
           t.status !== "completed",
         assignee: t.assignedToUserId
           ? {
-              id: (t.assignedToUserId as any)._id?.toString(),
-              name: (t.assignedToUserId as any).profile?.fullName || "User",
-              email: (t.assignedToUserId as any).auth?.email,
-            }
+            id: (t.assignedToUserId as any)._id?.toString(),
+            name: (t.assignedToUserId as any).profile?.fullName || "User",
+            email: (t.assignedToUserId as any).auth?.email,
+          }
           : null,
         organization: t.organizationId
           ? {
-              id: (t.organizationId as any)._id?.toString(),
-              name: (t.organizationId as any).name,
-              slug: (t.organizationId as any).slug,
-            }
+            id: (t.organizationId as any)._id?.toString(),
+            name: (t.organizationId as any).name,
+            slug: (t.organizationId as any).slug,
+          }
           : null,
         createdAt: t.createdAt,
       })),
@@ -4319,17 +4315,17 @@ export class SuperAdminService {
       resourceId: l.resourceId?.toString(),
       actor: l.actorUserId
         ? {
-            id: (l.actorUserId as any)._id?.toString(),
-            name: (l.actorUserId as any).profile?.fullName || "User",
-            email: (l.actorUserId as any).auth?.email,
-          }
+          id: (l.actorUserId as any)._id?.toString(),
+          name: (l.actorUserId as any).profile?.fullName || "User",
+          email: (l.actorUserId as any).auth?.email,
+        }
         : { name: "System Operator", email: "system@talnova.app" },
       organization: l.organizationId
         ? {
-            id: (l.organizationId as any)._id?.toString(),
-            name: (l.organizationId as any).name,
-            slug: (l.organizationId as any).slug,
-          }
+          id: (l.organizationId as any)._id?.toString(),
+          name: (l.organizationId as any).name,
+          slug: (l.organizationId as any).slug,
+        }
         : { name: "Platform Infrastructure", slug: "talnova" },
       createdAt: l.createdAt,
     }));
@@ -4478,8 +4474,8 @@ export class SuperAdminService {
     const { organizationId } = query || {};
     const orgFilter =
       organizationId &&
-      organizationId !== "all" &&
-      mongoose.Types.ObjectId.isValid(organizationId)
+        organizationId !== "all" &&
+        mongoose.Types.ObjectId.isValid(organizationId)
         ? new mongoose.Types.ObjectId(organizationId)
         : null;
 
@@ -4755,8 +4751,8 @@ export class SuperAdminService {
     const { organizationId } = query || {};
     const orgFilter =
       organizationId &&
-      organizationId !== "all" &&
-      mongoose.Types.ObjectId.isValid(organizationId)
+        organizationId !== "all" &&
+        mongoose.Types.ObjectId.isValid(organizationId)
         ? new mongoose.Types.ObjectId(organizationId)
         : null;
 
@@ -4892,7 +4888,7 @@ export class SuperAdminService {
       description: `Storage quota updated to ${limitNum} GB for organization "${updated.name}"`,
       metadata: { previousLimit: updated.limits?.maxStorageGb, newLimit: limitNum },
       severity: "info",
-    }).catch(() => {});
+    }).catch(() => { });
 
     SystemLogBuffer.record({
       level: "info",
@@ -5369,8 +5365,8 @@ export class SuperAdminService {
     const previousOverride = previousExcluded
       ? "blacklisted"
       : previousTargeted
-      ? "whitelisted"
-      : "default";
+        ? "whitelisted"
+        : "default";
 
     if (override === "whitelisted") {
       if (!previousTargeted) {
@@ -5596,26 +5592,26 @@ export class SuperAdminService {
       organization:
         a.organizationId && a.organizationId.name
           ? {
-              id: a.organizationId._id?.toString(),
-              name: a.organizationId.name,
-              slug: a.organizationId.slug,
-            }
+            id: a.organizationId._id?.toString(),
+            name: a.organizationId.name,
+            slug: a.organizationId.slug,
+          }
           : null,
       status: a.status,
       acknowledgedBy: a.acknowledgedBy
         ? {
-            id: a.acknowledgedBy._id?.toString(),
-            name: a.acknowledgedBy.profile?.fullName,
-            email: a.acknowledgedBy.auth?.email,
-          }
+          id: a.acknowledgedBy._id?.toString(),
+          name: a.acknowledgedBy.profile?.fullName,
+          email: a.acknowledgedBy.auth?.email,
+        }
         : null,
       acknowledgedAt: a.acknowledgedAt,
       resolvedBy: a.resolvedBy
         ? {
-            id: a.resolvedBy._id?.toString(),
-            name: a.resolvedBy.profile?.fullName,
-            email: a.resolvedBy.auth?.email,
-          }
+          id: a.resolvedBy._id?.toString(),
+          name: a.resolvedBy.profile?.fullName,
+          email: a.resolvedBy.auth?.email,
+        }
         : null,
       resolvedAt: a.resolvedAt,
       resolutionNotes: a.resolutionNotes,
@@ -6038,7 +6034,7 @@ export class SuperAdminService {
         description: `Super Admin created package template "${newPkg.name}" (${newPkg.slug})`,
         severity: "info",
         metadata: { slug: newPkg.slug, tier: newPkg.tier, billing: newPkg.billing },
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     SystemLogBuffer.record({
@@ -6137,7 +6133,7 @@ export class SuperAdminService {
         description: `Super Admin updated package template "${pkg.name}"`,
         severity: "info",
         metadata: { slug: pkg.slug, billing: pkg.billing },
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     return {
@@ -6182,7 +6178,7 @@ export class SuperAdminService {
         action: "delete",
         description: `Super Admin deleted unassigned package "${pkg.name}"`,
         severity: "info",
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     return {
@@ -6407,7 +6403,7 @@ export class SuperAdminService {
           limits: updatedLimits,
           reason,
         },
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     SystemLogBuffer.record({

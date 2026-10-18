@@ -139,7 +139,10 @@ describe('Demo Phase 1 — Anti-Tamper & DevTools Neutralization', () => {
   });
 
   it('7. Enforces domain lock: allows execution on legitimate domains', () => {
-    (globalThis as any).window.location.hostname = 'demo.talnova.com';
+    (globalThis as any).window.location.hostname = 'demo.talnova.io';
+    expect(enforceDomainLock()).toBe(true);
+
+    (globalThis as any).window.location.hostname = 'talnova-onboarding-demo.netlify.app';
     expect(enforceDomainLock()).toBe(true);
 
     (globalThis as any).window.location.hostname = 'localhost';

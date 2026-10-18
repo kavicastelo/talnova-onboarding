@@ -65,8 +65,8 @@ vi.mock('../features/kiosk/services/kiosk-command-executor.service', () => ({
   kioskCommandExecutorService: {
     isInMaintenance: vi.fn(() => false),
     getMaintenanceDetails: vi.fn(() => ({ inMaintenance: false, payload: null })),
-    onMaintenanceChange: vi.fn(() => () => {}),
-    onManifestReload: vi.fn(() => () => {}),
+    onMaintenanceChange: vi.fn(() => () => { }),
+    onManifestReload: vi.fn(() => () => { }),
     setMaintenance: vi.fn()
   }
 }));
@@ -398,7 +398,7 @@ describe('K-RUN-005: Kiosk Player Full Enhancements & Compliance Gates Suite', (
             type: 'video',
             order: 0,
             mediaReferences: {
-              en: { embedUrl: 'https://cdn.talnova.com/videos/safety-evac-2026.mp4' }
+              en: { embedUrl: 'https://cdn.talnova.io/videos/safety-evac-2026.mp4' }
             }
           }
         ]
@@ -414,7 +414,7 @@ describe('K-RUN-005: Kiosk Player Full Enhancements & Compliance Gates Suite', (
       );
 
       expect(html).toContain('data-testid="sop-video-player"');
-      expect(html).toContain('https://cdn.talnova.com/videos/safety-evac-2026.mp4');
+      expect(html).toContain('https://cdn.talnova.io/videos/safety-evac-2026.mp4');
       expect(html).not.toContain('data-testid="sop-video-embed"');
     });
 
@@ -430,7 +430,7 @@ describe('K-RUN-005: Kiosk Player Full Enhancements & Compliance Gates Suite', (
             type: 'audio',
             order: 0,
             mediaReferences: {
-              en: { embedUrl: 'https://cdn.talnova.com/audio/briefing-shift-a.mp3' }
+              en: { embedUrl: 'https://cdn.talnova.io/audio/briefing-shift-a.mp3' }
             }
           }
         ]
@@ -446,7 +446,7 @@ describe('K-RUN-005: Kiosk Player Full Enhancements & Compliance Gates Suite', (
       );
 
       expect(html).toContain('data-testid="kiosk-audio-player"');
-      expect(html).toContain('https://cdn.talnova.com/audio/briefing-shift-a.mp3');
+      expect(html).toContain('https://cdn.talnova.io/audio/briefing-shift-a.mp3');
       expect(html).toContain('Audio Briefing');
     });
   });

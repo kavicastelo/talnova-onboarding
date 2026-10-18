@@ -5,6 +5,7 @@ import registerEventSubscribers from "./infrastructure/events/event-subscribers.
 import schedulerService from "./infrastructure/scheduler/scheduler.service.js";
 import { SuperAdminService } from "./modules/super-admin/services/super-admin.service.js";
 import { DemoResetService } from "./modules/demo/services/demo-reset.service.js";
+import { KioskService } from "./modules/kiosk/services/kiosk.service.js";
 
 async function start() {
   const app = await buildApp();
@@ -12,6 +13,9 @@ async function start() {
   try {
     // 1. Connect to Database
     await connectDatabase(app.log);
+
+    // 1.1 Auto-clean any orphaned test artifacts or invalid loopback webhooks
+    await KioskService.cleanOrphanedTestArtifacts(app.log);
 
     // 2. Seed Default Platform Feature Flags & Baseline Package Templates
     const superAdminService = new SuperAdminService();

@@ -19,17 +19,17 @@ export function disableReactDevTools(): void {
       const win = window as any;
       if (typeof win.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object' && win.__REACT_DEVTOOLS_GLOBAL_HOOK__ !== null) {
         for (const [key, value] of Object.entries(win.__REACT_DEVTOOLS_GLOBAL_HOOK__)) {
-          win.__REACT_DEVTOOLS_GLOBAL_HOOK__[key] = typeof value === 'function' ? () => {} : null;
+          win.__REACT_DEVTOOLS_GLOBAL_HOOK__[key] = typeof value === 'function' ? () => { } : null;
         }
       } else {
         // Pre-emptively register dead hook to prevent React DevTools from attaching later
         win.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
-          inject: () => {},
-          sub: () => {},
+          inject: () => { },
+          sub: () => { },
           supportsFiber: true,
           renderers: new Map(),
-          onCommitFiberRoot: () => {},
-          onCommitFiberUnmount: () => {},
+          onCommitFiberRoot: () => { },
+          onCommitFiberUnmount: () => { },
         };
       }
     }
@@ -51,7 +51,7 @@ export function neuterConsole(force = false): void {
     ((import.meta as any).env?.PROD || (import.meta as any).env?.VITE_IS_DEMO_BUILD === 'true');
 
   if (force || isDemoBuild || isViteProd) {
-    const noop = () => {};
+    const noop = () => { };
     // Suppress verbose metadata loggers
     console.log = noop;
     console.info = noop;
@@ -68,12 +68,33 @@ export function neuterConsole(force = false): void {
 export function enforceDomainLock(customAllowedDomains?: string[]): boolean {
   if (typeof window === 'undefined') return true;
 
-  const allowedDomains = customAllowedDomains || [
+  // Support environment variable configuration (e.g. VITE_DEMO_ALLOWED_DOMAINS=my-site.com,client-demo.org)
+  const envDomainsStr =
+    (typeof import.meta !== 'undefined' &&
+      ((import.meta as any).env?.VITE_DEMO_ALLOWED_DOMAINS ||
+        (import.meta as any).env?.VITE_ALLOWED_DOMAINS)) ||
+    '';
+  const envDomains = envDomainsStr
+    ? envDomainsStr
+      .split(',')
+      .map((d: string) => d.trim().toLowerCase())
+      .filter(Boolean)
+    : [];
+
+  const defaultAllowedDomains = [
     'localhost',
     '127.0.0.1',
-    'talnova.com',
-    'demo.talnova.com',
+    'talnova.io',
+    'demo.talnova.io',
+    'talnovaonboard.com',
+    'demo.talnovaonboard.com',
     'vercel.app',
+    'netlify.app',
+  ];
+
+  const allowedDomains = customAllowedDomains || [
+    ...defaultAllowedDomains,
+    ...envDomains,
   ];
 
   const hostname = window.location.hostname.toLowerCase();

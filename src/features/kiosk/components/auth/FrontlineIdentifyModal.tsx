@@ -51,7 +51,7 @@ export interface FrontlineIdentifyModalProps {
 
 export type IdentifyTab = 'keypad' | 'email' | 'camera';
 
-const POPULAR_DOMAINS = ['@talnova.com', '@company.com', '@gmail.com', '@outlook.com'];
+const POPULAR_DOMAINS = ['@talnova.io', '@company.com', '@gmail.com', '@outlook.com'];
 
 export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
   isOpen,
@@ -150,8 +150,8 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
           msg && !msg.toLowerCase().includes('database')
             ? msg
             : t('identify.notFound', {
-                defaultValue: 'Employee credential not recognized. Please check your ID or email and try again.'
-              })
+              defaultValue: 'Employee credential not recognized. Please check your ID or email and try again.'
+            })
         );
       } finally {
         setIsIdentifying(false);
@@ -268,11 +268,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
       <DialogContent
         showCloseButton={false}
         data-testid="frontline-identify-modal"
-        className={`sm:max-w-xl p-6 sm:p-8 rounded-3xl border shadow-2xl transition-all ${
-          highContrast
+        className={`sm:max-w-xl p-6 sm:p-8 rounded-3xl border shadow-2xl transition-all ${highContrast
             ? 'bg-black border-2 border-amber-400 text-white'
             : 'bg-slate-900 border-slate-800 text-white'
-        }`}
+          }`}
       >
         {/* Header */}
         <DialogHeader className="border-b border-slate-800 pb-4">
@@ -297,11 +296,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
               className="py-4 space-y-5 animate-fade-in text-center flex flex-col items-center"
             >
               <div
-                className={`w-20 h-20 rounded-full flex items-center justify-center border-2 ${
-                  highContrast
+                className={`w-20 h-20 rounded-full flex items-center justify-center border-2 ${highContrast
                     ? 'bg-amber-400 text-black border-amber-300'
                     : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
-                }`}
+                  }`}
               >
                 <ShieldCheck className="w-10 h-10 stroke-[2.5]" />
               </div>
@@ -354,13 +352,12 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                     setActiveTab('keypad');
                     setErrorMessage(null);
                   }}
-                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 px-6 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${
-                    activeTab === 'keypad'
+                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 px-6 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${activeTab === 'keypad'
                       ? highContrast
                         ? 'bg-amber-400 text-black shadow-md'
                         : 'bg-indigo-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <CreditCard className="w-4 h-4 shrink-0" />
                   <span className="truncate">Employee / Badge ID</span>
@@ -374,13 +371,12 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                     setActiveTab('email');
                     setErrorMessage(null);
                   }}
-                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 px-6 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${
-                    activeTab === 'email'
+                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 px-6 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${activeTab === 'email'
                       ? highContrast
                         ? 'bg-amber-400 text-black shadow-md'
                         : 'bg-indigo-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Mail className="w-4 h-4 shrink-0" />
                   <span className="truncate">Work Email</span>
@@ -394,13 +390,12 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                     setActiveTab('camera');
                     setErrorMessage(null);
                   }}
-                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 px-6 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${
-                    activeTab === 'camera'
+                  className={`flex-1 min-h-[48px] min-w-[48px] py-3 px-6 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition active:scale-95 ${activeTab === 'camera'
                       ? highContrast
                         ? 'bg-amber-400 text-black shadow-md'
                         : 'bg-indigo-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Camera className="w-4 h-4 shrink-0" />
                   <span className="truncate">Scan Badge / QR</span>
@@ -448,11 +443,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                         }
                       }}
                       placeholder="Enter Employee ID / Badge ID"
-                      className={`w-full min-h-[56px] min-w-[64px] h-14 pr-12 text-center font-mono text-xl font-black tracking-widest ${
-                        highContrast
+                      className={`w-full min-h-[56px] min-w-[64px] h-14 pr-12 text-center font-mono text-xl font-black tracking-widest ${highContrast
                           ? 'bg-black border-amber-400 text-white focus:border-amber-300'
                           : 'bg-slate-950 border-slate-700 text-white focus:border-indigo-500'
-                      }`}
+                        }`}
                     />
                     {badgeInput && (
                       <button
@@ -476,11 +470,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                         id={`keypad-digit-${digit}`}
                         data-testid={`keypad-digit-${digit}`}
                         onClick={() => handleKeypadDigit(digit)}
-                        className={`w-full min-h-[52px] min-w-[48px] h-13 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
-                          highContrast
+                        className={`w-full min-h-[52px] min-w-[48px] h-13 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${highContrast
                             ? 'bg-black border-neutral-700 text-white hover:border-amber-400 hover:bg-neutral-900'
                             : 'bg-slate-950 border-slate-800 text-white hover:bg-slate-850 hover:border-slate-700'
-                        }`}
+                          }`}
                       >
                         {digit}
                       </button>
@@ -503,11 +496,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                       id="keypad-digit-0"
                       data-testid="keypad-digit-0"
                       onClick={() => handleKeypadDigit('0')}
-                      className={`w-full min-h-[52px] min-w-[48px] h-13 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
-                        highContrast
+                      className={`w-full min-h-[52px] min-w-[48px] h-13 rounded-2xl font-mono text-xl font-extrabold border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${highContrast
                           ? 'bg-black border-neutral-700 text-white hover:border-amber-400 hover:bg-neutral-900'
                           : 'bg-slate-950 border-slate-800 text-white hover:bg-slate-850 hover:border-slate-700'
-                      }`}
+                        }`}
                     >
                       0
                     </button>
@@ -547,11 +539,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                         }
                       }}
                       placeholder="e.g. employee@company.com"
-                      className={`h-14 pl-12 pr-12 text-base font-medium ${
-                        highContrast
+                      className={`h-14 pl-12 pr-12 text-base font-medium ${highContrast
                           ? 'bg-black border-amber-400 text-white focus:border-amber-300'
                           : 'bg-slate-950 border-slate-700 text-white focus:border-indigo-500'
-                      }`}
+                        }`}
                     />
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     {emailInput && (
@@ -712,11 +703,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                 variant="default"
                 size="lg"
                 onClick={handleConfirmWorker}
-                className={`flex-1 min-h-[64px] min-w-[64px] rounded-2xl font-black text-base shadow-xl flex items-center justify-center space-x-2 active:scale-95 cursor-pointer ${
-                  highContrast
+                className={`flex-1 min-h-[64px] min-w-[64px] rounded-2xl font-black text-base shadow-xl flex items-center justify-center space-x-2 active:scale-95 cursor-pointer ${highContrast
                     ? 'bg-amber-400 text-black border-amber-300 hover:bg-amber-300'
                     : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                }`}
+                  }`}
               >
                 <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
                 <span>Confirm & Start Briefing</span>
@@ -749,11 +739,10 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                     performIdentification(badgeInput, { employeeId: badgeInput, badgeId: badgeInput });
                   }
                 }}
-                className={`flex-1 min-h-[64px] min-w-[64px] rounded-2xl font-bold text-base shadow-lg active:scale-95 cursor-pointer ${
-                  highContrast
+                className={`flex-1 min-h-[64px] min-w-[64px] rounded-2xl font-bold text-base shadow-lg active:scale-95 cursor-pointer ${highContrast
                     ? 'bg-amber-400 text-black hover:bg-amber-300'
                     : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                }`}
+                  }`}
               >
                 {isIdentifying ? 'Verifying...' : activeTab === 'email' ? 'Verify Email' : 'Verify ID'}
               </Button>

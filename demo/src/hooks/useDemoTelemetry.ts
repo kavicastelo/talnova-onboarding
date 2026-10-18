@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { getDemoApiBase } from '../utils/apiConfig';
 
-const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE = getDemoApiBase();
 
 export function useDemoTelemetry() {
   const location = useLocation();

@@ -55,7 +55,7 @@ vi.mock('../features/kiosk/services/kiosk-lockdown.service', () => ({
   kioskLockdownService: {
     startLockdown: vi.fn(),
     stopLockdown: vi.fn(),
-    subscribe: vi.fn(() => () => {}),
+    subscribe: vi.fn(() => () => { }),
     requestFullscreen: vi.fn()
   }
 }));
@@ -64,7 +64,7 @@ vi.mock('../features/kiosk/services/kiosk-lockdown.service', () => ({
 vi.mock('../features/kiosk/services/emergency.service', () => ({
   emergencyService: {
     getActiveEmergency: vi.fn(() => null),
-    subscribe: vi.fn(() => () => {}),
+    subscribe: vi.fn(() => () => { }),
     getSiren: vi.fn(() => ({
       getIsMuted: () => false,
       toggleMute: () => true
@@ -77,8 +77,8 @@ vi.mock('../features/kiosk/services/kiosk-command-executor.service', () => ({
   kioskCommandExecutorService: {
     isInMaintenance: vi.fn(() => false),
     getMaintenanceDetails: vi.fn(() => ({ payload: null })),
-    onMaintenanceChange: vi.fn(() => () => {}),
-    onManifestReload: vi.fn(() => () => {})
+    onMaintenanceChange: vi.fn(() => () => { }),
+    onManifestReload: vi.fn(() => () => { })
   }
 }));
 
@@ -175,9 +175,9 @@ describe('K-VAL-003: Automated Axe-Core WCAG 2.2 AA Kiosk Accessibility Audit Su
         type: 'video',
         order: 0,
         content: {
-          videoUrl: 'https://cdn.talnova.com/videos/arc-flash-demo.mp4',
+          videoUrl: 'https://cdn.talnova.io/videos/arc-flash-demo.mp4',
           title: 'Arc Flash Shield Demonstration Video',
-          captionsUrl: 'https://cdn.talnova.com/captions/arc-flash.vtt'
+          captionsUrl: 'https://cdn.talnova.io/captions/arc-flash.vtt'
         }
       }
     ],

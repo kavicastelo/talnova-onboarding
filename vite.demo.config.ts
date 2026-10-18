@@ -41,6 +41,7 @@ function demoCodeObfuscationPlugin(): Plugin {
 // Standalone Vite configuration for Talnova Demo Deployment (ADR-001)
 export default defineConfig({
   root: path.resolve(__dirname, 'demo'),
+  envDir: path.resolve(__dirname),
   publicDir: path.resolve(__dirname, 'public'),
   plugins: [react(), demoCodeObfuscationPlugin()],
   resolve: {
