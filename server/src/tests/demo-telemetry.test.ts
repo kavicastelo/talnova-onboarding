@@ -61,7 +61,7 @@ describe("Demo Environment — Feature Usage Telemetry & Analytics", () => {
     // Super Admin token
     superAdminToken = app.jwt.sign({
       id: new mongoose.Types.ObjectId().toString(),
-      email: "superadmin@talnova.com",
+      email: "superadmin@talnova.io",
       role: "super_admin",
     });
   });

@@ -153,7 +153,7 @@ export function TenantProvisionModal({
     const summary = [
       `--- TALNOVA TENANT WORKSPACE CREDENTIALS ---`,
       `Workspace Name: ${provisionedData.name}`,
-      `Workspace URL: https://${provisionedData.slug}.talnova.com`,
+      `Workspace URL: https://${provisionedData.slug}.talnovaonboard.com`,
       `Login Email: ${creds.email}`,
       `Temporary Password: ${creds.temporaryPassword}`,
       `One-Click Activation Link: ${creds.activationUrl}`,
@@ -533,22 +533,20 @@ export function TenantProvisionModal({
                       <button
                         type="button"
                         onClick={() => setBillingInterval('monthly')}
-                        className={`px-2 py-0.5 rounded-md transition-colors text-[11px] font-medium ${
-                          billingInterval === 'monthly'
+                        className={`px-2 py-0.5 rounded-md transition-colors text-[11px] font-medium ${billingInterval === 'monthly'
                             ? 'bg-indigo-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400'
-                        }`}
+                          }`}
                       >
                         Monthly
                       </button>
                       <button
                         type="button"
                         onClick={() => setBillingInterval('annual')}
-                        className={`px-2 py-0.5 rounded-md transition-colors text-[11px] font-medium ${
-                          billingInterval === 'annual'
+                        className={`px-2 py-0.5 rounded-md transition-colors text-[11px] font-medium ${billingInterval === 'annual'
                             ? 'bg-indigo-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400'
-                        }`}
+                          }`}
                       >
                         Annual (-17%)
                       </button>
@@ -620,11 +618,10 @@ export function TenantProvisionModal({
                                 return (
                                   <label
                                     key={addon.featureKey}
-                                    className={`flex items-center justify-between p-2 rounded-lg border transition-colors cursor-pointer text-xs ${
-                                      isChecked
+                                    className={`flex items-center justify-between p-2 rounded-lg border transition-colors cursor-pointer text-xs ${isChecked
                                         ? 'bg-indigo-100/70 dark:bg-indigo-900/40 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200'
                                         : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-center gap-2">
                                       <input
@@ -728,22 +725,20 @@ export function TenantProvisionModal({
                     <button
                       type="button"
                       onClick={() => setPasswordMode('auto')}
-                      className={`px-2.5 py-1 rounded-md transition-colors ${
-                        passwordMode === 'auto'
+                      className={`px-2.5 py-1 rounded-md transition-colors ${passwordMode === 'auto'
                           ? 'bg-indigo-600 text-white font-medium shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       Auto-generate
                     </button>
                     <button
                       type="button"
                       onClick={() => setPasswordMode('custom')}
-                      className={`px-2.5 py-1 rounded-md transition-colors ${
-                        passwordMode === 'custom'
+                      className={`px-2.5 py-1 rounded-md transition-colors ${passwordMode === 'custom'
                           ? 'bg-indigo-600 text-white font-medium shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       Custom
                     </button>

@@ -41,7 +41,7 @@ async function run() {
     worker = await User.create({
       organizationId: orgId,
       auth: {
-        email: "alex.taylor@talnova.com",
+        email: "alex.taylor@talnovaonboard.com",
         passwordHash: "dummy-hash-12345",
         failedLoginAttempts: 0
       },
@@ -63,7 +63,7 @@ async function run() {
       },
       isDeleted: false
     });
-    console.log("Created frontline worker Alex Taylor (EMP-1001 / BDG-2002 / alex.taylor@talnova.com)");
+    console.log("Created frontline worker Alex Taylor (EMP-1001 / BDG-2002 / alex.taylor@talnovaonboard.com)");
   } else {
     console.log("Found frontline worker:", worker.profile?.displayName, worker.employment?.employeeId);
   }
@@ -322,7 +322,7 @@ async function run() {
   console.log("Journey ID:", journey._id.toString());
   console.log("Worker:", {
     name: "Alex Taylor",
-    email: "alex.taylor@talnova.com",
+    email: "alex.taylor@talnovaonboard.com",
     employeeId: "EMP-1001",
     badgeId: "BDG-2002"
   });

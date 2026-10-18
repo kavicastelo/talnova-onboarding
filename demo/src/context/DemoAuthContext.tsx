@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { getDemoApiBase } from '../utils/apiConfig';
 
 export interface DemoUserIdentity {
   id: string;
@@ -58,8 +59,7 @@ export const DemoAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [restrictedModalFeature, setRestrictedModalFeature] = useState<string | null>(null);
-
-  const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
+  const API_BASE = getDemoApiBase();
 
   const login = async (email: string, password = 'DemoPass123!') => {
     setIsLoading(true);

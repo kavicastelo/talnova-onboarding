@@ -20,7 +20,7 @@ export const envSchema = z.object({
   SMTP_PORT: z.coerce.number().default(1025),
   SMTP_USER: z.string().optional().or(z.literal("")),
   SMTP_PASS: z.string().optional().or(z.literal("")),
-  SMTP_FROM: z.string().default("noreply@talnova.com"),
+  SMTP_FROM: z.string().default("no-reply@talnova.io"),
   APP_ENV: z.enum(["development", "production", "test", "demo"]).default("development"),
   TRUST_PROXY: z.coerce.boolean().default(true),
   DEMO_DATABASE_URL: z.string().optional(),

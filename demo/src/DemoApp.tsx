@@ -110,7 +110,7 @@ export const DemoApp: React.FC = () => {
                   <Route path="/public/certificate/:id" element={<PublicCertificateViewer />} />
                   <Route path="/demo/public/certificate/:id" element={<PublicCertificateViewer />} />
 
-                  {/* Subdomain Root Mode (e.g. demo.talnova.com/*) */}
+                  {/* Subdomain Root Mode (e.g. demo.talnova.io/*) */}
                   <Route
                     path="/"
                     element={

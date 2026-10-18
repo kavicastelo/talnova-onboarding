@@ -11,7 +11,13 @@ import { TenantProvisionModal } from '../components/super-admin/TenantProvisionM
 // Mock i18n
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, defaultVal?: string) => defaultVal || key,
+    t: (key: string, defaultVal?: any) => {
+      if (typeof defaultVal === 'string') return defaultVal;
+      if (typeof defaultVal === 'object' && defaultVal !== null && defaultVal.defaultValue) {
+        return defaultVal.defaultValue;
+      }
+      return key;
+    },
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
   initReactI18next: {

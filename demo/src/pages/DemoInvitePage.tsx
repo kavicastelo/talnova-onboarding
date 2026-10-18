@@ -119,8 +119,8 @@ export const DemoInvitePage: React.FC = () => {
             <div className="flex flex-col gap-3">
               <Button
                 onClick={() =>
-                  (window.location.href =
-                    'mailto:demo@talnova.com?subject=Talnova%20Demo%20Extension%20Request')
+                (window.location.href =
+                  'mailto:info@talnova.io?subject=Talnova%20Demo%20Extension%20Request')
                 }
                 className="w-full gap-2 shadow-sm"
               >

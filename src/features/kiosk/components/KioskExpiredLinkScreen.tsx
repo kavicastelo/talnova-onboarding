@@ -9,7 +9,7 @@ interface KioskExpiredLinkScreenProps {
 
 export const KioskExpiredLinkScreen: React.FC<KioskExpiredLinkScreenProps> = ({
   onRetry,
-  supportEmail = 'support@talnova.com'
+  supportEmail = 'support@talnovaonboard.com'
 }) => {
   const { t } = useTranslation('kiosk');
 
@@ -23,9 +23,9 @@ export const KioskExpiredLinkScreen: React.FC<KioskExpiredLinkScreenProps> = ({
           <div className="p-4 rounded-full bg-slate-950 border border-slate-800 animate-pulse">
             <ShieldAlert className="h-12 w-12 text-rose-500" />
           </div>
-          
+
           <h2 className="text-2xl font-bold text-slate-100">{t('expired.title', 'Playback Link Expired')}</h2>
-          
+
           <p className="text-sm text-slate-400 leading-relaxed">
             {t('expired.description', 'This secure public playback session has expired or holds an invalid authorization signature. For compliance and security reasons, signed links are temporary.')}
           </p>

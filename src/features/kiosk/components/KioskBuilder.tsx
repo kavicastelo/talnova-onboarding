@@ -75,7 +75,9 @@ export const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId,
         const saved = storage.getItem('talnova_kiosk_builder_layout');
         if (saved) return JSON.parse(saved);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Storage unavailable or disabled
+    }
     return null;
   };
 
@@ -133,7 +135,9 @@ export const KioskBuilderInner: React.FC<KioskBuilderInnerProps> = ({ journeyId,
           })
         );
       }
-    } catch (_) {}
+    } catch (_) {
+      // Storage unavailable or disabled
+    }
   }, [leftPanelWidth, rightPanelWidth, leftPanelCollapsed, rightPanelCollapsed]);
 
   // Mouse drag listener for resizing side panels

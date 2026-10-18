@@ -95,7 +95,7 @@ describe("Phase 3 — Onboarding Schedule Pack Export & Milestone-Linked 1-on-1s
       endTime: new Date(Date.now() + 24 * 3600 * 1000 + 45 * 60 * 1000),
       status: "scheduled",
       category: "manager_1on1",
-      iCalUid: `dummy-kickoff-${Date.now()}@talnova.com`,
+      iCalUid: `dummy-kickoff-${Date.now()}@talnova.io`,
       locationUrl: "https://meet.google.com/test-pack-call",
     });
 

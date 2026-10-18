@@ -8,6 +8,7 @@ import { DevToolsWarningOverlay } from './DevToolsWarningOverlay';
 import { useDemoAntiTamper } from '../hooks/useDemoAntiTamper';
 import { useDemoTelemetry } from '../hooks/useDemoTelemetry';
 import { useDemoHeartbeat } from '../hooks/useDemoHeartbeat';
+import { getDemoApiBase } from '../utils/apiConfig';
 import {
   Sidebar,
   SidebarContent,
@@ -122,7 +123,7 @@ export const DemoAppShell: React.FC = () => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
+  const API_BASE = getDemoApiBase();
 
   // Demo is the full product: no features are guarded or locked by packages or plans
   const isFeatureAllowed = (featureKey?: string): boolean => {

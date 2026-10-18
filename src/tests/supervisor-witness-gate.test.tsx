@@ -255,7 +255,7 @@ describe('K-SUP-002: Supervisor Witness Completion Gate UI Suite', () => {
           id: 'usr_sup_8841',
           fullName: 'Marcus Vance',
           name: 'Marcus Vance',
-          email: 'mvance@talnova.com',
+          email: 'mvance@talnova.io',
           role: 'supervisor',
           badgeId: 'BADGE-SUP-8841'
         },
@@ -277,7 +277,7 @@ describe('K-SUP-002: Supervisor Witness Completion Gate UI Suite', () => {
       const onCloseSpy = vi.fn();
 
       // Simulate verification invocation
-      const supervisorIdentifier = 'mvance@talnova.com';
+      const supervisorIdentifier = 'mvance@talnova.io';
       const pinCode = '8841';
       const sessionId = 'session-live-777';
 
@@ -288,7 +288,7 @@ describe('K-SUP-002: Supervisor Witness Completion Gate UI Suite', () => {
       );
 
       expect(kioskService.verifySupervisorPin).toHaveBeenCalledWith(
-        'mvance@talnova.com',
+        'mvance@talnova.io',
         '8841',
         'session-live-777'
       );
@@ -345,7 +345,7 @@ describe('K-SUP-002: Supervisor Witness Completion Gate UI Suite', () => {
       let caughtError = '';
       try {
         await kioskService.verifySupervisorPin(
-          'supervisor@talnova.com',
+          'supervisor@talnova.io',
           '0000',
           'session-live-777'
         );
@@ -424,7 +424,7 @@ describe('K-SUP-002: Supervisor Witness Completion Gate UI Suite', () => {
       const supervisorWitness = {
         fullName: 'Dr. Sarah Connor',
         role: 'Safety Director',
-        email: 'sconnor@talnova.com'
+        email: 'sconnor@talnova.io'
       };
 
       // Direct inspection of completion markup

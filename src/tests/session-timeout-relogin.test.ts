@@ -16,7 +16,7 @@ vi.mock('../api/client', () => ({
                 _id: 'user-1',
                 role: 'admin',
                 roles: ['admin'],
-                email: 'test@talnova.com',
+                email: 'test@talnova.io',
                 firstName: 'Test',
                 lastName: 'User',
               },
@@ -56,7 +56,7 @@ describe('Session Inactivity & Re-Login Hand-off Resilience', () => {
     // Simulate a leftover stale activity timestamp from 2 days ago
     storageMap['talnova_last_activity'] = String(Date.now() - 48 * 3600 * 1000);
 
-    const result = await authService.login('test@talnova.com', 'ValidPass123!');
+    const result = await authService.login('test@talnova.io', 'ValidPass123!');
 
     expect(result.accessToken).toBe('mock-access-token-123');
     expect(storageMap['auth_token']).toBe('mock-access-token-123');

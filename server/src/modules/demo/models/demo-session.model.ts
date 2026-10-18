@@ -11,7 +11,7 @@ export interface IDemoSession extends Document {
   userAgent?: string;
   isValid: boolean;
   killCommand?: "TERMINATE" | "FREEZE" | "CONTINUE";
-  riskStatus: "NORMAL" | "SUSPICIOUS" | "HIGH_RISK" | "BLOCKED";
+  riskStatus: "NORMAL" | "SUSPICIOUS" | "HIGH_RISK" | "BLOCKED" | "CRITICAL";
   suspiciousReason?: string;
   lastActivityAt: Date;
   expiresAt: Date;
@@ -35,7 +35,7 @@ const DemoSessionSchema = new Schema<IDemoSession>(
     },
     riskStatus: {
       type: String,
-      enum: ["NORMAL", "SUSPICIOUS", "HIGH_RISK", "BLOCKED"],
+      enum: ["NORMAL", "SUSPICIOUS", "HIGH_RISK", "BLOCKED", "CRITICAL"],
       default: "NORMAL",
     },
     suspiciousReason: { type: String },

@@ -8,10 +8,11 @@ import {
   Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getDemoApiBase } from '../utils/apiConfig';
 
 export const DemoDashboard: React.FC = () => {
   const { user, tenant, setRestrictedModalFeature } = useDemoAuth();
-  const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
+  const API_BASE = getDemoApiBase();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);

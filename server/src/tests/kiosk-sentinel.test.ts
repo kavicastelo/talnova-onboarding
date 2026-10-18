@@ -106,6 +106,12 @@ describe("K-ANA-002: Autonomous Kiosk Fleet Health Sentinel & Multi-Channel Aler
   });
 
   afterAll(async () => {
+    if (testOrg) {
+      await KioskDeviceModel.deleteMany({ organizationId: testOrg._id });
+      await Notification.deleteMany({ organizationId: testOrg._id });
+      await User.deleteMany({ organizationId: testOrg._id });
+      await Organization.findByIdAndDelete(testOrg._id);
+    }
     if (mockWebhookServer) {
       await new Promise<void>((resolve) => mockWebhookServer.close(() => resolve()));
     }

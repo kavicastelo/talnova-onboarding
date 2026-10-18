@@ -174,7 +174,7 @@ export class KioskCertificateService {
     const physicalLocation = device?.location || "Designated Safety Gate";
 
     const certificateNumber = `CERT-KSK-${session._id.toString().slice(-8).toUpperCase()}`;
-    const baseUrl = process.env.APP_BASE_URL || "https://app.talnova.com";
+    const baseUrl = process.env.APP_BASE_URL || "https://app.talnovaonboard.com";
     const qrCodeUrl = `${baseUrl}/verify/cert/${session._id}`;
 
     // 8. Generate standalone vector QR code SVG
@@ -572,7 +572,7 @@ export class KioskCertificateService {
           isAuthentic,
           status: certificateDoc.status,
           badge: "VERIFIED AUTHENTIC",
-          qrCodeUrl: `${process.env.APP_BASE_URL || "https://app.talnova.com"}/verify/cert/${certificateDoc._id}`,
+          qrCodeUrl: `${process.env.APP_BASE_URL || "https://app.talnovaonboard.com"}/verify/cert/${certificateDoc._id}`,
           branding: {
             orgName: certificateDoc.organizationName || org?.name || "Talnova Safety & Compliance Network",
             primaryColor: org?.branding?.primaryColor || "#10B981",

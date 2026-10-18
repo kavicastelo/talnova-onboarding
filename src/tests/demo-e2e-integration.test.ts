@@ -112,8 +112,8 @@ describe('Demo End-to-End Integration Suite (TASK-501)', () => {
   });
 
   describe('2. Routing Boundaries & Subdomain Origin Isolation', () => {
-    it('correctly adapts paths in dedicated subdomain deployment (demo.talnova.com)', () => {
-      (globalThis as any).window.location.hostname = 'demo.talnova.com';
+    it('correctly adapts paths in dedicated subdomain deployment (demo.talnova.io)', () => {
+      (globalThis as any).window.location.hostname = 'demo.talnova.io';
       (globalThis as any).window.location.pathname = '/tasks';
 
       expect(isDemoEnvironment()).toBe(true);
@@ -127,7 +127,7 @@ describe('Demo End-to-End Integration Suite (TASK-501)', () => {
     });
 
     it('correctly adapts paths in subpath deployment (/demo/*)', () => {
-      (globalThis as any).window.location.hostname = 'app.talnova.com';
+      (globalThis as any).window.location.hostname = 'app.talnova.io';
       (globalThis as any).window.location.pathname = '/demo/directory';
 
       expect(isDemoEnvironment()).toBe(true);
@@ -137,7 +137,7 @@ describe('Demo End-to-End Integration Suite (TASK-501)', () => {
     });
 
     it('never alters paths when executing in production context', () => {
-      (globalThis as any).window.location.hostname = 'app.talnova.com';
+      (globalThis as any).window.location.hostname = 'app.talnova.io';
       (globalThis as any).window.location.pathname = '/tasks';
 
       expect(isDemoEnvironment()).toBe(false);

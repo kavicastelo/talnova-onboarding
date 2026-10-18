@@ -148,7 +148,7 @@ async function prepare() {
           lng: -122.3985,
         },
         timezone: "America/Los_Angeles",
-        contactEmail: "facilities@talnova.com",
+        contactEmail: "facilities@talnovaonboard.com",
         contactPhone: "+1 (415) 555-0199",
         accessInfo: {
           wifiSsd: "Talnova-Secure-5G",

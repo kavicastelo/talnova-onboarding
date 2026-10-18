@@ -25,7 +25,7 @@ export function normalizeCloudMediaUrl(
 
   // 1. YouTube (watch?v=, youtu.be/, shorts/, embed/)
   const ytMatch = trimmed.match(
-    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i
+    /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?/\s]{11})/i
   );
   if (ytMatch && ytMatch[1]) {
     return {
@@ -65,7 +65,7 @@ export function normalizeCloudMediaUrl(
 
   // 4. Vimeo (vimeo.com/VIDEO_ID)
   const vimeoMatch = trimmed.match(
-    /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i
+    /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i
   );
   if (vimeoMatch && vimeoMatch[3]) {
     return {

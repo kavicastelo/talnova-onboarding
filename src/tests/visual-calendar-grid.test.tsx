@@ -114,10 +114,10 @@ describe('Phase 2 — Visual Calendar Grid & Day Agenda Component Test Suite', (
   ];
 
   const mockEmployees = [
-    { id: 'usr-1', name: 'Sarah Manager', email: 'sarah@talnova.com' },
-    { id: 'usr-2', name: 'Alex NewHire', email: 'alex@talnova.com' },
-    { id: 'usr-3', name: 'Taylor Buddy', email: 'taylor@talnova.com' },
-    { id: 'usr-4', name: 'David Mentor', email: 'david@talnova.com' },
+    { id: 'usr-1', name: 'Sarah Manager', email: 'sarah@talnova.io' },
+    { id: 'usr-2', name: 'Alex NewHire', email: 'alex@talnova.io' },
+    { id: 'usr-3', name: 'Taylor Buddy', email: 'taylor@talnova.io' },
+    { id: 'usr-4', name: 'David Mentor', email: 'david@talnova.io' },
   ];
 
   const getCategoryLabel = (c: string) => c.replace('_', ' ').toUpperCase();

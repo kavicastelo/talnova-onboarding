@@ -106,6 +106,27 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
   const mainRef = useRef<HTMLElement>(null);
   const [canScrollDown, setCanScrollDown] = useState(false);
 
+  const checkScrollOverflow = useCallback(() => {
+    if (!mainRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = mainRef.current;
+    const hasOverflow = scrollHeight > clientHeight + 24;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 32;
+    setCanScrollDown(hasOverflow && !isNearBottom);
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(checkScrollOverflow, 120);
+    const el = mainRef.current;
+    if (!el) return () => clearTimeout(timeout);
+    el.addEventListener('scroll', checkScrollOverflow, { passive: true });
+    window.addEventListener('resize', checkScrollOverflow);
+    return () => {
+      clearTimeout(timeout);
+      el.removeEventListener('scroll', checkScrollOverflow);
+      window.removeEventListener('resize', checkScrollOverflow);
+    };
+  }, [checkScrollOverflow, stepIndex, step]);
+
   const isEmergency = step?.type === 'emergency_step';
   const isWarning = step?.type === 'warning_step';
 
@@ -187,21 +208,27 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
           ? blockTrans?.textValue
           : undefined;
 
+    const rawContent = (b as any).content;
+    const rawText = (b as any).text;
+
     const textValue =
       mediaRef?.textValue ??
       settingsText ??
       blockText ??
-      (b as any).textValue ??
-      (b as any).content ??
-      (b as any).text;
+      (typeof (b as any).textValue === 'string' ? (b as any).textValue : undefined) ??
+      (typeof rawContent === 'string' ? rawContent : undefined) ??
+      (typeof rawContent === 'object' ? rawContent?.title || rawContent?.text : undefined) ??
+      (typeof rawText === 'string' ? rawText : undefined);
     const uploadId =
       mediaRef?.uploadId ??
       (typeof settingsTrans === 'object' ? settingsTrans?.uploadId : undefined) ??
-      (typeof blockTrans === 'object' ? blockTrans?.uploadId : undefined);
+      (typeof blockTrans === 'object' ? blockTrans?.uploadId : undefined) ??
+      (typeof rawContent === 'object' ? rawContent?.uploadId : undefined);
     const embedUrl =
       mediaRef?.embedUrl ??
       (typeof settingsTrans === 'object' ? settingsTrans?.embedUrl : undefined) ??
-      (typeof blockTrans === 'object' ? blockTrans?.embedUrl : undefined);
+      (typeof blockTrans === 'object' ? blockTrans?.embedUrl : undefined) ??
+      (typeof rawContent === 'object' ? rawContent?.videoUrl || rawContent?.embedUrl || rawContent?.url : undefined);
     const audioUploadId =
       mediaRef?.audioUploadId ??
       (typeof settingsTrans === 'object' ? settingsTrans?.audioUploadId : undefined) ??
@@ -524,26 +551,7 @@ export const KioskStepContainer: React.FC<KioskStepContainerProps> = ({
     (step as any).settings?.translations?.[selectedLanguage]?.title ||
     step.title;
 
-  const checkScrollOverflow = useCallback(() => {
-    if (!mainRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = mainRef.current;
-    const hasOverflow = scrollHeight > clientHeight + 24;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 32;
-    setCanScrollDown(hasOverflow && !isNearBottom);
-  }, []);
 
-  useEffect(() => {
-    const timeout = setTimeout(checkScrollOverflow, 120);
-    const el = mainRef.current;
-    if (!el) return () => clearTimeout(timeout);
-    el.addEventListener('scroll', checkScrollOverflow, { passive: true });
-    window.addEventListener('resize', checkScrollOverflow);
-    return () => {
-      clearTimeout(timeout);
-      el.removeEventListener('scroll', checkScrollOverflow);
-      window.removeEventListener('resize', checkScrollOverflow);
-    };
-  }, [checkScrollOverflow, stepIndex, step]);
 
   const handleScrollDown = () => {
     if (!mainRef.current) return;

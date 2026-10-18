@@ -144,7 +144,7 @@ describe("Journey Test UJ-OPS-002: Navigate Workplace Map & Desks", () => {
         lng: -122.3985,
       },
       timezone: "America/Los_Angeles",
-      contactEmail: "facilities@talnova.com",
+      contactEmail: "facilities@talnova.io",
       contactPhone: "+1 (415) 555-0199",
       accessInfo: {
         wifiSsd: "Talnova-Secure-5G",
