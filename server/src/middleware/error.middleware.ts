@@ -1,6 +1,7 @@
 import { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import AppError from "../common/errors/app-error.js";
+export { AppError };
 import SystemLogBuffer from "../infrastructure/telemetry/system-log-buffer.js";
 import { AuditLog } from "../modules/audit-logs/models/audit-log.model.js";
 import { getClientIp } from "../common/utils/ip.util.js";

@@ -1,13 +1,34 @@
 import OrganizationRepository from "../repositories/organization.repository.js";
 import AppError from "../../../common/errors/app-error.js";
 import mongoose from "mongoose";
-import { IDepartment, ITeam } from "../models/organization.model.js";
+import { Organization, IOrganization, IDepartment, ITeam } from "../models/organization.model.js";
 import User from "../../auth/models/user.model.js";
 import { Upload } from "../../uploads/models/upload.model.js";
 import { Journey } from "../../journeys/models/journey.model.js";
 import KioskDeviceModel from "../../kiosk/models/kiosk-device.model.js";
 import KioskJourneyModel from "../../kiosk/models/kiosk-journey.model.js";
 import { PackageModel } from "../../super-admin/models/package.model.js";
+import { hashPassword } from "../../../utils/crypto.js";
+import crypto from "crypto";
+
+export interface CreateOrganizationInput {
+  name: string;
+  slug?: string;
+  domain?: string;
+  plan?: string;
+  packageId?: mongoose.Types.ObjectId | string;
+  packageSlug?: string;
+  status?: "Active" | "Suspended";
+  supportEmail?: string;
+  createdBy?: mongoose.Types.ObjectId | string;
+  subscription?: any;
+  limits?: any;
+  branding?: any;
+  workspace?: any;
+  ownerEmail?: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
+}
 
 export class OrganizationService {
   constructor(private readonly orgRepository: OrganizationRepository) {}
@@ -275,6 +296,173 @@ export class OrganizationService {
       metrics,
       warnings,
     };
+  }
+
+  /**
+   * Provision a new Organization tenant (and initial owner user if ownerEmail is specified)
+   */
+  async createOrganization(
+    input: CreateOrganizationInput,
+    session?: mongoose.ClientSession
+  ): Promise<IOrganization> {
+    if (!input.name || !input.name.trim()) {
+      throw new AppError(400, "BAD_REQUEST", "Organization name is required");
+    }
+
+    const domainLower = input.domain ? input.domain.toLowerCase().trim() : undefined;
+    if (domainLower) {
+      const existingDomainQuery = Organization.findOne({
+        domain: domainLower,
+        isDeleted: false,
+      });
+      if (session) existingDomainQuery.session(session);
+      const existingDomain = await existingDomainQuery;
+      if (existingDomain) {
+        throw new AppError(
+          409,
+          "DOMAIN_ALREADY_EXISTS",
+          `Domain '${domainLower}' is already registered`
+        );
+      }
+    }
+
+    const baseSlug =
+      input.slug ||
+      (domainLower
+        ? domainLower.replace(/\./g, "-")
+        : input.name.toLowerCase().replace(/[^a-z0-9]/g, "-"));
+    const slugLower = baseSlug.toLowerCase().trim().replace(/^-+|-+$/g, "") || "org";
+
+    const existingSlugQuery = Organization.findOne({
+      slug: slugLower,
+      isDeleted: false,
+    });
+    if (session) existingSlugQuery.session(session);
+    const existingSlug = await existingSlugQuery;
+    if (existingSlug) {
+      throw new AppError(
+        409,
+        "DOMAIN_ALREADY_EXISTS",
+        `Organization slug '${slugLower}' already in use`
+      );
+    }
+
+    const orgId = new mongoose.Types.ObjectId();
+
+    const org = new Organization({
+      _id: orgId,
+      name: input.name.trim(),
+      slug: slugLower,
+      domain: domainLower,
+      plan: input.plan || "Enterprise",
+      packageId: input.packageId
+        ? new mongoose.Types.ObjectId(input.packageId.toString())
+        : undefined,
+      packageSlug: input.packageSlug,
+      status: input.status || "Active",
+      supportEmail:
+        input.supportEmail ||
+        (input.ownerEmail ? input.ownerEmail.toLowerCase().trim() : undefined),
+      createdBy: input.createdBy
+        ? new mongoose.Types.ObjectId(input.createdBy.toString())
+        : undefined,
+      limits: input.limits || {
+        maxUsers: 50,
+        maxStorageGb: 10,
+        maxJourneys: 20,
+        maxKiosks: 5,
+        aiTokenMonthlyLimit: 500000,
+      },
+      subscription: input.subscription || {
+        plan: input.plan || "Enterprise",
+        status: "active",
+        billingInterval: "annual",
+        seatLimit: input.limits?.maxUsers || 50,
+      },
+      branding: input.branding || {
+        primaryColor: "#4F46E5",
+        secondaryColor: "#10B981",
+        accentColor: "#F59E0B",
+      },
+      workspace: input.workspace || {
+        timezone: "UTC",
+        locale: "en-US",
+        dateFormat: "YYYY-MM-DD",
+        firstDayOfWeek: 0,
+      },
+    });
+
+    await org.save({ session });
+
+    // If an ownerEmail is specified, provision Owner User
+    if (input.ownerEmail) {
+      const targetAdminEmail = input.ownerEmail.toLowerCase().trim();
+      const existingUserQuery = User.findOne({
+        "auth.email": targetAdminEmail,
+        isDeleted: false,
+      });
+      if (session) existingUserQuery.session(session);
+      const existingUser = await existingUserQuery;
+
+      if (!existingUser) {
+        const tempPassword = `Talnova-${crypto.randomBytes(3).toString("hex").toUpperCase()}!26`;
+        const passwordHash = await hashPassword(tempPassword);
+        const rawActivationToken = crypto.randomBytes(32).toString("hex");
+        const hashedActivationToken = crypto
+          .createHash("sha256")
+          .update(rawActivationToken)
+          .digest("hex");
+        const activationExpires = new Date(Date.now() + 72 * 3600 * 1000);
+
+        const ownerUser = new User({
+          _id: new mongoose.Types.ObjectId(),
+          organizationId: orgId,
+          auth: {
+            email: targetAdminEmail,
+            passwordHash,
+            emailVerified: true,
+          },
+          profile: {
+            firstName: input.ownerFirstName || "Admin",
+            lastName: input.ownerLastName || input.name.trim(),
+            fullName: `${input.ownerFirstName || "Admin"} ${
+              input.ownerLastName || input.name.trim()
+            }`.trim(),
+          },
+          employment: {
+            employmentType: "full_time",
+            status: "active",
+          },
+          permissions: {
+            role: "owner",
+            roles: ["owner"],
+            customRoles: [],
+          },
+          preferences: {
+            language: "en",
+            theme: "dark",
+            emailNotifications: true,
+          },
+          statistics: {
+            assignedJourneys: 0,
+            completedJourneys: 0,
+            certificates: 0,
+            completionRate: 0,
+          },
+          security: {
+            mfaEnabled: false,
+            failedLoginAttempts: 0,
+            passwordResetToken: hashedActivationToken,
+            passwordResetExpires: activationExpires,
+            mustChangePassword: true,
+          },
+        });
+
+        await ownerUser.save({ session });
+      }
+    }
+
+    return org;
   }
 }
 
