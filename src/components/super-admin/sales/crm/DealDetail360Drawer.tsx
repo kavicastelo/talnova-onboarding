@@ -169,10 +169,10 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
 
   const healthColor =
     healthScore >= 75
-      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
       : healthScore >= 45
-      ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-      : 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+      ? 'text-amber-700 bg-amber-50 border-amber-200'
+      : 'text-rose-700 bg-rose-50 border-rose-200';
 
   const healthLabel =
     healthScore >= 75 ? 'Healthy & On Track' : healthScore >= 45 ? 'Attention Required' : 'High Risk';
@@ -184,34 +184,34 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-2xl bg-slate-900 border-l border-slate-800 text-slate-100 p-0 flex flex-col h-full shadow-2xl z-50 overflow-hidden"
+        className="w-full sm:max-w-2xl bg-white border-l border-slate-200 text-slate-900 p-0 flex flex-col h-full shadow-2xl z-50 overflow-hidden"
       >
         {/* Drawer Header */}
-        <div className="p-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-start justify-between">
+        <div className="p-6 border-b border-slate-200 bg-slate-50/90 backdrop-blur-md flex items-start justify-between">
           <div className="space-y-1 pr-6">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase">
+              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase">
                 {deal.stage.replace('_', ' ')}
               </span>
-              <span className="text-xs text-slate-400 flex items-center gap-1">
+              <span className="text-xs text-slate-500 flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {daysInStage} {daysInStage === 1 ? 'day' : 'days'} in stage
               </span>
             </div>
-            <h2 className="text-xl font-bold text-slate-100 tracking-tight mt-1">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1">
               {deal.name}
             </h2>
-            <div className="flex items-center gap-3 text-xs text-slate-400 pt-0.5">
-              <span className="flex items-center gap-1 font-medium text-slate-300">
-                <Building2 className="h-3.5 w-3.5 text-indigo-400" />
+            <div className="flex items-center gap-3 text-xs text-slate-500 pt-0.5">
+              <span className="flex items-center gap-1 font-medium text-slate-700">
+                <Building2 className="h-3.5 w-3.5 text-indigo-600" />
                 {companyName}
               </span>
               {companyDomain && (
-                <span className="text-slate-500">({companyDomain})</span>
+                <span className="text-slate-400">({companyDomain})</span>
               )}
-              <span className="text-slate-600">•</span>
-              <span className="flex items-center gap-1 text-slate-400">
-                <User className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1 text-slate-600">
+                <User className="h-3.5 w-3.5 text-slate-400" />
                 {ownerName}
               </span>
             </div>
@@ -222,14 +222,14 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
             size="icon"
             onClick={onClose}
             aria-label="Close drawer"
-            className="text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg -mr-2"
+            className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg -mr-2"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Stage Progression Stepper */}
-        <div className="px-6 py-3.5 bg-slate-950/40 border-b border-slate-800/80 overflow-x-auto">
+        <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 overflow-x-auto">
           <div className="flex items-center gap-1.5 min-w-[560px]">
             {DEFAULT_STAGES.filter(s => s.key !== 'closed_lost' || deal.stage === 'closed_lost').map((st, idx) => {
               const isCurrent = st.key === deal.stage;
@@ -244,22 +244,22 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all w-full justify-center border ${
                       isCurrent
                         ? isWon
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
                           : isLost
-                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-bold'
-                          : 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50 font-bold shadow-sm shadow-indigo-500/20'
+                          ? 'bg-rose-50 text-rose-700 border-rose-300 font-bold'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-300 font-bold shadow-xs'
                         : isPast
-                        ? 'bg-slate-800/80 text-slate-300 border-slate-700/60'
-                        : 'bg-slate-900/40 text-slate-400 border-slate-800/50'
+                        ? 'bg-white text-slate-700 border-slate-200'
+                        : 'bg-slate-100/70 text-slate-400 border-slate-200/60'
                     }`}
                   >
-                    {isPast && <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />}
-                    {isCurrent && isWon && <Sparkles className="h-3 w-3 text-emerald-400 shrink-0" />}
-                    {isCurrent && isLost && <XCircle className="h-3 w-3 text-rose-400 shrink-0" />}
+                    {isPast && <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />}
+                    {isCurrent && isWon && <Sparkles className="h-3 w-3 text-emerald-600 shrink-0" />}
+                    {isCurrent && isLost && <XCircle className="h-3 w-3 text-rose-600 shrink-0" />}
                     <span className="truncate">{st.name}</span>
                   </div>
                   {idx < 5 && (
-                    <ChevronRight className="h-3 w-3 text-slate-600 shrink-0 -mx-0.5" />
+                    <ChevronRight className="h-3 w-3 text-slate-400 shrink-0 -mx-0.5" />
                   )}
                 </div>
               );
@@ -268,29 +268,29 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
         </div>
 
         {/* Tabs Bar */}
-        <div className="border-b border-slate-800 px-6 pt-2 bg-slate-950/20">
+        <div className="border-b border-slate-200 px-6 pt-2 bg-white">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <TabsList className="bg-transparent border-b-0 p-0 gap-6">
               <TabsTrigger
                 value="overview"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-500 data-[state=active]:bg-transparent px-2 py-2 text-xs font-semibold text-slate-400 data-[state=active]:text-indigo-400"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent px-2 py-2 text-xs font-semibold text-slate-500 data-[state=active]:text-indigo-600"
               >
                 Overview & Financials
               </TabsTrigger>
               <TabsTrigger
                 value="tasks"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-500 data-[state=active]:bg-transparent px-2 py-2 text-xs font-semibold text-slate-400 data-[state=active]:text-indigo-400 flex items-center gap-1.5"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent px-2 py-2 text-xs font-semibold text-slate-500 data-[state=active]:text-indigo-600 flex items-center gap-1.5"
               >
                 Tasks & Activities
                 {tasks.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-700 font-mono">
                     {tasks.length}
                   </span>
                 )}
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-500 data-[state=active]:bg-transparent px-2 py-2 text-xs font-semibold text-slate-400 data-[state=active]:text-indigo-400"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent px-2 py-2 text-xs font-semibold text-slate-500 data-[state=active]:text-indigo-600"
               >
                 Stage History
               </TabsTrigger>
@@ -304,25 +304,25 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
             <>
               {/* Closed Won & Enterprise Onboarding Action Banner */}
               {isWon && (
-                <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-indigo-950/40 p-4 space-y-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                      <Sparkles className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+                      <Sparkles className="h-4 w-4 text-emerald-600" />
                       <span>Closed Won Deal</span>
                     </div>
                     {deal.wonDetails?.onboardingHandedOff ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                         Onboarding Handed Off
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
                         Pending Onboarding
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-700 leading-relaxed">
                     {deal.wonDetails?.onboardingHandedOff
                       ? `Enterprise organization provisioned. Linked Organization ID: ${deal.wonDetails.organizationId || 'Provisioned'}`
                       : 'Contract has been executed. Initiate automated provisioning to launch tenant workspace and finance customer account.'}
@@ -332,7 +332,7 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                     <Button
                       size="sm"
                       onClick={() => onInitiateHandoff(deal)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-md shadow-emerald-900/30 gap-1.5 w-full sm:w-auto"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm gap-1.5 w-full sm:w-auto"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
                       Initiate Enterprise Onboarding Handoff
@@ -343,13 +343,13 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
 
               {/* Closed Lost Banner */}
               {isLost && (
-                <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-4 space-y-2 text-rose-300">
-                  <div className="flex items-center gap-2 font-semibold text-sm text-rose-400">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-2 text-rose-800">
+                  <div className="flex items-center gap-2 font-semibold text-sm text-rose-700">
                     <XCircle className="h-4 w-4" />
                     <span>{`Closed Lost Reason: ${deal.lossReason || 'Unspecified'}`}</span>
                   </div>
                   {deal.lossDetails && (
-                    <p className="text-xs text-rose-200/80 leading-relaxed pl-6">
+                    <p className="text-xs text-rose-700/80 leading-relaxed pl-6">
                       "{deal.lossDetails}"
                     </p>
                   )}
@@ -357,54 +357,54 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
               )}
 
               {/* Financial Breakdown Card */}
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <DollarSign className="h-4 w-4 text-emerald-400" />
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <DollarSign className="h-4 w-4 text-emerald-600" />
                     Financial & Contract Quote
                   </span>
-                  <span className="text-xs font-mono text-slate-400">
-                    Currency: <strong className="text-slate-200">{currency}</strong>
+                  <span className="text-xs font-mono text-slate-500">
+                    Currency: <strong className="text-slate-800">{currency}</strong>
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                    <p className="text-[11px] text-slate-400 font-medium">Deal Value (TCV)</p>
-                    <p className="text-lg font-bold text-slate-100 mt-1 tabular-nums">
+                  <div className="p-3 rounded-lg bg-white border border-slate-200 shadow-xs">
+                    <p className="text-[11px] text-slate-500 font-medium">Deal Value (TCV)</p>
+                    <p className="text-lg font-bold text-slate-900 mt-1 tabular-nums">
                       {formattedTCV}
                     </p>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                    <p className="text-[11px] text-slate-400 font-medium">ARR</p>
-                    <p className="text-lg font-bold text-indigo-400 mt-1 tabular-nums">
+                  <div className="p-3 rounded-lg bg-white border border-slate-200 shadow-xs">
+                    <p className="text-[11px] text-slate-500 font-medium">ARR</p>
+                    <p className="text-lg font-bold text-indigo-600 mt-1 tabular-nums">
                       {formattedARR}
                     </p>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                    <p className="text-[11px] text-slate-400 font-medium">Win Probability</p>
-                    <p className="text-lg font-bold text-slate-100 mt-1 tabular-nums">
+                  <div className="p-3 rounded-lg bg-white border border-slate-200 shadow-xs">
+                    <p className="text-[11px] text-slate-500 font-medium">Win Probability</p>
+                    <p className="text-lg font-bold text-slate-900 mt-1 tabular-nums">
                       {Math.round((deal.probability || 0) * 100)}%
                     </p>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                    <p className="text-[11px] text-slate-400 font-medium">Weighted Forecast</p>
-                    <p className="text-lg font-bold text-emerald-400 mt-1 tabular-nums">
+                  <div className="p-3 rounded-lg bg-white border border-slate-200 shadow-xs">
+                    <p className="text-[11px] text-slate-500 font-medium">Weighted Forecast</p>
+                    <p className="text-lg font-bold text-emerald-600 mt-1 tabular-nums">
                       {formattedWeighted}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 text-xs border-t border-slate-800/80">
-                  <div className="flex justify-between items-center text-slate-400">
+                <div className="grid grid-cols-2 gap-3 pt-2 text-xs border-t border-slate-200">
+                  <div className="flex justify-between items-center text-slate-500">
                     <span>Implementation Fee:</span>
-                    <span className="text-slate-200 font-mono font-medium">
+                    <span className="text-slate-800 font-mono font-medium">
                       {formattedImplementation}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-400">
+                  <div className="flex justify-between items-center text-slate-500">
                     <span>Expected Close:</span>
-                    <span className="text-slate-200 font-medium">
+                    <span className="text-slate-800 font-medium">
                       {deal.expectedCloseDate
                         ? new Date(deal.expectedCloseDate).toLocaleDateString()
                         : 'Not specified'}
@@ -414,10 +414,10 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
               </div>
 
               {/* AI Deal Risk & Intelligence Card */}
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3.5">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-indigo-400" />
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3.5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-indigo-600" />
                     AI Deal Health & Signals
                   </span>
                   <span
@@ -430,13 +430,13 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                 <div className="space-y-2 text-xs">
                   {/* Signals List */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-start gap-2">
+                    <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-start gap-2 shadow-xs">
                       <Clock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-slate-300 font-medium block">
+                        <span className="text-slate-800 font-medium block">
                           Stage Velocity
                         </span>
-                        <span className="text-slate-400">
+                        <span className="text-slate-500">
                           {daysInStage > 18
                             ? `Stalled in current stage (${daysInStage} days)`
                             : `Healthy velocity (${daysInStage} days in stage)`}
@@ -444,13 +444,13 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                       </div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-start gap-2">
+                    <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-start gap-2 shadow-xs">
                       <ShieldAlert className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-slate-300 font-medium block">
+                        <span className="text-slate-800 font-medium block">
                           Competitor Threat
                         </span>
-                        <span className="text-slate-400">
+                        <span className="text-slate-500">
                           {hasCompetitors
                             ? `Active against: ${deal.competitors?.join(', ')}`
                             : 'No direct competitors tagged'}
@@ -460,13 +460,13 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                   </div>
 
                   {/* Recommended Next Action */}
-                  <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 flex items-start gap-2.5">
-                    <ArrowRight className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                  <div className="rounded-lg bg-indigo-50 border border-indigo-200 p-3 flex items-start gap-2.5">
+                    <ArrowRight className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="text-xs font-semibold text-indigo-300 block">
+                      <span className="text-xs font-semibold text-indigo-900 block">
                         Recommended Next Action
                       </span>
-                      <p className="text-xs text-indigo-200/90 mt-0.5">
+                      <p className="text-xs text-indigo-700/90 mt-0.5">
                         {deal.nextAction ||
                           (isWon
                             ? 'Initiate Enterprise Onboarding Handoff to provision workspace.'
@@ -482,8 +482,8 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
               </div>
 
               {/* Linked Decision Maker & Key Entities */}
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/80">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 pb-2 border-b border-slate-200">
                   <User className="h-4 w-4 text-slate-400" />
                   Primary Decision Maker
                 </span>
@@ -492,35 +492,35 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                   <div className="space-y-2 text-xs">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold text-xs">
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold text-xs">
                           {contactName.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-200">{contactName}</p>
+                          <p className="font-semibold text-slate-800">{contactName}</p>
                           {contactTitle && (
-                            <p className="text-slate-400 text-[11px]">{contactTitle}</p>
+                            <p className="text-slate-500 text-[11px]">{contactTitle}</p>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-800/60 text-slate-300">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200 text-slate-700">
                       {contactEmail && (
                         <div className="flex items-center gap-1.5 truncate">
-                          <Mail className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                          <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span className="truncate">{contactEmail}</span>
                         </div>
                       )}
                       {contactPhone && (
                         <div className="flex items-center gap-1.5">
-                          <Phone className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                          <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span>{contactPhone}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 italic py-2">
+                  <p className="text-xs text-slate-400 italic py-2">
                     No primary contact linked to this deal yet.
                   </p>
                 )}
@@ -531,7 +531,7 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
           {activeTab === 'tasks' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Linked Tasks & Activities ({tasks.length})
                 </h4>
               </div>
@@ -541,14 +541,14 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                   {[1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      className="h-16 rounded-lg bg-slate-800/40 animate-pulse border border-slate-800"
+                      className="h-16 rounded-lg bg-slate-100 animate-pulse border border-slate-200"
                     />
                   ))}
                 </div>
               ) : tasks.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-800 p-8 text-center space-y-2">
-                  <ListTodo className="h-8 w-8 text-slate-600 mx-auto" />
-                  <p className="text-xs font-medium text-slate-400">
+                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center space-y-2 bg-slate-50/50">
+                  <ListTodo className="h-8 w-8 text-slate-400 mx-auto" />
+                  <p className="text-xs font-medium text-slate-500">
                     No sales activities or tasks linked to this deal.
                   </p>
                 </div>
@@ -564,10 +564,10 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                         key={task._id}
                         className={`rounded-xl border p-3.5 text-xs transition-colors ${
                           isCompleted
-                            ? 'border-slate-800/80 bg-slate-950/40 text-slate-400'
+                            ? 'border-slate-200 bg-slate-50 text-slate-500'
                             : isOverdue
-                            ? 'border-rose-500/30 bg-rose-950/20 text-slate-200'
-                            : 'border-slate-800 bg-slate-950/70 text-slate-200'
+                            ? 'border-rose-200 bg-rose-50/40 text-slate-800'
+                            : 'border-slate-200 bg-white text-slate-800 shadow-xs'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -575,20 +575,20 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                             <span
                               className={`h-2 w-2 rounded-full ${
                                 isCompleted
-                                  ? 'bg-slate-600'
+                                  ? 'bg-slate-400'
                                   : isOverdue
                                   ? 'bg-rose-500'
-                                  : 'bg-indigo-500'
+                                  : 'bg-indigo-600'
                               }`}
                             />
                             <span
                               className={`font-semibold ${
-                                isCompleted ? 'line-through text-slate-500' : 'text-slate-100'
+                                isCompleted ? 'line-through text-slate-400' : 'text-slate-900'
                               }`}
                             >
                               {task.title}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 uppercase font-mono">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 uppercase font-mono">
                               {task.type}
                             </span>
                           </div>
@@ -596,10 +596,10 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                               isCompleted
-                                ? 'bg-slate-800 text-slate-400'
+                                ? 'bg-slate-100 text-slate-600'
                                 : isOverdue
-                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                : 'bg-indigo-500/10 text-indigo-300'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : 'bg-indigo-50 text-indigo-700'
                             }`}
                           >
                             {isCompleted ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'}
@@ -607,18 +607,18 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
                         </div>
 
                         {task.description && (
-                          <p className="text-slate-400 mt-1 pl-4 text-[11px]">
+                          <p className="text-slate-500 mt-1 pl-4 text-[11px]">
                             {task.description}
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 pt-2 border-t border-slate-800/60 pl-4">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 pt-2 border-t border-slate-100 pl-4">
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
+                            <Calendar className="h-3 w-3 text-slate-400" />
                             Due: {new Date(task.dueDate).toLocaleDateString()}
                           </span>
                           {task.completedAt && (
-                            <span className="text-emerald-400 font-mono">
+                            <span className="text-emerald-600 font-mono">
                               Done on: {new Date(task.completedAt).toLocaleDateString()}
                             </span>
                           )}
@@ -633,19 +633,19 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
 
           {activeTab === 'history' && (
             <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Stage Transition Timeline
               </h4>
 
               {(!deal.stageHistory || deal.stageHistory.length === 0) ? (
-                <div className="rounded-xl border border-dashed border-slate-800 p-8 text-center space-y-2">
-                  <History className="h-8 w-8 text-slate-600 mx-auto" />
-                  <p className="text-xs font-medium text-slate-400">
+                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center space-y-2 bg-slate-50/50">
+                  <History className="h-8 w-8 text-slate-400 mx-auto" />
+                  <p className="text-xs font-medium text-slate-500">
                     No stage transitions recorded yet.
                   </p>
                 </div>
               ) : (
-                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
+                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
                   {deal.stageHistory.map((item, idx) => {
                     const toStageName = item.toStage?.replace('_', ' ') || 'Stage';
                     const fromStageName = item.fromStage?.replace('_', ' ') || 'Initial';
@@ -656,16 +656,16 @@ export const DealDetail360Drawer: React.FC<DealDetail360DrawerProps> = ({
 
                     return (
                       <div key={idx} className="relative text-xs space-y-1">
-                        <span className="absolute -left-[19px] top-1 h-3 w-3 rounded-full bg-indigo-500 border-2 border-slate-900" />
+                        <span className="absolute -left-[19px] top-1 h-3 w-3 rounded-full bg-indigo-600 border-2 border-white shadow-xs" />
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-200 capitalize">
+                          <span className="font-semibold text-slate-900 capitalize">
                             {fromStageName} → {toStageName}
                           </span>
                           <span className="text-[11px] text-slate-500 font-mono">
                             {new Date(item.changedAt).toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+                        <div className="flex items-center gap-3 text-slate-500 text-[11px]">
                           <span>By: {changedByName}</span>
                           {item.daysInPreviousStage !== undefined && (
                             <span>• Days in previous stage: {item.daysInPreviousStage}</span>

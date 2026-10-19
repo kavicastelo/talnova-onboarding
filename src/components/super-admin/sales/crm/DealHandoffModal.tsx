@@ -118,19 +118,19 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl bg-slate-900 border border-slate-800 text-slate-100 p-0 overflow-hidden shadow-2xl">
+      <DialogContent className="max-w-xl bg-white border border-slate-200 text-slate-900 p-0 overflow-hidden shadow-xl">
         {/* Header Strip */}
-        <div className="bg-gradient-to-r from-indigo-900/60 via-purple-900/50 to-slate-900 p-6 border-b border-white/10">
+        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-slate-50 p-6 border-b border-slate-200">
           <DialogHeader>
             <div className="flex items-center gap-2.5 mb-1.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 border border-indigo-200">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <DialogTitle className="text-xl font-bold text-slate-100">
+              <DialogTitle className="text-xl font-bold text-slate-900">
                 Enterprise Onboarding Handoff
               </DialogTitle>
             </div>
-            <DialogDescription className="text-slate-400 text-sm">
+            <DialogDescription className="text-slate-500 text-sm">
               Provision contracted organization, admin workspace, and finance customer account.
             </DialogDescription>
           </DialogHeader>
@@ -139,24 +139,24 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
         {/* Content Body */}
         <div className="p-6 space-y-5">
           {/* Deal Summary Box */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
             <div className="flex items-start justify-between">
               <div>
-                <h4 className="text-sm font-semibold text-slate-200">{deal.name}</h4>
-                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                <h4 className="text-sm font-semibold text-slate-900">{deal.name}</h4>
+                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                  <Building2 className="h-3.5 w-3.5 text-slate-400" />
                   {defaultCompanyName}
                 </p>
               </div>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 {formattedValue}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-xs text-slate-400">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 text-xs text-slate-600">
               <div>
                 <span className="text-slate-500">Contract Signed:</span>{' '}
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-800 font-medium">
                   {deal.wonDetails?.contractSignedDate
                     ? new Date(deal.wonDetails.contractSignedDate).toLocaleDateString()
                     : 'Recorded on Won'}
@@ -164,7 +164,7 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
               </div>
               <div>
                 <span className="text-slate-500">Stage:</span>{' '}
-                <span className="text-emerald-400 font-medium uppercase tracking-wide">
+                <span className="text-emerald-700 font-semibold uppercase tracking-wide">
                   {deal.stage.replace('_', ' ')}
                 </span>
               </div>
@@ -173,49 +173,49 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
 
           {/* If already handed off or completed in this session */}
           {(isAlreadyHandedOff || handoffResult) ? (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 space-y-3 text-slate-200">
-              <div className="flex items-center gap-2.5 text-emerald-400 font-semibold">
-                <CheckCircle2 className="h-5 w-5" />
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 space-y-3 text-slate-800">
+              <div className="flex items-center gap-2.5 text-emerald-800 font-semibold">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                 <span>Onboarding Provisioning Confirmed</span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-slate-700 leading-relaxed">
                 The enterprise organization and customer account have been successfully created and linked to this deal.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-emerald-500/20 text-xs font-mono">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-emerald-200 text-xs font-mono">
                 {currentOrgId && (
-                  <div className="p-2 rounded bg-slate-900/60 border border-emerald-500/20">
-                    <span className="text-slate-400 block text-[10px] uppercase font-sans">
+                  <div className="p-2 rounded bg-white border border-emerald-200">
+                    <span className="text-slate-500 block text-[10px] uppercase font-sans">
                       Organization ID
                     </span>
-                    <span className="text-emerald-300 font-semibold">{currentOrgId}</span>
+                    <span className="text-emerald-700 font-semibold">{currentOrgId}</span>
                   </div>
                 )}
                 {handoffResult?.customerAccountId && (
-                  <div className="p-2 rounded bg-slate-900/60 border border-emerald-500/20">
-                    <span className="text-slate-400 block text-[10px] uppercase font-sans">
+                  <div className="p-2 rounded bg-white border border-emerald-200">
+                    <span className="text-slate-500 block text-[10px] uppercase font-sans">
                       Customer Account
                     </span>
-                    <span className="text-indigo-300 font-semibold">
+                    <span className="text-indigo-700 font-semibold">
                       {handoffResult.customerAccountId}
                     </span>
                   </div>
                 )}
                 {handoffResult?.packageName && (
-                  <div className="p-2 rounded bg-slate-900/60 border border-emerald-500/20">
-                    <span className="text-slate-400 block text-[10px] uppercase font-sans">
+                  <div className="p-2 rounded bg-white border border-emerald-200">
+                    <span className="text-slate-500 block text-[10px] uppercase font-sans">
                       Assigned Package
                     </span>
-                    <span className="text-slate-200 font-semibold">
+                    <span className="text-slate-800 font-semibold">
                       {handoffResult.packageName}
                     </span>
                   </div>
                 )}
                 {handoffResult?.ownerUserId && (
-                  <div className="p-2 rounded bg-slate-900/60 border border-emerald-500/20">
-                    <span className="text-slate-400 block text-[10px] uppercase font-sans">
+                  <div className="p-2 rounded bg-white border border-emerald-200">
+                    <span className="text-slate-500 block text-[10px] uppercase font-sans">
                       Owner User ID
                     </span>
-                    <span className="text-slate-200">{handoffResult.ownerUserId}</span>
+                    <span className="text-slate-800">{handoffResult.ownerUserId}</span>
                   </div>
                 )}
               </div>
@@ -224,7 +224,7 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
             /* Handoff Configuration Form */
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="handoff-org-name" className="text-xs font-medium text-slate-300">
+                <Label htmlFor="handoff-org-name" className="text-xs font-medium text-slate-700">
                   Target Organization Name
                 </Label>
                 <Input
@@ -232,12 +232,12 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
                   value={organizationName}
                   onChange={(e) => setOrganizationName(e.target.value)}
                   placeholder="e.g. Acme Corp Enterprise"
-                  className="bg-slate-950 border-slate-700 text-slate-100 text-sm focus:border-indigo-500"
+                  className="bg-white border-slate-300 text-slate-900 text-sm focus:border-indigo-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="handoff-admin-email" className="text-xs font-medium text-slate-300">
+                <Label htmlFor="handoff-admin-email" className="text-xs font-medium text-slate-700">
                   Initial Admin / Owner Email
                 </Label>
                 <Input
@@ -246,12 +246,12 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
                   placeholder="admin@customer-domain.com"
-                  className="bg-slate-950 border-slate-700 text-slate-100 text-sm focus:border-indigo-500"
+                  className="bg-white border-slate-300 text-slate-900 text-sm focus:border-indigo-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="handoff-notes" className="text-xs font-medium text-slate-300">
+                <Label htmlFor="handoff-notes" className="text-xs font-medium text-slate-700">
                   Handoff & Special Implementation Notes (Optional)
                 </Label>
                 <Input
@@ -259,12 +259,12 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
                   value={handoffNotes}
                   onChange={(e) => setHandoffNotes(e.target.value)}
                   placeholder="Custom integrations, SSO requirements, contracted onboarding timeline..."
-                  className="bg-slate-950 border-slate-700 text-slate-100 text-sm focus:border-indigo-500"
+                  className="bg-white border-slate-300 text-slate-900 text-sm focus:border-indigo-500"
                 />
               </div>
 
-              <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 flex items-start gap-2.5 text-xs text-indigo-300">
-                <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 text-indigo-400" />
+              <div className="rounded-lg bg-indigo-50 border border-indigo-200 p-3 flex items-start gap-2.5 text-xs text-indigo-800">
+                <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 text-indigo-600" />
                 <p>
                   Provisioning initializes an enterprise Organization, provisions the Owner role credentials, generates a finance CustomerAccount, and emits internal handoff events.
                 </p>
@@ -274,12 +274,12 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <DialogFooter className="bg-slate-950/70 px-6 py-4 border-t border-slate-800 flex items-center justify-between">
+        <DialogFooter className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
           <Button
             type="button"
             variant="ghost"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200"
+            className="text-slate-600 hover:text-slate-900"
           >
             {handoffResult || isAlreadyHandedOff ? 'Close' : 'Cancel'}
           </Button>
@@ -289,7 +289,7 @@ export const DealHandoffModal: React.FC<DealHandoffModalProps> = ({
               type="button"
               onClick={() => handoffMutation.mutate()}
               disabled={handoffMutation.isPending}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/30 gap-1.5"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm gap-1.5"
             >
               {handoffMutation.isPending ? (
                 'Provisioning Organization...'

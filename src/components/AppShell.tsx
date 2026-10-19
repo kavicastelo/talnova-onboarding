@@ -82,7 +82,9 @@ import {
   Megaphone,
   Send,
   Inbox as InboxIcon,
-  Package as PackageIcon
+  Package as PackageIcon,
+  Sliders,
+  Upload
 } from
   'lucide-react';
 import { Button } from './Button';
@@ -411,6 +413,7 @@ export function AppShell() {
           icon: Target,
           subItems: [
             { title: 'All Leads', url: '/super-admin/sales/leads', icon: Users },
+            { title: 'Bulk Import', url: '/super-admin/sales/leads?action=import', icon: Upload },
           ],
         },
         {
@@ -436,6 +439,14 @@ export function AppShell() {
           icon: Sparkles,
           subItems: [
             { title: 'Command Center', url: '/super-admin/sales/ai', icon: Sparkles },
+          ],
+        },
+        {
+          title: 'Integrations & APIs',
+          url: '/super-admin/sales/integrations',
+          icon: Sliders,
+          subItems: [
+            { title: 'API Gateways', url: '/super-admin/sales/integrations', icon: Sliders },
           ],
         },
       ],

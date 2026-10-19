@@ -60,6 +60,7 @@ import { SuperAdminCampaigns } from './pages/super-admin/sales/SuperAdminCampaig
 import { CampaignDetailPage } from './pages/super-admin/sales/CampaignDetailPage';
 import { SalesInboxPage } from './pages/super-admin/sales/SalesInboxPage';
 import { SalesAiIntelligencePage } from './pages/super-admin/sales/SalesAiIntelligencePage';
+import { SalesIntegrationsPage } from './pages/super-admin/sales/SalesIntegrationsPage';
 import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
@@ -253,6 +254,7 @@ export function App() {
               <Route path="super-admin/sales/campaigns" element={<ProtectedRoute capability="view_super_admin"><SuperAdminCampaigns /></ProtectedRoute>} />
               <Route path="super-admin/sales/inbox" element={<ProtectedRoute capability="view_super_admin"><SalesInboxPage /></ProtectedRoute>} />
               <Route path="super-admin/sales/ai" element={<ProtectedRoute capability="view_super_admin"><SalesAiIntelligencePage /></ProtectedRoute>} />
+              <Route path="super-admin/sales/integrations" element={<ProtectedRoute capability="view_super_admin"><SalesIntegrationsPage /></ProtectedRoute>} />
               <Route path="super-admin/settings/flags" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFeatureFlags /></ProtectedRoute>} />
               <Route path="super-admin/settings/platform" element={<ProtectedRoute capability="view_super_admin"><SuperAdminPlatformSettings /></ProtectedRoute>} />
               <Route path="journeys" element={<ProtectedRoute featureFlag="journey_templates"><JourneysList /></ProtectedRoute>} />

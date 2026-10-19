@@ -278,136 +278,130 @@ export function SalesDealsPage() {
   };
 
   return (
-    <SuperAdminShell>
-      <div className="space-y-5 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-2.5">
-              <Kanban className="h-6 w-6 text-indigo-400" />
-              Deals & Pipeline
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Interactive B2B sales pipeline with weighted forecasting, stage transitions, and enterprise onboarding handoff.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* View Mode Toggle Switcher */}
-            <div className="flex items-center rounded-lg border border-slate-700/80 bg-slate-800/80 p-0.5">
-              <button
-                type="button"
-                onClick={() => setViewMode('kanban')}
-                data-testid="deals-view-kanban-btn"
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
-                  viewMode === 'kanban'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Kanban className="h-3.5 w-3.5" />
-                Kanban
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                data-testid="deals-view-table-btn"
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
-                  viewMode === 'table'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <TableIcon className="h-3.5 w-3.5" />
-                Table
-              </button>
-            </div>
-
-            {/* Pipeline Selector */}
-            {pipelines.length > 1 && (
-              <select
-                aria-label="Select Pipeline"
-                className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={selectedPipelineId}
-                onChange={(e) => setSelectedPipelineId(e.target.value)}
-              >
-                {pipelines.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name} {p.isDefault ? '(Default)' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {/* Refresh Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isLoadingKanban || isRefetchingKanban}
-              className="border-slate-700 hover:bg-slate-800 text-slate-300 gap-1.5 text-xs"
+    <SuperAdminShell
+      title="Deals & Pipeline"
+      subtitle="Interactive B2B sales pipeline with weighted forecasting, stage transitions, and enterprise onboarding handoff."
+      showTenant={false}
+      showSeverity={false}
+      showEnvironment={false}
+      actions={
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* View Mode Toggle Switcher */}
+          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('kanban')}
+              data-testid="deals-view-kanban-btn"
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                viewMode === 'kanban'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${isRefetchingKanban ? 'animate-spin' : ''}`}
-              />
-              Refresh
-            </Button>
+              <Kanban className="h-3.5 w-3.5" />
+              Kanban
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              data-testid="deals-view-table-btn"
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TableIcon className="h-3.5 w-3.5" />
+              Table
+            </button>
           </div>
-        </div>
 
+          {/* Pipeline Selector */}
+          {pipelines.length > 1 && (
+            <select
+              aria-label="Select Pipeline"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              value={selectedPipelineId}
+              onChange={(e) => setSelectedPipelineId(e.target.value)}
+            >
+              {pipelines.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name} {p.isDefault ? '(Default)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Refresh Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoadingKanban || isRefetchingKanban}
+            className="flex items-center gap-1.5 text-xs bg-white text-slate-700 hover:bg-slate-50 border-slate-300"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isRefetchingKanban ? 'animate-spin' : ''}`}
+            />
+            Refresh
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-5">
         {/* KPI Metrics Strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <Card className="border-white/5 bg-slate-900/60 shadow-md backdrop-blur-md">
+          <Card className="border border-slate-200 bg-white shadow-xs hover:shadow transition-shadow">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Total Pipeline Value</p>
-                <h3 className="text-xl font-bold text-slate-100 mt-0.5 tabular-nums">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Pipeline Value</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {formattedTotalVal}
                 </h3>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <DollarSign className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-white/5 bg-slate-900/60 shadow-md backdrop-blur-md">
+          <Card className="border border-slate-200 bg-white shadow-xs hover:shadow transition-shadow">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Weighted Forecast</p>
-                <h3 className="text-xl font-bold text-indigo-400 mt-0.5 tabular-nums">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Weighted Forecast</p>
+                <h3 className="text-2xl font-bold text-indigo-600 mt-1 tabular-nums">
                   {formattedWeightedVal}
                 </h3>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-white/5 bg-slate-900/60 shadow-md backdrop-blur-md">
+          <Card className="border border-slate-200 bg-white shadow-xs hover:shadow transition-shadow">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Active Deals</p>
-                <h3 className="text-xl font-bold text-slate-100 mt-0.5 tabular-nums">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Deals</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {totalDealsCount}
                 </h3>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                 <Layers className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-white/5 bg-slate-900/60 shadow-md backdrop-blur-md">
+          <Card className="border border-slate-200 bg-white shadow-xs hover:shadow transition-shadow">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Closed Won Value</p>
-                <h3 className="text-xl font-bold text-emerald-400 mt-0.5 tabular-nums">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Closed Won Value</p>
+                <h3 className="text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
                   {formattedWonVal}
                 </h3>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <Award className="h-5 w-5" />
               </div>
             </CardContent>
@@ -418,7 +412,7 @@ export function SalesDealsPage() {
         {viewMode === 'kanban' ? (
           <div className="space-y-4">
             {/* Search Input for Kanban */}
-            <div className="flex items-center gap-3 bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+            <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input
@@ -428,7 +422,7 @@ export function SalesDealsPage() {
                   placeholder="Filter pipeline by deal title or company..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950/80 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -444,8 +438,8 @@ export function SalesDealsPage() {
                 isLoading={isLoadingKanban}
               />
             ) : (
-              <div className="flex h-64 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/20">
-                <p className="text-xs text-slate-400">Loading Kanban pipeline...</p>
+              <div className="flex h-64 items-center justify-center rounded-xl border border-slate-200 bg-white">
+                <p className="text-xs text-slate-500">Loading Kanban pipeline...</p>
               </div>
             )}
           </div>

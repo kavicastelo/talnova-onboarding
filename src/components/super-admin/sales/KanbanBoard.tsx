@@ -132,7 +132,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       {/* Horizontal Scrolling Kanban Column Container */}
       <div
         id="kanban-board-container"
-        className="flex w-full items-start gap-4 overflow-x-auto pb-6 pt-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+        className="flex w-full items-start gap-4 overflow-x-auto pb-6 pt-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent"
         style={{ minHeight: 'calc(100vh - 280px)' }}
       >
         {kanbanData.stages.map((column: KanbanStageColumn) => {
@@ -159,36 +159,36 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               onDragOver={(e) => handleDragOver(e, column.key)}
               onDragLeave={(e) => handleDragLeave(e, column.key)}
               onDrop={(e) => handleDrop(e, column.key)}
-              className={`flex w-80 shrink-0 flex-col rounded-2xl border border-white/5 bg-slate-900/60 p-3 shadow-lg backdrop-blur-md transition-all duration-200 border-t-4 ${getStageAccentColor(
+              className={`flex w-80 shrink-0 flex-col rounded-2xl border border-slate-200/80 bg-slate-100/70 p-3 shadow-xs transition-all duration-200 border-t-4 ${getStageAccentColor(
                 column.key
               )} ${
                 isOver
-                  ? 'ring-2 ring-indigo-500 border-dashed border-indigo-400 bg-slate-800/80 scale-[1.01]'
+                  ? 'ring-2 ring-indigo-500 border-dashed border-indigo-400 bg-indigo-50/50 scale-[1.01]'
                   : ''
               }`}
             >
               {/* Column Header */}
-              <div className="mb-3 flex flex-col gap-1 border-b border-white/5 pb-2.5 px-1">
+              <div className="mb-3 flex flex-col gap-1 border-b border-slate-200/80 pb-2.5 px-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm text-slate-100 truncate" title={column.name}>
+                    <h3 className="font-semibold text-sm text-slate-800 truncate" title={column.name}>
                       {column.name}
                     </h3>
-                    <span className="flex h-5 items-center rounded-full bg-slate-800 px-2 text-[11px] font-medium text-slate-300 border border-slate-700">
+                    <span className="flex h-5 items-center rounded-full bg-white px-2 text-[11px] font-semibold text-slate-700 border border-slate-200 shadow-xs">
                       {column.dealCount !== undefined ? column.dealCount : (column.count || column.deals.length)}
                     </span>
                   </div>
-                  <span className="text-[11px] font-medium text-slate-400 bg-slate-800/50 px-1.5 py-0.5 rounded">
+                  <span className="text-[11px] font-medium text-slate-500 bg-white/80 border border-slate-200/60 px-1.5 py-0.5 rounded">
                     {probPercent}%
                   </span>
                 </div>
 
                 {/* Column Totals */}
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span className="font-semibold text-slate-200 tabular-nums">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span className="font-bold text-slate-800 tabular-nums">
                     {formattedStageTotal}
                   </span>
-                  <span className="text-[11px] text-slate-400 tabular-nums" title="Weighted Stage Value">
+                  <span className="text-[11px] text-slate-500 tabular-nums" title="Weighted Stage Value">
                     wt. {formattedWeightedTotal}
                   </span>
                 </div>
@@ -200,8 +200,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div
                     className={`flex h-32 flex-col items-center justify-center rounded-xl border border-dashed text-center p-4 transition-colors ${
                       isOver
-                        ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
-                        : 'border-slate-800 bg-slate-950/20 text-slate-400'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-600'
+                        : 'border-slate-300 bg-white/60 text-slate-400'
                     }`}
                   >
                     <Layers className="h-5 w-5 mb-1.5 opacity-50" />
