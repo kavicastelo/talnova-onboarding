@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
@@ -9,6 +10,7 @@ import {
   Search,
   RefreshCw,
   ArrowUpDown,
+  Upload,
 } from 'lucide-react';
 import { SuperAdminShell } from '../../../components/super-admin/SuperAdminShell';
 import { Card, CardContent } from '../../../components/Card';
@@ -16,6 +18,7 @@ import { Button } from '../../../components/Button';
 import { Input } from '../../../components/Input';
 import { LeadTable } from '../../../components/super-admin/sales/LeadTable';
 import { CreateLeadModal } from '../../../components/super-admin/sales/CreateLeadModal';
+import { BulkLeadImportModal } from '../../../components/super-admin/sales/BulkLeadImportModal';
 import { LeadProfile360Drawer } from '../../../components/super-admin/sales/leads/LeadProfile360Drawer';
 import {
   salesService,
@@ -24,6 +27,7 @@ import {
 
 export function SuperAdminLeads() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter State
   const [searchInput, setSearchInput] = useState('');
@@ -40,7 +44,18 @@ export function SuperAdminLeads() {
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadItem | null>(null);
+
+  // Check URL query parameter for ?action=import
+  useEffect(() => {
+    if (searchParams.get('action') === 'import') {
+      setIsImportModalOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Debounce search input (350ms)
   useEffect(() => {
@@ -122,6 +137,16 @@ export function SuperAdminLeads() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs bg-white text-indigo-700 hover:bg-indigo-50 border-indigo-200 shadow-sm"
+          >
+            <Upload className="w-3.5 h-3.5 text-indigo-600" />
+            Import CSV
           </Button>
 
           <Button
@@ -352,6 +377,15 @@ export function SuperAdminLeads() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ['sales-leads'] });
+        }}
+      />
+
+      {/* Bulk Lead Import Modal */}
+      <BulkLeadImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={() => {
           queryClient.invalidateQueries({ queryKey: ['sales-leads'] });
         }}
       />
