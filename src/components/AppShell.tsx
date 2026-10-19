@@ -77,6 +77,11 @@ import {
   ToggleLeft,
   FileSpreadsheet,
   Sparkles,
+  Target,
+  Kanban,
+  Megaphone,
+  Send,
+  Inbox as InboxIcon,
   Package as PackageIcon
 } from
   'lucide-react';
@@ -375,6 +380,62 @@ export function AppShell() {
           subItems: [
             { title: t('items.userDirectory') || 'User Directory', url: '/super-admin/users', icon: Users },
             { title: t('items.activeSessions') || 'Active Sessions', url: '/super-admin/users/sessions', icon: KeyRound },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Sales & Acquisition',
+      items: [
+        {
+          title: 'Sales Overview',
+          url: '/super-admin/sales',
+          icon: BarChart2,
+        },
+        {
+          title: 'Advanced Analytics',
+          url: '/super-admin/sales/analytics',
+          icon: BarChart3,
+        },
+        {
+          title: 'Deals & Pipeline',
+          url: '/super-admin/sales/deals',
+          icon: Kanban,
+          subItems: [
+            { title: 'Pipeline Kanban', url: '/super-admin/sales/deals', icon: Kanban },
+          ],
+        },
+        {
+          title: 'Lead Management',
+          url: '/super-admin/sales/leads',
+          icon: Target,
+          subItems: [
+            { title: 'All Leads', url: '/super-admin/sales/leads', icon: Users },
+          ],
+        },
+        {
+          title: 'Campaigns & Outreach',
+          url: '/super-admin/sales/campaigns/new',
+          icon: Megaphone,
+          subItems: [
+            { title: 'Campaign Wizard', url: '/super-admin/sales/campaigns/new', icon: Megaphone },
+            { title: 'All Campaigns', url: '/super-admin/sales/campaigns', icon: Send },
+          ],
+        },
+        {
+          title: 'Unified Inbox',
+          url: '/super-admin/sales/inbox',
+          icon: InboxIcon,
+          subItems: [
+            { title: 'Conversations', url: '/super-admin/sales/inbox', icon: InboxIcon },
+          ],
+        },
+        {
+          title: 'AI Intelligence',
+          url: '/super-admin/sales/ai',
+          icon: Sparkles,
+          subItems: [
+            { title: 'Command Center', url: '/super-admin/sales/ai', icon: Sparkles },
           ],
         },
       ],

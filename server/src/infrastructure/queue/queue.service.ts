@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import SystemJob, { ISystemJob } from "./system-job.model.js";
+import SystemLogBuffer from "../telemetry/system-log-buffer.js";
 
 export interface JobOptions {
   maxRetries?: number;
@@ -149,11 +150,20 @@ export class QueueService {
       const handler = this.jobHandlers.get(job.name);
 
       if (!handler) {
-        // console.error(`[QueueService] No registered handler for job: ${job.name}`);
         job.status = "failed";
         job.lastError = `No handler registered for ${job.name}`;
         job.updatedAt = new Date();
         this.failedJobs.push(job);
+
+        SystemLogBuffer.record({
+          level: "critical",
+          source: "worker",
+          eventType: "UNHANDLED_JOB_ERROR",
+          action: "job_handler_missing",
+          organizationId: job.options.organizationId?.toString(),
+          description: `No handler registered for job: ${job.name}`,
+          metadata: { jobId: job.id, jobName: job.name },
+        });
 
         if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(job.id)) {
           SystemJob.updateOne(
@@ -224,12 +234,24 @@ export class QueueService {
           await new Promise((resolve) => setTimeout(resolve, backoff));
           this.jobQueue.push(job);
         } else {
-          // console.error(
-          //   `[QueueService] Job ${job.name} (${job.id}) failed permanently after ${job.attempts} attempts:`,
-          //   error
-          // );
           job.status = "failed";
           this.failedJobs.push(job);
+
+          SystemLogBuffer.record({
+            level: "critical",
+            source: "worker",
+            eventType: "DEAD_LETTER_JOB_FAILED",
+            action: "dead_letter",
+            organizationId: job.options.organizationId?.toString(),
+            description: `Job ${job.name} (${job.id}) exhausted ${job.attempts} retries and failed permanently: ${job.lastError}`,
+            metadata: {
+              jobId: job.id,
+              jobName: job.name,
+              attempts: job.attempts,
+              maxRetries: job.options.maxRetries || 3,
+              lastError: job.lastError,
+            },
+          });
 
           if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(job.id)) {
             SystemJob.updateOne(

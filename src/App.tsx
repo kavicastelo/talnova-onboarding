@@ -51,6 +51,15 @@ import { SuperAdminReports } from './pages/super-admin/SuperAdminReports';
 import { SuperAdminFeatureFlags } from './pages/super-admin/SuperAdminFeatureFlags';
 import { SuperAdminPlatformSettings } from './pages/super-admin/SuperAdminPlatformSettings';
 import { SuperAdminPackages } from './pages/super-admin/SuperAdminPackages';
+import { SuperAdminSalesOverview } from './pages/super-admin/sales/SuperAdminSalesOverview';
+import { SalesAnalyticsPage } from './pages/super-admin/sales/SalesAnalyticsPage';
+import { SuperAdminLeads } from './pages/super-admin/sales/SuperAdminLeads';
+import { SuperAdminDeals } from './pages/super-admin/sales/SuperAdminDeals';
+import { SuperAdminCampaignWizard } from './pages/super-admin/sales/SuperAdminCampaignWizard';
+import { SuperAdminCampaigns } from './pages/super-admin/sales/SuperAdminCampaigns';
+import { CampaignDetailPage } from './pages/super-admin/sales/CampaignDetailPage';
+import { SalesInboxPage } from './pages/super-admin/sales/SalesInboxPage';
+import { SalesAiIntelligencePage } from './pages/super-admin/sales/SalesAiIntelligencePage';
 import { SuperAdminFilterProvider } from './context/SuperAdminFilterContext';
 import { KnowledgeBaseSlideshow } from './pages/KnowledgeBaseSlideshow';
 import { PublicCertificateViewer } from './pages/PublicCertificateViewer';
@@ -235,6 +244,15 @@ export function App() {
               <Route path="super-admin/finance/accounts" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFinance /></ProtectedRoute>} />
               <Route path="super-admin/audit" element={<ProtectedRoute capability="view_super_admin"><SuperAdminAudit /></ProtectedRoute>} />
               <Route path="super-admin/reports" element={<ProtectedRoute capability="view_super_admin"><SuperAdminReports /></ProtectedRoute>} />
+              <Route path="super-admin/sales" element={<ProtectedRoute capability="view_super_admin"><SuperAdminSalesOverview /></ProtectedRoute>} />
+              <Route path="super-admin/sales/analytics" element={<ProtectedRoute capability="view_super_admin"><SalesAnalyticsPage /></ProtectedRoute>} />
+              <Route path="super-admin/sales/leads" element={<ProtectedRoute capability="view_super_admin"><SuperAdminLeads /></ProtectedRoute>} />
+              <Route path="super-admin/sales/deals" element={<ProtectedRoute capability="view_super_admin"><SuperAdminDeals /></ProtectedRoute>} />
+              <Route path="super-admin/sales/campaigns/new" element={<ProtectedRoute capability="view_super_admin"><SuperAdminCampaignWizard /></ProtectedRoute>} />
+              <Route path="super-admin/sales/campaigns/:id" element={<ProtectedRoute capability="view_super_admin"><CampaignDetailPage /></ProtectedRoute>} />
+              <Route path="super-admin/sales/campaigns" element={<ProtectedRoute capability="view_super_admin"><SuperAdminCampaigns /></ProtectedRoute>} />
+              <Route path="super-admin/sales/inbox" element={<ProtectedRoute capability="view_super_admin"><SalesInboxPage /></ProtectedRoute>} />
+              <Route path="super-admin/sales/ai" element={<ProtectedRoute capability="view_super_admin"><SalesAiIntelligencePage /></ProtectedRoute>} />
               <Route path="super-admin/settings/flags" element={<ProtectedRoute capability="view_super_admin"><SuperAdminFeatureFlags /></ProtectedRoute>} />
               <Route path="super-admin/settings/platform" element={<ProtectedRoute capability="view_super_admin"><SuperAdminPlatformSettings /></ProtectedRoute>} />
               <Route path="journeys" element={<ProtectedRoute featureFlag="journey_templates"><JourneysList /></ProtectedRoute>} />

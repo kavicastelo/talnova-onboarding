@@ -31,7 +31,16 @@ export type EventType =
   | "ONBOARDING_CASE_STATE_CHANGED"
   | "ONBOARDING_NUDGE_SENT"
   | "DROP_OFF_RISK_DETECTED"
-  | "WORKFLOW_RULE_CONFLICT_ARBITRATED";
+  | "WORKFLOW_RULE_CONFLICT_ARBITRATED"
+  | "sales.deal.won"
+  | "sales.onboarding.handoff_initiated"
+  | "SALES_DEAL_WON"
+  | "SALES_ONBOARDING_HANDOFF_INITIATED"
+  | "lead:created"
+  | "lead:status_changed"
+  | "deal:stage_changed"
+  | "comm:inbound_received"
+  | "cron:stale_lead_check";
 
 export interface EventEnvelope<T = any> {
   eventId: string;
