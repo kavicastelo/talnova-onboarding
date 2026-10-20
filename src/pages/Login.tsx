@@ -10,10 +10,11 @@ import { ssoService, SSODiscoveryResult } from '../services/sso.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { getErrorMessage, clearAccessToken } from '../api/client';
+import { secureStorage } from '../utils/secureStorage';
 
 export function Login() {
   const navigate = useNavigate();
-  const { setRole, setRoles } = useRole();
+  const { syncAuthRoles, refreshFeatures } = useRole();
   const { t } = useTranslation('auth');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +34,15 @@ export function Login() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // In-memory credential scrubbing on unmount
+  useEffect(() => {
+    return () => {
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    };
+  }, []);
 
   // Automatic Domain Discovery on email change
   useEffect(() => {
@@ -103,9 +113,15 @@ export function Login() {
       userRole = 'it_admin';
     }
 
-    setRole(userRole as any);
-    setRoles(backendRoles as any);
+    syncAuthRoles(userRole as any, backendRoles as any);
+    refreshFeatures().catch(() => {});
     toast.success(t('login.success'));
+
+    // In-memory credential scrubbing
+    setPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPendingLoginData(null);
 
     if (userRole === 'super_admin') {
       navigate('/super-admin');
@@ -139,8 +155,8 @@ export function Login() {
     setLoading(true);
     try {
       clearAccessToken();
-      localStorage.removeItem('user_role');
-      localStorage.removeItem('user_roles');
+      secureStorage.removeToken();
+      secureStorage.clearRoleCache();
       localStorage.removeItem('user_features');
       localStorage.removeItem('talnova_last_activity');
       const loginData = await authService.login(email, password);
@@ -214,6 +230,7 @@ export function Login() {
     await authService.logout().catch(() => undefined);
     setShowFirstLoginModal(false);
     setPendingLoginData(null);
+    setPassword('');
     setNewPassword('');
     setConfirmPassword('');
     toast.info('Sign-in cancelled. Please change your password to access your workspace.');
@@ -255,6 +272,10 @@ export function Login() {
                   id="login-email-input"
                   type="text"
                   required
+                  autoComplete="username"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t('login.identifierPlaceholder', { defaultValue: 'name@company.com, EMP-1049, or +15550199' })}
@@ -326,6 +347,10 @@ export function Login() {
                     id="login-password-input"
                     type={showPassword ? 'text' : 'password'}
                     required={!ssoDiscovery?.enforceSSO}
+                    autoComplete="current-password"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('login.passwordPlaceholder')}
@@ -415,6 +440,12 @@ export function Login() {
                     type={showNewPassword ? 'text' : 'password'}
                     required
                     minLength={8}
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-form-type="other"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••"
@@ -443,6 +474,12 @@ export function Login() {
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
                     minLength={8}
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-form-type="other"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"

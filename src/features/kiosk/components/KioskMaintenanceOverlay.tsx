@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wrench, AlertTriangle, Monitor, RotateCcw, Clock, ShieldAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { deviceIdentityService } from '../services/device-identity.service';
@@ -32,6 +32,14 @@ export const KioskMaintenanceOverlay: React.FC<KioskMaintenanceOverlayProps> = (
   const [showPinUnlock, setShowPinUnlock] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
+
+  // In-memory credential scrubbing on unmount
+  useEffect(() => {
+    return () => {
+      setPinInput('');
+      setPinError(false);
+    };
+  }, []);
 
   if (!isOpen) {
     return null;
@@ -208,6 +216,12 @@ export const KioskMaintenanceOverlay: React.FC<KioskMaintenanceOverlayProps> = (
                       setPinError(false);
                     }}
                     autoFocus
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-form-type="other"
                     data-testid="maintenance-pin-input"
                     placeholder="••••"
                     className="w-full text-center tracking-widest text-base font-mono px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-amber-500"
@@ -227,7 +241,11 @@ export const KioskMaintenanceOverlay: React.FC<KioskMaintenanceOverlayProps> = (
                 )}
                 <button
                   type="button"
-                  onClick={() => setShowPinUnlock(false)}
+                  onClick={() => {
+                    setPinInput('');
+                    setPinError(false);
+                    setShowPinUnlock(false);
+                  }}
                   className="text-[11px] text-slate-400 hover:text-slate-300"
                 >
                   Cancel

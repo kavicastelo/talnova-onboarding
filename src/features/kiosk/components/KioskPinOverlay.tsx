@@ -31,6 +31,18 @@ export const KioskPinOverlay: React.FC<KioskPinOverlayProps> = ({
 
   const targetLength = pinLength || 6;
 
+  // In-memory credential scrubbing on unmount
+  useEffect(() => {
+    return () => {
+      setPin([]);
+    };
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    setPin([]);
+    onCancel?.();
+  }, [onCancel]);
+
   // Handle lockout countdown
   useEffect(() => {
     if (lockoutTime <= 0) return;
@@ -81,13 +93,13 @@ export const KioskPinOverlay: React.FC<KioskPinOverlayProps> = ({
       } else if (e.key === 'Backspace') {
         handleBackspace();
       } else if (e.key === 'Escape' && onCancel) {
-        onCancel();
+        handleCancel();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lockoutTime, handleKeyPress, handleBackspace, onCancel]);
+  }, [lockoutTime, handleKeyPress, handleBackspace, onCancel, handleCancel]);
 
   const handleFailure = useCallback(() => {
     const nextFailed = failedAttempts + 1;
@@ -126,6 +138,7 @@ export const KioskPinOverlay: React.FC<KioskPinOverlayProps> = ({
           if (!isMounted) return;
 
           if (isValid) {
+            setPin([]);
             onSuccess();
           } else {
             handleFailure();
@@ -266,7 +279,7 @@ export const KioskPinOverlay: React.FC<KioskPinOverlayProps> = ({
             type="button"
             id="kiosk-pin-cancel-btn"
             data-testid="kiosk-pin-cancel-btn"
-            onClick={onCancel}
+            onClick={handleCancel}
             className="w-full mt-6 min-h-[48px] min-w-[48px] h-12 py-3 rounded-xl border border-slate-800 text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition flex items-center justify-center"
           >
             Cancel

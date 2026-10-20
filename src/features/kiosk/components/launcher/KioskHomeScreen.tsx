@@ -229,7 +229,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
     return 'operations';
   }, []);
 
-  const allJourneys = manifest.journeys || [];
+  const allJourneys = manifest?.journeys || [];
 
   // Filtered journeys by category and search
   const filteredJourneys = useMemo(() => {
@@ -288,7 +288,7 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
     }
   };
 
-  const device = manifest.device;
+  const device = manifest?.device;
   const terminalName = device?.name || 'Frontline Terminal';
   const terminalLocation = device?.location || 'Operational Floor';
   useKioskKeyboardNavigation({
@@ -490,6 +490,12 @@ export const KioskHomeScreen: React.FC<KioskHomeScreenProps> = ({
             <Search className="w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-lpignore="true"
+              data-form-type="other"
               data-testid="touch-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

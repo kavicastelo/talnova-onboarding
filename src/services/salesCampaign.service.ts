@@ -165,7 +165,7 @@ export interface CreateCampaignPayload {
   }>;
 }
 
-export interface UpdateCampaignPayload extends Partial<CreateCampaignPayload> {}
+export type UpdateCampaignPayload = Partial<CreateCampaignPayload>;
 
 export interface CampaignQueryParams {
   search?: string;

@@ -156,6 +156,12 @@ export const LanguageSelectorModal: React.FC<LanguageSelectorModalProps> = ({
             <input
               type="text"
               role="searchbox"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-lpignore="true"
+              data-form-type="other"
               data-testid="language-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

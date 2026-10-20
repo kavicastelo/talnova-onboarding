@@ -68,6 +68,13 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
     };
   }, []);
 
+  // In-memory credential scrubbing on unmount
+  useEffect(() => {
+    return () => {
+      setPairCode([]);
+    };
+  }, []);
+
   // Retrieve or generate persistent cryptographic hardware GUID
   useEffect(() => {
     let isMounted = true;
@@ -267,6 +274,12 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                 </label>
                 <input
                   type="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full min-h-[48px] h-12 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
@@ -281,6 +294,12 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                 </label>
                 <input
                   type="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full min-h-[48px] h-12 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-white focus:border-emerald-500 focus:outline-none transition"
@@ -316,6 +335,12 @@ export const KioskPairingScreen: React.FC<KioskPairingScreenProps> = ({ onPairSu
                   <div className="flex items-center gap-2 pt-1">
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      data-lpignore="true"
+                      data-form-type="other"
                       value={customGuidInput}
                       onChange={(e) => setCustomGuidInput(e.target.value)}
                       placeholder="e.g. KIOSK-01 or Asset Tag"

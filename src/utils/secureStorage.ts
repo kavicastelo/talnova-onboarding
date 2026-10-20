@@ -141,6 +141,7 @@ export const secureStorage = {
         sessionStorage.removeItem(STORAGE_KEY);
         sessionStorage.removeItem('auth_token');
       }
+      secureStorage.clearRoleCache();
     } catch {
       // ignore
     }
@@ -151,6 +152,90 @@ export const secureStorage = {
    */
   hasActiveSession: (): boolean => {
     return secureStorage.getToken() !== null;
+  },
+
+  /**
+   * Persists user role and roles in an obfuscated envelope with expiration.
+   */
+  setRoleCache: (role: string, roles: string[] = [role], ttlMs: number = DEFAULT_TTL_MS): void => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const envelope = {
+        role,
+        roles: Array.isArray(roles) && roles.length > 0 ? roles : [role],
+        exp: Date.now() + ttlMs,
+        created: Date.now(),
+        v: 1,
+      };
+      localStorage.setItem('__tn_sec_roles__', obfuscate(JSON.stringify(envelope)));
+      // Cleanse raw plaintext role keys to prevent tampering
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_roles');
+    } catch {
+      // storage quota or restricted sandbox
+    }
+  },
+
+  /**
+   * Retrieves and verifies cached user role and roles.
+   * Discards and returns null if expired, tampered, or missing.
+   */
+  getRoleCache: (): { role: string; roles: string[] } | null => {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      // Always purge plain unverified localStorage keys if detected
+      if (localStorage.getItem('user_role') || localStorage.getItem('user_roles')) {
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('user_roles');
+      }
+
+      const stored = localStorage.getItem('__tn_sec_roles__');
+      if (!stored) return null;
+
+      const decrypted = deobfuscate(stored);
+      if (!decrypted) {
+        secureStorage.clearRoleCache();
+        return null;
+      }
+
+      const envelope = JSON.parse(decrypted);
+      if (!envelope || envelope.v !== 1 || !envelope.role || !envelope.exp) {
+        secureStorage.clearRoleCache();
+        return null;
+      }
+
+      if (Date.now() > envelope.exp) {
+        secureStorage.clearRoleCache();
+        return null;
+      }
+
+      return {
+        role: envelope.role,
+        roles: envelope.roles || [envelope.role],
+      };
+    } catch {
+      secureStorage.clearRoleCache();
+      return null;
+    }
+  },
+
+  /**
+   * Purges cached role credentials and any legacy plaintext storage keys.
+   */
+  clearRoleCache: (): void => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem('__tn_sec_roles__');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_roles');
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('__tn_sec_roles__');
+        sessionStorage.removeItem('user_role');
+        sessionStorage.removeItem('user_roles');
+      }
+    } catch {
+      // ignore
+    }
   },
 
   /**
@@ -166,6 +251,7 @@ export const secureStorage = {
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem('auth_token');
       }
+      secureStorage.clearRoleCache();
     } catch {
       // ignore
     }

@@ -111,9 +111,10 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'view_analytics',
   ],
   employee: [],
+  guest: [],
 };
 
-export function hasCapability(roleOrRoles: Role | Role[] | string | string[], capability: Capability): boolean {
+export function hasCapability(roleOrRoles: Role | Role[] | string | string[] | null | undefined, capability: Capability): boolean {
   if (!roleOrRoles) return false;
   const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles];
   return roles.some((r) => {
@@ -121,3 +122,24 @@ export function hasCapability(roleOrRoles: Role | Role[] | string | string[], ca
     return capabilities.includes(capability);
   });
 }
+
+/**
+ * Standard alias for hasCapability to support permission checks across client modules.
+ */
+export const hasPermission = hasCapability;
+
+/**
+ * Validates whether a user with given assigned roles is authorized to switch into targetRole.
+ */
+export function canPerformRoleSwitch(targetRole: Role, userRoles: Role[], isDemo = false): boolean {
+  if (!userRoles || userRoles.length === 0) return false;
+  const isSuperAdmin = userRoles.includes('super_admin');
+  const isAdminOrOwner = userRoles.includes('admin') || userRoles.includes('owner');
+  const allowed: Role[] = isDemo || isSuperAdmin
+    ? ['super_admin', 'admin', 'hr_admin', 'it_admin', 'manager', 'employee']
+    : isAdminOrOwner
+      ? ['admin', 'hr_admin', 'it_admin', 'manager', 'employee']
+      : userRoles;
+  return allowed.includes(targetRole);
+}
+

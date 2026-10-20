@@ -11,7 +11,8 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview",
     "preview:demo": "npx vite preview --config vite.demo.config.ts",
-    "test": "npx vitest run"
+    "test": "npx vitest run",
+    "test:security": "npx vitest run src/tests/client-security-suite.test.ts src/tests/input-sanitizer.test.ts src/tests/safe-link-sanitizer.test.ts src/tests/client-anti-tamper-shield.test.ts src/tests/client-role-integrity.test.ts src/tests/kiosk-form-hardening.test.tsx src/tests/html-document-hardening.test.ts src/tests/client-obfuscation-build.test.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",

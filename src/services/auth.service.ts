@@ -1,6 +1,7 @@
 import { apiClient, setAccessToken, clearAccessToken } from '../api/client';
 import { User, ApiResponse } from '../types';
 import { queryClient } from '../queryClient';
+import { secureStorage } from '../utils/secureStorage';
 
 export const authService = {
   getCurrentUser: async (): Promise<User> => {
@@ -43,8 +44,7 @@ export const authService = {
     setAccessToken(accessToken);
     const userRole = user?.role || 'employee';
     const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
-    localStorage.setItem('user_role', userRole);
-    localStorage.setItem('user_roles', JSON.stringify(userRoles));
+    secureStorage.setRoleCache(userRole, userRoles);
     const features = (res.data.data as any)?.features || user?.features;
     if (features) {
       localStorage.setItem('user_features', JSON.stringify(features));
@@ -58,8 +58,8 @@ export const authService = {
       await apiClient.post('/auth/logout');
     } finally {
       clearAccessToken();
-      localStorage.removeItem('user_role');
-      localStorage.removeItem('user_roles');
+      secureStorage.removeToken();
+      secureStorage.clearRoleCache();
       localStorage.removeItem('user_features');
       localStorage.removeItem('talnova_last_activity');
       queryClient.clear();
@@ -104,8 +104,7 @@ export const authService = {
     }
     const userRole = user?.role || 'employee';
     const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
-    localStorage.setItem('user_role', userRole);
-    localStorage.setItem('user_roles', JSON.stringify(userRoles));
+    secureStorage.setRoleCache(userRole, userRoles);
     localStorage.setItem('talnova_last_activity', String(Date.now()));
     return { accessToken, user };
   },

@@ -1,20 +1,40 @@
 import * as React from 'react';
 import { cn } from './utils';
+import { sanitizeInput } from '../utils/inputSanitizer';
+
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  sanitize?: boolean;
+}
 
 // --- Input ---
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, type, ...props }, ref) => (
-    <input
-      ref={ref}
-      type={type}
-      data-slot="input"
-      className={cn(
-        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80",
-        className
-      )}
-      {...props}
-    />
-  )
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, maxLength, onChange, sanitize, ...props }, ref) => {
+    const isTextual = type === undefined || type === 'text' || type === 'search' || type === 'email' || type === 'url' || type === 'tel';
+    const shouldSanitize = sanitize ?? isTextual;
+    const effectiveMaxLength = maxLength ?? (isTextual ? 255 : undefined);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (shouldSanitize && typeof e.target.value === 'string') {
+        e.target.value = sanitizeInput(e.target.value, effectiveMaxLength ?? 255);
+      }
+      onChange?.(e);
+    };
+
+    return (
+      <input
+        ref={ref}
+        type={type}
+        maxLength={effectiveMaxLength}
+        onChange={handleChange}
+        data-slot="input"
+        className={cn(
+          "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
 );
 Input.displayName = 'Input';
 
@@ -57,18 +77,38 @@ export const InputGroupAddon = React.forwardRef<HTMLDivElement, InputGroupAddonP
 );
 InputGroupAddon.displayName = 'InputGroupAddon';
 
+export interface InputGroupInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  sanitize?: boolean;
+}
+
 // --- InputGroupInput ---
-export const InputGroupInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => (
-    <input
-      ref={ref}
-      data-slot="input-group-control"
-      className={cn(
-        'flex-1 h-full bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
-        className
-      )}
-      {...props}
-    />
-  )
+export const InputGroupInput = React.forwardRef<HTMLInputElement, InputGroupInputProps>(
+  ({ className, type, maxLength, onChange, sanitize, ...props }, ref) => {
+    const isTextual = type === undefined || type === 'text' || type === 'search' || type === 'email' || type === 'url' || type === 'tel';
+    const shouldSanitize = sanitize ?? isTextual;
+    const effectiveMaxLength = maxLength ?? (isTextual ? 255 : undefined);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (shouldSanitize && typeof e.target.value === 'string') {
+        e.target.value = sanitizeInput(e.target.value, effectiveMaxLength ?? 255);
+      }
+      onChange?.(e);
+    };
+
+    return (
+      <input
+        ref={ref}
+        type={type}
+        maxLength={effectiveMaxLength}
+        onChange={handleChange}
+        data-slot="input-group-control"
+        className={cn(
+          'flex-1 h-full bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          className
+        )}
+        {...props}
+      />
+    );
+  }
 );
 InputGroupInput.displayName = 'InputGroupInput';

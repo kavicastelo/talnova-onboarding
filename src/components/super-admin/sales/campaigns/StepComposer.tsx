@@ -199,7 +199,7 @@ function getPurifyInstance(): any {
 
       // Ensure that links automatically receive rel="noopener noreferrer"
       if (typeof clean === 'string') {
-        return clean.replace(/<a\b([^>]*?)>/gi, (match: string, attrs: string) => {
+        return clean.replace(/<a\b([^>]*?)>/gi, (_match: string, attrs: string) => {
           let updated = attrs;
           if (!attrs.includes('target=')) {
             updated += ' target="_blank"';
@@ -223,7 +223,7 @@ function getPurifyInstance(): any {
       .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
       .replace(/(?:href|src)\s*=\s*["']?\s*javascript:[^"'>\s]*/gi, '');
 
-    return stripped.replace(/<a\b([^>]*?)>/gi, (match: string, attrs: string) => {
+    return stripped.replace(/<a\b([^>]*?)>/gi, (_match: string, attrs: string) => {
       let updated = attrs;
       if (!attrs.includes('target=')) {
         updated += ' target="_blank"';

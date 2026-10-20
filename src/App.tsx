@@ -82,13 +82,8 @@ import { DemoAccessDenied } from '../demo/src/pages/DemoAccessDenied';
 import { DemoInvitePage } from '../demo/src/pages/DemoInvitePage';
 import { DemoErrorBoundary } from '../demo/src/components/DemoErrorBoundary';
 import { SuperAdminDemoManagement } from './pages/super-admin/demo/SuperAdminDemoManagement';
-import { disableReactDevTools } from '../demo/src/security/antiTamper';
 // Initialize i18n — must be imported before any component renders
 import './i18n';
-
-if (typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')) {
-  disableReactDevTools();
-}
 
 function DashboardRedirect() {
   const { role, roles, can } = useRole();

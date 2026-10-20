@@ -109,6 +109,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { getAccessToken, clearAccessToken } from '../api/client';
+import { secureStorage } from '../utils/secureStorage';
 import { MobileBottomNav } from './MobileBottomNav';
 import {
   Dialog,
@@ -181,11 +182,27 @@ function titleCase(s: string) {
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, setRole, roles, can, hasFeature, isFeaturesLoaded } = useRole();
+  const { role, setRole, roles, can, hasFeature, isFeaturesLoaded, syncAuthRoles } = useRole();
+  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const { t } = useTranslation('nav');
 
-  const isEmployee = role === 'employee';
-  const isAdminOrOwner = role === 'admin' || role === 'owner' || role === 'hr_admin';
+  // If role is still 'guest' on first render but verified user credentials exist, resolve effectiveRole immediately
+  const effectiveRole: Role = (role !== 'guest' ? role : (user?.role || 'guest')) as Role;
+  const isEmployee = effectiveRole === 'employee';
+  const isAdminOrOwner = effectiveRole === 'admin' || effectiveRole === 'owner' || effectiveRole === 'hr_admin';
+
+  // Synchronize authenticated user profile roles into RoleContext if still set to guest
+  useEffect(() => {
+    if (!userLoading && user && user.role) {
+      if (role === 'guest') {
+        const verifiedRole = user.role as Role;
+        const verifiedRoles = (Array.isArray(user.roles) && user.roles.length > 0
+          ? user.roles
+          : [verifiedRole]) as Role[];
+        syncAuthRoles(verifiedRole, verifiedRoles);
+      }
+    }
+  }, [user, userLoading, role, syncAuthRoles]);
 
   const { data: employeeDocInbox = [] } = useEmployeeDocumentInbox({ enabled: isEmployee });
   const pendingDocsCount = isEmployee
@@ -628,7 +645,6 @@ export function AppShell() {
     }
   };
   useCommandPaletteHotkey(setPaletteOpen);
-  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const { data: notifications = [] } = useNotifications();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const markReadMutation = useMarkNotificationRead();
@@ -669,11 +685,11 @@ export function AppShell() {
   }, [settings]);
 
   const isAnonymousKb = location.pathname.startsWith('/kb') || location.pathname.startsWith('/knowledge-base');
-  const hasToken = typeof localStorage !== 'undefined' ? (Boolean(getAccessToken()) || Boolean(localStorage.getItem('user_role'))) : true;
+  const hasToken = typeof localStorage !== 'undefined' ? Boolean(getAccessToken() || secureStorage.hasActiveSession()) : true;
 
   useEffect(() => {
     if (isAnonymousKb) return;
-    const hasSession = Boolean(getAccessToken()) || (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_role')));
+    const hasSession = Boolean(getAccessToken() || secureStorage.hasActiveSession());
     if (!hasSession && typeof window !== 'undefined') {
       navigate('/login');
     }
@@ -683,23 +699,23 @@ export function AppShell() {
     if (isAnonymousKb) return;
     if (!userLoading && userError) {
       clearAccessToken();
-      localStorage.removeItem('user_role');
-      localStorage.removeItem('user_roles');
+      secureStorage.removeToken();
+      secureStorage.clearRoleCache();
       localStorage.removeItem('user_features');
       localStorage.removeItem('talnova_last_activity');
       navigate('/login');
     }
   }, [userError, userLoading, navigate, location.pathname, isAnonymousKb]);
 
-  const rawNavSections = !hasToken
+  const rawNavSections = !hasToken || effectiveRole === 'guest'
     ? anonymousNavSections
-    : role === 'super_admin'
+    : effectiveRole === 'super_admin'
       ? superAdminNavSections
-      : role === 'it_admin'
+      : effectiveRole === 'it_admin'
         ? itAdminNavSections
-        : role === 'admin' || role === 'owner' || role === 'hr_admin'
+        : effectiveRole === 'admin' || effectiveRole === 'owner' || effectiveRole === 'hr_admin'
           ? adminNavSections
-          : role === 'manager'
+          : effectiveRole === 'manager'
             ? managerNavSections
             : employeeNavSections;
 
@@ -714,6 +730,7 @@ export function AppShell() {
     it_admin: t('roles.it_admin', 'IT Admin'),
     manager: t('roles.manager', 'Manager'),
     employee: t('roles.employee', 'Employee'),
+    guest: t('roles.guest', 'Guest'),
   };
 
   const availableRoles: Role[] = useMemo(() => {
@@ -916,7 +933,7 @@ export function AppShell() {
                         {userLoading ? t('loading', 'Loading...') : (user?.name || 'Jane Doe')}
                       </span>
                       <span className="truncate text-xs capitalize text-muted-foreground">
-                        {roleDisplayNames[role] || role}
+                        {roleDisplayNames[effectiveRole] || effectiveRole}
                       </span>
                     </div>
                     <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
@@ -1022,9 +1039,9 @@ export function AppShell() {
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="gap-1.5" data-testid="role-switcher-btn">
                         <Badge
-                          variant={role === 'super_admin' || role === 'admin' ? 'default' : 'secondary'}
+                          variant={effectiveRole === 'super_admin' || effectiveRole === 'admin' ? 'default' : 'secondary'}
                           className="px-1.5 capitalize">
-                          {roleDisplayNames[role] || role}
+                          {roleDisplayNames[effectiveRole] || effectiveRole}
                         </Badge>
                         <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -1044,7 +1061,7 @@ export function AppShell() {
                           className="cursor-pointer"
                           data-testid={`switch-role-${r}`}
                         >
-                          {role === r ? (
+                          {effectiveRole === r ? (
                             <Check className="mr-2 h-4 w-4 text-primary" />
                           ) : (
                             <span className="w-4 mr-2 inline-block" />
@@ -1057,9 +1074,9 @@ export function AppShell() {
                 ) : (
                   <div className="flex items-center" data-testid="static-role-badge">
                     <Badge
-                      variant={role === 'super_admin' || role === 'admin' ? 'default' : 'secondary'}
+                      variant={effectiveRole === 'super_admin' || effectiveRole === 'admin' ? 'default' : 'secondary'}
                       className="px-2 py-1 capitalize text-xs">
-                      {roleDisplayNames[role] || role}
+                      {roleDisplayNames[effectiveRole] || effectiveRole}
                     </Badge>
                   </div>
                 )
