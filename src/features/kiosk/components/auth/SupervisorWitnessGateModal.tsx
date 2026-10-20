@@ -97,6 +97,25 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
     }, 30000);
   }, []);
 
+  // In-memory credential scrubbing on unmount
+  useEffect(() => {
+    return () => {
+      setIdentifier('');
+      setPin([]);
+      setErrorMessage(null);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleClose = () => {
+    setIdentifier('');
+    setPin([]);
+    setErrorMessage(null);
+    onClose();
+  };
+
   // Reset state when modal is opened or closed
   useEffect(() => {
     if (isOpen) {
@@ -105,6 +124,10 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
       setErrorMessage(null);
       setIsShaking(false);
       setIsSubmitting(false);
+    } else {
+      setIdentifier('');
+      setPin([]);
+      setErrorMessage(null);
     }
     return () => {
       if (inactivityTimerRef.current) {
@@ -190,12 +213,19 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
         // Play confirmation sound chime
         playConfirmationChime();
 
-        onSuccess({
+        const witnessData = {
           verified: true,
           supervisor: result.supervisor,
           witnessToken: result.witnessToken,
           session: result.session
-        });
+        };
+
+        // In-memory credential scrubbing upon successful verification
+        setPin([]);
+        setIdentifier('');
+        setErrorMessage(null);
+
+        onSuccess(witnessData);
       } else {
         handleVerificationFailure(
           t('supervisor.invalidPin', {
@@ -304,7 +334,7 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
           <button
             type="button"
             data-testid="supervisor-modal-close-btn"
-            onClick={onClose}
+            onClick={handleClose}
             className="min-h-[48px] min-w-[48px] w-12 h-12 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95 flex items-center justify-center"
             aria-label="Close"
           >
@@ -346,6 +376,12 @@ export const SupervisorWitnessGateModal: React.FC<SupervisorWitnessGateModalProp
             id="supervisor-identifier-input"
             data-testid="supervisor-identifier-input"
             type="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-lpignore="true"
+            data-form-type="other"
             value={identifier}
             onChange={(e) => {
               setIdentifier(e.target.value);

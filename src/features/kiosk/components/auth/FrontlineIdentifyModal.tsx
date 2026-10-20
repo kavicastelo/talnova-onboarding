@@ -80,6 +80,17 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
+  // In-memory credential scrubbing on unmount
+  useEffect(() => {
+    return () => {
+      setBadgeInput('');
+      setEmailInput('');
+      setIdentifiedSession(null);
+      setErrorMessage(null);
+      stopCameraStream();
+    };
+  }, []);
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -250,8 +261,14 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
   // Confirmation Handlers
   const handleConfirmWorker = () => {
     if (!identifiedSession) return;
-    deviceIdentityService.setEmployeeSession(identifiedSession.token, identifiedSession.worker);
-    onSuccess(identifiedSession);
+    const sessionData = identifiedSession;
+    deviceIdentityService.setEmployeeSession(sessionData.token, sessionData.worker);
+    // In-memory credential scrubbing on completion
+    setBadgeInput('');
+    setEmailInput('');
+    setIdentifiedSession(null);
+    setErrorMessage(null);
+    onSuccess(sessionData);
     onClose();
   };
 
@@ -442,6 +459,12 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                           performIdentification(badgeInput, { employeeId: badgeInput, badgeId: badgeInput });
                         }
                       }}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      data-lpignore="true"
+                      data-form-type="other"
                       placeholder="Enter Employee ID / Badge ID"
                       className={`w-full min-h-[56px] min-w-[64px] h-14 pr-12 text-center font-mono text-xl font-black tracking-widest ${highContrast
                           ? 'bg-black border-amber-400 text-white focus:border-amber-300'
@@ -526,8 +549,12 @@ export const FrontlineIdentifyModal: React.FC<FrontlineIdentifyModalProps> = ({
                     <Input
                       data-testid="employee-email-input"
                       type="email"
-                      autoCapitalize="none"
+                      autoComplete="off"
                       autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      data-lpignore="true"
+                      data-form-type="other"
                       value={emailInput}
                       onChange={(e) => {
                         setEmailInput(e.target.value);

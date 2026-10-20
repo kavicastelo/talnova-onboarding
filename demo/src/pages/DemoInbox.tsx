@@ -1,7 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ShieldCheck, Send, RefreshCw, Clock, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import DOMPurify from 'dompurify';
 import { getDemoApiBase } from '../utils/apiConfig';
+
+function getPurifyInstance(): any {
+  if (typeof (DOMPurify as any)?.sanitize === 'function') {
+    return DOMPurify;
+  }
+  if (typeof DOMPurify === 'function') {
+    if (typeof window !== 'undefined') {
+      return (DOMPurify as any)(window);
+    }
+    if (typeof globalThis !== 'undefined' && (globalThis as any).window) {
+      return (DOMPurify as any)((globalThis as any).window);
+    }
+  }
+  return null;
+}
 
 export const DemoInbox: React.FC = () => {
   const API_BASE = getDemoApiBase();
@@ -9,6 +25,24 @@ export const DemoInbox: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
   const [simulating, setSimulating] = useState(false);
+
+  const sanitizedEmailHtml = useMemo(() => {
+    if (!selectedEmail?.htmlContent) return '';
+    const purifier = getPurifyInstance();
+    if (purifier && typeof purifier.sanitize === 'function') {
+      return purifier.sanitize(selectedEmail.htmlContent, {
+        ALLOWED_TAGS: [
+          'b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li',
+          'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'blockquote',
+          'table', 'tr', 'td', 'th', 'thead', 'tbody', 'div', 'img',
+        ],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'title', 'src', 'alt', 'width', 'height'],
+      });
+    }
+    return selectedEmail.htmlContent
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  }, [selectedEmail?.htmlContent]);
 
   const fetchEmails = async () => {
     try {
@@ -147,7 +181,7 @@ export const DemoInbox: React.FC = () => {
 
                 <div
                   className="prose prose-sm max-w-none text-slate-700 pt-2"
-                  dangerouslySetInnerHTML={{ __html: selectedEmail.htmlContent }}
+                  dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }}
                 />
               </div>
             ) : (

@@ -525,7 +525,7 @@ export interface CreateDealPayload {
   notes?: string;
 }
 
-export interface UpdateDealPayload extends Partial<CreateDealPayload> {}
+export type UpdateDealPayload = Partial<CreateDealPayload>;
 
 export interface UpdateDealStagePayload {
   stage: string;

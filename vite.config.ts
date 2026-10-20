@@ -1,12 +1,58 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig, type Plugin } from 'vite';
+import react from '@vitejs/plugin-react';
+import JavaScriptObfuscator from 'javascript-obfuscator';
+
+/**
+ * Production Code Obfuscation & Binary Hardening Plugin (CLI-001)
+ * Enforces Control Flow Flattening, String Array Encryption (RC4/Base64),
+ * Dead Code Injection, and Split Strings across all application bundles.
+ */
+function codeObfuscationPlugin(): Plugin {
+  return {
+    name: 'production-code-obfuscation',
+    apply: 'build',
+    enforce: 'post',
+    renderChunk(code, chunk) {
+      // Skip external vendor charting libraries to maintain high build performance
+      if (chunk.fileName.includes('vendor-recharts') || chunk.fileName.includes('vendor-d3')) {
+        return null;
+      }
+
+      const obfuscated = JavaScriptObfuscator.obfuscate(code, {
+        compact: true,
+        controlFlowFlattening: true,
+        controlFlowFlatteningThreshold: 0.75,
+        deadCodeInjection: true,
+        deadCodeInjectionThreshold: 0.4,
+        stringArray: true,
+        stringArrayEncoding: ['rc4', 'base64'],
+        stringArrayThreshold: 0.8,
+        splitStrings: true,
+        splitStringsChunkLength: 10,
+        selfDefending: true,
+        debugProtection: false, // Let runtime shield handle breakpoints dynamically
+        renameGlobals: false,
+        sourceMap: false,
+        target: 'browser',
+      });
+
+      return {
+        code: obfuscated.getObfuscatedCode(),
+        map: null,
+      };
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production' || process.env.NODE_ENV === 'production';
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      ...(isProduction ? [codeObfuscationPlugin()] : []),
+    ],
     resolve: {
       dedupe: ['react', 'react-dom']
     },

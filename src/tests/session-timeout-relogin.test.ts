@@ -13,7 +13,9 @@ vi.mock('../api/client', () => ({
     mockToken = null;
     try {
       (globalThis as any).localStorage?.removeItem('auth_token');
-    } catch {}
+    } catch {
+      // ignore
+    }
   }),
   getAccessToken: vi.fn(() => mockToken),
   apiClient: {

@@ -54,7 +54,7 @@ export const RepPerformanceTable: React.FC<RepPerformanceTableProps> = ({
   // Filter and sort reps
   const filteredAndSortedReps = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    let result = reps.filter(
+    const result = reps.filter(
       (r) =>
         r.repName.toLowerCase().includes(q) ||
         r.repEmail.toLowerCase().includes(q)

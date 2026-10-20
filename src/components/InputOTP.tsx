@@ -32,6 +32,13 @@ export const InputOTP = React.forwardRef<HTMLDivElement, InputOTPProps>(
     const value = controlledValue !== undefined ? controlledValue : internalValue;
     const inputRef = React.useRef<HTMLInputElement>(null);
 
+    // In-memory credential scrubbing on unmount
+    React.useEffect(() => {
+      return () => {
+        setInternalValue('');
+      };
+    }, []);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const next = e.target.value.replace(/[^0-9]/g, '').slice(0, maxLength);
       if (controlledValue === undefined) setInternalValue(next);
@@ -44,7 +51,7 @@ export const InputOTP = React.forwardRef<HTMLDivElement, InputOTPProps>(
         <div
           ref={ref}
           data-slot="input-otp"
-          className={cn('flex items-center has-[:disabled]:opacity-50', containerClassName)}
+          className={cn('flex items-center has-[:disabled]:opacity-50', containerClassName, className)}
           onClick={() => inputRef.current?.focus()}
           {...props}
         >
@@ -54,6 +61,11 @@ export const InputOTP = React.forwardRef<HTMLDivElement, InputOTPProps>(
             inputMode="numeric"
             pattern="[0-9]*"
             autoComplete="one-time-code"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-lpignore="true"
+            data-form-type="other"
             value={value}
             onChange={handleChange}
             onFocus={() => setActiveIndex(Math.min(value.length, maxLength - 1))}
