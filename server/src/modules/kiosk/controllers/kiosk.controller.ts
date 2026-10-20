@@ -9,6 +9,7 @@ import { KioskDeviceModel } from "../models/kiosk-device.model.js";
 import { FeatureTelemetryService } from "../../super-admin/services/feature-telemetry.service.js";
 import kioskEmergencyStream from "../services/kiosk-emergency-stream.js";
 import { kioskSyntheticProbeService } from "../services/kiosk-synthetic-probe.service.js";
+import { appConfig } from "../../../config/index.js";
 
 export class KioskController {
   constructor(private readonly kioskService: KioskService) {}
@@ -886,10 +887,42 @@ export class KioskController {
 
   identifyFrontlineWorker = async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request.body as any) || {};
-    let orgId = body.organizationId || (request.user as any)?.organizationId || (request.headers["x-organization-id"] as string);
     const identifier = body.identifier || body.badgeId || body.batchId || body.employeeId || body.email || body.nationalId;
 
-    if (!orgId && body.kioskDeviceId) {
+    let orgId: string | undefined;
+
+    // 1. Resolve and enforce from verified device context / kioskContext
+    const kioskContext = (request as any).kioskContext;
+    if (kioskContext?.organizationId) {
+      orgId = kioskContext.organizationId.toString();
+    }
+
+    // 2. Resolve from Bearer token if present
+    if (!orgId && request.headers.authorization?.startsWith("Bearer ")) {
+      try {
+        const token = request.headers.authorization.substring(7).trim();
+        const decoded = (request.server as any).jwt.decode(token);
+        if (decoded?.organizationId) {
+          orgId = decoded.organizationId.toString();
+        }
+      } catch {}
+    }
+
+    // 3. Resolve from authenticated user session
+    if (!orgId && (request.user as any)?.organizationId) {
+      orgId = (request.user as any).organizationId.toString();
+    }
+
+    // Assert cross-tenant boundary if organizationId is passed alongside verified token
+    if (orgId && body.organizationId && body.organizationId.toString() !== orgId) {
+      throw new AppError(403, "TENANT_MISMATCH", "Kiosk cross-tenant access prohibited.");
+    }
+    if (orgId && request.headers["x-organization-id"] && request.headers["x-organization-id"].toString() !== orgId) {
+      throw new AppError(403, "TENANT_MISMATCH", "Kiosk cross-tenant access prohibited.");
+    }
+
+    // 4. Resolve from registered kioskDeviceId
+    if (body.kioskDeviceId) {
       const dev = await KioskDeviceModel.findOne({
         $or: [
           { deviceId: body.kioskDeviceId },
@@ -898,43 +931,67 @@ export class KioskController {
         ],
         isDeleted: false
       });
-      if (dev?.organizationId) {
-        orgId = dev.organizationId.toString();
+      if (!dev) {
+        throw new AppError(401, "DEVICE_NOT_FOUND", "Unrecognized or unregistered kiosk device ID.");
       }
+      if (orgId && dev.organizationId.toString() !== orgId) {
+        throw new AppError(403, "TENANT_MISMATCH", "Device does not belong to specified organization.");
+      }
+      orgId = dev.organizationId.toString();
     }
 
-    if (!orgId && identifier) {
-      const cleanId = String(identifier).trim();
-      const escaped = cleanId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const idRegex = new RegExp(`^${escaped}$`, "i");
-      const isHex = /^[0-9a-fA-F]{24}$/.test(cleanId);
-      const numericOnly = cleanId.replace(/\D/g, "");
-      const numericRegex = numericOnly.length >= 3 ? new RegExp(`(?:^|[^0-9])${numericOnly}$`, "i") : null;
+    // 5. Fallback to explicit body organizationId if not already resolved
+    if (!orgId && body.organizationId) {
+      if (!mongoose.Types.ObjectId.isValid(body.organizationId)) {
+        throw new AppError(400, "BAD_REQUEST", "Invalid organizationId format.");
+      }
+      orgId = body.organizationId.toString();
+    }
 
-      const candidateOr: any[] = [
-        { "employment.badgeId": idRegex },
-        { "employment.employeeId": idRegex },
-        { "employment.nationalId": idRegex },
-        { "auth.email": idRegex },
-        { "profile.phone": idRegex },
-        { "profile.phone": cleanId.replace(/\s+/g, "") },
-        ...(isHex ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : [])
-      ];
-
-      if (numericRegex) {
-        candidateOr.push(
-          { "employment.badgeId": numericRegex },
-          { "employment.employeeId": numericRegex },
-          { "profile.phone": numericRegex }
+    // 6. Enforce strict isolation: Disallow global un-scoped queries in production
+    if (!orgId) {
+      if (appConfig.isProduction) {
+        throw new AppError(
+          401,
+          "UNAUTHORIZED",
+          "Kiosk terminal organization context is missing or unverified. Access denied."
         );
       }
 
-      const candidate = await mongoose.model("User").findOne({
-        $or: candidateOr,
-        isDeleted: false
-      });
-      if (candidate?.organizationId) {
-        orgId = candidate.organizationId.toString();
+      // Non-production test harness fallback only when running automated suites
+      if (identifier) {
+        const cleanId = String(identifier).trim();
+        const escaped = cleanId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const idRegex = new RegExp(`^${escaped}$`, "i");
+        const isHex = /^[0-9a-fA-F]{24}$/.test(cleanId);
+        const numericOnly = cleanId.replace(/\D/g, "");
+        const numericRegex = numericOnly.length >= 3 ? new RegExp(`(?:^|[^0-9])${numericOnly}$`, "i") : null;
+
+        const candidateOr: any[] = [
+          { "employment.badgeId": idRegex },
+          { "employment.employeeId": idRegex },
+          { "employment.nationalId": idRegex },
+          { "auth.email": idRegex },
+          { "profile.phone": idRegex },
+          { "profile.phone": cleanId.replace(/\s+/g, "") },
+          ...(isHex ? [{ _id: new mongoose.Types.ObjectId(cleanId) }] : [])
+        ];
+
+        if (numericRegex) {
+          candidateOr.push(
+            { "employment.badgeId": numericRegex },
+            { "employment.employeeId": numericRegex },
+            { "profile.phone": numericRegex }
+          );
+        }
+
+        const candidate = await mongoose.model("User").findOne({
+          $or: candidateOr,
+          isDeleted: false
+        });
+        if (candidate?.organizationId) {
+          orgId = candidate.organizationId.toString();
+        }
       }
     }
 

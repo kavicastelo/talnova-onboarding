@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import {
   Mail,
   MessageSquare,
@@ -165,6 +166,76 @@ export const StepComposer: React.FC<StepComposerProps> = ({
       return SAMPLE_LEAD_DATA[key] || `{{${key}}}`;
     });
   };
+
+function getPurifyInstance(): any {
+  if (typeof (DOMPurify as any)?.sanitize === 'function') {
+    return DOMPurify;
+  }
+  if (typeof DOMPurify === 'function') {
+    if (typeof window !== 'undefined') {
+      return (DOMPurify as any)(window);
+    }
+    if (typeof globalThis !== 'undefined' && (globalThis as any).window) {
+      return (DOMPurify as any)((globalThis as any).window);
+    }
+  }
+  return null;
+}
+
+  const sanitizedEmailPreview = useMemo(() => {
+    const raw = interpolateEmailText(data.content || '');
+    if (!raw) return '';
+
+    const purifier = getPurifyInstance();
+    if (purifier && typeof purifier.sanitize === 'function') {
+      const clean = purifier.sanitize(raw, {
+        ALLOWED_TAGS: [
+          'b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'span',
+          'h1', 'h2', 'h3', 'hr', 'blockquote', 'table', 'tr', 'td', 'th', 'thead', 'tbody'
+        ],
+        ALLOWED_ATTR: ['href', 'target', 'style', 'class', 'rel'],
+        ADD_ATTR: ['target', 'rel'],
+      });
+
+      // Ensure that links automatically receive rel="noopener noreferrer"
+      if (typeof clean === 'string') {
+        return clean.replace(/<a\b([^>]*?)>/gi, (match: string, attrs: string) => {
+          let updated = attrs;
+          if (!attrs.includes('target=')) {
+            updated += ' target="_blank"';
+          }
+          if (!attrs.includes('rel=')) {
+            updated += ' rel="noopener noreferrer"';
+          } else {
+            updated = updated.replace(/rel=(["'])(.*?)\1/gi, 'rel="noopener noreferrer"');
+          }
+          return `<a${updated}>`;
+        });
+      }
+      return clean;
+    }
+
+    // Resilient fallback for non-DOM / headless test environments
+    const stripped = raw
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+      .replace(/<img\b[^>]*>/gi, '')
+      .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/(?:href|src)\s*=\s*["']?\s*javascript:[^"'>\s]*/gi, '');
+
+    return stripped.replace(/<a\b([^>]*?)>/gi, (match: string, attrs: string) => {
+      let updated = attrs;
+      if (!attrs.includes('target=')) {
+        updated += ' target="_blank"';
+      }
+      if (!attrs.includes('rel=')) {
+        updated += ' rel="noopener noreferrer"';
+      } else {
+        updated = updated.replace(/rel=(["'])(.*?)\1/gi, 'rel="noopener noreferrer"');
+      }
+      return `<a${updated}>`;
+    });
+  }, [data.content]);
 
   // Current selected WhatsApp template config
   const currentWaTemplate = STANDARD_WHATSAPP_TEMPLATES.find(
@@ -410,8 +481,9 @@ export const StepComposer: React.FC<StepComposerProps> = ({
               <div className="p-6 min-h-[300px] max-h-[500px] overflow-y-auto text-sm text-foreground prose dark:prose-invert max-w-none">
                 {data.content ? (
                   <div
+                    data-testid="email-preview-rendered-content"
                     dangerouslySetInnerHTML={{
-                      __html: interpolateEmailText(data.content),
+                      __html: sanitizedEmailPreview,
                     }}
                   />
                 ) : (

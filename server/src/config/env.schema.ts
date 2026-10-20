@@ -23,6 +23,9 @@ export const envSchema = z.object({
   SMTP_FROM: z.string().default("no-reply@talnova.io"),
   APP_ENV: z.enum(["development", "production", "test", "demo"]).default("development"),
   TRUST_PROXY: z.coerce.boolean().default(true),
+  REDIS_URL: z.string().optional().or(z.literal("")),
+  UPSTASH_REDIS_REST_URL: z.string().optional().or(z.literal("")),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional().or(z.literal("")),
   DEMO_DATABASE_URL: z.string().optional(),
   DEMO_JWT_SECRET: z.string().min(8).optional(),
   DEMO_SESSION_SECRET: z.string().min(8).optional(),
@@ -32,7 +35,23 @@ export const envSchema = z.object({
   DEMO_INACTIVITY_TIMEOUT_MINUTES: z.coerce.number().default(15),
   DEMO_WATERMARK_ENABLED: z.coerce.boolean().default(true),
   DEMO_RESET_CONFIRMATION_KEY: z.string().default("RESET DEMO"),
+  ENCRYPTION_MASTER_KEY: z.string().optional(),
 }).refine(
+  (data) => {
+    if (data.NODE_ENV === "production") {
+      if (!data.ENCRYPTION_MASTER_KEY) return false;
+      const trimmed = data.ENCRYPTION_MASTER_KEY.trim();
+      if (/^[0-9a-fA-F]{64}$/.test(trimmed)) return true;
+      if (Buffer.from(trimmed, "utf8").length >= 32) return true;
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "FATAL: ENCRYPTION_MASTER_KEY is strictly required in production and must be at least 32 bytes (64 hex characters).",
+    path: ["ENCRYPTION_MASTER_KEY"],
+  }
+).refine(
   (data) => {
     if (data.APP_ENV === "demo" && !data.DEMO_DATABASE_URL) {
       return false;

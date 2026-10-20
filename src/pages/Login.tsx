@@ -9,7 +9,7 @@ import { authService } from '../services/auth.service';
 import { ssoService, SSODiscoveryResult } from '../services/sso.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { getErrorMessage } from '../api/client';
+import { getErrorMessage, clearAccessToken } from '../api/client';
 
 export function Login() {
   const navigate = useNavigate();
@@ -138,7 +138,7 @@ export function Login() {
 
     setLoading(true);
     try {
-      localStorage.removeItem('auth_token');
+      clearAccessToken();
       localStorage.removeItem('user_role');
       localStorage.removeItem('user_roles');
       localStorage.removeItem('user_features');

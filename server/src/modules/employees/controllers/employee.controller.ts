@@ -81,12 +81,11 @@ export class EmployeeController {
       search,
     };
 
-    const parsedLimit = limit !== undefined ? parseInt(limit, 10) : 1000;
-    const limitVal = isNaN(parsedLimit) || parsedLimit <= 0 ? 10000 : parsedLimit;
+    const parsedLimit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
 
     const pagination = {
-      page: page ? parseInt(page, 10) : 1,
-      limit: limitVal,
+      page: Math.max(parseInt(page, 10) || 1, 1),
+      limit: parsedLimit,
       sortBy,
       sortOrder,
     };

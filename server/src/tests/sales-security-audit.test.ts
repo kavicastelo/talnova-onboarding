@@ -340,10 +340,11 @@ describe("SEC-001: Security & RBAC Penetration Audit", () => {
       expect(typeof encryptedPassword).toBe("string");
 
       const parts = (encryptedPassword as string).split(":");
-      expect(parts.length).toBe(3); // [ivHex, authTagHex, encryptedHex]
-      expect(parts[0].length).toBe(24); // 12-byte IV = 24 hex characters
-      expect(parts[1].length).toBe(32); // 16-byte AuthTag = 32 hex characters
-      expect(parts[2].length).toBeGreaterThan(0); // Ciphertext
+      expect(parts.length).toBe(4); // [version, ivHex, authTagHex, encryptedHex]
+      expect(parts[0]).toBe("v1");
+      expect(parts[1].length).toBe(24); // 12-byte IV = 24 hex characters
+      expect(parts[2].length).toBe(32); // 16-byte AuthTag = 32 hex characters
+      expect(parts[3].length).toBeGreaterThan(0); // Ciphertext
 
       // Verify that decryptSecret accurately reverses the AES-256-GCM encryption with correct key
       const decryptedPassword = decryptSecret(encryptedPassword as string);

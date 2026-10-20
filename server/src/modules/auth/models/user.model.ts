@@ -69,6 +69,7 @@ export interface IUser extends Document {
     passwordResetExpires?: Date;
     supervisorPinHash?: string;
     mustChangePassword?: boolean;
+    lastSudoVerifiedAt?: Date;
   };
   compliance?: {
     legalHold?: boolean;
@@ -175,6 +176,7 @@ const UserSchema = new Schema<IUser>(
       passwordResetExpires: { type: Date },
       supervisorPinHash: { type: String },
       mustChangePassword: { type: Boolean, default: false },
+      lastSudoVerifiedAt: { type: Date },
     },
     compliance: {
       legalHold: { type: Boolean, default: false },
@@ -296,6 +298,7 @@ UserSchema.index(
   { partialFilterExpression: { "profile.phone": { $type: "string" } } }
 );
 UserSchema.index({ organizationId: 1, "permissions.role": 1 });
+UserSchema.index({ organizationId: 1, "employment.status": 1, "profile.lastName": 1 });
 UserSchema.index({ organizationId: 1, "employment.badgeId": 1 }, { sparse: true });
 UserSchema.index({ organizationId: 1, "employment.nationalId": 1 }, { sparse: true });
 

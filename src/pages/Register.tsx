@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { getErrorMessage } from '../api/client';
+import { getErrorMessage, setAccessToken } from '../api/client';
 import { useRole } from '../context/RoleContext';
 
 export function Register() {
@@ -75,7 +75,7 @@ export function Register() {
       });
 
       if (data?.accessToken) {
-        localStorage.setItem('auth_token', data.accessToken);
+        setAccessToken(data.accessToken);
         localStorage.setItem('talnova_last_activity', String(Date.now()));
       }
       const assignedRole = (data?.user?.role || inviteData?.role || 'employee') as any;
@@ -143,7 +143,7 @@ export function Register() {
 
       const token = data?.accessToken || data?.token;
       if (token) {
-        localStorage.setItem('auth_token', token);
+        setAccessToken(token);
         localStorage.setItem('talnova_last_activity', String(Date.now()));
       }
       const userRole = (data?.user?.role || 'owner') as any;

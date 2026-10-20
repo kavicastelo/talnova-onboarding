@@ -27,11 +27,45 @@ export class WebhookController {
     // 1. Amazon SNS SubscriptionConfirmation handshake
     if (snsType === "SubscriptionConfirmation" || body?.Type === "SubscriptionConfirmation") {
       const subscribeUrl = body?.SubscribeURL;
-      if (subscribeUrl) {
-        try {
-          // Attempt subscription confirmation ping if valid URL
-          await fetch(subscribeUrl, { method: "GET", signal: AbortSignal.timeout(4000) });
-        } catch {}
+      if (!subscribeUrl || typeof subscribeUrl !== "string") {
+        return reply.status(400).send({
+          error: "Invalid SubscriptionConfirmation payload: SubscribeURL missing",
+        });
+      }
+
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(subscribeUrl);
+      } catch {
+        return reply.status(400).send({
+          error: "Invalid SubscriptionConfirmation payload: Malformed SubscribeURL",
+        });
+      }
+
+      // Enforce HTTPS
+      if (parsedUrl.protocol !== "https:") {
+        request.log.warn({ subscribeUrl }, "⚠️ Security alert: Blocked non-HTTPS SNS SubscribeURL");
+        return reply.status(400).send({
+          error: "Invalid SubscriptionConfirmation payload: SubscribeURL must use HTTPS protocol",
+        });
+      }
+
+      // Strictly validate hostname against official AWS SNS pattern: /^sns\.[a-z0-9-]+\.amazonaws\.com$/i
+      const snsHostnameRegex = /^sns\.[a-z0-9-]+\.amazonaws\.com$/i;
+      if (!snsHostnameRegex.test(parsedUrl.hostname)) {
+        request.log.warn(
+          { hostname: parsedUrl.hostname, subscribeUrl },
+          "⚠️ Security alert: Blocked SSRF attempt targeting invalid SNS SubscribeURL hostname"
+        );
+        return reply.status(400).send({
+          error: "Invalid SubscriptionConfirmation payload: SubscribeURL host must be an official amazonaws.com SNS endpoint",
+        });
+      }
+
+      try {
+        await fetch(subscribeUrl, { method: "GET", signal: AbortSignal.timeout(4000) });
+      } catch (err: any) {
+        request.log.warn({ err }, "Amazon SNS SubscribeURL confirmation request failed");
       }
 
       return reply.status(200).send({

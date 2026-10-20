@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { Capability, hasCapability } from '../utils/rbac';
-import { apiClient } from '../api/client';
+import { apiClient, getAccessToken } from '../api/client';
 import { getFeatureMetadata } from '../config/platformFeatures';
 
 export type Role = 'admin' | 'owner' | 'employee' | 'super_admin' | 'manager' | 'hr_admin' | 'it_admin';
@@ -79,8 +79,8 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
 
   const [isFeaturesLoaded, setIsFeaturesLoaded] = useState<boolean>(() => {
     if (initialFeatures && Object.keys(initialFeatures).length > 0) return true;
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    if (!token) return true;
+    const hasSession = Boolean(getAccessToken()) || (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_role')));
+    if (!hasSession) return true;
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('user_features') : null;
     return Boolean(saved);
   });
@@ -107,8 +107,8 @@ export function RoleProvider({ children, initialRole, initialRoles, initialFeatu
         return;
       }
 
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      if (!token) return;
+      const hasSession = Boolean(getAccessToken()) || (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_role')));
+      if (!hasSession) return;
 
       const res = await apiClient.get<any>('/auth/me').catch(() => apiClient.get<any>('/employees/me'));
       const resData = res.data?.data;

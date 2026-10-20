@@ -43,7 +43,6 @@ export class TaskController {
         isDeleted: false,
       }).select("_id");
       const reportIds = reports.map((r) => r._id);
-      console.log('[TaskController.listTasks] query.directReportsOnly:', query.directReportsOnly, 'managerId:', managerId, 'reportIds:', reportIds);
       filter.$or = [
         { employeeId: { $in: reportIds } },
         { assignedToUserId: { $in: reportIds } },
@@ -65,9 +64,11 @@ export class TaskController {
       }
     }
 
+    const parsedLimit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
+
     const pagination = {
-      page: query.page ? parseInt(query.page, 10) : 1,
-      limit: query.limit ? parseInt(query.limit, 10) : 50,
+      page: Math.max(parseInt(query.page, 10) || 1, 1),
+      limit: parsedLimit,
       sortBy: query.sortBy || "createdAt",
       sortOrder: query.sortOrder || "desc",
     };
@@ -82,6 +83,7 @@ export class TaskController {
         total: result.total,
         page: pagination.page,
         limit: pagination.limit,
+        totalPages: Math.ceil(result.total / pagination.limit) || 1,
       },
     });
   };

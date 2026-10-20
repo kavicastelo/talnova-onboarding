@@ -116,25 +116,28 @@ export class TaskRepository {
       }
     }
 
-    console.log('[TaskRepository.find] query:', JSON.stringify(query));
     const total = await Task.countDocuments(query);
     const page = Math.max(1, pagination.page);
-    const limit = Math.max(1, pagination.limit);
+    const limit = Math.min(Math.max(pagination.limit || 20, 1), 100);
     const skip = (page - 1) * limit;
 
     const sortField = pagination.sortBy || "createdAt";
     const sortOrder = pagination.sortOrder === "asc" ? 1 : -1;
 
     const tasks = await Task.find(query)
+      .select(
+        "_id taskCode organizationId employeeId assignedToUserId title description category stage priority status dueDate prerequisiteTaskIds hardwareMetadata isOverdue createdAt updatedAt"
+      )
       .populate("assignedToUserId", "profile auth.email permissions.role")
       .populate("employeeId", "profile auth.email employment")
       .populate("createdBy", "profile auth.email")
       .populate("prerequisiteTaskIds", "title status dueDate")
       .sort({ [sortField]: sortOrder })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-    return { tasks, total };
+    return { tasks: tasks as any, total };
   }
 
   async create(data: Partial<ITask>): Promise<ITask> {

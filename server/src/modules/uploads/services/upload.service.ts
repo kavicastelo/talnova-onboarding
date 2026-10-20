@@ -1,6 +1,11 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { storageConfig } from "../../../config/index.js";
+import {
+  storageConfig,
+  validateFileName,
+  ALLOWED_MIME_TYPES,
+  PRESIGNED_URL_TTL_SECONDS,
+} from "../../../config/storage.config.js";
 import UploadRepository from "../repositories/upload.repository.js";
 import AppError from "../../../common/errors/app-error.js";
 import Organization from "../../organizations/models/organization.model.js";
@@ -53,6 +58,18 @@ export class UploadService {
       visibility?: "public" | "private";
     }
   ) {
+    // 1. Strict extension, double-extension, and executable filename validation
+    const fileValidation = validateFileName(data.fileName);
+    if (!fileValidation.isValid) {
+      throw new AppError(422, "VALIDATION_ERROR", fileValidation.error || "Invalid file name or unapproved extension");
+    }
+
+    // 2. Strict MIME type whitelist validation
+    const cleanMime = data.mimeType ? data.mimeType.toLowerCase().trim() : "";
+    if (!cleanMime || !ALLOWED_MIME_TYPES.has(cleanMime)) {
+      throw new AppError(422, "VALIDATION_ERROR", "MIME type is not allowed. Only safe documents, images, video, and audio are accepted.");
+    }
+
     if (data.fileSizeBytes > storageConfig.maxUploadSize) {
       throw new AppError(413, "FILE_TOO_LARGE", `File size exceeds the limit of ${storageConfig.maxUploadSize} bytes`);
     }
@@ -80,8 +97,8 @@ export class UploadService {
       );
     }
 
-    const fileType = this.classifyFileType(data.mimeType);
-    const extension = data.fileName.split(".").pop() || "";
+    const fileType = this.classifyFileType(cleanMime);
+    const extension = fileValidation.extension;
     const uuid = new mongoose.Types.ObjectId().toString();
     
     const now = new Date();
@@ -91,16 +108,25 @@ export class UploadService {
     // organizations/{organizationId}/uploads/{year}/{month}/{uuid}.{ext}
     const objectKey = `organizations/${orgId.toString()}/uploads/${year}/${month}/${uuid}.${extension}`;
 
-    // Generate signed upload URL (valid for 1 hour)
+    // Add Content-Disposition: attachment for private uploads to prevent in-browser execution
+    const isPrivate = data.visibility !== "public";
+    const safeAttachmentFilename = data.fileName.replace(/["\r\n\t]/g, "").trim();
+
+    // Generate signed upload URL with clamped TTL (300 seconds / 5 minutes)
     const command = new PutObjectCommand({
       Bucket: storageConfig.bucket,
       Key: objectKey,
-      ContentType: data.mimeType,
+      ContentType: cleanMime,
+      ...(isPrivate
+        ? { ContentDisposition: `attachment; filename="${safeAttachmentFilename}"` }
+        : {}),
     });
 
     let uploadUrl: string;
     try {
-      uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+      uploadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: PRESIGNED_URL_TTL_SECONDS,
+      });
     } catch (err: any) {
       throw new AppError(500, "INTERNAL_SERVER_ERROR", `Failed to generate R2 upload URL: ${err.message}`);
     }

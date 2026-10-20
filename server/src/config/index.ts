@@ -89,6 +89,18 @@ export const demoConfig = {
   resetConfirmationKey: parsedEnv.DEMO_RESET_CONFIRMATION_KEY,
 };
 
+export const redisConfig = {
+  url: parsedEnv.REDIS_URL,
+  upstashRestUrl: parsedEnv.UPSTASH_REDIS_REST_URL,
+  upstashRestToken: parsedEnv.UPSTASH_REDIS_REST_TOKEN,
+  isUpstash: !!(parsedEnv.UPSTASH_REDIS_REST_URL && parsedEnv.UPSTASH_REDIS_REST_TOKEN),
+  enabled: !!(parsedEnv.REDIS_URL || (parsedEnv.UPSTASH_REDIS_REST_URL && parsedEnv.UPSTASH_REDIS_REST_TOKEN)),
+};
+
+export const securityConfig = {
+  encryptionMasterKey: parsedEnv.ENCRYPTION_MASTER_KEY,
+};
+
 export const config = {
   app: appConfig,
   db: dbConfig,
@@ -97,6 +109,8 @@ export const config = {
   cors: corsConfig,
   email: emailConfig,
   demo: demoConfig,
+  redis: redisConfig,
+  security: securityConfig,
 };
 
 export default config;

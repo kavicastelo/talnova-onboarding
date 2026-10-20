@@ -58,6 +58,10 @@ export async function connectDatabase(log: any = console) {
     await mongoose.connect(dbConfig.uri, {
       autoIndex: true, // Auto-build indexes in development; might disable in production later if needed
     });
+    // Ensure high-concurrency multi-tenant compound indexes
+    const { ensureMultiTenantIndexes } = await import("./indexes.js");
+    await ensureMultiTenantIndexes(log);
+
     // Hydrate TenantStatusCache with currently suspended organizations
     await TenantStatusCache.init();
   } catch (error: any) {

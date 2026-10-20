@@ -266,8 +266,17 @@ export class AntiTamperingService {
     if (!dirtyHtml || typeof dirtyHtml !== 'string') return '';
 
     try {
-      if (typeof window !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function') {
-        return DOMPurify.sanitize(dirtyHtml, {
+      let purifier: any = DOMPurify;
+      if (typeof (purifier as any)?.sanitize !== 'function' && typeof DOMPurify === 'function') {
+        if (typeof window !== 'undefined') {
+          purifier = (DOMPurify as any)(window);
+        } else if (typeof globalThis !== 'undefined' && (globalThis as any).window) {
+          purifier = (DOMPurify as any)((globalThis as any).window);
+        }
+      }
+
+      if (purifier && typeof purifier.sanitize === 'function') {
+        const clean = purifier.sanitize(dirtyHtml, {
           ALLOWED_TAGS: [
             'b', 'i', 'em', 'strong', 'a', 'p', 'span', 'ul', 'ol', 'li',
             'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre', 'div'
@@ -275,19 +284,37 @@ export class AntiTamperingService {
           ALLOWED_ATTR: ['href', 'target', 'class', 'style', 'rel', 'title', 'id'],
           ALLOW_DATA_ATTR: false
         });
+
+        if (typeof clean === 'string') {
+          return clean.replace(/<a\b([^>]*?)>/gi, (match: string, attrs: string) => {
+            if (!attrs.includes('rel=')) {
+              return `<a${attrs} rel="noopener noreferrer">`;
+            }
+            return match.replace(/rel=(["'])(.*?)\1/gi, 'rel="noopener noreferrer"');
+          });
+        }
+        return clean;
       }
     } catch (err) {
       console.warn('[AntiTampering] DOMPurify sanitize warning, applying fallback:', err);
     }
 
     // Resilient fallback for non-DOM / headless test environments
-    return dirtyHtml
+    const stripped = dirtyHtml
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
       .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
       .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+      .replace(/<img\b[^>]*>/gi, '')
       .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
       .replace(/(?:href|src)\s*=\s*["']?\s*javascript:[^"'>\s]*/gi, '');
+
+    return stripped.replace(/<a\b([^>]*?)>/gi, (match: string, attrs: string) => {
+      if (!attrs.includes('rel=')) {
+        return `<a${attrs} rel="noopener noreferrer">`;
+      }
+      return match.replace(/rel=(["'])(.*?)\1/gi, 'rel="noopener noreferrer"');
+    });
   }
 
   /**

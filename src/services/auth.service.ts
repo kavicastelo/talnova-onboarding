@@ -1,4 +1,4 @@
-import { apiClient } from '../api/client';
+import { apiClient, setAccessToken, clearAccessToken } from '../api/client';
 import { User, ApiResponse } from '../types';
 import { queryClient } from '../queryClient';
 
@@ -40,7 +40,7 @@ export const authService = {
     });
     const { accessToken, user } = res.data.data;
     queryClient.clear();
-    localStorage.setItem('auth_token', accessToken);
+    setAccessToken(accessToken);
     const userRole = user?.role || 'employee';
     const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];
     localStorage.setItem('user_role', userRole);
@@ -57,7 +57,7 @@ export const authService = {
     try {
       await apiClient.post('/auth/logout');
     } finally {
-      localStorage.removeItem('auth_token');
+      clearAccessToken();
       localStorage.removeItem('user_role');
       localStorage.removeItem('user_roles');
       localStorage.removeItem('user_features');
@@ -100,7 +100,7 @@ export const authService = {
     const { accessToken, user } = res.data.data || {};
     queryClient.clear();
     if (accessToken) {
-      localStorage.setItem('auth_token', accessToken);
+      setAccessToken(accessToken);
     }
     const userRole = user?.role || 'employee';
     const userRoles = Array.isArray(user?.roles) && user.roles.length > 0 ? user.roles : [userRole];

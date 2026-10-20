@@ -61,18 +61,22 @@ export class JourneyRepository {
     const total = await Journey.countDocuments(query);
 
     const page = Math.max(1, pagination.page);
-    const limit = Math.max(1, pagination.limit);
+    const limit = Math.min(Math.max(pagination.limit || 20, 1), 100);
     const skip = (page - 1) * limit;
 
     const sortField = pagination.sortBy || "createdAt";
     const sortOrder = pagination.sortOrder === "asc" ? 1 : -1;
 
     const journeys = await Journey.find(query)
+      .select(
+        "_id organizationId title slug description category tags audience.isPublic audience.targetDepartments audience.targetRoles modules.title modules.order publishing analytics isDefault createdAt updatedAt"
+      )
       .sort({ [sortField]: sortOrder })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-    return { journeys, total };
+    return { journeys: journeys as any, total };
   }
 
   async create(journeyData: Partial<IJourney>): Promise<IJourney> {

@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { unpackDemoPayload } from '../utils/payloadShield';
+import { secureStorage } from '../utils/secureStorage';
 
 // Config
 const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
@@ -14,6 +15,43 @@ export interface ApiError {
   raw?: any;
 }
 
+// In-Memory Token & Worker Session State (Isolated Closures)
+let inMemoryAccessToken: string | null = null;
+let workerTokenGetter: (() => string | null) | null = null;
+
+export function setAccessToken(token: string | null): void {
+  inMemoryAccessToken = token;
+  if (!token) {
+    secureStorage.removeToken();
+  } else {
+    // Encrypted migration fallback with 15-min TTL
+    secureStorage.setToken(token);
+  }
+}
+
+export function getAccessToken(): string | null {
+  if (inMemoryAccessToken) return inMemoryAccessToken;
+  const stored = secureStorage.getToken();
+  if (stored) {
+    inMemoryAccessToken = stored;
+    return stored;
+  }
+  return null;
+}
+
+export function clearAccessToken(): void {
+  inMemoryAccessToken = null;
+  secureStorage.removeToken();
+}
+
+export function setWorkerTokenProvider(getter: (() => string | null) | null): void {
+  workerTokenGetter = getter;
+}
+
+export function getWorkerToken(): string | null {
+  return workerTokenGetter ? workerTokenGetter() : null;
+}
+
 // Create centralized axios client
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -25,21 +63,12 @@ export const apiClient = axios.create({
   withCredentials: true, // Allow cookies / credentials support
 });
 
-// Normalized error helper
+// Normalized error helper without sensitive payload logging
 export function normalizeError(error: any): ApiError {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<any>;
     const status = axiosError.response?.status;
     const responseData = axiosError.response?.data;
-
-    // Log internally for debugging purposes
-    console.error('[API Error]', {
-      url: axiosError.config?.url,
-      method: axiosError.config?.method,
-      status,
-      message: axiosError.message,
-      response: responseData,
-    });
 
     const details = responseData?.error?.details || responseData?.details || null;
     let message = responseData?.message || responseData?.error || axiosError.message || 'An unexpected server error occurred.';
@@ -51,7 +80,6 @@ export function normalizeError(error: any): ApiError {
       message = responseData.error.message;
     }
 
-    // Handle standard API responses or default fallbacks
     return {
       message,
       status,
@@ -62,7 +90,6 @@ export function normalizeError(error: any): ApiError {
   }
 
   // Generic application error
-  console.error('[Unexpected Error]', error);
   return {
     message: error?.message || 'An unknown error occurred.',
     code: 'UNKNOWN_ERROR',
@@ -113,7 +140,7 @@ apiClient.interceptors.request.use(
       }
     } else {
       const isKioskRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/kiosk');
-      const employeeToken = typeof window !== 'undefined' ? (window as any).__TALNOVA_EMPLOYEE_TOKEN__ : null;
+      const employeeToken = workerTokenGetter ? workerTokenGetter() : null;
       const isDeviceHeartbeat = Boolean(
         config.url && (config.url.includes('/devices/heartbeat') || config.url.endsWith('/heartbeat'))
       );
@@ -129,7 +156,7 @@ apiClient.interceptors.request.use(
           config.headers.Authorization = `Bearer ${deviceToken}`;
         }
       } else {
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('kiosk_device_token');
+        const token = getAccessToken();
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -137,7 +164,6 @@ apiClient.interceptors.request.use(
     }
 
     // Inject Accept-Language from persisted user preference
-    // This ensures dynamic content (journeys, KB articles) is returned in the correct locale
     const lang = localStorage.getItem('talnova_lang') || 'en';
     if (config.headers) {
       config.headers['Accept-Language'] = lang;
@@ -226,7 +252,7 @@ apiClient.interceptors.response.use(
 
       if (isAuthRoute || isPublicPage) {
         if (isKbRoute) {
-          localStorage.removeItem('auth_token');
+          clearAccessToken();
           localStorage.removeItem('user_role');
         }
         return Promise.reject(error);
@@ -234,14 +260,14 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        console.warn('Session expired or invalid. Attempting to refresh token...');
+        // Silent token refresh via HttpOnly cookie transport
         const res = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
         const { accessToken } = res.data.data;
-        localStorage.setItem('auth_token', accessToken);
+        setAccessToken(accessToken);
         localStorage.setItem('talnova_last_activity', String(Date.now()));
         
         if (originalRequest.headers) {
@@ -249,8 +275,7 @@ apiClient.interceptors.response.use(
         }
         return apiClient(originalRequest);
       } catch (refreshError) {
-        console.error('Token refresh failed', refreshError);
-        localStorage.removeItem('auth_token');
+        clearAccessToken();
         localStorage.removeItem('user_role');
         localStorage.removeItem('user_roles');
         localStorage.removeItem('user_features');

@@ -2,46 +2,55 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    dedupe: ['react', 'react-dom']
-  },
-  test: {
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['server/**', 'node_modules/**', 'dist/**'],
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('recharts')) {
-              return 'vendor-recharts';
-            }
-            if (id.includes('d3')) {
-              return 'vendor-d3';
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-icons';
-            }
-            if (id.includes('@tanstack') || id.includes('axios')) {
-              return 'vendor-query';
+export default defineConfig(({ mode }) => {
+  const isProduction = mode === 'production' || process.env.NODE_ENV === 'production';
+
+  return {
+    plugins: [react()],
+    resolve: {
+      dedupe: ['react', 'react-dom']
+    },
+    test: {
+      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      exclude: ['server/**', 'node_modules/**', 'dist/**'],
+    },
+    esbuild: {
+      drop: isProduction ? ['console', 'debugger'] : [],
+    },
+    build: {
+      minify: 'esbuild',
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('recharts')) {
+                return 'vendor-recharts';
+              }
+              if (id.includes('d3')) {
+                return 'vendor-d3';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('@tanstack') || id.includes('axios')) {
+                return 'vendor-query';
+              }
             }
           }
         }
       }
-    }
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
     },
-    allowedHosts: [
-      'dfd8-123-231-110-255.ngrok-free.app'
-    ]
-  }
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
+      allowedHosts: [
+        'dfd8-123-231-110-255.ngrok-free.app'
+      ]
+    }
+  };
 })
