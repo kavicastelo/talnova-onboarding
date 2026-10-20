@@ -78,8 +78,21 @@ export function errorHandler(
 
   // 2. Handle AppError (custom operational errors)
   if (error instanceof AppError) {
-    if (error.statusCode === 429 && (error.details as any)?.retryAfter) {
-      reply.header("Retry-After", String((error.details as any).retryAfter));
+    if (error.statusCode === 429) {
+      const retryAfter = (error.details as any)?.retryAfter;
+      if (retryAfter) {
+        reply.header("Retry-After", String(retryAfter));
+      }
+      return reply.status(429).send({
+        success: false,
+        statusCode: 429,
+        error: "Too Many Requests",
+        message: error.message,
+        code: error.code,
+        retryAfter,
+        ...(error.details && typeof error.details === "object" ? error.details : {}),
+        details: error.details,
+      });
     }
     return reply.status(error.statusCode).send({
       success: false,
@@ -88,6 +101,22 @@ export function errorHandler(
       code: error.code,
       ...(error.details && typeof error.details === "object" ? error.details : {}),
       details: error.details,
+    });
+  }
+
+  // 2b. Handle direct Fastify rate limit error (statusCode 429 / FST_ERR_RATE_LIMIT_EXCEEDED)
+  if (statusCode === 429 || (error as any).code === "FST_ERR_RATE_LIMIT_EXCEEDED") {
+    const retryAfter = (error as any).retryAfter || (error as any).details?.retryAfter || (error as any).after;
+    if (retryAfter) {
+      reply.header("Retry-After", String(retryAfter));
+    }
+    return reply.status(429).send({
+      success: false,
+      statusCode: 429,
+      error: "Too Many Requests",
+      message: error.message || "Rate limit exceeded. Too many requests.",
+      code: "RATE_LIMIT_EXCEEDED",
+      retryAfter,
     });
   }
 

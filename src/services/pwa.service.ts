@@ -1,4 +1,4 @@
-import { apiClient } from '../api/client';
+import { apiClient, getAccessToken } from '../api/client';
 import { toast } from 'sonner';
 import i18n from '../i18n';
 
@@ -131,8 +131,8 @@ export const pwaService = {
     }
 
     // Negative Test: check auth token before sync flush
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
+    const token = getAccessToken();
+    if (!token && typeof localStorage !== 'undefined' && !localStorage.getItem('user_role')) {
       console.warn('[PWA Sync] No auth token available. Re-authentication required before progress sync.');
       toast.warning(i18n.t('common:pwa.sessionExpiredSync', 'Session expired. Please log in to synchronize your offline learning progress.'));
       return { syncedCount: 0, syncedLessonIds: [] };

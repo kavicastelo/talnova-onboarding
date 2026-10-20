@@ -5,7 +5,7 @@ import {
   SUPPORTED_LOCALES,
   type SupportedLocale,
 } from '../i18n/localization.config';
-import { apiClient } from '../api/client';
+import { apiClient, getAccessToken } from '../api/client';
 
 interface LanguageContextValue {
   language: SupportedLocale;
@@ -62,8 +62,8 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     localStorage.setItem(LANG_STORAGE_KEY, lang);
 
     // Persist to backend if authenticated
-    const token = localStorage.getItem('auth_token');
-    if (token) {
+    const hasSession = Boolean(getAccessToken()) || (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_role')));
+    if (hasSession) {
       apiClient
         .patch('/employees/me/preferences', { language: lang })
         .catch(() => {

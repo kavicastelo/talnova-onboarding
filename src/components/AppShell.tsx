@@ -108,6 +108,7 @@ import { authService } from '../services/auth.service';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { PWAInstallBanner } from './PWAInstallBanner';
+import { getAccessToken, clearAccessToken } from '../api/client';
 import { MobileBottomNav } from './MobileBottomNav';
 import {
   Dialog,
@@ -668,12 +669,12 @@ export function AppShell() {
   }, [settings]);
 
   const isAnonymousKb = location.pathname.startsWith('/kb') || location.pathname.startsWith('/knowledge-base');
-  const hasToken = typeof localStorage !== 'undefined' ? !!localStorage.getItem('auth_token') : true;
+  const hasToken = typeof localStorage !== 'undefined' ? (Boolean(getAccessToken()) || Boolean(localStorage.getItem('user_role'))) : true;
 
   useEffect(() => {
     if (isAnonymousKb) return;
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    if (!token && typeof window !== 'undefined') {
+    const hasSession = Boolean(getAccessToken()) || (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_role')));
+    if (!hasSession && typeof window !== 'undefined') {
       navigate('/login');
     }
   }, [navigate, location.pathname, isAnonymousKb]);
@@ -681,7 +682,7 @@ export function AppShell() {
   useEffect(() => {
     if (isAnonymousKb) return;
     if (!userLoading && userError) {
-      localStorage.removeItem('auth_token');
+      clearAccessToken();
       localStorage.removeItem('user_role');
       localStorage.removeItem('user_roles');
       localStorage.removeItem('user_features');

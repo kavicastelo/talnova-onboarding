@@ -2,8 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authService } from '../services/auth.service';
 import { queryClient } from '../queryClient';
 
+let mockToken: string | null = null;
+
 // Mock apiClient
 vi.mock('../api/client', () => ({
+  setAccessToken: vi.fn((token: string) => {
+    mockToken = token;
+  }),
+  clearAccessToken: vi.fn(() => {
+    mockToken = null;
+    try {
+      (globalThis as any).localStorage?.removeItem('auth_token');
+    } catch {}
+  }),
+  getAccessToken: vi.fn(() => mockToken),
   apiClient: {
     get: vi.fn(),
     post: vi.fn().mockImplementation((url: string) => {
@@ -59,7 +71,8 @@ describe('Session Inactivity & Re-Login Hand-off Resilience', () => {
     const result = await authService.login('test@talnova.io', 'ValidPass123!');
 
     expect(result.accessToken).toBe('mock-access-token-123');
-    expect(storageMap['auth_token']).toBe('mock-access-token-123');
+    // Verifies raw JWT is not written to unencrypted localStorage.auth_token
+    expect(storageMap['auth_token']).toBeUndefined();
     expect(queryClient.clear).toHaveBeenCalled();
 
     // Verify activity timestamp has been refreshed to now (within 1 second)

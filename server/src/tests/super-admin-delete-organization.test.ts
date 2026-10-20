@@ -53,6 +53,9 @@ describe("Super Admin: Dual-Mode Organization Deletion & GDPR Cascade Purge", ()
         role: "super_admin",
         roles: ["super_admin"],
       },
+      security: {
+        lastSudoVerifiedAt: new Date(),
+      },
     });
 
     superAdminToken = app.jwt.sign({

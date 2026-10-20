@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import SSOConfig from "../models/sso-config.model.js";
+import SSOConfig, { ISSOConfig } from "../models/sso-config.model.js";
 import User from "../models/user.model.js";
 import SessionRepository from "../repositories/session.repository.js";
 import UserRepository from "../repositories/user.repository.js";
@@ -13,6 +13,12 @@ import Journey from "../../journeys/models/journey.model.js";
 import EmployeeAssignment from "../../assignments/models/assignment.model.js";
 import AssignmentService from "../../assignments/services/assignment.service.js";
 import AssignmentRepository from "../../assignments/repositories/assignment.repository.js";
+import {
+  encryptSecret,
+  decryptSecret,
+  maskSecret,
+  isEncryptedSecret,
+} from "../../../utils/crypto.js";
 
 export class SSOService {
   constructor(
@@ -22,6 +28,25 @@ export class SSOService {
       sign: (payload: any, options?: any) => string;
     }
   ) {}
+
+  /**
+   * Masks sensitive credentials before returning SSOConfig to frontend consumers
+   */
+  private formatSSOConfigResponse(config: any) {
+    if (!config) return null;
+    const obj = typeof config.toObject === "function" ? config.toObject() : { ...config };
+    if (obj.clientSecret) {
+      try {
+        const plain = isEncryptedSecret(obj.clientSecret)
+          ? decryptSecret(obj.clientSecret)
+          : obj.clientSecret;
+        obj.clientSecret = maskSecret(plain);
+      } catch {
+        obj.clientSecret = maskSecret(obj.clientSecret);
+      }
+    }
+    return obj;
+  }
 
   /**
    * Get SSO Config for Organization (SSO-001)
@@ -42,7 +67,40 @@ export class SSOService {
       });
     }
 
-    return config;
+    return this.formatSSOConfigResponse(config);
+  }
+
+  /**
+   * Retrieves decrypted SSO credentials strictly for IdP handshake and token exchange.
+   * Never return decrypted client secrets to frontend consumers.
+   */
+  async getDecryptedSSOCredentials(orgId: string | mongoose.Types.ObjectId) {
+    const orgObjectId = new mongoose.Types.ObjectId(orgId.toString());
+    const config = await SSOConfig.findOne({ organizationId: orgObjectId });
+    if (!config) return null;
+
+    const rawSecret = config.clientSecret;
+    const rawCert = config.certificate;
+
+    const decryptedClientSecret = rawSecret && isEncryptedSecret(rawSecret)
+      ? decryptSecret(rawSecret)
+      : rawSecret || "";
+
+    const decryptedCertificate = rawCert && isEncryptedSecret(rawCert)
+      ? decryptSecret(rawCert)
+      : rawCert || "";
+
+    return {
+      provider: config.provider,
+      clientId: config.clientId,
+      clientSecret: decryptedClientSecret,
+      certificate: decryptedCertificate,
+      issuerUrl: config.issuerUrl,
+      ssoUrl: config.ssoUrl,
+      domains: config.domains,
+      defaultRole: config.defaultRole,
+      roleMappings: config.roleMappings,
+    };
   }
 
   /**
@@ -94,9 +152,36 @@ export class SSOService {
     if (data.issuerId !== undefined && data.issuerUrl === undefined) config.issuerUrl = data.issuerId;
     if (data.clientId !== undefined) config.clientId = data.clientId;
     if (data.issuerId !== undefined && data.clientId === undefined) config.clientId = data.issuerId;
-    if (data.clientSecret !== undefined) config.clientSecret = data.clientSecret;
+
+    // Field-level encryption for SSO credentials
+    if (data.clientSecret !== undefined) {
+      const trimmedSecret = typeof data.clientSecret === "string" ? data.clientSecret.trim() : "";
+      if (trimmedSecret.startsWith("••••")) {
+        // Retain existing encrypted secret when frontend submits masked representation
+      } else if (trimmedSecret.length === 0) {
+        config.clientSecret = "";
+      } else {
+        config.clientSecret = isEncryptedSecret(trimmedSecret)
+          ? trimmedSecret
+          : encryptSecret(trimmedSecret);
+      }
+    }
+
     if (targetSsoUrl !== undefined) config.ssoUrl = targetSsoUrl ? targetSsoUrl.trim() : "";
-    if (data.certificate !== undefined) config.certificate = data.certificate;
+
+    if (data.certificate !== undefined) {
+      const trimmedCert = typeof data.certificate === "string" ? data.certificate.trim() : "";
+      if (trimmedCert.startsWith("••••")) {
+        // Retain existing certificate
+      } else if (trimmedCert.length === 0) {
+        config.certificate = "";
+      } else {
+        config.certificate = isEncryptedSecret(trimmedCert)
+          ? trimmedCert
+          : encryptSecret(trimmedCert);
+      }
+    }
+
     if (data.enforceSSO !== undefined) config.enforceSSO = data.enforceSSO;
     if (data.defaultRole) config.defaultRole = data.defaultRole;
     if (Array.isArray(data.roleMappings)) config.roleMappings = data.roleMappings;
@@ -126,7 +211,7 @@ export class SSOService {
       },
     });
 
-    return config;
+    return this.formatSSOConfigResponse(config);
   }
 
   /**

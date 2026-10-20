@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceSettings } from './useSettings';
 import { useCurrentUser } from './useAuth';
 import { toast } from 'sonner';
-import { apiClient } from '../api/client';
+import { apiClient, clearAccessToken } from '../api/client';
 
 const LAST_ACTIVITY_KEY = 'talnova_last_activity';
 const THROTTLE_MS = 1000;
@@ -77,7 +77,7 @@ export function useSessionTimeout(): SessionTimeoutState {
     try {
       await apiClient.post('/auth/logout').catch(() => undefined);
     } finally {
-      localStorage.removeItem('auth_token');
+      clearAccessToken();
       localStorage.removeItem('user_role');
       localStorage.removeItem('user_roles');
       localStorage.removeItem('user_features');
@@ -103,7 +103,7 @@ export function useSessionTimeout(): SessionTimeoutState {
 
   // Listen to user interaction events across window
   useEffect(() => {
-    if (!user || !localStorage.getItem('auth_token')) return;
+    if (!user) return;
 
     // Set initial activity
     const now = Date.now();
@@ -151,7 +151,7 @@ export function useSessionTimeout(): SessionTimeoutState {
 
   // 1-second heartbeat interval to verify idle status
   useEffect(() => {
-    if (!user || !localStorage.getItem('auth_token')) return;
+    if (!user) return;
 
     const interval = setInterval(() => {
       const now = Date.now();

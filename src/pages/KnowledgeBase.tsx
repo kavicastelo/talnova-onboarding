@@ -64,6 +64,7 @@ import { CATEGORY_MAP } from '../services/knowledgeBase.service';
 import { useTranslation } from 'react-i18next';
 import { SimplePagination } from '../components/SimplePagination';
 import { usePagination } from '../hooks/usePagination';
+import { getAccessToken } from '../api/client';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   'Company Policies': Shield,
@@ -81,7 +82,7 @@ export function KnowledgeBase() {
   const navigate = useNavigate();
   const { role } = useRole();
   const { t } = useTranslation('kb');
-  const hasToken = !!localStorage.getItem('auth_token');
+  const hasToken = Boolean(getAccessToken() || (typeof localStorage !== 'undefined' && localStorage.getItem('user_role')));
   const isAdmin = hasToken && (role === 'admin' || role === 'owner');
 
   const [search, setSearch] = useState('');

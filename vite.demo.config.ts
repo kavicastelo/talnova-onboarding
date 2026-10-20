@@ -39,63 +39,71 @@ function demoCodeObfuscationPlugin(): Plugin {
 }
 
 // Standalone Vite configuration for Talnova Demo Deployment (ADR-001)
-export default defineConfig({
-  root: path.resolve(__dirname, 'demo'),
-  envDir: path.resolve(__dirname),
-  publicDir: path.resolve(__dirname, 'public'),
-  plugins: [react(), demoCodeObfuscationPlugin()],
-  resolve: {
-    dedupe: ['react', 'react-dom'],
-  },
-  define: {
-    'process.env.VITE_IS_DEMO_BUILD': JSON.stringify('true'),
-    __DEMO_BUILD__: true,
-  },
-  build: {
-    outDir: path.resolve(__dirname, 'dist-demo'),
-    emptyOutDir: true,
-    sourcemap: false,
-    rollupOptions: {
-      input: path.resolve(__dirname, 'demo/index.html'),
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('recharts')) {
-              return 'vendor-recharts';
+export default defineConfig(({ mode }) => {
+  const isProduction = mode === 'production' || process.env.NODE_ENV === 'production';
+
+  return {
+    root: path.resolve(__dirname, 'demo'),
+    envDir: path.resolve(__dirname),
+    publicDir: path.resolve(__dirname, 'public'),
+    plugins: [react(), demoCodeObfuscationPlugin()],
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
+    define: {
+      'process.env.VITE_IS_DEMO_BUILD': JSON.stringify('true'),
+      __DEMO_BUILD__: true,
+    },
+    esbuild: {
+      drop: isProduction ? ['console', 'debugger'] : [],
+    },
+    build: {
+      outDir: path.resolve(__dirname, 'dist-demo'),
+      emptyOutDir: true,
+      minify: 'esbuild',
+      sourcemap: false,
+      rollupOptions: {
+        input: path.resolve(__dirname, 'demo/index.html'),
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('recharts')) {
+                return 'vendor-recharts';
+              }
+              if (id.includes('d3')) {
+                return 'vendor-d3';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('@tanstack') || id.includes('axios')) {
+                return 'vendor-query';
+              }
             }
-            if (id.includes('d3')) {
-              return 'vendor-d3';
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-icons';
-            }
-            if (id.includes('@tanstack') || id.includes('axios')) {
-              return 'vendor-query';
-            }
-          }
+          },
         },
       },
     },
-  },
-  server: {
-    port: 5174,
-    fs: {
-      allow: ['..'],
-    },
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+    server: {
+      port: 5174,
+      fs: {
+        allow: ['..'],
+      },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
       },
     },
-  },
-  preview: {
-    port: 5174,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+    preview: {
+      port: 5174,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });

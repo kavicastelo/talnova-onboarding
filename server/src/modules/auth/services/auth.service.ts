@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import EmailService from "../../../shared/email/email.service.js";
 import { Organization } from "../../organizations/models/organization.model.js";
+import SessionBlocklistCache from "../../../infrastructure/cache/session-blocklist.cache.js";
 
 export interface TokenPayload {
   userId: string;
@@ -226,6 +227,7 @@ export class AuthService {
    */
   async logout(sessionId: string) {
     await this.sessionRepository.invalidateSession(sessionId);
+    await SessionBlocklistCache.revokeSession(sessionId);
   }
 
   /**
@@ -296,9 +298,13 @@ export class AuthService {
    */
   async changePassword(
     userId: string | mongoose.Types.ObjectId,
-    currentPassword?: string,
+    currentPassword: string,
     newPassword?: string
   ): Promise<{ success: boolean; message: string }> {
+    if (!currentPassword || currentPassword.trim().length === 0) {
+      throw new AppError(400, "BAD_REQUEST", "Current password is required.");
+    }
+
     if (!newPassword || newPassword.trim().length < 8) {
       throw new AppError(400, "BAD_REQUEST", "New password must be at least 8 characters long.");
     }
@@ -308,12 +314,10 @@ export class AuthService {
       throw new AppError(404, "NOT_FOUND", "User account not found.");
     }
 
-    // If current password was provided, verify it
-    if (currentPassword) {
-      const isValid = await verifyPassword(currentPassword, user.auth.passwordHash);
-      if (!isValid) {
-        throw new AppError(400, "INVALID_CREDENTIALS", "Current password does not match.");
-      }
+    // Always verify current password
+    const isValid = await verifyPassword(currentPassword, user.auth.passwordHash);
+    if (!isValid) {
+      throw new AppError(400, "INVALID_CREDENTIALS", "Current password does not match.");
     }
 
     // Verify new password is not identical to existing

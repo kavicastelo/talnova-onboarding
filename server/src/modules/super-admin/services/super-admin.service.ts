@@ -21,7 +21,7 @@ import KioskJourneyModel from "../../kiosk/models/kiosk-journey.model.js";
 import AlertService from "./alert.service.js";
 import ReportGeneratorService from "./report-generator.service.js";
 import PlatformSetting from "../models/platform-setting.model.js";
-import { hashPassword } from "../../../utils/crypto.js";
+import { hashPassword, verifyPassword } from "../../../utils/crypto.js";
 import TelemetryBuffer from "../../../infrastructure/telemetry/telemetry-buffer.js";
 import SystemLogBuffer from "../../../infrastructure/telemetry/system-log-buffer.js";
 import OrganizationIntegration from "../../integrations/models/organization-integration.model.js";
@@ -1408,7 +1408,8 @@ export class SuperAdminService {
   async deleteOrganization(
     id: string,
     mode: "soft" | "hard" = "hard",
-    actorUserId?: string
+    actorUserId?: string,
+    clientInfo?: { ip?: string; userAgent?: string; method?: string; endpoint?: string }
   ) {
     const isObjId = mongoose.Types.ObjectId.isValid(id);
     const filter = isObjId
@@ -1455,6 +1456,18 @@ export class SuperAdminService {
         resourceId: orgId,
         action: "archive",
         description: `Organization '${orgName}' (${orgSlug}) was archived (soft-deleted) by Super Admin.`,
+        request: {
+          ipAddress: clientInfo?.ip,
+          userAgent: clientInfo?.userAgent,
+          method: clientInfo?.method || "DELETE",
+          endpoint: clientInfo?.endpoint,
+        },
+        metadata: {
+          targetCollection: "organizations",
+          changeSummary: `Organization '${orgName}' (${orgSlug}) was archived (soft-deleted).`,
+          sudoConfirmed: true,
+          mode: "soft",
+        },
         severity: "warning",
       });
 
@@ -1547,6 +1560,19 @@ export class SuperAdminService {
       resourceId: orgId,
       action: "delete",
       description: `Organization '${orgName}' (${orgSlug}) and all associated records were permanently purged (GDPR erasure).`,
+      request: {
+        ipAddress: clientInfo?.ip,
+        userAgent: clientInfo?.userAgent,
+        method: clientInfo?.method || "DELETE",
+        endpoint: clientInfo?.endpoint,
+      },
+      metadata: {
+        targetCollection: "organizations",
+        changeSummary: `Organization '${orgName}' (${orgSlug}) and all associated records were permanently purged.`,
+        sudoConfirmed: true,
+        mode: "hard",
+        cascadeResults: deleteResults,
+      },
       severity: "critical",
     });
 
@@ -6584,6 +6610,116 @@ export class SuperAdminService {
 
   async getBackupManifest(manifestId: string) {
     return backupPurgeService.getManifest(manifestId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sudo Mode & Step-Up Elevation
+  // ---------------------------------------------------------------------------
+
+  async verifySudo(
+    userId: string,
+    password: string,
+    clientInfo?: { ip?: string; userAgent?: string }
+  ) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new AppError(404, "USER_NOT_FOUND", "User record not found");
+    }
+
+    if (user.permissions?.role !== "super_admin") {
+      throw new AppError(403, "FORBIDDEN", "Sudo mode is only available for super-admin accounts");
+    }
+
+    if (!user.auth?.passwordHash) {
+      throw new AppError(400, "INVALID_AUTH", "User has no password configured");
+    }
+
+    const isValid = await verifyPassword(password, user.auth.passwordHash);
+    if (!isValid) {
+      // Record security audit log for failed sudo attempt
+      await AuditLog.create({
+        actorUserId: user._id,
+        actorType: "user",
+        eventCategory: "security",
+        eventType: "SUDO_VERIFICATION_FAILED",
+        resourceType: "User",
+        resourceId: user._id,
+        action: "error",
+        description: `Failed sudo elevation attempt by super-admin ${user.auth?.email || user._id}`,
+        request: {
+          ipAddress: clientInfo?.ip,
+          userAgent: clientInfo?.userAgent,
+        },
+        metadata: {
+          reason: "Invalid password supplied",
+        },
+        severity: "warning",
+      });
+
+      throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials for sudo elevation");
+    }
+
+    const now = new Date();
+    if (!user.security) {
+      (user as any).security = {
+        mfaEnabled: false,
+        failedLoginAttempts: 0,
+        lastSudoVerifiedAt: now,
+      };
+    } else {
+      user.security.lastSudoVerifiedAt = now;
+    }
+    await user.save();
+
+    // Record security audit log for successful sudo elevation
+    await AuditLog.create({
+      actorUserId: user._id,
+      actorType: "user",
+      eventCategory: "security",
+      eventType: "SUDO_VERIFICATION_SUCCESS",
+      resourceType: "User",
+      resourceId: user._id,
+      action: "execute",
+      description: `Super-admin ${user.auth?.email || user._id} successfully elevated to sudo mode`,
+      request: {
+        ipAddress: clientInfo?.ip,
+        userAgent: clientInfo?.userAgent,
+      },
+      metadata: {
+        sudoVerifiedAt: now,
+        expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
+      },
+      severity: "info",
+    });
+
+    return {
+      verified: true,
+      sudoVerifiedAt: now,
+      expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
+      expiresInSeconds: 15 * 60,
+    };
+  }
+
+  async getSudoStatus(userId: string) {
+    const user = await User.findById(userId).select("security permissions");
+    if (!user) {
+      throw new AppError(404, "USER_NOT_FOUND", "User not found");
+    }
+
+    const lastSudoVerifiedAt = user.security?.lastSudoVerifiedAt
+      ? new Date(user.security.lastSudoVerifiedAt).getTime()
+      : 0;
+    const now = Date.now();
+    const SUDO_TIMEOUT_MS = 15 * 60 * 1000;
+    const isActive = lastSudoVerifiedAt > 0 && lastSudoVerifiedAt > now - SUDO_TIMEOUT_MS;
+    const remainingMs = isActive ? lastSudoVerifiedAt + SUDO_TIMEOUT_MS - now : 0;
+
+    return {
+      isActive,
+      lastSudoVerifiedAt: user.security?.lastSudoVerifiedAt || null,
+      expiresAt: isActive ? new Date(lastSudoVerifiedAt + SUDO_TIMEOUT_MS) : null,
+      remainingSeconds: Math.max(0, Math.floor(remainingMs / 1000)),
+    };
   }
 }
 

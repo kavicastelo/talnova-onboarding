@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { AIAssistantController } from "../controllers/ai-assistant.controller.js";
 import { AIAssistantService } from "../services/ai-assistant.service.js";
 import { authenticate, requireRole, requireFeatureFlag } from "../../../middleware/auth.middleware.js";
+import { aiRateLimit } from "../../../plugins/rate-limit.js";
 
 export async function aiAssistantRoutes(app: FastifyInstance) {
   const service = new AIAssistantService();
@@ -11,8 +12,8 @@ export async function aiAssistantRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
 
   // POST /api/v1/ai/chat & POST /api/v1/ai/query
-  app.post("/chat", controller.chat as any);
-  app.post("/query", controller.chat as any);
+  app.post("/chat", { config: { rateLimit: aiRateLimit } }, controller.chat as any);
+  app.post("/query", { config: { rateLimit: aiRateLimit } }, controller.chat as any);
 
   // GET /api/v1/ai/conversations
   app.get("/conversations", controller.getConversations as any);

@@ -4,6 +4,7 @@ import { UploadService } from "../services/upload.service.js";
 import { UploadRepository } from "../repositories/upload.repository.js";
 import { authenticate } from "../../../middleware/auth.middleware.js";
 import { requestUploadUrlSchema, confirmUploadSchema } from "../schemas/upload.schema.js";
+import { uploadRateLimit } from "../../../plugins/rate-limit.js";
 
 export async function uploadRoutes(app: FastifyInstance) {
   const repository = new UploadRepository();
@@ -16,14 +17,20 @@ export async function uploadRoutes(app: FastifyInstance) {
   // POST /api/v1/uploads/request-url
   app.post(
     "/request-url",
-    { schema: { body: requestUploadUrlSchema } },
+    {
+      config: { rateLimit: uploadRateLimit },
+      schema: { body: requestUploadUrlSchema },
+    },
     controller.requestUploadUrl as any
   );
 
   // POST /api/v1/uploads/presigned
   app.post(
     "/presigned",
-    { schema: { body: requestUploadUrlSchema } },
+    {
+      config: { rateLimit: uploadRateLimit },
+      schema: { body: requestUploadUrlSchema },
+    },
     controller.requestUploadUrl as any
   );
 

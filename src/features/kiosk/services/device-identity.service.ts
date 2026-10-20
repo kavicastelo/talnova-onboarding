@@ -512,21 +512,14 @@ export class DeviceIdentityService {
   setEmployeeSession(token: string | null, user?: any): void {
     this.ephemeralEmployeeToken = token;
     this.ephemeralEmployeeUser = user || null;
+    // Strictly in-memory closure; never bind sensitive tokens to global window object
     if (typeof window !== 'undefined') {
-      if (token) {
-        (window as any).__TALNOVA_EMPLOYEE_TOKEN__ = token;
-      } else {
-        delete (window as any).__TALNOVA_EMPLOYEE_TOKEN__;
-      }
+      delete (window as any).__TALNOVA_EMPLOYEE_TOKEN__;
     }
   }
 
   getEmployeeToken(): string | null {
-    if (this.ephemeralEmployeeToken) return this.ephemeralEmployeeToken;
-    if (typeof window !== 'undefined' && (window as any).__TALNOVA_EMPLOYEE_TOKEN__) {
-      return (window as any).__TALNOVA_EMPLOYEE_TOKEN__;
-    }
-    return null;
+    return this.ephemeralEmployeeToken;
   }
 
   getEmployeeUser(): any {
@@ -543,3 +536,4 @@ export class DeviceIdentityService {
 }
 
 export const deviceIdentityService = new DeviceIdentityService();
+

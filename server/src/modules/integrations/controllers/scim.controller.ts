@@ -7,65 +7,51 @@ import { Organization } from "../../organizations/models/organization.model.js";
 export class ScimController {
   constructor(private readonly service: ScimService = scimService) {}
 
-  private resolveOrgId = async (request: FastifyRequest): Promise<string> => {
+  public resolveOrgId = async (request: FastifyRequest): Promise<string> => {
+    // 1. If caller is already authenticated via JWT / request.user
     const user = request.user as any;
     if (user?.organizationId) {
       return user.organizationId.toString();
     }
 
+    // 2. Extract Bearer token from authorization header
     const headers = request.headers as any;
-    const headerOrg = headers["x-organization-id"] || headers["x-tenant-id"];
-    if (headerOrg) {
-      return headerOrg.toString();
-    }
-
-    const query = (request.query || {}) as any;
-    const queryOrg = query.organizationId || query.orgId || query.o;
-    if (queryOrg) {
-      return queryOrg.toString();
-    }
-
-    const body = (request.body || {}) as any;
-    if (body?.organizationId) {
-      return body.organizationId.toString();
-    }
-
-    // Try decoding bearer token
     const authHeader = headers.authorization;
-    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-      const token = authHeader.substring(7).trim();
-      try {
-        const decoded = (request.server as any).jwt.decode(token);
-        if (decoded?.organizationId) {
-          return decoded.organizationId.toString();
+    if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+      throw new AppError(401, "UNAUTHORIZED", "Missing SCIM Bearer authentication token.");
+    }
+
+    const token = authHeader.substring(7).trim();
+    if (!token) {
+      throw new AppError(401, "UNAUTHORIZED", "Empty SCIM Bearer token.");
+    }
+
+    // A. Check if valid JWT (e.g. admin or integration service token)
+    try {
+      const decoded = (request.server as any).jwt.decode(token);
+      if (decoded?.organizationId) {
+        const org = await Organization.findOne({
+          _id: new mongoose.Types.ObjectId(decoded.organizationId),
+          isDeleted: false,
+        });
+        if (org) {
+          return org._id.toString();
         }
-      } catch {
-        // Not a JWT, check if it matches an organization API key or SCIM token
       }
-
-      // Check organization SCIM token / webhook secret / sso
-      const org = await Organization.findOne({
-        $or: [
-          { "integrations.scimToken": token },
-          { "ssoConfig.issuerId": token },
-          { slug: token },
-        ],
-        isDeleted: false,
-      });
-      if (org) {
-        return org._id.toString();
-      }
+    } catch {
+      // Not a JWT, fall through to SCIM token match
     }
 
-    // In single-tenant test or demo environments, resolve first active organization
-    if (process.env.NODE_ENV === "test" || !!process.env.VITEST) {
-      const firstOrg = await Organization.findOne({ isDeleted: false });
-      if (firstOrg) {
-        return firstOrg._id.toString();
-      }
+    // B. Match against Organization integrations.scimToken
+    const org = await Organization.findOne({
+      "integrations.scimToken": token,
+      isDeleted: false,
+    });
+    if (org) {
+      return org._id.toString();
     }
 
-    throw new AppError(401, "UNAUTHORIZED", "Organization context missing for SCIM request");
+    throw new AppError(401, "UNAUTHORIZED", "Invalid or unverified SCIM Bearer token.");
   };
 
   private getBaseUrl = (request: FastifyRequest): string => {

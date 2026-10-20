@@ -53,6 +53,15 @@ export class AuthController {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
 
+    // Set access token cookie
+    reply.setCookie("accessToken", result.accessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: appConfig.isProduction,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000, // 15 mins
+    });
+
     return reply.status(200).send({
       success: true,
       message: "Login successful",
@@ -82,6 +91,15 @@ export class AuthController {
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
 
+      // Set new access token cookie
+      reply.setCookie("accessToken", result.accessToken, {
+        path: "/",
+        httpOnly: true,
+        secure: appConfig.isProduction,
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000, // 15 mins
+      });
+
       return reply.status(200).send({
         success: true,
         message: "Token refreshed successfully",
@@ -90,18 +108,31 @@ export class AuthController {
         },
       });
     } catch (error) {
-      // Clear cookie on failed refresh
+      // Clear cookies on failed refresh
       reply.clearCookie("refreshToken", {
         path: "/api/v1/auth",
+      });
+      reply.clearCookie("accessToken", {
+        path: "/",
       });
       throw error;
     }
   };
 
   logout = async (request: FastifyRequest, reply: FastifyReply) => {
-    // If authenticated, invalidate session using the request.user payload or extract from refreshToken cookie
+    // If authenticated, invalidate session using the request.user payload or extract from cookies
     const user = request.user as any;
     let sessionId = user?.sessionId;
+    if (!sessionId && (request.cookies as any)?.accessToken) {
+      try {
+        const decoded = (request.server as any).jwt?.decode?.((request.cookies as any).accessToken);
+        if (decoded?.sessionId) {
+          sessionId = decoded.sessionId;
+        }
+      } catch {
+        // non-fatal
+      }
+    }
     if (!sessionId && (request.cookies as any)?.refreshToken) {
       try {
         const decoded = (request.server as any).jwt?.decode?.((request.cookies as any).refreshToken);
@@ -116,9 +147,12 @@ export class AuthController {
       await this.authService.logout(sessionId);
     }
 
-    // Always clear the cookie
+    // Always clear both cookies
     reply.clearCookie("refreshToken", {
       path: "/api/v1/auth",
+    });
+    reply.clearCookie("accessToken", {
+      path: "/",
     });
 
     return reply.status(200).send({

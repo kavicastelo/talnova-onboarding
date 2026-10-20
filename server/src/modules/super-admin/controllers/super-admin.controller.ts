@@ -3,6 +3,8 @@ import path from "path";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { SuperAdminService } from "../services/super-admin.service.js";
 import { featureTelemetryService } from "../services/feature-telemetry.service.js";
+import { AuditLog } from "../../audit-logs/models/audit-log.model.js";
+import { getClientIp } from "../../../common/utils/ip.util.js";
 
 export class SuperAdminController {
   constructor(private readonly superAdminService: SuperAdminService) { }
@@ -169,10 +171,19 @@ export class SuperAdminController {
     const { id } = request.params as any;
     const { mode } = (request.query as any) || (request.body as any) || {};
     const actorUserId = (request.user as any)?.userId;
+    const clientIp = getClientIp(request);
+    const userAgent = (request.headers["user-agent"] as string) || "unknown";
+
     const data = await this.superAdminService.deleteOrganization(
       id,
       mode === "soft" ? "soft" : "hard",
-      actorUserId
+      actorUserId,
+      {
+        ip: clientIp,
+        userAgent,
+        method: request.method,
+        endpoint: request.url,
+      }
     );
     return reply.status(200).send({
       success: true,
@@ -886,11 +897,42 @@ export class SuperAdminController {
       manifestId: string;
       confirmationText: string;
     };
+    const manifest = await this.superAdminService.getBackupManifest(manifestId);
+    const targetCollection = manifest?.collectionName || "unknown";
+
     const data = await this.superAdminService.executeDatabasePurge(
       manifestId,
       actorUserId,
       confirmationText
     );
+
+    // Record immutable audit log entry for sudo-confirmed purge execution
+    const clientIp = getClientIp(request);
+    const userAgent = (request.headers["user-agent"] as string) || "unknown";
+    await AuditLog.create({
+      actorUserId,
+      actorType: "user",
+      eventCategory: "admin",
+      eventType: "DATABASE_PURGE_EXECUTED",
+      resourceType: "DatabaseCollection",
+      action: "delete",
+      description: `Super-admin purged documents from collection '${targetCollection}' with verified sudo mode (manifest: ${manifestId})`,
+      request: {
+        ipAddress: clientIp,
+        userAgent,
+        method: request.method,
+        endpoint: request.url,
+      },
+      metadata: {
+        targetCollection,
+        changeSummary: `Purged documents from collection '${targetCollection}' (purgedCount: ${data?.purgedCount ?? 0})`,
+        manifestId,
+        sudoConfirmed: true,
+        details: data,
+      },
+      severity: "critical",
+    });
+
     return reply.status(200).send({
       success: true,
       message: "Bounded purge executed successfully",
@@ -904,10 +946,41 @@ export class SuperAdminController {
   ) => {
     const actorUserId = (request.user as any)?.userId;
     const { manifestId } = request.body as { manifestId: string };
+    const manifest = await this.superAdminService.getBackupManifest(manifestId);
+    const targetCollection = manifest?.collectionName || "unknown";
+
     const data = await this.superAdminService.restoreDatabaseFromBackup(
       manifestId,
       actorUserId
     );
+
+    // Record immutable audit log entry for sudo-confirmed database restore
+    const clientIp = getClientIp(request);
+    const userAgent = (request.headers["user-agent"] as string) || "unknown";
+    await AuditLog.create({
+      actorUserId,
+      actorType: "user",
+      eventCategory: "admin",
+      eventType: "DATABASE_RESTORE_EXECUTED",
+      resourceType: "DatabaseCollection",
+      action: "restore",
+      description: `Super-admin restored documents into collection '${targetCollection}' from backup manifest ${manifestId} with verified sudo mode`,
+      request: {
+        ipAddress: clientIp,
+        userAgent,
+        method: request.method,
+        endpoint: request.url,
+      },
+      metadata: {
+        targetCollection,
+        changeSummary: `Restored records into collection '${targetCollection}' (restoredCount: ${data?.restoredCount ?? 0})`,
+        manifestId,
+        sudoConfirmed: true,
+        details: data,
+      },
+      severity: "critical",
+    });
+
     return reply.status(200).send({
       success: true,
       message: "Database records restored successfully from backup",
@@ -931,16 +1004,86 @@ export class SuperAdminController {
     request: FastifyRequest,
     reply: FastifyReply
   ) => {
+    const actorUserId = (request.user as any)?.userId;
     const { manifestId } = request.params as { manifestId: string };
     const manifest = await this.superAdminService.getBackupManifest(manifestId);
     if (!manifest || !manifest.archiveFilePath || !fs.existsSync(manifest.archiveFilePath)) {
       return reply.status(404).send({ success: false, message: "Backup archive not found" });
     }
-    const stream = fs.createReadStream(manifest.archiveFilePath);
+
+    const targetCollection = manifest.collectionName || "unknown";
+    const clientIp = getClientIp(request);
+    const userAgent = (request.headers["user-agent"] as string) || "unknown";
     const filename = path.basename(manifest.archiveFilePath);
+
+    // Record immutable audit log entry for sudo-confirmed backup archive download
+    await AuditLog.create({
+      actorUserId,
+      actorType: "user",
+      eventCategory: "security",
+      eventType: "DATABASE_BACKUP_DOWNLOADED",
+      resourceType: "BackupArchive",
+      action: "export",
+      description: `Super-admin downloaded backup archive for collection '${targetCollection}' (manifest: ${manifestId})`,
+      request: {
+        ipAddress: clientIp,
+        userAgent,
+        method: request.method,
+        endpoint: request.url,
+      },
+      metadata: {
+        targetCollection,
+        changeSummary: `Exported backup archive for collection '${targetCollection}' (${filename})`,
+        manifestId,
+        sudoConfirmed: true,
+        archiveSizeBytes: manifest.compressedSizeBytes,
+      },
+      severity: "warning",
+    });
+
+    const stream = fs.createReadStream(manifest.archiveFilePath);
     reply.header("Content-Type", "application/gzip");
     reply.header("Content-Disposition", `attachment; filename="${filename}"`);
     return reply.send(stream);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Sudo Mode & Step-Up Authentication Handlers
+  // ---------------------------------------------------------------------------
+
+  verifySudoMode = async (request: FastifyRequest, reply: FastifyReply) => {
+    const actorUserId = (request.user as any)?.userId;
+    const { password } = (request.body as any) || {};
+
+    if (!password || typeof password !== "string") {
+      return reply.status(400).send({
+        success: false,
+        message: "Password is required for sudo elevation",
+      });
+    }
+
+    const clientIp = getClientIp(request);
+    const userAgent = (request.headers["user-agent"] as string) || "unknown";
+
+    const data = await this.superAdminService.verifySudo(actorUserId, password, {
+      ip: clientIp,
+      userAgent,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: "Sudo mode activated successfully for 15 minutes",
+      data,
+    });
+  };
+
+  getSudoStatus = async (request: FastifyRequest, reply: FastifyReply) => {
+    const actorUserId = (request.user as any)?.userId;
+    const data = await this.superAdminService.getSudoStatus(actorUserId);
+    return reply.status(200).send({
+      success: true,
+      data,
+    });
   };
 }
 

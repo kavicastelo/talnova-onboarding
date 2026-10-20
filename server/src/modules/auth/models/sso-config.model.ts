@@ -1,4 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
+import {
+  encryptSecret,
+  decryptSecret,
+  maskSecret,
+  isEncryptedSecret,
+} from "../../../utils/crypto.js";
 
 export interface ISSORoleMapping {
   idpGroup: string;
@@ -21,6 +27,8 @@ export interface ISSOConfig extends Document {
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  getDecryptedClientSecret(): string;
+  getDecryptedCertificate(): string;
 }
 
 const SSORoleMappingSchema = new Schema<ISSORoleMapping>(
@@ -44,7 +52,17 @@ const SSOConfigSchema = new Schema<ISSOConfig>(
     clientId: { type: String },
     clientSecret: { type: String },
     ssoUrl: { type: String },
-    certificate: { type: String },
+    certificate: {
+      type: String,
+      get: (val?: string) => {
+        if (!val) return val;
+        try {
+          return isEncryptedSecret(val) ? decryptSecret(val) : val;
+        } catch {
+          return val;
+        }
+      },
+    },
     enforceSSO: { type: Boolean, default: false },
     defaultRole: { type: String, enum: ["admin", "manager", "employee"], default: "employee" },
     roleMappings: { type: [SSORoleMappingSchema], default: [] },
@@ -53,8 +71,69 @@ const SSOConfigSchema = new Schema<ISSOConfig>(
   },
   {
     timestamps: true,
+    toJSON: {
+      getters: true,
+      transform: (_doc, ret: any) => {
+        if (ret.clientSecret) {
+          try {
+            const plain = isEncryptedSecret(ret.clientSecret)
+              ? decryptSecret(ret.clientSecret)
+              : ret.clientSecret;
+            ret.clientSecret = maskSecret(plain);
+          } catch {
+            ret.clientSecret = maskSecret(ret.clientSecret);
+          }
+        }
+        return ret;
+      },
+    },
+    toObject: {
+      getters: true,
+      transform: (_doc, ret: any) => {
+        if (ret.clientSecret) {
+          try {
+            const plain = isEncryptedSecret(ret.clientSecret)
+              ? decryptSecret(ret.clientSecret)
+              : ret.clientSecret;
+            ret.clientSecret = maskSecret(plain);
+          } catch {
+            ret.clientSecret = maskSecret(ret.clientSecret);
+          }
+        }
+        return ret;
+      },
+    },
   }
 );
+
+// Pre-save hook: ensure clientSecret and certificate are stored encrypted in MongoDB
+SSOConfigSchema.pre("save", function (next) {
+  if (this.isModified("clientSecret") && this.clientSecret && !isEncryptedSecret(this.clientSecret)) {
+    this.clientSecret = encryptSecret(this.clientSecret);
+  }
+  if (this.isModified("certificate") && this.certificate && !isEncryptedSecret(this.certificate)) {
+    this.certificate = encryptSecret(this.certificate);
+  }
+  next();
+});
+
+SSOConfigSchema.methods.getDecryptedClientSecret = function (): string {
+  if (!this.clientSecret) return "";
+  try {
+    return isEncryptedSecret(this.clientSecret) ? decryptSecret(this.clientSecret) : this.clientSecret;
+  } catch {
+    return "";
+  }
+};
+
+SSOConfigSchema.methods.getDecryptedCertificate = function (): string {
+  if (!this.certificate) return "";
+  try {
+    return isEncryptedSecret(this.certificate) ? decryptSecret(this.certificate) : this.certificate;
+  } catch {
+    return this.certificate;
+  }
+};
 
 SSOConfigSchema.index({ domains: 1 });
 
